@@ -7,9 +7,10 @@ typedef U64 BlobOffset; // Offset from the beginning of a resource blob
 #define RES_NAME_LEN 16
 
 typedef enum {
-#define RESOURCE(x) ResType_ ## x,
+#define RESOURCE(x, init, deinit) ResType_ ## x,
 #	include "resources.def"
 #undef RESOURCE
+	ResType_last
 } ResType;
 
 typedef struct {

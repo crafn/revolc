@@ -6,8 +6,8 @@
 
 #else
 
-RESOURCE(Texture)
-RESOURCE(Mesh)
-RESOURCE(Model)
+RESOURCE(Texture, init_Texture, deinit_Texture)
+RESOURCE(Mesh, NULL, NULL)
+RESOURCE(Model, NULL, NULL)
 
 #endif

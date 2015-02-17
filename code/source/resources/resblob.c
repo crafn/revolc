@@ -3,7 +3,7 @@
 #include "resblob.h"
 
 #define HEADERS
-#	include "resources/resources.def" // for print_resources
+#	include "resources/resources.def"
 #undef HEADERS
 
 #include <stdlib.h>
@@ -11,27 +11,70 @@
 
 ResBlob* load_blob(const char *path)
 {
-	FILE *file= fopen(path, "rb");
-	if (!file)
-		fail("Couldn't open blob");
+	ResBlob* blob= NULL;
+	{ // Load from file
+		FILE *file= fopen(path, "rb");
+		if (!file)
+			fail("Couldn't open blob");
 
-	fseek(file, 0, SEEK_END);
-	U64 size= ftell(file);
-	fseek(file, 0, SEEK_SET);
+		fseek(file, 0, SEEK_END);
+		U64 size= ftell(file);
+		fseek(file, 0, SEEK_SET);
 
-	U8 *buf= malloc(size);
-	U64 len= fread(buf, size, 1, file);
-	if (len != 1)
-		fail("Couldn't fully read blob");
+		U8 *buf= malloc(size);
+		U64 len= fread(buf, size, 1, file);
+		if (len != 1)
+			fail("Couldn't fully read blob");
 
-	fclose(file);
+		fclose(file);
 
-	debug_print("ResBlob loaded: %s, %i", path, (int)size);
-	return (ResBlob*)buf;
+		blob= (ResBlob*)buf;
+		debug_print("ResBlob loaded: %s, %i", path, (int)size);
+	}
+
+	{ // Initialize resources
+		for (ResType t= 0; t < ResType_last; ++t) {
+			for (U32 i= 0; i < blob->res_count; ++i) {
+				Resource* res= get_resource(blob, i);
+				if (res->type != t)
+					continue;
+#define RESOURCE(type, init, deinit) \
+				{ \
+					void* fptr= (void*)init; \
+					if (fptr && ResType_ ## type == t) \
+						((void (*)(type *))fptr)((type*)res); \
+				}
+#	include "resources/resources.def"
+#undef RESOURCE
+			}
+		}
+	}
+
+	return blob;
 }
 
 void unload_blob(ResBlob *blob)
 {
+	{ // Deinitialize resources
+		for (ResType t_= ResType_last; t_ > 0; --t_) {
+			for (U32 i_= blob->res_count; i_ > 0; --i_) {
+				ResType t= t_ - 1;
+				U32 i= i_ - 1;
+				Resource* res= get_resource(blob, i);
+				if (res->type != t)
+					continue;
+#define RESOURCE(type, init, deinit) \
+				{ \
+					void* fptr= (void*)deinit; \
+					if (fptr && ResType_ ## type == t) \
+						((void (*)(type *))fptr)((type*)res); \
+				}
+#	include "resources/resources.def"
+#undef RESOURCE
+			}
+		}
+	}
+
 	free(blob);
 }
 
