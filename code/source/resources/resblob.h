@@ -10,9 +10,19 @@ typedef struct {
 	BlobOffset res_offsets[1];
 } ResBlob;
 
-REVOLC_API ResBlob* load_blob(const char *path);
-REVOLC_API void unload_blob(ResBlob *blob);
-REVOLC_API Resource* get_resource(const ResBlob *blob, U32 index);
-REVOLC_API void print_resources(const ResBlob *blob);
+REVOLC_API
+ResBlob* load_blob(const char *path);
+
+REVOLC_API
+void unload_blob(ResBlob *blob);
+
+REVOLC_API
+Resource* resource_by_index(const ResBlob *blob, U32 index);
+
+REVOLC_API
+Resource* resource_by_name(const ResBlob *blob, ResType t, const char *name);
+
+REVOLC_API
+void print_blob(const ResBlob *blob);
 
 #endif // REVOLC_RESOURCES_RESBLOB_HPP

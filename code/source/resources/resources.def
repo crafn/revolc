@@ -3,11 +3,13 @@
 #include "visual/texture.h"
 #include "visual/mesh.h"
 #include "visual/model.h"
+#include "visual/shader.h"
 
 #else
 
 RESOURCE(Texture, init_Texture, deinit_Texture)
 RESOURCE(Mesh, NULL, NULL)
 RESOURCE(Model, NULL, NULL)
+RESOURCE(Shader, NULL, NULL)
 
 #endif

@@ -15,6 +15,7 @@ typedef struct {
 	// Cached
 	U32 gl_id;
 
+	/// @todo Mipmaps
 	Texel texels[1];
 } PACKED Texture;
 

@@ -45,9 +45,9 @@ int main(int argc, const char **argv)
 
 			Texel data[4]= {
 				{ 0xFF, 0x00, 0x00, 0xFF },
-				{ 0x00, 0xFF, 0x00, 0xFF },
+				{ 0x00, 0x00, 0xFF, 0xFF },
+				{ 0x00, 0x00, 0xFF, 0xFF },
 				{ 0xFF, 0x00, 0x00, 0xFF },
-				{ 0x13, 0x37, 0x13, 0x37 },
 			};
 			cur_offset += fwrite(&data[0], 1, sizeof(data), file);
 		}
@@ -80,7 +80,7 @@ int main(int argc, const char **argv)
 		Device d= plat_init("Revolc engine", 800, 600);
 
 		ResBlob* blob= load_blob("resources.blob");
-		print_resources(blob);
+		print_blob(blob);
 
 		while (!d.quit_requested) {
 			plat_update(&d);
@@ -89,15 +89,20 @@ int main(int argc, const char **argv)
 				-2.0*d.cursor_pos[1]/d.win_size[1] + 1.0,
 			};
 
+			Texture* tex= (Texture*)resource_by_name(blob, ResType_Texture, "test_tex");
+			glBindTexture(GL_TEXTURE_2D, tex->gl_id);
+
 			glViewport(0, 0, d.win_size[0], d.win_size[1]);
 			glClear(GL_COLOR_BUFFER_BIT);
-			glColor3f(1.0, 0.0, 1.0);
-			glLoadIdentity();
 			glBegin(GL_QUADS);
+				glTexCoord2f(0.0, 0.0);
 				glVertex2f(0.0 + c_gl[0], 0.0 + c_gl[1]);
-				glVertex2f(1.0 + c_gl[0], 0.0 + c_gl[1]);
-				glVertex2f(1.0 + c_gl[0], 1.0 + c_gl[1]);
-				glVertex2f(0.0 + c_gl[0], 1.0 + c_gl[1]);
+				glTexCoord2f(1.0, 0.0);
+				glVertex2f(0.1 + c_gl[0], 0.0 + c_gl[1]);
+				glTexCoord2f(1.0, 1.0);
+				glVertex2f(0.1 + c_gl[0], 0.1 + c_gl[1]);
+				glTexCoord2f(0.0, 1.0);
+				glVertex2f(0.0 + c_gl[0], 0.1 + c_gl[1]);
 			glEnd();
 
 			gl_check_errors("loop");

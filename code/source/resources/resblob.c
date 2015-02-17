@@ -8,6 +8,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 ResBlob* load_blob(const char *path)
 {
@@ -35,7 +36,7 @@ ResBlob* load_blob(const char *path)
 	{ // Initialize resources
 		for (ResType t= 0; t < ResType_last; ++t) {
 			for (U32 i= 0; i < blob->res_count; ++i) {
-				Resource* res= get_resource(blob, i);
+				Resource* res= resource_by_index(blob, i);
 				if (res->type != t)
 					continue;
 #define RESOURCE(type, init, deinit) \
@@ -60,7 +61,7 @@ void unload_blob(ResBlob *blob)
 			for (U32 i_= blob->res_count; i_ > 0; --i_) {
 				ResType t= t_ - 1;
 				U32 i= i_ - 1;
-				Resource* res= get_resource(blob, i);
+				Resource* res= resource_by_index(blob, i);
 				if (res->type != t)
 					continue;
 #define RESOURCE(type, init, deinit) \
@@ -78,17 +79,30 @@ void unload_blob(ResBlob *blob)
 	free(blob);
 }
 
-Resource* get_resource(const ResBlob *blob, U32 index)
+Resource* resource_by_index(const ResBlob *blob, U32 index)
 {
 	ensure(index < blob->res_count);
 	return (Resource*)((U8*)blob + blob->res_offsets[index]);
 }
 
-void print_resources(const ResBlob *blob)
+Resource* resource_by_name(const ResBlob *blob, ResType t, const char *name)
+{
+	/// @todo Binary search from organized blob
+	for (U32 i= 0; i < blob->res_count; ++i) {
+		Resource* res= resource_by_index(blob, i);
+		if (res->type == t && !strcmp(name, res->name))
+			return res;
+	}
+	
+	fail("Resource not found");
+	return NULL;
+}
+
+void print_blob(const ResBlob *blob)
 {
 	debug_print("Res count: %i", (int)blob->res_count);
 	for (int res_i= 0; res_i < blob->res_count; ++res_i) {
-		Resource* res= get_resource(blob, res_i);
+		Resource* res= resource_by_index(blob, res_i);
 		debug_print(
 				"Resource: %s, %i",
 				res->name,
@@ -108,9 +122,7 @@ void print_resources(const ResBlob *blob)
 					mesh->vertex_count,
 					mesh->index_count);
 			} break;
-			case ResType_Model: {
-			} break;
-			default: fail("Unknown resource type");
+			default: break;
 		}
 	}
 }
