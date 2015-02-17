@@ -1,0 +1,13 @@
+#ifdef HEADERS
+
+#include "visual/texture.h"
+#include "visual/mesh.h"
+#include "visual/model.h"
+
+#else
+
+RESOURCE(Texture)
+RESOURCE(Mesh)
+RESOURCE(Model)
+
+#endif

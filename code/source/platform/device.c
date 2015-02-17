@@ -6,9 +6,10 @@
 #include <string.h>
 
 #include <GL/glx.h>
-#include <time.h>
 #include <X11/X.h>
 #include <X11/Xlib.h>
+#include <time.h>
+#include <unistd.h>
 
 typedef struct DevicePlatformData {
 	Display* dpy;
@@ -162,7 +163,6 @@ void plat_update(Device *d)
 
 	int root_x= 0, root_y= 0;
 	Window w;
-	int cursor_x, cursor_y;
 	unsigned int mask;
 	XQueryPointer(	d->data->dpy, d->data->win, &w,
 					&w, &root_x, &root_y, &d->cursor_pos[0], &d->cursor_pos[1],

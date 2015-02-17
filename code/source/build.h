@@ -10,6 +10,9 @@
 #define internal static
 #define local_persist static
 
+#define ALIGNED(x) __attribute__((aligned(x)))
+#define PACKED __attribute__((packed))
+
 typedef unsigned char U8;
 typedef unsigned short U16;
 typedef unsigned int U32;

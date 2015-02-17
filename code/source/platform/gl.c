@@ -32,7 +32,7 @@ void gl_check_errors(const char *tag)
 {
 	GLenum error= glGetError();
 	if (error!= GL_NO_ERROR)
-		printf("GL Error (%s): %i\n", tag, error);
+		debug_print("GL Error (%s): %i\n", tag, error);
 }
 
 void gl_create_shader_prog(	GLuint* prog, GLuint* vs, GLuint* fs,

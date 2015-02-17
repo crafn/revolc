@@ -1,9 +1,6 @@
 #ifndef REVOLC_CORE_DEBUG_PRINT_H
 #define REVOLC_CORE_DEBUG_PRINT_H
 
-#include <stdio.h>
-
-/// @todo debug_print
-#define debug_print printf
+void debug_print(const char *format, ...);
 
 #endif // REVOLC_CORE_DEBUG_PRINT_H

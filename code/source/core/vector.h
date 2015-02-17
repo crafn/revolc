@@ -15,24 +15,22 @@ typedef struct {
 } V3f;
 
 inline
-REVOLC_API
 V3f add_V3f(V3f a, V3f b)
 {
 	V3f result;
-	result.x = a.x + b.x;
-	result.y = a.y + b.y;
-	result.z = a.z + b.z;
+	result.x= a.x + b.x;
+	result.y= a.y + b.y;
+	result.z= a.z + b.z;
 	return result;
 }
 
 inline
-REVOLC_API
 V3f sub_V3f(V3f a, V3f b)
 {
 	V3f result;
-	result.x = a.x - b.x;
-	result.y = a.y - b.y;
-	result.z = a.z - b.z;
+	result.x= a.x - b.x;
+	result.y= a.y - b.y;
+	result.z= a.z - b.z;
 	return result;
 }
 
