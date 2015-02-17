@@ -1,0 +1,3 @@
+#!/bin/sh
+mkdir -p ../builds/linux64
+gcc -O2 ./source/main.c -o ../builds/linux64/clover
