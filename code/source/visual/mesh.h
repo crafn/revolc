@@ -21,8 +21,8 @@ typedef struct {
 	MeshType mesh_type;
 	U32 vertex_count;
 	U32 index_count;
-	ResOffset vertices_offset;
-	ResOffset indices_offset;
+	BlobOffset vertices_offset;
+	BlobOffset indices_offset;
 } PACKED Mesh;
 
 #endif // REVOLC_VISUAL_MESH_H

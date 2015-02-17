@@ -7,7 +7,7 @@
 typedef struct {
 	U32 version;
 	U32 res_count;
-	ResOffset res_offsets[1];
+	BlobOffset res_offsets[1];
 } ResBlob;
 
 ResBlob* load_blob(const char *path);

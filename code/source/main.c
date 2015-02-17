@@ -28,7 +28,7 @@ int main(int argc, const char **argv)
  
 		const U32 res_count= 2;
 		cur_offset += fwrite(&res_count, 1, sizeof(res_count), file);
-		ResOffset res_offsets[2]= {24, 68};
+		BlobOffset res_offsets[2]= {24, 68};
 		cur_offset += fwrite(&res_offsets[cur_res], 1, sizeof(res_offsets), file);
 
 		{ // Texture
@@ -79,7 +79,7 @@ int main(int argc, const char **argv)
 	} else {
 		Device d= plat_init("Revolc engine", 800, 600);
 
-		ResBlob* blob= load_blob("resources");
+		ResBlob* blob= load_blob("resources.blob");
 		print_resources(blob);
 
 		while (!d.quit_requested) {

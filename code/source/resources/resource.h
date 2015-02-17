@@ -3,7 +3,7 @@
 
 #include "build.h"
 
-typedef U64 ResOffset; // Offset from the beginning of a resource blob
+typedef U64 BlobOffset; // Offset from the beginning of a resource blob
 #define RES_NAME_LEN 16
 
 typedef enum {
