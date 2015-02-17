@@ -1,4 +1,5 @@
 #include "device.h"
+#include "gl.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -23,45 +24,99 @@ void plat_fail(const char *msg)
 	abort();
 }
 
+typedef void (*VoidFunc)();
+internal
+VoidFunc plat_query_gl_func(const char *name)
+{
+	VoidFunc f= NULL;
+#if PLATFORM == PLATFORM_LINUX
+	f= glXGetProcAddressARB((const GLubyte*)name);
+#elif PLATFORM == PLATFORM_WINDOWS
+	f= (voidFunc)wglGetProcAddress(name);
+#endif
+	if (!f) {
+		printf("Failed to query gl function: %s\n", name);
+		plat_fail("");
+	}
+	return f;
+}
+
 Device plat_init(const char* title, int width, int height)
 {
 	Device d= {};
 	d.data= malloc(sizeof(*d.data));
 	memset(d.data, 0, sizeof(*d.data));
 
-	d.data->dpy= XOpenDisplay(NULL);
-	if(d.data->dpy == NULL)
-		plat_fail("XOpenDisplay failed");
+	{
+		d.data->dpy= XOpenDisplay(NULL);
+		if(d.data->dpy == NULL)
+			plat_fail("XOpenDisplay failed");
 
-	Window root= DefaultRootWindow(d.data->dpy);
-	GLint att[]= { GLX_RGBA, GLX_DEPTH_SIZE, 24, GLX_DOUBLEBUFFER, None };
-	XVisualInfo* vi= glXChooseVisual(d.data->dpy, 0, att);
+		Window root= DefaultRootWindow(d.data->dpy);
+		GLint att[]= { GLX_RGBA, GLX_DEPTH_SIZE, 24, GLX_DOUBLEBUFFER, None };
+		XVisualInfo* vi= glXChooseVisual(d.data->dpy, 0, att);
 
-	if(vi == NULL)
-		plat_fail("glXChooseVisual failed");
+		if(vi == NULL)
+			plat_fail("glXChooseVisual failed");
 
-	Colormap cmap;
-	cmap= XCreateColormap(d.data->dpy, root, vi->visual, AllocNone);
-	XSetWindowAttributes swa;
-	swa.colormap= cmap;
-	swa.event_mask= ExposureMask | KeyPressMask | ButtonPressMask | ButtonReleaseMask;
-	d.data->win=
-		XCreateWindow(	d.data->dpy,
-						root,
-						0, 0, width, height, 0,
-						vi->depth,
-						InputOutput,
-						vi->visual,
-						CWColormap | CWEventMask,
-						&swa);
-	XMapWindow(d.data->dpy, d.data->win);
-	XStoreName(d.data->dpy, d.data->win, title);
-	
-	d.data->ctx= glXCreateContext(d.data->dpy, vi, NULL, GL_TRUE);
-	glXMakeCurrent(d.data->dpy, d.data->win, d.data->ctx);
+		Colormap cmap;
+		cmap= XCreateColormap(d.data->dpy, root, vi->visual, AllocNone);
+		XSetWindowAttributes swa;
+		swa.colormap= cmap;
+		swa.event_mask= ExposureMask | KeyPressMask | ButtonPressMask | ButtonReleaseMask;
+		d.data->win=
+			XCreateWindow(	d.data->dpy,
+							root,
+							0, 0, width, height, 0,
+							vi->depth,
+							InputOutput,
+							vi->visual,
+							CWColormap | CWEventMask,
+							&swa);
+		XMapWindow(d.data->dpy, d.data->win);
+		XStoreName(d.data->dpy, d.data->win, title);
+		
+		d.data->ctx= glXCreateContext(d.data->dpy, vi, NULL, GL_TRUE);
+		glXMakeCurrent(d.data->dpy, d.data->win, d.data->ctx);
 
-	clock_gettime(CLOCK_MONOTONIC, &d.data->ts);
+		clock_gettime(CLOCK_MONOTONIC, &d.data->ts);
+	}
 
+	{
+		glCreateShader= (GlCreateShader)plat_query_gl_func("glCreateShader");
+		glShaderSource= (GlShaderSource)plat_query_gl_func("glShaderSource");
+		glCompileShader= (GlCompileShader)plat_query_gl_func("glCompileShader");
+		glCreateProgram= (GlCreateProgram)plat_query_gl_func("glCreateProgram");
+		glAttachShader= (GlAttachShader)plat_query_gl_func("glAttachShader");
+		glLinkProgram= (GlLinkProgram)plat_query_gl_func("glLinkProgram");
+		glUseProgram= (GlUseProgram)plat_query_gl_func("glUseProgram");
+		glGetShaderiv= (GlGetShaderiv)plat_query_gl_func("glGetShaderiv");
+		glGetProgramiv= (GlGetProgramiv)plat_query_gl_func("glGetProgramiv");
+		glGetShaderInfoLog= (GlGetShaderInfoLog)plat_query_gl_func("glGetShaderInfoLog");
+		glGetProgramInfoLog= (GlGetProgramInfoLog)plat_query_gl_func("glGetProgramInfoLog");
+		glDetachShader= (GlDetachShader)plat_query_gl_func("glDetachShader");
+		glDeleteShader= (GlDeleteShader)plat_query_gl_func("glDeleteShader");
+		glDeleteProgram= (GlDeleteProgram)plat_query_gl_func("glDeleteProgram");
+		glGetUniformLocation= (GlGetUniformLocation)plat_query_gl_func("glGetUniformLocation");
+		glUniform1f= (GlUniform1f)plat_query_gl_func("glUniform1f");
+		glUniform3f= (GlUniform3f)plat_query_gl_func("glUniform3f");
+		glUniform4f= (GlUniform4f)plat_query_gl_func("glUniform4f");
+		glUniformMatrix4fv= (GlUniformMatrix4fv)plat_query_gl_func("glUniformMatrix4fv");
+		glUniform1i= (GlUniform1i)plat_query_gl_func("glUniform1i");
+		glGenBuffers= (GlGenBuffers)plat_query_gl_func("glGenBuffers");
+		glBindBuffer= (GlBindBuffer)plat_query_gl_func("glBindBuffer");
+		glBufferData= (GlBufferData)plat_query_gl_func("glBufferData");
+		glBufferSubData= (GlBufferSubData)plat_query_gl_func("glBufferSubData");
+		glDeleteBuffers= (GlDeleteBuffers)plat_query_gl_func("glDeleteBuffers");
+		glEnableVertexAttribArray= (GlEnableVertexAttribArray)plat_query_gl_func("glEnableVertexAttribArray");
+		glVertexAttribPointer= (GlVertexAttribPointer)plat_query_gl_func("glVertexAttribPointer");
+		glBindAttribLocation= (GlBindAttribLocation)plat_query_gl_func("glBindAttribLocation");
+
+		glGenFramebuffers= (GlGenFramebuffers)plat_query_gl_func("glGenFramebuffers");
+		glBindFramebuffer= (GlBindFramebuffer)plat_query_gl_func("glBindFramebuffer");
+		glFramebufferTexture2D= (GlFramebufferTexture2D)plat_query_gl_func("glFramebufferTexture2D");
+		glDeleteFramebuffers= (GlDeleteFramebuffers)plat_query_gl_func("glDeleteFramebuffers");
+	}
 	return d;
 }
 

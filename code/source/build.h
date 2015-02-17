@@ -2,6 +2,8 @@
 #define REVOLC_BUILD_H
 
 /// @todo Other operating systems
+#define PLATFORM_LINUX 1
+#define PLATFORM PLATFORM_LINUX
 /// @todo Other compilers
 #define REVOLC_API __attribute__ ((visibility ("default")))
 
