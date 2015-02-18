@@ -1,7 +1,7 @@
 # revolc
 Rewrite of the clover engine. The name has a symbolic meaning, as now everything is done the opposite compared to the original engine, i.e. the right way, not the wrong way.
 
-This will be written in plain C instead of C++, as C makes it easy to write simple and efficient code. My only worry is templates, as they're hard to replace in C. I'll not try to replace them, but instead (somehow) generate the required stuff, which produces simpler and easier to debug code, and won't hurt compile times. Void pointers can be used where sufficient.
+This will be written in plain C instead of C++, as C makes it easy to write simple and efficient code. My only worry is templates, as they're hard to replace in C. A proper solution is (somehow) generate the required stuff, which produces simpler and easier to debug code, and won't hurt compile times. Macros and/or void pointers can be used where sufficient.
 
 I'm also looking forward to the upcoming programming language created by Jonathan Blow, and choosing C should make the possible porting trivial.
 
