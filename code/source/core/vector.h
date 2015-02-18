@@ -9,6 +9,10 @@ typedef struct {
 	F32 x, y, z;
 } V3f;
 
+typedef struct {
+	F32 x, y;
+} V2f;
+
 inline
 V3f add_V3f(V3f a, V3f b)
 {

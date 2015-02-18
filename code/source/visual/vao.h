@@ -13,7 +13,7 @@ typedef struct {
 	U32 v_count;
 	U32 v_capacity;
 	U32 v_size;
-	U32 i_count; // U32 indices
+	U32 i_count;
 	U32 i_capacity;
 } Vao;
 

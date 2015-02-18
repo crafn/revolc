@@ -15,7 +15,7 @@ void vertex_attributes(MeshType type, const VertexAttrib **attribs, U32 *count)
 		};
 		if (attribs)
 			*attribs= tri_attribs;
-		*count= sizeof(attribs)/sizeof(*attribs);
+		*count= sizeof(tri_attribs)/sizeof(*tri_attribs);
 	} else {
 		fail("Unimplemented mesh type");
 	}

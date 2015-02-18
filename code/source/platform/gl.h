@@ -50,6 +50,8 @@ typedef GLint (*GlGetUniformLocation)(GLuint, const GLchar*);
 GlGetUniformLocation glGetUniformLocation;
 typedef void (*GlUniform1f)(GLuint, GLfloat);
 GlUniform1f glUniform1f;
+typedef void (*GlUniform2f)(GLuint, GLfloat, GLfloat);
+GlUniform2f glUniform2f;
 typedef void (*GlUniform3f)(GLuint, GLfloat, GLfloat, GLfloat);
 GlUniform3f glUniform3f;
 typedef void (*GlUniform4f)(GLuint, GLfloat, GLfloat, GLfloat, GLfloat);

@@ -103,18 +103,20 @@ int main(int argc, const char **argv)
 
 		{ // Shader
 			const char* vs_src=
-				"#version 120\n"
+				"#version 150 core\n"
 				"attribute vec3 a_pos;"
 				"attribute vec2 a_uv;"
+				"uniform vec2 u_cursor;"
 				"varying vec2 v_uv;"
 				"void main() {"
 				"	v_uv= a_uv;"
-				"	gl_Position= vec4(a_pos, 1.0);"
+				"	gl_Position= vec4(a_pos, 1.0) + vec4(u_cursor, 0.0, 0.0);"
 				"}\n";
 			const char* fs_src=
-				"#version 120\n"
+				"#version 150 core\n"
+				"uniform sampler2D u_tex_color;"
 				"varying vec2 v_uv;"
-				"void main() { gl_FragColor= vec4(1.0, 0.0, 0.0, 1.0); }\n";
+				"void main() { gl_FragColor= texture2D(u_tex_color, v_uv); }\n";
 
 			BlobOffset vs_src_offset= cur_offset + sizeof(Shader);
 			BlobOffset gs_src_offset= 0;
@@ -160,21 +162,23 @@ int main(int argc, const char **argv)
 
 		while (!d.quit_requested) {
 			plat_update(&d);
-			/*F32 c_gl[2]= {
+			F32 c_gl[2]= {
 				2.0*d.cursor_pos[0]/d.win_size[0] - 1.0,
 				-2.0*d.cursor_pos[1]/d.win_size[1] + 1.0,
-			};*/
+			};
 
 			Texture* tex= (Texture*)resource_by_name(blob, ResType_Texture, "test_tex");
+			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, tex->gl_id);
 
 			Shader* shd= (Shader*)resource_by_name(blob, ResType_Shader, "gen_shader");
 			glUseProgram(shd->prog_gl_id);
+			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_tex_color"), 0);
+			glUniform2f(glGetUniformLocation(shd->prog_gl_id, "u_cursor"), c_gl[0], c_gl[1]);
 
 			glViewport(0, 0, d.win_size[0], d.win_size[1]);
 			glClear(GL_COLOR_BUFFER_BIT);
 			draw_Vao(&vao);
-			//glDrawArrays(GL_TRIANGLE_FAN, 0, 6);
 
 			gl_check_errors("loop");
 
