@@ -14,6 +14,8 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
+#include <stdlib.h>
 
 int main(int argc, const char **argv)
 {
@@ -104,18 +106,18 @@ int main(int argc, const char **argv)
 		{ // Shader
 			const char* vs_src=
 				"#version 150 core\n"
-				"attribute vec3 a_pos;"
-				"attribute vec2 a_uv;"
+				"in vec3 a_pos;"
+				"in vec2 a_uv;"
 				"uniform vec2 u_cursor;"
-				"varying vec2 v_uv;"
+				"out vec2 v_uv;"
 				"void main() {"
 				"	v_uv= a_uv;"
-				"	gl_Position= vec4(a_pos, 1.0) + vec4(u_cursor, 0.0, 0.0);"
+				"	gl_Position= vec4((a_pos.xy + u_cursor)/(1.0 + a_pos.z), 0.0, 1.0);"
 				"}\n";
 			const char* fs_src=
 				"#version 150 core\n"
 				"uniform sampler2D u_tex_color;"
-				"varying vec2 v_uv;"
+				"in vec2 v_uv;"
 				"void main() { gl_FragColor= texture2D(u_tex_color, v_uv); }\n";
 
 			BlobOffset vs_src_offset= cur_offset + sizeof(Shader);
@@ -158,7 +160,31 @@ int main(int argc, const char **argv)
 
 		Vao vao= create_Vao(MeshType_tri, 100, 100);
 		bind_Vao(&vao);
-		add_mesh_to_Vao(&vao, (Mesh*)resource_by_name(blob, ResType_Mesh, "squirrel_mesh"));
+
+		{ // Fill vao
+			Mesh* mesh= (Mesh*)resource_by_name(blob, ResType_Mesh, "squirrel_mesh");
+
+			TriMeshVertex* vertices= malloc(sizeof(TriMeshVertex)*mesh->v_count);
+			MeshIndexType* indices= malloc(sizeof(MeshIndexType)*mesh->i_count);
+			memcpy(vertices, mesh_vertices(mesh), sizeof(TriMeshVertex)*mesh->v_count);
+			memcpy(indices, mesh_indices(mesh), sizeof(MeshIndexType)*mesh->i_count);
+			for (int i= 0; i < 10; ++i) {
+				for (int k= 0; k < mesh->v_count; ++k) {
+					if (i == 0)
+						vertices[k].pos.z= 5.0;
+					else {
+						vertices[k].pos.x += 0.1*sin(i);
+						vertices[k].pos.z -= 0.5;
+					}
+				}
+				add_vertices_to_Vao(&vao, vertices, mesh->v_count);
+				add_indices_to_Vao(&vao, indices, mesh->i_count);
+				for (int k= 0; k < mesh->i_count; ++k)
+					indices[k] += mesh->v_count;
+			}
+			free(vertices);
+			free(indices);
+		}
 
 		while (!d.quit_requested) {
 			plat_update(&d);

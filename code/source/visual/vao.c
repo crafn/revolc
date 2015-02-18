@@ -83,24 +83,30 @@ void add_mesh_to_Vao(Vao *vao, const Mesh* mesh)
 {
 	ensure(mesh->mesh_type == vao->mesh_type);
 
-	bind_Vao(vao);
+	add_vertices_to_Vao(vao, mesh_vertices(mesh), mesh->v_count);
+	if (vao->ibo_id)
+		add_indices_to_Vao(vao, mesh_indices(mesh), mesh->i_count);
+}
 
-	ensure(vao->v_count + mesh->v_count <= vao->v_capacity);
-	ensure(!vao->ibo_id ||
-			vao->i_count + mesh->i_count <= vao->i_capacity);
-
+void add_vertices_to_Vao(Vao *vao, void *vertices, U32 count)
+{
+	ensure(vao->v_count + count <= vao->v_capacity);
 	glBufferSubData(GL_ARRAY_BUFFER,
 			vao->v_size*vao->v_count,
-			vao->v_size*mesh->v_count,
-			mesh_vertices(mesh));
-	vao->v_count += mesh->v_count;
-	if (vao->ibo_id) {
-		glBufferSubData(GL_ELEMENT_ARRAY_BUFFER,
-				sizeof(MeshIndexType)*vao->i_count,
-				sizeof(MeshIndexType)*mesh->i_count,
-				mesh_indices(mesh));
-		vao->i_count += mesh->i_count;
-	}
+			vao->v_size*count,
+			vertices);
+	vao->v_count += count;
+}
+
+void add_indices_to_Vao(Vao *vao, MeshIndexType *indices, U32 count)
+{
+	ensure(!vao->ibo_id ||
+			vao->i_count + count <= vao->i_capacity);
+	glBufferSubData(GL_ELEMENT_ARRAY_BUFFER,
+			sizeof(MeshIndexType)*vao->i_count,
+			sizeof(MeshIndexType)*count,
+			indices);
+	vao->i_count += count;
 }
 
 void draw_Vao(const Vao *vao)
