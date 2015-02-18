@@ -95,9 +95,10 @@ GlDeleteFramebuffers glDeleteFramebuffers;
 REVOLC_API void gl_check_shader_status(GLuint shd);
 REVOLC_API void gl_check_program_status(GLuint prog);
 REVOLC_API void gl_check_errors(const char* tag);
-REVOLC_API void gl_create_shader_prog(	GLuint* prog, GLuint* vs, GLuint* fs,
-										GLsizei vs_count, const GLchar** vs_src,
-										GLsizei fs_count, const GLchar** fs_src);
-REVOLC_API void gl_destroy_shader_prog(GLuint prog, GLuint vs, GLuint fs);
+REVOLC_API void gl_create_shader_prog(	GLuint* prog, GLuint *vs, GLuint *gs, GLuint *fs,
+										GLsizei vs_count, const GLchar **vs_src,
+										GLsizei gs_count, const GLchar **gs_src,
+										GLsizei fs_count, const GLchar **fs_src);
+REVOLC_API void gl_destroy_shader_prog(GLuint *prog, GLuint *vs, GLuint *gs, GLuint *fs);
 
 #endif // REVOLC_GL_H

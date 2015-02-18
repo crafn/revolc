@@ -1,15 +1,18 @@
-#include <stdio.h>
-
 #include "build.h"
 #include "core/ensure.h"
 #include "core/debug_print.h"
 #include "core/vector.h"
+#include "global/env.h"
 #include "platform/device.h"
 #include "platform/gl.h"
 #include "resources/resblob.h"
 #include "visual/mesh.h"
 #include "visual/model.h"
 #include "visual/texture.h"
+#include "visual/shader.h"
+
+#include <stdio.h>
+#include <string.h>
 
 int main(int argc, const char **argv)
 {
@@ -26,9 +29,9 @@ int main(int argc, const char **argv)
 		const U32 version= 2;
 		cur_offset += fwrite(&version, 1, sizeof(version), file);
  
-		const U32 res_count= 2;
+		const U32 res_count= 3;
 		cur_offset += fwrite(&res_count, 1, sizeof(res_count), file);
-		BlobOffset res_offsets[2]= {24, 68};
+		BlobOffset res_offsets[3]= {32, 76, 364};
 		cur_offset += fwrite(&res_offsets[cur_res], 1, sizeof(res_offsets), file);
 
 		{ // Texture
@@ -71,6 +74,48 @@ int main(int argc, const char **argv)
 			data[2].pos.y= 1.0;
 			data[3].pos.y= 1.0;
 			cur_offset += fwrite(&data[0], 1, sizeof(data), file);
+		}
+
+		{ // Shader
+			const char* vs_src=
+				"#version 120\n"
+				"attribute vec2 a_pos;"
+				"attribute vec2 a_uv;"
+				"varying vec2 v_uv;"
+				"void main() {"
+				"	v_uv= a_uv;"
+				"	gl_Position= vec4(a_pos, 0.0, 1.0);"
+				"}\n";
+			const char* fs_src=
+				"#version 120\n"
+				"uniform sampler2D u_tex;"
+				"uniform vec4 u_color;"
+				"varying vec2 v_uv;"
+				"void main() { gl_FragColor= texture2D(u_tex, v_uv)*u_color; }\n";
+
+			BlobOffset vs_src_offset= cur_offset + sizeof(Shader);
+			BlobOffset gs_src_offset= 0;
+			BlobOffset fs_src_offset= vs_src_offset + strlen(vs_src) + 1;
+
+			debug_print("offset: %i", (int)cur_offset);
+			Resource res= { ResType_Shader, "gen_shader" };
+			cur_offset += fwrite(&res, 1, sizeof(res), file);
+
+			cur_offset += fwrite(&vs_src_offset, 1, sizeof(vs_src_offset), file);
+			cur_offset += fwrite(&gs_src_offset, 1, sizeof(gs_src_offset), file);
+			cur_offset += fwrite(&fs_src_offset, 1, sizeof(fs_src_offset), file);
+
+			U32 cached= 0;
+			cur_offset += fwrite(&cached, 1, sizeof(cached), file);
+			cur_offset += fwrite(&cached, 1, sizeof(cached), file);
+			cur_offset += fwrite(&cached, 1, sizeof(cached), file);
+			cur_offset += fwrite(&cached, 1, sizeof(cached), file);
+
+			ensure(cur_offset == vs_src_offset);
+			cur_offset += fwrite(vs_src, 1, strlen(vs_src) + 1, file);
+
+			ensure(cur_offset == fs_src_offset);
+			cur_offset += fwrite(fs_src, 1, strlen(fs_src) + 1, file);
 		}
 
 		fclose(file);

@@ -10,6 +10,6 @@
 RESOURCE(Texture, init_Texture, deinit_Texture)
 RESOURCE(Mesh, NULL, NULL)
 RESOURCE(Model, NULL, NULL)
-RESOURCE(Shader, NULL, NULL)
+RESOURCE(Shader, init_Shader, deinit_Shader)
 
 #endif

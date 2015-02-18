@@ -4,23 +4,20 @@
 #include "build.h"
 #include "resource.h"
 
-typedef struct {
+typedef struct ResBlob {
 	U32 version;
 	U32 res_count;
 	BlobOffset res_offsets[1];
 } ResBlob;
 
-REVOLC_API
-ResBlob* load_blob(const char *path);
+/// @note Sets g_env.res_blob
+REVOLC_API ResBlob* load_blob(const char *path);
+REVOLC_API void unload_blob(ResBlob *blob);
 
-REVOLC_API
-void unload_blob(ResBlob *blob);
+REVOLC_API Resource* resource_by_index(const ResBlob *blob, U32 index);
+REVOLC_API Resource* resource_by_name(const ResBlob *b, ResType t, const char *n);
 
-REVOLC_API
-Resource* resource_by_index(const ResBlob *blob, U32 index);
-
-REVOLC_API
-Resource* resource_by_name(const ResBlob *blob, ResType t, const char *name);
+REVOLC_API void* blob_ptr(ResBlob *blob, BlobOffset offset);
 
 REVOLC_API
 void print_blob(const ResBlob *blob);

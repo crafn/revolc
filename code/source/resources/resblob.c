@@ -1,5 +1,6 @@
 #include "core/debug_print.h"
 #include "core/ensure.h"
+#include "global/env.h"
 #include "resblob.h"
 
 #define HEADERS
@@ -30,6 +31,9 @@ ResBlob* load_blob(const char *path)
 		fclose(file);
 
 		blob= (ResBlob*)buf;
+		if (g_env.res_blob == NULL)
+			g_env.res_blob= blob;
+
 		debug_print("ResBlob loaded: %s, %i", path, (int)size);
 	}
 
@@ -76,6 +80,9 @@ void unload_blob(ResBlob *blob)
 		}
 	}
 
+	if (g_env.res_blob == blob)
+		g_env.res_blob= NULL;
+
 	free(blob);
 }
 
@@ -96,6 +103,11 @@ Resource* resource_by_name(const ResBlob *blob, ResType t, const char *name)
 	
 	fail("Resource not found");
 	return NULL;
+}
+
+void* blob_ptr(ResBlob *blob, BlobOffset offset)
+{
+	return (void*)((U8*)blob + offset);
 }
 
 void print_blob(const ResBlob *blob)
