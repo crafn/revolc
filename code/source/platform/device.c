@@ -110,6 +110,7 @@ Device plat_init(const char* title, int width, int height)
 		glBufferSubData= (GlBufferSubData)plat_query_gl_func("glBufferSubData");
 		glDeleteBuffers= (GlDeleteBuffers)plat_query_gl_func("glDeleteBuffers");
 		glEnableVertexAttribArray= (GlEnableVertexAttribArray)plat_query_gl_func("glEnableVertexAttribArray");
+		glDisableVertexAttribArray= (GlDisableVertexAttribArray)plat_query_gl_func("glDisableVertexAttribArray");
 		glVertexAttribPointer= (GlVertexAttribPointer)plat_query_gl_func("glVertexAttribPointer");
 		glBindAttribLocation= (GlBindAttribLocation)plat_query_gl_func("glBindAttribLocation");
 
@@ -117,6 +118,9 @@ Device plat_init(const char* title, int width, int height)
 		glBindFramebuffer= (GlBindFramebuffer)plat_query_gl_func("glBindFramebuffer");
 		glFramebufferTexture2D= (GlFramebufferTexture2D)plat_query_gl_func("glFramebufferTexture2D");
 		glDeleteFramebuffers= (GlDeleteFramebuffers)plat_query_gl_func("glDeleteFramebuffers");
+		glGenVertexArrays= (GlGenVertexArrays)plat_query_gl_func("glGenVertexArrays");
+		glDeleteVertexArrays= (GlDeleteVertexArrays)plat_query_gl_func("glDeleteVertexArrays");
+		glBindVertexArray= (GlBindVertexArray)plat_query_gl_func("glBindVertexArray");
 	}
 
 	{

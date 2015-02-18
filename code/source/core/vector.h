@@ -6,12 +6,7 @@
 /// @todo Generate this file
 
 typedef struct {
-	union {
-		F32 e[3];
-		struct {
-			F32 x, y, z;
-		};
-	};
+	F32 x, y, z;
 } V3f;
 
 inline

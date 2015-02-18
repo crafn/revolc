@@ -1,4 +1,7 @@
 #!/bin/sh
 mkdir -p ../builds/linux64
 cd ./source
-gcc -std=gnu99 -Wall -g -I. ./main.c ./core/debug_print.c ./core/ensure.c ./global/env.c ./platform/device.c ./platform/gl.c ./resources/resblob.c ./visual/shader.c ./visual/texture.c -lX11 -lGL -o ../../builds/linux64/clover
+gcc -std=gnu99 -Wall -g -I. \
+	./main.c ./core/debug_print.c ./core/ensure.c ./global/env.c ./platform/device.c ./platform/gl.c ./resources/resblob.c ./visual/mesh.c ./visual/shader.c ./visual/texture.c \
+	./visual/vao.c \
+	-lX11 -lGL -o ../../builds/linux64/clover

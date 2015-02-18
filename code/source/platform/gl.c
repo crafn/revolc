@@ -35,40 +35,6 @@ void gl_check_errors(const char *tag)
 		debug_print("GL Error (%s): %i\n", tag, error);
 }
 
-void gl_create_shader_prog(	GLuint* prog, GLuint *vs, GLuint *gs, GLuint *fs,
-							GLsizei vs_count, const GLchar **vs_src,
-							GLsizei gs_count, const GLchar **gs_src,
-							GLsizei fs_count, const GLchar **fs_src)
-{
-	{ // Vertex
-		*vs= glCreateShader(GL_VERTEX_SHADER);
-		glShaderSource(*vs, vs_count, vs_src, NULL);
-		glCompileShader(*vs);
-		gl_check_shader_status(*vs);
-	}
-	if (gs_count > 0) { // Geometry
-		*gs= glCreateShader(GL_FRAGMENT_SHADER);
-		glShaderSource(*gs, gs_count, gs_src, NULL);
-		glCompileShader(*gs);
-		gl_check_shader_status(*gs);
-	}
-	{ // Fragment
-		*fs= glCreateShader(GL_FRAGMENT_SHADER);
-		glShaderSource(*fs, fs_count, fs_src, NULL);
-		glCompileShader(*fs);
-		gl_check_shader_status(*fs);
-	}
-	{ // Shader program
-		*prog= glCreateProgram();
-		glAttachShader(*prog, *vs);
-		if (gs_count > 0)
-			glAttachShader(*prog, *gs);
-		glAttachShader(*prog, *fs);
-		glLinkProgram(*prog);
-		gl_check_program_status(*prog);
-	}
-}
-
 void gl_destroy_shader_prog(GLuint *prog, GLuint *vs, GLuint *gs, GLuint *fs)
 {
 	glDetachShader(*prog, *vs);

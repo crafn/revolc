@@ -11,6 +11,7 @@ typedef struct {
 	BlobOffset vs_src_offset;
 	BlobOffset gs_src_offset;
 	BlobOffset fs_src_offset;
+	MeshType mesh_type;
 
 	// Cached
 	/// @todo	Store these somewhere else, as single shader source can

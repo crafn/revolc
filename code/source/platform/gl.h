@@ -70,6 +70,8 @@ typedef void (*GlDeleteBuffers)(GLsizei, const GLuint*);
 GlDeleteBuffers glDeleteBuffers;
 typedef void (*GlEnableVertexAttribArray)(GLuint);
 GlEnableVertexAttribArray glEnableVertexAttribArray;
+typedef void (*GlDisableVertexAttribArray)(GLuint);
+GlDisableVertexAttribArray glDisableVertexAttribArray;
 typedef void (*GlVertexAttribPointer)(GLuint, GLint, GLenum, GLboolean, GLsizei, const GLvoid*);
 GlVertexAttribPointer glVertexAttribPointer;
 typedef void (*GlBindAttribLocation)(GLuint program, GLuint index, const GLchar *name);
@@ -89,16 +91,18 @@ typedef void (*GlFramebufferTexture2D)(GLenum, GLenum, GLenum, GLuint, GLint);
 GlFramebufferTexture2D glFramebufferTexture2D;
 typedef void (*GlDeleteFramebuffers)(GLsizei, GLuint*);
 GlDeleteFramebuffers glDeleteFramebuffers;
+typedef void (*GlGenVertexArrays)(GLsizei, GLuint*);
+GlGenVertexArrays glGenVertexArrays;
+typedef void (*GlDeleteVertexArrays)(GLsizei, const GLuint*);
+GlDeleteVertexArrays glDeleteVertexArrays;
+typedef void (*GlBindVertexArray)(GLuint);
+GlBindVertexArray glBindVertexArray;
 
 // Useful utilities wrapping multiple OpenGL commands
 
 REVOLC_API void gl_check_shader_status(GLuint shd);
 REVOLC_API void gl_check_program_status(GLuint prog);
 REVOLC_API void gl_check_errors(const char* tag);
-REVOLC_API void gl_create_shader_prog(	GLuint* prog, GLuint *vs, GLuint *gs, GLuint *fs,
-										GLsizei vs_count, const GLchar **vs_src,
-										GLsizei gs_count, const GLchar **gs_src,
-										GLsizei fs_count, const GLchar **fs_src);
 REVOLC_API void gl_destroy_shader_prog(GLuint *prog, GLuint *vs, GLuint *gs, GLuint *fs);
 
 #endif // REVOLC_GL_H

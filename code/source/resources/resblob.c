@@ -106,9 +106,7 @@ Resource* resource_by_name(const ResBlob *blob, ResType t, const char *name)
 }
 
 void* blob_ptr(ResBlob *blob, BlobOffset offset)
-{
-	return (void*)((U8*)blob + offset);
-}
+{ return (void*)((U8*)blob + offset); }
 
 void print_blob(const ResBlob *blob)
 {
@@ -131,8 +129,8 @@ void print_blob(const ResBlob *blob)
 				Mesh* mesh= (Mesh*)res;
 				debug_print(
 					"  vcount: %i\n  icount: %i",
-					mesh->vertex_count,
-					mesh->index_count);
+					mesh->v_count,
+					mesh->i_count);
 			} break;
 			default: break;
 		}

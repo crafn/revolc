@@ -10,6 +10,7 @@
 #include "visual/model.h"
 #include "visual/texture.h"
 #include "visual/shader.h"
+#include "visual/vao.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -31,11 +32,12 @@ int main(int argc, const char **argv)
  
 		const U32 res_count= 3;
 		cur_offset += fwrite(&res_count, 1, sizeof(res_count), file);
-		BlobOffset res_offsets[3]= {32, 76, 364};
+		BlobOffset res_offsets[3]= {32, 76, 404};
 		cur_offset += fwrite(&res_offsets[cur_res], 1, sizeof(res_offsets), file);
 
 		{ // Texture
 			debug_print("offset: %i", (int)cur_offset);
+			ensure(cur_offset == res_offsets[0]);
 			Resource res= { ResType_Texture, "test_tex" };
 			cur_offset += fwrite(&res, 1, sizeof(res), file);
 
@@ -57,6 +59,7 @@ int main(int argc, const char **argv)
 
 		{ // Mesh
 			debug_print("offset: %i", (int)cur_offset);
+			ensure(cur_offset == res_offsets[1]);
 			Resource res= { ResType_Mesh, "squirrel_mesh" };
 			cur_offset += fwrite(&res, 1, sizeof(res), file);
 
@@ -68,42 +71,66 @@ int main(int argc, const char **argv)
 			cur_offset += fwrite(&v_count, 1, sizeof(v_count), file);
 			cur_offset += fwrite(&i_count, 1, sizeof(i_count), file);
 
-			TriMeshVertex data[4];
-			data[1].pos.x= 1.0;
-			data[2].pos.x= 1.0;
-			data[2].pos.y= 1.0;
-			data[3].pos.y= 1.0;
-			cur_offset += fwrite(&data[0], 1, sizeof(data), file);
+			BlobOffset v_offset= 124;
+			BlobOffset i_offset= 380;
+			cur_offset += fwrite(&v_offset, 1, sizeof(v_offset), file);
+			cur_offset += fwrite(&i_offset, 1, sizeof(i_offset), file);
+
+			TriMeshVertex vertices[4]= {};
+			vertices[1].pos.x= 0.7;
+			vertices[1].uv.x= 1.0;
+
+			vertices[2].pos.x= 1.0;
+			vertices[2].pos.y= 0.7;
+			vertices[2].uv.x= 1.0;
+			vertices[2].uv.y= 1.0;
+
+			vertices[3].pos.y= 1.0;
+			vertices[3].uv.y= 1.0;
+
+			debug_print("  mesh data offset: %i", (int)cur_offset);
+			ensure(cur_offset == v_offset);
+			cur_offset += fwrite(&vertices[0], 1, sizeof(vertices), file);
+
+			MeshIndexType indices[6]= {
+				0, 1, 2, 0, 2, 3
+			};
+
+			debug_print("  mesh data offset: %i", (int)cur_offset);
+			ensure(cur_offset == i_offset);
+			cur_offset += fwrite(&indices[0], 1, sizeof(indices), file);
 		}
 
 		{ // Shader
 			const char* vs_src=
 				"#version 120\n"
-				"attribute vec2 a_pos;"
+				"attribute vec3 a_pos;"
 				"attribute vec2 a_uv;"
 				"varying vec2 v_uv;"
 				"void main() {"
 				"	v_uv= a_uv;"
-				"	gl_Position= vec4(a_pos, 0.0, 1.0);"
+				"	gl_Position= vec4(a_pos, 1.0);"
 				"}\n";
 			const char* fs_src=
 				"#version 120\n"
-				"uniform sampler2D u_tex;"
-				"uniform vec4 u_color;"
 				"varying vec2 v_uv;"
-				"void main() { gl_FragColor= texture2D(u_tex, v_uv)*u_color; }\n";
+				"void main() { gl_FragColor= vec4(1.0, 0.0, 0.0, 1.0); }\n";
 
 			BlobOffset vs_src_offset= cur_offset + sizeof(Shader);
 			BlobOffset gs_src_offset= 0;
 			BlobOffset fs_src_offset= vs_src_offset + strlen(vs_src) + 1;
 
 			debug_print("offset: %i", (int)cur_offset);
+			ensure(cur_offset == res_offsets[2]);
 			Resource res= { ResType_Shader, "gen_shader" };
 			cur_offset += fwrite(&res, 1, sizeof(res), file);
 
 			cur_offset += fwrite(&vs_src_offset, 1, sizeof(vs_src_offset), file);
 			cur_offset += fwrite(&gs_src_offset, 1, sizeof(gs_src_offset), file);
 			cur_offset += fwrite(&fs_src_offset, 1, sizeof(fs_src_offset), file);
+
+			MeshType mesh_type= MeshType_tri;
+			cur_offset += fwrite(&mesh_type, 1, sizeof(mesh_type), file);
 
 			U32 cached= 0;
 			cur_offset += fwrite(&cached, 1, sizeof(cached), file);
@@ -127,33 +154,33 @@ int main(int argc, const char **argv)
 		ResBlob* blob= load_blob("resources.blob");
 		print_blob(blob);
 
+		Vao vao= create_Vao(MeshType_tri, 100, 100);
+		bind_Vao(&vao);
+		add_mesh_to_Vao(&vao, (Mesh*)resource_by_name(blob, ResType_Mesh, "squirrel_mesh"));
+
 		while (!d.quit_requested) {
 			plat_update(&d);
-			F32 c_gl[2]= {
+			/*F32 c_gl[2]= {
 				2.0*d.cursor_pos[0]/d.win_size[0] - 1.0,
 				-2.0*d.cursor_pos[1]/d.win_size[1] + 1.0,
-			};
+			};*/
 
 			Texture* tex= (Texture*)resource_by_name(blob, ResType_Texture, "test_tex");
 			glBindTexture(GL_TEXTURE_2D, tex->gl_id);
 
+			Shader* shd= (Shader*)resource_by_name(blob, ResType_Shader, "gen_shader");
+			glUseProgram(shd->prog_gl_id);
+
 			glViewport(0, 0, d.win_size[0], d.win_size[1]);
 			glClear(GL_COLOR_BUFFER_BIT);
-			glBegin(GL_QUADS);
-				glTexCoord2f(0.0, 0.0);
-				glVertex2f(0.0 + c_gl[0], 0.0 + c_gl[1]);
-				glTexCoord2f(1.0, 0.0);
-				glVertex2f(0.1 + c_gl[0], 0.0 + c_gl[1]);
-				glTexCoord2f(1.0, 1.0);
-				glVertex2f(0.1 + c_gl[0], 0.1 + c_gl[1]);
-				glTexCoord2f(0.0, 1.0);
-				glVertex2f(0.0 + c_gl[0], 0.1 + c_gl[1]);
-			glEnd();
+			draw_Vao(&vao);
+			//glDrawArrays(GL_TRIANGLE_FAN, 0, 6);
 
 			gl_check_errors("loop");
 
 			plat_sleep(1);
 		}
+		destroy_Vao(&vao);
 
 		unload_blob(blob);
 		plat_quit(&d);
