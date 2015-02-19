@@ -10,31 +10,43 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <jsmn.h>
+
+internal
+U8* malloc_file(const char* path, U32 *file_size)
+{
+	FILE *file= fopen(path, "rb");
+	if (!file)
+		fail("Couldn't open file: %s", path);
+
+	fseek(file, 0, SEEK_END);
+	U32 size= ftell(file);
+	fseek(file, 0, SEEK_SET);
+
+	U8 *buf= malloc(size);
+	U64 len= fread(buf, size, 1, file);
+	if (len != 1)
+		fail("Couldn't fully read file: %s", path);
+
+	fclose(file);
+
+	if (file_size)
+		*file_size= size;
+
+	return buf;
+}
 
 ResBlob* load_blob(const char *path)
 {
 	ResBlob* blob= NULL;
 	{ // Load from file
-		FILE *file= fopen(path, "rb");
-		if (!file)
-			fail("Couldn't open blob");
 
-		fseek(file, 0, SEEK_END);
-		U64 size= ftell(file);
-		fseek(file, 0, SEEK_SET);
-
-		U8 *buf= malloc(size);
-		U64 len= fread(buf, size, 1, file);
-		if (len != 1)
-			fail("Couldn't fully read blob");
-
-		fclose(file);
-
-		blob= (ResBlob*)buf;
+		U32 blob_size;
+		blob= (ResBlob*)malloc_file(path, &blob_size);
 		if (g_env.res_blob == NULL)
 			g_env.res_blob= blob;
 
-		debug_print("ResBlob loaded: %s, %i", path, (int)size);
+		debug_print("ResBlob loaded: %s, %i", path, (int)blob_size);
 	}
 
 	{ // Initialize resources
@@ -135,4 +147,50 @@ void print_blob(const ResBlob *blob)
 			default: break;
 		}
 	}
+}
+
+void make_blob(const char *dst_file, const char *src_file)
+{
+	U32 file_size;
+	U8* file_contents= malloc_file(src_file, &file_size);
+
+	U32 token_count= file_size/4 + 64; // Intuition
+	jsmntok_t *t= malloc(sizeof(jsmntok_t)*token_count);
+
+	jsmn_parser parser;
+	jsmn_init(&parser);
+	int r=
+		jsmn_parse(&parser, (char*)file_contents, file_size,
+			t, token_count);
+
+	switch (r) {
+		case JSMN_ERROR_NOMEM:
+			fail("Too large JSON file (engine problem): %s", src_file);
+		break;
+		case JSMN_ERROR_INVAL:
+			fail("JSON syntax error: %s", src_file);
+		break;
+		case JSMN_ERROR_PART:
+			fail("Unexpected JSON end: %s", src_file);
+		break;
+		case 0:
+			fail("Empty JSON file: %s", src_file);
+		break;
+		default: ensure(r > 0);
+	}
+
+	{ // Process parsed JSON
+		for (int i = 1; i < r; i++) {
+			if (t[i].type == JSMN_STRING) {
+				debug_print("JSON DATA: %.*s --- %.*s",
+						t[i].end - t[i].start,
+						file_contents + t[i].start,
+						t[i + 1].end - t[i + 1].start,
+						file_contents + t[i + 1].start);
+				i++;
+			}
+		}
+	}
+
+	free(t);
 }

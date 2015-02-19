@@ -9,6 +9,6 @@
 #define ensure assert
 
 REVOLC_API
-void fail(const char *msg);
+void fail(const char *format, ...);
 
 #endif // REVOLC_CORE_ENSURE_H

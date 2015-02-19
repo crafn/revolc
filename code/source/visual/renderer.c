@@ -97,7 +97,6 @@ int entity_cmp(const void *e1, const void *e2)
 
 void render_frame(Renderer *r)
 {
-
 	U32 total_v_count= 0;
 	U32 total_i_count= 0;
 	for (U32 i= 0; i < r->max_entity_count; ++i) {

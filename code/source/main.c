@@ -169,6 +169,8 @@ int main(int argc, const char **argv)
 	} else {
 		Device d= plat_init("Revolc engine", 800, 600);
 
+		make_blob("test.blob", "../../resources/gamedata/test.res");
+
 		ResBlob* blob= load_blob("resources.blob");
 		print_blob(blob);
 

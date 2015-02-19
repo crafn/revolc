@@ -19,7 +19,10 @@ REVOLC_API Resource* resource_by_name(const ResBlob *b, ResType t, const char *n
 
 REVOLC_API void* blob_ptr(ResBlob *blob, BlobOffset offset);
 
-REVOLC_API
-void print_blob(const ResBlob *blob);
+REVOLC_API void print_blob(const ResBlob *blob);
+
+/// Gathers human-readable resources by `src_file` and
+/// makes binary blob out of them to `dst_file
+REVOLC_API void make_blob(const char *dst_file, const char *src_file);
 
 #endif // REVOLC_RESOURCES_RESBLOB_HPP
