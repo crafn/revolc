@@ -2,6 +2,6 @@
 mkdir -p ../builds/linux64
 cd ./source
 gcc -std=gnu99 -Wall -g -I. \
-	./main.c ./core/debug_print.c ./core/ensure.c ./global/env.c ./platform/device.c ./platform/gl.c ./resources/resblob.c ./visual/mesh.c ./visual/shader.c ./visual/texture.c \
-	./visual/vao.c \
+	./main.c ./core/debug_print.c ./core/ensure.c ./global/env.c ./platform/device.c ./platform/gl.c ./resources/resblob.c ./visual/mesh.c ./visual/model.c \
+	./visual/renderer.c ./visual/shader.c ./visual/texture.c ./visual/vao.c \
 	-lX11 -lGL -lm -o ../../builds/linux64/clover

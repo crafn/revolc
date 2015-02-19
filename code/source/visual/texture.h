@@ -19,7 +19,7 @@ typedef struct {
 	Texel texels[1];
 } PACKED Texture;
 
-REVOLC_API void init_Texture(Texture *tex);
-REVOLC_API void deinit_Texture(Texture *tex);
+REVOLC_API void init_texture(Texture *tex);
+REVOLC_API void deinit_texture(Texture *tex);
 
 #endif // REVOLC_VISUAL_TEXTURE_H

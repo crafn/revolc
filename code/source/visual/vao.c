@@ -4,14 +4,14 @@
 #include "vao.h"
 
 internal
-void unbind_Vao()
+void unbind_vao()
 {
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
-Vao create_Vao(MeshType m, U32 max_v_count, U32 max_i_count)
+Vao create_vao(MeshType m, U32 max_v_count, U32 max_i_count)
 {
 	U32 attrib_count;
 	const VertexAttrib *attribs;
@@ -30,7 +30,7 @@ Vao create_Vao(MeshType m, U32 max_v_count, U32 max_i_count)
 	if (is_indexed_mesh(m))
 		glGenBuffers(1, &vao.ibo_id);
 
-	bind_Vao(&vao);
+	bind_vao(&vao);
 	
 	for (U32 i= 0; i < attrib_count; ++i) {
 		glEnableVertexAttribArray(i);
@@ -45,23 +45,23 @@ Vao create_Vao(MeshType m, U32 max_v_count, U32 max_i_count)
 
 	glBufferData(GL_ARRAY_BUFFER, vao.v_size*max_v_count, NULL, GL_STATIC_DRAW);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-			sizeof(MeshIndexType)*max_v_count, NULL, GL_STATIC_DRAW);
+			sizeof(MeshIndexType)*max_i_count, NULL, GL_STATIC_DRAW);
 
 	return vao;
 }
 
-void destroy_Vao(Vao *vao)
+void destroy_vao(Vao *vao)
 {
 	ensure(vao->vao_id);
 
-	bind_Vao(vao);
+	bind_vao(vao);
 
 	U32 attrib_count;
 	vertex_attributes(vao->mesh_type, NULL, &attrib_count);
 	for (U32 i= 0; i < attrib_count; ++i)
 		glDisableVertexAttribArray(i);
 
-	unbind_Vao();
+	unbind_vao();
 
 	glDeleteVertexArrays(1, &vao->vao_id);
 	glDeleteBuffers(1, &vao->vbo_id);
@@ -70,7 +70,7 @@ void destroy_Vao(Vao *vao)
 	vao->vao_id= vao->vbo_id= vao->ibo_id= 0;
 }
 
-void bind_Vao(const Vao *vao)
+void bind_vao(const Vao *vao)
 {
 	ensure(vao && vao->vao_id);
 	glBindVertexArray(vao->vao_id);
@@ -79,16 +79,16 @@ void bind_Vao(const Vao *vao)
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vao->ibo_id);
 }
 
-void add_mesh_to_Vao(Vao *vao, const Mesh* mesh)
+void add_mesh_to_vao(Vao *vao, const Mesh* mesh)
 {
 	ensure(mesh->mesh_type == vao->mesh_type);
 
-	add_vertices_to_Vao(vao, mesh_vertices(mesh), mesh->v_count);
+	add_vertices_to_vao(vao, mesh_vertices(mesh), mesh->v_count);
 	if (vao->ibo_id)
-		add_indices_to_Vao(vao, mesh_indices(mesh), mesh->i_count);
+		add_indices_to_vao(vao, mesh_indices(mesh), mesh->i_count);
 }
 
-void add_vertices_to_Vao(Vao *vao, void *vertices, U32 count)
+void add_vertices_to_vao(Vao *vao, void *vertices, U32 count)
 {
 	ensure(vao->v_count + count <= vao->v_capacity);
 	glBufferSubData(GL_ARRAY_BUFFER,
@@ -98,10 +98,29 @@ void add_vertices_to_Vao(Vao *vao, void *vertices, U32 count)
 	vao->v_count += count;
 }
 
-void add_indices_to_Vao(Vao *vao, MeshIndexType *indices, U32 count)
+void add_indices_to_vao(Vao *vao, MeshIndexType *indices, U32 count)
 {
-	ensure(!vao->ibo_id ||
-			vao->i_count + count <= vao->i_capacity);
+	ensure(vao->ibo_id);
+	ensure(vao->i_count + count <= vao->i_capacity);
+
+	/*const U32 buf_size= 1024;
+	MeshIndexType buf[buf_size];
+	for (U32 i= 0; i < count; i += buf_size) {
+		U32 count_in_buf= buf_size;
+		if (i + count_in_buf > count)
+			count_in_buf= count - i; 
+
+		for (U32 k= 0; k < count_in_buf; ++k)
+			buf[k]= indices[i + k] + vao->v_count;
+
+		glBufferSubData(GL_ELEMENT_ARRAY_BUFFER,
+				sizeof(MeshIndexType)*vao->i_count,
+				sizeof(MeshIndexType)*count_in_buf,
+				buf);
+		vao->i_count += count_in_buf;
+	}
+	*/
+
 	glBufferSubData(GL_ELEMENT_ARRAY_BUFFER,
 			sizeof(MeshIndexType)*vao->i_count,
 			sizeof(MeshIndexType)*count,
@@ -109,7 +128,7 @@ void add_indices_to_Vao(Vao *vao, MeshIndexType *indices, U32 count)
 	vao->i_count += count;
 }
 
-void draw_Vao(const Vao *vao)
+void draw_vao(const Vao *vao)
 {
 	if (vao->ibo_id) {
 		glDrawRangeElements(GL_TRIANGLES,

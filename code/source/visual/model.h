@@ -3,6 +3,8 @@
 
 #include "build.h"
 #include "resources/resource.h"
+#include "texture.h"
+#include "mesh.h"
 
 typedef struct {
 	/// @todo
@@ -18,10 +20,9 @@ typedef struct {
 	//Bool snap_to_pixels;
 	BlobOffset texture_offsets[3]; // Offsets to `Texture`
 	BlobOffset mesh_offset; // Offset to `Mesh`
+} PACKED Model;
 
-	// Cached
-	U32 tex_gl_ids[3];
-	U32 mesh_gl_id;
-} Model;
+Texture* model_texture(const Model *model, U32 index);
+Mesh* model_mesh(const Model *model);
 
 #endif // REVOLC_VISUAL_MODEL_H

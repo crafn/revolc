@@ -4,8 +4,10 @@
 #include "build.h"
 
 struct ResBlob;
+struct Renderer;
 
 typedef struct {
+	struct Renderer* renderer;
 	struct ResBlob* res_blob;
 } Env;
 

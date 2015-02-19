@@ -3,7 +3,7 @@
 #include "platform/gl.h"
 #include "texture.h"
 
-void init_Texture(Texture *tex)
+void init_texture(Texture *tex)
 {
 	debug_print("Texture init: %s", tex->res.name);
 
@@ -33,7 +33,7 @@ void init_Texture(Texture *tex)
 					(void*)tex->texels);
 }
 
-void deinit_Texture(Texture *tex)
+void deinit_texture(Texture *tex)
 {
 	debug_print("Texture deinit: %s", tex->res.name);
 	glDeleteTextures(1, &tex->gl_id);

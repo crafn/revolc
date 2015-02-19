@@ -14,7 +14,14 @@ typedef struct {
 } V2f;
 
 inline
-V3f add_V3f(V3f a, V3f b)
+V3f zero_v3f()
+{
+	V3f result= {};
+	return result;
+}
+
+inline
+V3f add_v3f(V3f a, V3f b)
 {
 	V3f result;
 	result.x= a.x + b.x;
@@ -24,7 +31,7 @@ V3f add_V3f(V3f a, V3f b)
 }
 
 inline
-V3f sub_V3f(V3f a, V3f b)
+V3f sub_v3f(V3f a, V3f b)
 {
 	V3f result;
 	result.x= a.x - b.x;

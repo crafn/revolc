@@ -22,7 +22,7 @@ typedef struct {
 	U32 prog_gl_id;
 } PACKED Shader;
 
-REVOLC_API void init_Shader(Shader *shd);
-REVOLC_API void deinit_Shader(Shader *shd);
+REVOLC_API void init_shader(Shader *shd);
+REVOLC_API void deinit_shader(Shader *shd);
 
 #endif // REVOLC_VISUAL_SHADER_H

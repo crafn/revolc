@@ -10,6 +10,7 @@
 #include "visual/model.h"
 #include "visual/texture.h"
 #include "visual/shader.h"
+#include "visual/renderer.h"
 #include "visual/vao.h"
 
 #include <stdio.h>
@@ -32,9 +33,9 @@ int main(int argc, const char **argv)
 		const U32 version= 2;
 		cur_offset += fwrite(&version, 1, sizeof(version), file);
  
-		const U32 res_count= 3;
+		const U32 res_count= 4;
 		cur_offset += fwrite(&res_count, 1, sizeof(res_count), file);
-		BlobOffset res_offsets[3]= {32, 76, 404};
+		BlobOffset res_offsets[4]= {40, 84, 412, 464};
 		cur_offset += fwrite(&res_offsets[cur_res], 1, sizeof(res_offsets), file);
 
 		{ // Texture
@@ -73,8 +74,8 @@ int main(int argc, const char **argv)
 			cur_offset += fwrite(&v_count, 1, sizeof(v_count), file);
 			cur_offset += fwrite(&i_count, 1, sizeof(i_count), file);
 
-			BlobOffset v_offset= 124;
-			BlobOffset i_offset= 380;
+			BlobOffset v_offset= 132;
+			BlobOffset i_offset= 388;
 			cur_offset += fwrite(&v_offset, 1, sizeof(v_offset), file);
 			cur_offset += fwrite(&i_offset, 1, sizeof(i_offset), file);
 
@@ -103,6 +104,19 @@ int main(int argc, const char **argv)
 			cur_offset += fwrite(&indices[0], 1, sizeof(indices), file);
 		}
 
+		{ // Model
+
+			debug_print("offset: %i", (int)cur_offset);
+			ensure(cur_offset == res_offsets[2]);
+			Resource res= { ResType_Model, "squirrel_model" };
+			cur_offset += fwrite(&res, 1, sizeof(res), file);
+
+			BlobOffset texs[3]= {res_offsets[0], 0, 0};
+			BlobOffset mesh= res_offsets[1];
+			cur_offset += fwrite(&texs[0], 1, sizeof(texs), file);
+			cur_offset += fwrite(&mesh, 1, sizeof(mesh), file);
+		}
+
 		{ // Shader
 			const char* vs_src=
 				"#version 150 core\n"
@@ -125,7 +139,7 @@ int main(int argc, const char **argv)
 			BlobOffset fs_src_offset= vs_src_offset + strlen(vs_src) + 1;
 
 			debug_print("offset: %i", (int)cur_offset);
-			ensure(cur_offset == res_offsets[2]);
+			ensure(cur_offset == res_offsets[3]);
 			Resource res= { ResType_Shader, "gen_shader" };
 			cur_offset += fwrite(&res, 1, sizeof(res), file);
 
@@ -158,40 +172,29 @@ int main(int argc, const char **argv)
 		ResBlob* blob= load_blob("resources.blob");
 		print_blob(blob);
 
-		Vao vao= create_Vao(MeshType_tri, 100, 100);
-		bind_Vao(&vao);
+		Renderer* rend= create_renderer();
 
-		{ // Fill vao
-			Mesh* mesh= (Mesh*)resource_by_name(blob, ResType_Mesh, "squirrel_mesh");
-
-			TriMeshVertex* vertices= malloc(sizeof(TriMeshVertex)*mesh->v_count);
-			MeshIndexType* indices= malloc(sizeof(MeshIndexType)*mesh->i_count);
-			memcpy(vertices, mesh_vertices(mesh), sizeof(TriMeshVertex)*mesh->v_count);
-			memcpy(indices, mesh_indices(mesh), sizeof(MeshIndexType)*mesh->i_count);
-			for (int i= 0; i < 10; ++i) {
-				for (int k= 0; k < mesh->v_count; ++k) {
-					if (i == 0)
-						vertices[k].pos.z= 5.0;
-					else {
-						vertices[k].pos.x += 0.1*sin(i);
-						vertices[k].pos.z -= 0.5;
-					}
-				}
-				add_vertices_to_Vao(&vao, vertices, mesh->v_count);
-				add_indices_to_Vao(&vao, indices, mesh->i_count);
-				for (int k= 0; k < mesh->i_count; ++k)
-					indices[k] += mesh->v_count;
-			}
-			free(vertices);
-			free(indices);
+		Model* model= (Model*)resource_by_name(blob, ResType_Model, "squirrel_model");
+#define ENTITY_COUNT 5
+		U32 entity_handles[ENTITY_COUNT];
+		for (int i= 0; i < ENTITY_COUNT; ++i) {
+			U32 h= create_modelentity(rend, model);
+			entity_handles[i]= h;
 		}
 
+		F32 time= 0;
 		while (!d.quit_requested) {
 			plat_update(&d);
 			F32 c_gl[2]= {
 				2.0*d.cursor_pos[0]/d.win_size[0] - 1.0,
 				-2.0*d.cursor_pos[1]/d.win_size[1] + 1.0,
 			};
+			time += d.dt;
+
+			for (int i= 0; i < ENTITY_COUNT; ++i) {
+				get_modelentity(rend, entity_handles[i])->pos.z= 1.0 + i*0.5 + sin(i + time);
+				get_modelentity(rend, entity_handles[i])->pos.x= sin(i + time*0.7)*2.0;
+			}
 
 			Texture* tex= (Texture*)resource_by_name(blob, ResType_Texture, "test_tex");
 			glActiveTexture(GL_TEXTURE0);
@@ -204,13 +207,15 @@ int main(int argc, const char **argv)
 
 			glViewport(0, 0, d.win_size[0], d.win_size[1]);
 			glClear(GL_COLOR_BUFFER_BIT);
-			draw_Vao(&vao);
+
+			render_frame(rend);
 
 			gl_check_errors("loop");
 
 			plat_sleep(1);
 		}
-		destroy_Vao(&vao);
+
+		destroy_renderer(rend);
 
 		unload_blob(blob);
 		plat_quit(&d);

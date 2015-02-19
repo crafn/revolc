@@ -4,7 +4,7 @@
 #include "resources/resblob.h"
 #include "shader.h"
 
-void init_Shader(Shader *shd)
+void init_shader(Shader *shd)
 {
 	const GLchar* vs_src= blob_ptr(g_env.res_blob, shd->vs_src_offset);
 	const GLchar* gs_src= blob_ptr(g_env.res_blob, shd->gs_src_offset);
@@ -58,7 +58,7 @@ void init_Shader(Shader *shd)
 	}
 }
 
-void deinit_Shader(Shader *shd)
+void deinit_shader(Shader *shd)
 {
 	gl_destroy_shader_prog(
 			&shd->prog_gl_id,
