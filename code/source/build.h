@@ -1,6 +1,8 @@
 #ifndef REVOLC_BUILD_H
 #define REVOLC_BUILD_H
 
+#include <stdbool.h>
+
 /// @todo Other operating systems
 #define PLATFORM_LINUX 1
 #define PLATFORM PLATFORM_LINUX
@@ -25,7 +27,5 @@ typedef	long long S64;
 
 typedef float F32;
 typedef double F64;
-
-typedef enum { false, true } Bool;
 
 #endif // REVOLC_BUILD_H

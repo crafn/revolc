@@ -19,7 +19,7 @@ typedef struct {
 } VertexAttrib;
 
 REVOLC_API void vertex_attributes(MeshType type, const VertexAttrib **attribs, U32 *count);
-REVOLC_API Bool is_indexed_mesh(MeshType type);
+REVOLC_API bool is_indexed_mesh(MeshType type);
 REVOLC_API U32 vertex_size(MeshType type);
 
 typedef struct {

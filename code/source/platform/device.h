@@ -7,7 +7,7 @@ struct DevicePlatformData;
 typedef struct {
 	int cursor_pos[2];
 	int win_size[2];
-	Bool quit_requested;
+	bool quit_requested;
 	F32 dt;
 
 	struct DevicePlatformData* data;

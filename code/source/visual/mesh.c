@@ -21,7 +21,7 @@ void vertex_attributes(MeshType type, const VertexAttrib **attribs, U32 *count)
 	}
 }
 
-Bool is_indexed_mesh(MeshType type)
+bool is_indexed_mesh(MeshType type)
 { return type == MeshType_tri; }
 
 U32 vertex_size(MeshType type)
