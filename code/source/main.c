@@ -175,7 +175,7 @@ int main(int argc, const char **argv)
 		Renderer* rend= create_renderer();
 
 		Model* model= (Model*)resource_by_name(blob, ResType_Model, "squirrel_model");
-#define ENTITY_COUNT 5
+#define ENTITY_COUNT 10
 		U32 entity_handles[ENTITY_COUNT];
 		for (int i= 0; i < ENTITY_COUNT; ++i) {
 			U32 h= create_modelentity(rend, model);
@@ -192,8 +192,9 @@ int main(int argc, const char **argv)
 			time += d.dt;
 
 			for (int i= 0; i < ENTITY_COUNT; ++i) {
-				get_modelentity(rend, entity_handles[i])->pos.z= 1.0 + i*0.5 + sin(i + time);
-				get_modelentity(rend, entity_handles[i])->pos.x= sin(i + time*0.7)*2.0;
+				ModelEntity *e= get_modelentity(rend, entity_handles[i]);
+				e->pos.z= 2.0 + i*0.5 + sin(i + time);
+				e->pos.x= sin(i + time*0.7)*2.0;
 			}
 
 			Texture* tex= (Texture*)resource_by_name(blob, ResType_Texture, "test_tex");

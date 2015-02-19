@@ -89,7 +89,11 @@ ModelEntity* get_modelentity(Renderer *r, U32 h)
 
 internal
 int entity_cmp(const void *e1, const void *e2)
-{ return ((ModelEntity*)e1)->pos.z < ((ModelEntity*)e2)->pos.z; }
+{
+	F32 a= ((ModelEntity*)e1)->pos.z;
+	F32 b= ((ModelEntity*)e2)->pos.z;
+	return (a < b) - (a > b);
+}
 
 void render_frame(Renderer *r)
 {
@@ -113,10 +117,10 @@ void render_frame(Renderer *r)
 		memcpy(entities, r->entities, sizeof(*r->entities)*r->max_entity_count);
 
 		/// Z-sort
-		qsort(entities, r->max_entity_count, sizeof(*r->entities), entity_cmp);
+		qsort(entities, r->max_entity_count, sizeof(*entities), entity_cmp);
 
-		TriMeshVertex* total_verts= malloc(sizeof(*total_verts)*total_v_count);
-		MeshIndexType* total_inds= malloc(sizeof(*total_inds)*total_i_count);
+		TriMeshVertex *total_verts= malloc(sizeof(*total_verts)*total_v_count);
+		MeshIndexType *total_inds= malloc(sizeof(*total_inds)*total_i_count);
 		U32 cur_v= 0;
 		U32 cur_i= 0;
 		for (U32 i= 0; i < r->max_entity_count; ++i) {
@@ -124,6 +128,10 @@ void render_frame(Renderer *r)
 			if (!e->model)
 				continue;
 
+			for (U32 k= 0; k < e->mesh_i_count; ++k) {
+				total_inds[cur_i]= e->indices[k] + cur_v;
+				++cur_i;
+			}
 			for (U32 k= 0; k < e->mesh_v_count; ++k) {
 				TriMeshVertex v= e->vertices[k];
 				v.pos.x += e->pos.x;
@@ -131,10 +139,6 @@ void render_frame(Renderer *r)
 				v.pos.z += e->pos.z;
 				total_verts[cur_v]= v;
 				++cur_v;
-			}
-			for (U32 k= 0; k < e->mesh_i_count; ++k) {
-				total_inds[cur_i]= e->indices[k] + cur_v;
-				++cur_i;
 			}
 		}
 		free(entities);
