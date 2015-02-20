@@ -147,6 +147,18 @@ static jsmnerr_t jsmn_parse_string(jsmn_parser *parser, const char *js,
 	return JSMN_ERROR_PART;
 }
 
+static void calc_deep_sizes(jsmntok_t *tokens)
+{
+	jsmntok_t *this= tokens;
+	++tokens;
+	this->deep_size= 0;
+	for (int field_i= 0; field_i < this->size; ++field_i) {
+		calc_deep_sizes(tokens);
+		this->deep_size += tokens->deep_size + 1;
+		tokens += tokens->deep_size + 1;
+	}
+}
+
 /**
  * Parse JSON string and fill tokens.
  */
@@ -295,6 +307,8 @@ jsmnerr_t jsmn_parse(jsmn_parser *parser, const char *js, size_t len,
 			return JSMN_ERROR_PART;
 		}
 	}
+
+	calc_deep_sizes(&tokens[0]);
 
 	return count;
 }

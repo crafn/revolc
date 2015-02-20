@@ -20,7 +20,7 @@ void init_texture(Texture *tex)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 1000);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_LOD, -1000);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, -0.6);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, -0.6);
 
 	glTexImage2D(	GL_TEXTURE_2D,
 					0,

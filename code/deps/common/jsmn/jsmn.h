@@ -40,7 +40,8 @@ typedef struct {
 	jsmntype_t type;
 	int start;
 	int end;
-	int size;
+	int size; // Number of fields
+	int deep_size; // Recursive number of fields
 #ifdef JSMN_PARENT_LINKS
 	int parent;
 #endif

@@ -3,13 +3,23 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-void debug_print(const char *format, ...)
+void debug_print(const char *fmt, ...)
 {
-	va_list args;
-
-	va_start(args, format);
-    vprintf(format, args);
-    va_end(args);
+	va_list a;
+	va_start(a, fmt);
+    vprintf(fmt, a);
+    va_end(a);
 
 	printf("\n");
+}
+
+void critical_print(const char *fmt, ...)
+{
+	printf("\033[0;31m"); // Red
+	va_list a;
+	va_start(a, fmt);
+    vprintf(fmt, a);
+    va_end(a);
+
+	printf("\033[0m\n");
 }

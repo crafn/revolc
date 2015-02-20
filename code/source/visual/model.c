@@ -4,11 +4,13 @@
 
 Texture* model_texture(const Model *model, U32 index)
 {
-	if (model->texture_offsets[index] == 0)
+	if (model->textures[index][0] == 0)
 		return NULL;
-	return blob_ptr(g_env.res_blob, model->texture_offsets[index]);
+	return (Texture*)resource_by_name(
+			g_env.res_blob, ResType_Texture, model->textures[index]);
 }
 
 Mesh* model_mesh(const Model *model)
-{ return blob_ptr(g_env.res_blob, model->mesh_offset); }
+{ return (Mesh*)resource_by_name(
+		g_env.res_blob, ResType_Mesh, model->mesh); }
 

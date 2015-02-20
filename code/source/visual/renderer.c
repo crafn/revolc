@@ -1,3 +1,4 @@
+#include "core/array.h"
 #include "core/debug_print.h"
 #include "core/ensure.h"
 #include "core/vector.h"
@@ -6,18 +7,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-
-/// @todo Fix crash
-internal
-void enlarge_array(void** array, U32 elem_size, U32 old_count)
-{
-	U32 old_size= elem_size*old_count;
-	U32 new_size= old_size*1.5;
-
-	free(*array);
-	*array= realloc(*array, new_size);
-	memset(array + old_size, 0, new_size - old_size);
-}
 
 internal
 void* zero_malloc(U32 size)
@@ -48,7 +37,8 @@ U32 create_modelentity(Renderer *r, const Model *model)
 {
 	if (r->entity_count == r->max_entity_count) {
 		debug_print("Enlargening entity array: %i", (int)r->max_entity_count);
-		enlarge_array((void**)&r->entities, sizeof(*r->entities), r->entity_count);
+		r->entities= enlarge_array(
+			&r->entities, &r->max_entity_count, sizeof(*r->entities));
 	}
 
 	while (r->entities[r->next_entity].model)

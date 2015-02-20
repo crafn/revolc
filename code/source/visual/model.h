@@ -18,8 +18,8 @@ typedef struct {
 	//bool casts_shadow;
 	//bool billboard;
 	//bool snap_to_pixels;
-	BlobOffset texture_offsets[3]; // Offsets to `Texture`
-	BlobOffset mesh_offset; // Offset to `Mesh`
+	char textures[3][RES_NAME_LEN];
+	char mesh[RES_NAME_LEN];
 } PACKED Model;
 
 Texture* model_texture(const Model *model, U32 index);

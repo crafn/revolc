@@ -35,7 +35,7 @@ int main(int argc, const char **argv)
  
 		const U32 res_count= 4;
 		cur_offset += fwrite(&res_count, 1, sizeof(res_count), file);
-		BlobOffset res_offsets[4]= {40, 84, 412, 464};
+		BlobOffset res_offsets[4]= {40, 84, 412, 496};
 		cur_offset += fwrite(&res_offsets[cur_res], 1, sizeof(res_offsets), file);
 
 		{ // Texture
@@ -111,10 +111,10 @@ int main(int argc, const char **argv)
 			Resource res= { ResType_Model, "squirrel_model" };
 			cur_offset += fwrite(&res, 1, sizeof(res), file);
 
-			BlobOffset texs[3]= {res_offsets[0], 0, 0};
-			BlobOffset mesh= res_offsets[1];
-			cur_offset += fwrite(&texs[0], 1, sizeof(texs), file);
-			cur_offset += fwrite(&mesh, 1, sizeof(mesh), file);
+			const char texs[3][RES_NAME_LEN]= {"test_tex", {0}, {0}};
+			const char mesh[RES_NAME_LEN]= "squirrel_mesh";
+			cur_offset += fwrite(&texs[0][0], 1, sizeof(texs), file);
+			cur_offset += fwrite(&mesh[0], 1, sizeof(mesh), file);
 		}
 
 		{ // Shader

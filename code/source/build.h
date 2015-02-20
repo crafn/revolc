@@ -14,6 +14,7 @@
 
 #define ALIGNED(x) __attribute__((aligned(x)))
 #define PACKED __attribute__((packed))
+#define WARN_UNUSED __attribute__((warn_unused_result))
 
 typedef unsigned char U8;
 typedef unsigned short U16;
