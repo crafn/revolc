@@ -44,11 +44,18 @@ void deinit_texture(Texture *tex)
 int json_texture_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j)
 {
 	int return_value= 0;
-
 	U8 *image= NULL;
+
+	JsonTok j_file= json_value_by_key(j, "file");
+	if (json_is_null(j_file)) {
+		critical_print("Attrib 'file' missing for Texture: %s",
+				json_str(json_value_by_key(j, "name")));
+		goto error;
+	}
+
 	U32 width, height;
 	int err=
-		lodepng_decode32_file(&image, &width, &height, "../../resources/gamedata/barrel_color.png");
+		lodepng_decode32_file(&image, &width, &height, json_str(j_file));
 	if (err) {
 		critical_print("PNG load error: %s", lodepng_error_text(err));
 		goto error;
