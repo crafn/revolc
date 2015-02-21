@@ -1,5 +1,6 @@
 #include "device.h"
 #include "gl.h"
+#include "core/malloc.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -58,11 +59,13 @@ int ctxErrorHandler( Display *dpy, XErrorEvent *ev )
     return 0;
 }
 
-Device plat_init(const char* title, int width, int height)
+Device * plat_init(const char* title, int width, int height)
 {
-	Device d= {};
-	d.data= malloc(sizeof(*d.data));
-	memset(d.data, 0, sizeof(*d.data));
+	Device *d= zero_malloc(sizeof(*d));
+	if (g_env.device == NULL)
+		g_env.device= d;
+	d->data= zero_malloc(sizeof(*d->data));
+	memset(d->data, 0, sizeof(*d->data));
 
 	{
 		/// Original code from https://www.opengl.org/wiki/Tutorial:_OpenGL_3.0_Context_Creation_%28GLX%29
@@ -192,14 +195,14 @@ Device plat_init(const char* title, int width, int height)
 			ctx = glXCreateContextAttribsARB( display, bestFbc, 0,
 								  True, context_attribs );
 
-			// Sync to ensure any errors generated are processed.
+			// Sync to ensure any errors generated are processed->
 			XSync( display, False );
 			if ( !ctxErrorOccurred && ctx )
 				plat_print("Created GL 3.2 context\n");
 			else
 				plat_fail("Couldn't create GL 3.2 context");
 		}
-		// Sync to ensure any errors generated are processed.
+		// Sync to ensure any errors generated are processed->
 		XSync( display, False );
 
 		// Restore the original error handler
@@ -219,13 +222,13 @@ Device plat_init(const char* title, int width, int height)
 
 		glXMakeCurrent(display, win, ctx);
 
-		d.data->dpy= display;
-		d.data->win= win;
-		d.data->ctx= ctx;
+		d->data->dpy= display;
+		d->data->win= win;
+		d->data->ctx= ctx;
 	}
 
 	{
-		clock_gettime(CLOCK_MONOTONIC, &d.data->ts);
+		clock_gettime(CLOCK_MONOTONIC, &d->data->ts);
 	}
 
 	{
@@ -279,6 +282,9 @@ Device plat_init(const char* title, int width, int height)
 
 void plat_quit(Device *d)
 {
+	if (g_env.device == d)
+		g_env.device= NULL;
+
 	glXMakeCurrent(d->data->dpy, None, NULL);
 	glXDestroyContext(d->data->dpy, d->data->ctx);
 	XDestroyWindow(d->data->dpy, d->data->win);
@@ -286,6 +292,7 @@ void plat_quit(Device *d)
 
 	free(d->data);
 	d->data= NULL;
+	free(d);
 }
 
 void plat_update(Device *d)

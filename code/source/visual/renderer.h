@@ -19,6 +19,6 @@ REVOLC_API U32 create_modelentity(Renderer *r, const Model *model);
 REVOLC_API void destroy_modelentity(Renderer *r, U32 h);
 REVOLC_API ModelEntity* get_modelentity(Renderer *rend, U32 h);
 
-REVOLC_API void render_frame(Renderer *r);
+REVOLC_API void render_frame(Renderer *r, float cam_x, float cam_y);
 
 #endif // REVOLC_VISUAL_RENDERER_H

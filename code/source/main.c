@@ -20,7 +20,7 @@
 
 int main(int argc, const char **argv)
 {
-	Device d= plat_init("Revolc engine", 800, 600);
+	Device *d= plat_init("Revolc engine", 800, 600);
 
 	make_blob("main.blob", "../../resources/gamedata/test.res");
 
@@ -38,13 +38,13 @@ int main(int argc, const char **argv)
 	}
 
 	F32 time= 0;
-	while (!d.quit_requested) {
-		plat_update(&d);
-		F32 c_gl[2]= {
-			2.0*d.cursor_pos[0]/d.win_size[0] - 1.0,
-			-2.0*d.cursor_pos[1]/d.win_size[1] + 1.0,
+	while (!d->quit_requested) {
+		plat_update(d);
+		F32 cursor[2]= {
+			2.0*d->cursor_pos[0]/d->win_size[0] - 1.0,
+			-2.0*d->cursor_pos[1]/d->win_size[1] + 1.0,
 		};
-		time += d.dt;
+		time += d->dt;
 
 		for (int i= 0; i < ENTITY_COUNT; ++i) {
 			ModelEntity *e= get_modelentity(rend, entity_handles[i]);
@@ -52,19 +52,7 @@ int main(int argc, const char **argv)
 			e->pos.x= sin(i + time*0.7)*3.0;
 		}
 
-		Texture* tex= (Texture*)resource_by_name(blob, ResType_Texture, "test_tex");
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, tex->gl_id);
-
-		Shader* shd= (Shader*)resource_by_name(blob, ResType_Shader, "gen_shader");
-		glUseProgram(shd->prog_gl_id);
-		glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_tex_color"), 0);
-		glUniform2f(glGetUniformLocation(shd->prog_gl_id, "u_cursor"), c_gl[0]*3.0, c_gl[1]*3.0);
-
-		glViewport(0, 0, d.win_size[0], d.win_size[1]);
-		glClear(GL_COLOR_BUFFER_BIT);
-
-		render_frame(rend);
+		render_frame(rend, cursor[0]*3.0, cursor[1]*3.0);
 
 		gl_check_errors("loop");
 
@@ -74,7 +62,7 @@ int main(int argc, const char **argv)
 	destroy_renderer(rend);
 
 	unload_blob(blob);
-	plat_quit(&d);
+	plat_quit(d);
 
 	return 0;
 }

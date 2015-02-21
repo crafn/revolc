@@ -3,10 +3,12 @@
 
 #include "build.h"
 
+struct Device;
 struct ResBlob;
 struct Renderer;
 
 typedef struct {
+	struct Device* device;
 	struct Renderer* renderer;
 	struct ResBlob* res_blob;
 } Env;

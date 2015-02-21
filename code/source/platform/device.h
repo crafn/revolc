@@ -4,7 +4,7 @@
 #include "build.h"
 
 struct DevicePlatformData;
-typedef struct {
+typedef struct Device {
 	int cursor_pos[2];
 	int win_size[2];
 	bool quit_requested;
@@ -13,7 +13,8 @@ typedef struct {
 	struct DevicePlatformData* data;
 } Device;
 
-Device plat_init(const char* title, int width, int height);
+/// @note Sets g_env.device
+Device * plat_init(const char* title, int width, int height);
 void plat_quit(Device *d);
 
 void plat_update(Device *d);
