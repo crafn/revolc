@@ -1,5 +1,6 @@
 #include "core/debug_print.h"
 #include "core/ensure.h"
+#include "core/string.h"
 #include "platform/gl.h"
 #include "texture.h"
 
@@ -45,6 +46,7 @@ int json_texture_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j)
 {
 	int return_value= 0;
 	U8 *image= NULL;
+	char *total_path= NULL;
 
 	JsonTok j_file= json_value_by_key(j, "file");
 	if (json_is_null(j_file)) {
@@ -53,9 +55,11 @@ int json_texture_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j)
 		goto error;
 	}
 
+	total_path= malloc_joined_path(j.json_path, json_str(j_file));
+	debug_print("PATH %s", total_path);
 	U32 width, height;
 	int err=
-		lodepng_decode32_file(&image, &width, &height, json_str(j_file));
+		lodepng_decode32_file(&image, &width, &height, total_path);
 	if (err) {
 		critical_print("PNG load error: %s", lodepng_error_text(err));
 		goto error;
@@ -70,6 +74,7 @@ int json_texture_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j)
 
 cleanup:
 	free(image);
+	free(total_path);
 	return return_value;
 
 error:

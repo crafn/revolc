@@ -31,7 +31,7 @@ U32 create_modelentity(Renderer *r, const Model *model)
 	if (r->entity_count == r->max_entity_count) {
 		debug_print("Enlargening entity array: %i", (int)r->max_entity_count);
 		r->entities= enlarge_array(
-			&r->entities, &r->max_entity_count, sizeof(*r->entities));
+			r->entities, &r->max_entity_count, sizeof(*r->entities));
 	}
 
 	while (r->entities[r->next_entity].model)

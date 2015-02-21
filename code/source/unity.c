@@ -3,6 +3,7 @@
 #include "core/ensure.c"
 #include "core/json.c"
 #include "core/malloc.c"
+#include "core/string.c"
 #include "global/env.c"
 #include "main.c"
 #include "platform/device.c"

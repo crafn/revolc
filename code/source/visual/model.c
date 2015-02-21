@@ -23,14 +23,12 @@ int json_model_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j)
 	JsonTok j_texs= json_value_by_key(j, "textures");
 
 	if (json_is_null(j_mesh)) {
-		critical_print("Attrib 'mesh' missing for Model: %s",
-				json_str(json_value_by_key(j, "name")));
+		critical_print("Attrib 'mesh' missing for Model");
 		return 1;
 	}
 
 	if (json_is_null(j_texs)) {
-		critical_print("Attrib 'textures' missing for Model: %s",
-				json_str(json_value_by_key(j, "name")));
+		critical_print("Attrib 'textures' missing for Model");
 		return 1;
 	}
 

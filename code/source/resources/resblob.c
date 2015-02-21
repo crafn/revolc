@@ -193,7 +193,7 @@ int json_res_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j, ResType res_t)
 	return 1;
 }
 
-void make_blob(const char *dst_file, const char *src_file)
+void make_blob(const char *dst_file_path, const char *src_file_path)
 {
 	// Resources-to-be-allocated
 	char *data= NULL;
@@ -204,7 +204,7 @@ void make_blob(const char *dst_file, const char *src_file)
 
 	// Input file
 	U32 file_size;
-	data= (char*)malloc_file(src_file, &file_size);
+	data= (char*)malloc_file(src_file_path, &file_size);
 
 	JsonTok j_root= {};
 	{ // Parse json
@@ -216,24 +216,29 @@ void make_blob(const char *dst_file, const char *src_file)
 				t, token_count);
 		switch (r) {
 			case JSMN_ERROR_NOMEM:
-				critical_print("Too large JSON file (engine problem): %s", src_file);
+				critical_print("Too large JSON file (engine problem): %s",
+						src_file_path);
 				goto error;
 			break;
 			case JSMN_ERROR_INVAL:
-				critical_print("JSON syntax error: %s", src_file);
+				critical_print("JSON syntax error: %s",
+						src_file_path);
 				goto error;
 			break;
 			case JSMN_ERROR_PART:
-				critical_print("Unexpected JSON end: %s", src_file);
+				critical_print("Unexpected JSON end: %s",
+						src_file_path);
 				goto error;
 			break;
 			case 0:
-				critical_print("Empty JSON file: %s", src_file);
+				critical_print("Empty JSON file: %s",
+						src_file_path);
 				goto error;
 			break;
 			default: ensure(r > 0);
 		}
 
+		j_root.json_path= src_file_path;
 		j_root.json= data;
 		j_root.tok= t;
 
@@ -293,9 +298,9 @@ void make_blob(const char *dst_file, const char *src_file)
 	}
 
 	{ // Output file
-		blob= fopen(dst_file, "wb");
+		blob= fopen(dst_file_path, "wb");
 		if (!blob) {
-			critical_print("Opening for write failed: %s", dst_file);
+			critical_print("Opening for write failed: %s", dst_file_path);
 			goto error;
 		}
 		BlobOffset offset= 0;
@@ -315,8 +320,11 @@ void make_blob(const char *dst_file, const char *src_file)
 			res_offsets[res_i]= offset;
 			blob_write(blob, &offset, &res->header, sizeof(res->header));
 			int err= json_res_to_blob(blob, &offset, res->tok, res->header.type);
-			if (err)
+			if (err) {
+				critical_print("Failed to process resource: %s, %s",
+					res->header.name, restype_to_str(res->header.type));
 				goto error;
+			}
 		}
 
 		// Write offsets to the header
