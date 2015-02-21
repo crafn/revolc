@@ -16,7 +16,7 @@ typedef struct {
 	U32 gl_id;
 
 	/// @todo Mipmaps
-	Texel texels[1];
+	Texel texels[];
 } PACKED Texture;
 
 REVOLC_API void init_texture(Texture *tex);

@@ -1,20 +1,13 @@
 #include "core/array.h"
 #include "core/debug_print.h"
 #include "core/ensure.h"
+#include "core/malloc.h"
 #include "core/vector.h"
 #include "renderer.h"
 #include "vao.h"
 
 #include <stdlib.h>
 #include <string.h>
-
-internal
-void* zero_malloc(U32 size)
-{
-	void* ptr= malloc(size);
-	memset(ptr, 0, size);
-	return ptr;
-}
 
 Renderer* create_renderer()
 {
@@ -105,7 +98,7 @@ void render_frame(Renderer *r)
 		ModelEntity *entities= malloc(sizeof(*r->entities)*r->max_entity_count);	
 		memcpy(entities, r->entities, sizeof(*r->entities)*r->max_entity_count);
 
-		/// Z-sort
+		// Z-sort
 		qsort(entities, r->max_entity_count, sizeof(*entities), entity_cmp);
 
 		TriMeshVertex *total_verts= malloc(sizeof(*total_verts)*total_v_count);

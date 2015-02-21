@@ -1,26 +1,21 @@
 {
 
-	{ // Commtn
-		"type": "Texture",
-		"name": "woodenbarrel",
-		"file": "woodenbarrel.png",
-		"some_array": [1, 2, 3]
+	{
+		"type" : "Texture",
+		"name" : "test_tex",
 	},
 	{
-		"type": "Mesh",
-		"lol": "asd",
-		"name": "kana",
-		"sub_object": { // This is a commented sub object
-			"first": 1,
-			"second": 2,
-			"third": { "really", [0, 5], "complex" },
-		},
+		"type" : "Mesh",
+		"name" : "quad",
 	},
 	{
-		"aaa" : "bbb",
 		"type" : "Model",
-		"name" : "pasuuna",
-		"color" : "silver",
-		"ccc" : "ddd"
-	}
+		"name" : "woodenbarrel",
+		"mesh" : "quad",
+		"textures" : []
+	},
+	{
+		"type" : "Shader",
+		"name" : "gen_shader",
+	},
 }

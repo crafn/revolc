@@ -1,6 +1,7 @@
 #include "core/array.h"
 #include "core/debug_print.h"
 #include "core/ensure.h"
+#include "core/json.h"
 #include "global/env.h"
 #include "resblob.h"
 
@@ -114,7 +115,7 @@ Resource* resource_by_name(const ResBlob *blob, ResType t, const char *name)
 			return res;
 	}
 	
-	fail("Resource not found");
+	fail("Resource not found: %s, %s", name, restype_to_str(t));
 	return NULL;
 }
 
@@ -127,9 +128,9 @@ void print_blob(const ResBlob *blob)
 	for (int res_i= 0; res_i < blob->res_count; ++res_i) {
 		Resource* res= resource_by_index(blob, res_i);
 		debug_print(
-				"Resource: %s, %i",
+				"Resource: %s, %s",
 				res->name,
-				res->type);
+				restype_to_str(res->type));
 
 		switch (res->type) {
 			case ResType_Texture: {
@@ -154,30 +155,6 @@ void print_blob(const ResBlob *blob)
 // JSON to blob
 //
 
-typedef jsmntok_t JsonTok;
-internal
-bool is_json_tok(const char *json, JsonTok t, const char *str)
-{
-	U32 i= 0;
-	while (str[i] != 0 && i < t.end - t.start) {
-		if (str[i] != *(json + t.start + i))
-			return false;
-		++i;
-	}
-	return true;
-}
-
-internal
-void json_strcpy(char *dst, const char *json_src, U32 len)
-{
-	for (U32 i= 0; i < len; ++i)
-		dst[i]= json_src[i];
-	dst[len]= '\0';
-}
-
-internal
-U32 json_tok_len(JsonTok t)
-{ return t.end - t.start; }
 
 typedef FILE* BlobBuf;
 
@@ -190,33 +167,189 @@ void blob_write(BlobBuf blob, BlobOffset *offset, const void *data, U32 byte_cou
 	*offset += byte_count;
 }
 
+internal
+WARN_UNUSED
+int json_model_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j)
+{
+	char textures[3][RES_NAME_LEN]= {};
+	char mesh[RES_NAME_LEN]= {};
+
+	JsonTok j_mesh= json_value_by_key(j, "mesh");
+	JsonTok j_texs= json_value_by_key(j, "textures");
+
+	if (json_is_null(j_mesh)) {
+		critical_print("Attrib 'mesh' missing for Model: %s",
+				json_str(json_value_by_key(j, "name")));
+		return 1;
+	}
+
+	if (json_is_null(j_texs)) {
+		critical_print("Attrib 'textures' missing for Model: %s",
+				json_str(json_value_by_key(j, "name")));
+		return 1;
+	}
+
+	json_strcpy(mesh, sizeof(mesh), j_mesh);
+
+	for (U32 i= 0; i < json_member_count(j_texs); ++i) {
+		JsonTok m= json_member(j_texs, i);
+		if (!json_is_string(m)) {
+			fail("@todo ERR MSG");
+			return 1;
+		}
+		json_strcpy(textures[i], sizeof(textures[i]), m);
+	}
+
+	blob_write(blob, offset, textures, sizeof(textures));
+	blob_write(blob, offset, mesh, sizeof(mesh));
+	return 0;
+}
+
+internal
+WARN_UNUSED
+int json_texture_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j)
+{
+	U16 reso[2]= {8, 8};
+	U32 gl_id= 0; // Cached
+
+	Texel edge= {100, 200, 255, 255};
+	Texel data[reso[0]*reso[1]];
+	for (U32 y= 0; y < reso[1]; ++y) {
+		for (U32 x= 0; x < reso[0]; ++x) {
+			Texel t= {250, 200, 150, 150};
+			if (	x == 0 || x == reso[0] - 1 ||
+					y == 0 || y == reso[1] - 1)
+				t= edge;
+			data[x + reso[0]*y]= t;
+		}
+	}
+
+	blob_write(blob, offset, reso, sizeof(reso));
+	blob_write(blob, offset, &gl_id, sizeof(gl_id));
+	blob_write(blob, offset, &data, sizeof(data));
+	return 0;
+}
+
+internal
+WARN_UNUSED
+int json_mesh_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j)
+{
+	MeshType type= MeshType_tri;
+	const U32 v_count= 4;
+	const U32 i_count= 6;
+	BlobOffset v_offset= 0;
+	BlobOffset i_offset= 0;
+
+	TriMeshVertex vertices[4]= {};
+	vertices[1].pos.x= 0.7;
+	vertices[1].uv.x= 1.0;
+
+	vertices[2].pos.x= 1.0;
+	vertices[2].pos.y= 0.7;
+	vertices[2].uv.x= 1.0;
+	vertices[2].uv.y= 1.0;
+
+	vertices[3].pos.y= 1.0;
+	vertices[3].uv.y= 1.0;
+
+	MeshIndexType indices[6]= {
+		0, 1, 2, 0, 2, 3
+	};
+
+	blob_write(blob, offset, &type, sizeof(type));
+	blob_write(blob, offset, &v_count, sizeof(v_count));
+	blob_write(blob, offset, &i_count, sizeof(i_count));
+
+	v_offset= *offset + sizeof(v_offset) + sizeof(i_offset);
+	blob_write(blob, offset, &v_offset, sizeof(v_offset));
+
+	i_offset= *offset + sizeof(i_offset) + sizeof(vertices);
+	blob_write(blob, offset, &i_offset, sizeof(i_offset));
+
+	blob_write(blob, offset, &vertices[0], sizeof(vertices));
+	blob_write(blob, offset, &indices[0], sizeof(indices));
+
+	return 0;
+}
+
+internal
+WARN_UNUSED
+int json_shader_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j)
+{
+	const char* vs_src=
+		"#version 150 core\n"
+		"in vec3 a_pos;"
+		"in vec2 a_uv;"
+		"uniform vec2 u_cursor;"
+		"out vec2 v_uv;"
+		"void main() {"
+		"	v_uv= a_uv;"
+		"	gl_Position= vec4((a_pos.xy + u_cursor)/(1.0 + a_pos.z), 0.0, 1.0);"
+		"}\n";
+	const char* fs_src=
+		"#version 150 core\n"
+		"uniform sampler2D u_tex_color;"
+		"in vec2 v_uv;"
+		"void main() { gl_FragColor= texture2D(u_tex_color, v_uv); }\n";
+
+	BlobOffset vs_src_offset= *offset + sizeof(Shader) - sizeof(Resource);
+	BlobOffset gs_src_offset= 0;
+	BlobOffset fs_src_offset= vs_src_offset + strlen(vs_src) + 1;
+	MeshType mesh_type= MeshType_tri;
+	U32 cached= 0;
+
+	blob_write(blob, offset, &vs_src_offset, sizeof(vs_src_offset));
+	blob_write(blob, offset, &gs_src_offset, sizeof(gs_src_offset));
+	blob_write(blob, offset, &fs_src_offset, sizeof(fs_src_offset));
+	blob_write(blob, offset, &mesh_type, sizeof(mesh_type));
+	blob_write(blob, offset, &cached, sizeof(cached));
+	blob_write(blob, offset, &cached, sizeof(cached));
+	blob_write(blob, offset, &cached, sizeof(cached));
+	blob_write(blob, offset, &cached, sizeof(cached));
+	blob_write(blob, offset, vs_src, strlen(vs_src) + 1);
+	blob_write(blob, offset, fs_src, strlen(fs_src) + 1);
+
+	return 0;
+}
+/// Used only in blob making
+/// Information gathered at first scan
+/// Used to write header and perform second scan
+typedef struct {
+	Resource header;
+	JsonTok tok;
+} ResInfo;
+
+int resinfo_cmp(const void *a_, const void *b_)
+{
+	const ResInfo *a= (ResInfo*)a_;
+	const ResInfo *b= (ResInfo*)b_;
+	int str_cmp= strcmp(a->header.name, b->header.name);
+	if (str_cmp != 0)
+		return str_cmp;
+	else
+		return a->header.type - b->header.type;
+}
+
 void make_blob(const char *dst_file, const char *src_file)
 {
-	// Information gathered at first scan
-	// Used to write header and perform second scan
-	typedef struct {
-		ResType type;
-		char name[RES_NAME_LEN];
-		jsmntok_t* tok;
-	} ResInfo;
-
 	// Resources-to-be-allocated
 	char *data= NULL;
 	jsmntok_t *t= NULL;
 	FILE *blob= NULL;
 	ResInfo *res_infos= NULL;
+	BlobOffset *res_offsets= NULL;
 
 	// Input file
 	U32 file_size;
 	data= (char*)malloc_file(src_file, &file_size);
 
-	int r;
+	JsonTok j_root= {};
 	{ // Parse json
 		U32 token_count= file_size/4 + 64; // Intuition
 		t= malloc(sizeof(jsmntok_t)*token_count);
 		jsmn_parser parser;
 		jsmn_init(&parser);
-		r= jsmn_parse(&parser, (char*)data, file_size,
+		int r= jsmn_parse(&parser, (char*)data, file_size,
 				t, token_count);
 		switch (r) {
 			case JSMN_ERROR_NOMEM:
@@ -238,58 +371,51 @@ void make_blob(const char *dst_file, const char *src_file)
 			default: ensure(r > 0);
 		}
 
-		/*{ // " to '\0' so that json strings are null-terminated
+		j_root.json= data;
+		j_root.tok= t;
+
+		{ // " to '\0' so that json strings are null-terminated
 			for (U32 i= 1; i < r; ++i) {
 				if (t[i].type == JSMN_STRING)
 					data[t[i].end]= '\0';
 			}
-		}*/
+		}
 	}
 
 	U32 res_info_count= 0;
 	U32 res_info_capacity= 1024;
 	res_infos= malloc(sizeof(*res_infos)*res_info_capacity);
 	{ // Scan throught JSON and gather ResInfos
-		U32 i= 1;
-		while (i < r) {
-			if (t[i].type != JSMN_OBJECT) {
-				i += t[i].deep_size + 1;
-				continue;
-			}
-
-			// Scan single resource
+		for (U32 res_i= 0; res_i < json_member_count(j_root); ++res_i) {
+			JsonTok j_res= json_member(j_root, res_i);
 			ResInfo res_info= {};
-			res_info.tok= &t[i];
+			res_info.tok= j_res;
 
-			ensure(t[i].type == JSMN_OBJECT);
-			++i;
-			for (	U32 field_i= 0; field_i < res_info.tok->size;
-					++field_i, i += t[i].deep_size + 1) {
-				if (t[i].type != JSMN_STRING)
-					continue;
+			ensure(json_is_object(j_res));
 
-				// Create null-terminated string for value
-				U32 next_len= json_tok_len(t[i + 1]);
-				char value_str[next_len + 1];
-				json_strcpy(value_str, data + t[i + 1].start, next_len);
-
-				if (is_json_tok(data, t[i], "type")) {
-					res_info.type= str_to_restype(value_str);
-					if (res_info.type == ResType_None) {
-						critical_print("Invalid resource type: %s", value_str);
-						goto error;
-					}
-				} else if (is_json_tok(data, t[i], "name")) {
-					strcpy(res_info.name, value_str);
+			// Read type
+			JsonTok j_type= json_value_by_key(j_res, "type");
+			if (!json_is_null(j_type)) {
+				const char *type_str= json_str(j_type);
+				res_info.header.type= str_to_restype(type_str);
+				if (res_info.header.type == ResType_None) {
+					critical_print("Invalid resource type: %s", type_str);
+					goto error;
 				}
-			}
-
-			if (res_info.name[0] == 0) {
-				critical_print("JSON resource missing 'name'");
+			} else {
+				critical_print("JSON resource missing 'type'");
 				goto error;
 			}
-			if (res_info.type == ResType_None) {
-				critical_print("JSON resource missing 'type'");
+
+			// Read name
+			JsonTok j_name= json_value_by_key(j_res, "name");
+			if (!json_is_null(j_name)) {
+				json_strcpy(
+						res_info.header.name,
+						sizeof(res_info.header.name),
+						j_name);
+			} else {
+				critical_print("JSON resource missing 'name'");
 				goto error;
 			}
 
@@ -298,6 +424,8 @@ void make_blob(const char *dst_file, const char *src_file)
 					&res_info_capacity, &res_info_count, sizeof(*res_infos),
 					&res_info);
 		}
+
+		qsort(res_infos, res_info_count, sizeof(*res_infos), resinfo_cmp);
 	}
 
 	{ // Output file
@@ -312,32 +440,45 @@ void make_blob(const char *dst_file, const char *src_file)
 		blob_write(blob, &offset, &blob_version, sizeof(blob_version));
 		blob_write(blob, &offset, &res_count, sizeof(res_count));
 
+		BlobOffset offset_of_offset_table= offset;
+
+		// Write zeros as offsets and fix them afterwards, as they aren't yet known
+		res_offsets= zero_malloc(sizeof(*res_offsets)*res_count);
+		blob_write(blob, &offset, &res_offsets[0], sizeof(*res_offsets)*res_count);
+
 		for (U32 res_i= 0; res_i < res_info_count; ++res_i) {
 			ResInfo *res= &res_infos[res_i];
-			debug_print("blobbing: %s, %s", res->name, restype_to_str(res->type));
+			debug_print("blobbing: %s, %s", res->header.name, restype_to_str(res->header.type));
 
-			JsonTok* t= res->tok;
-			U32 i= 1; // First one is the object
-			for (U32 field_i= 0; field_i < res->tok->size;
-					++field_i, i += t[i].deep_size + 1) {
-				if (	t[i].type != JSMN_STRING || // Comment, possibly
-						is_json_tok(data, t[i], "type") ||
-						is_json_tok(data, t[i], "name")) {
-					continue;
+			res_offsets[res_i]= offset;
+			blob_write(blob, &offset, &res->header, sizeof(res->header));
+			int err= 0;
+			if (res->header.type == ResType_Model) {
+				err= json_model_to_blob(blob, &offset, res->tok);
+			} else if (res->header.type == ResType_Texture) {
+				err= json_texture_to_blob(blob, &offset, res->tok);
+			} else if (res->header.type == ResType_Mesh) {
+				err= json_mesh_to_blob(blob, &offset, res->tok);
+			} else if (res->header.type == ResType_Shader) {
+				err= json_shader_to_blob(blob, &offset, res->tok);
+			} else {
+				for (U32 i= 0; i < json_member_count(res->tok); ++i) {
+					debug_print("  attrib: %s",
+							json_str(json_member(res->tok, i)));
 				}
-
-				/// @todo write to blob
-
-				debug_print("  attrib: %.*s -- %.*s",
-						json_tok_len(t[i]),
-						data + t[i].start,
-						json_tok_len(t[i + 1]),
-						data + t[i + 1].start);
 			}
+
+			if (err)
+				goto error;
 		}
+
+		// Write offsets to the header
+		fseek(blob, offset_of_offset_table, SEEK_SET);
+		blob_write(blob, &offset, &res_offsets[0], sizeof(*res_offsets)*res_count);
 	}
 
 exit:
+	free(res_offsets);
 	if (blob)
 		fclose(blob);
 	free(res_infos);
