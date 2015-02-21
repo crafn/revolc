@@ -10,14 +10,15 @@ typedef struct ResBlob {
 	BlobOffset res_offsets[];
 } ResBlob;
 
-/// @note Sets g_env.res_blob
-REVOLC_API ResBlob* load_blob(const char *path);
+REVOLC_API ResBlob * load_blob(const char *path);
 REVOLC_API void unload_blob(ResBlob *blob);
+REVOLC_API WARN_UNUSED ResBlob * reload_blob(ResBlob *blob, const char *path);
 
-REVOLC_API Resource* resource_by_index(const ResBlob *blob, U32 index);
-REVOLC_API Resource* resource_by_name(const ResBlob *b, ResType t, const char *n);
+REVOLC_API Resource * res_by_index(const ResBlob *blob, U32 index);
+REVOLC_API Resource * res_by_name(const ResBlob *b, ResType t, const char *n);
+REVOLC_API Resource * find_res_by_name(const ResBlob *b, ResType t, const char *n);
 
-REVOLC_API void* blob_ptr(ResBlob *blob, BlobOffset offset);
+REVOLC_API void * blob_ptr(ResBlob *blob, BlobOffset offset);
 
 REVOLC_API void print_blob(const ResBlob *blob);
 

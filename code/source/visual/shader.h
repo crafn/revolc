@@ -14,7 +14,7 @@ typedef struct {
 	BlobOffset fs_src_offset;
 	MeshType mesh_type;
 
-	// Cached
+	// On init
 	/// @todo	Store these somewhere else, as single shader source can
 	///			produce multiple programs (macros)
 	U32 vs_gl_id;
@@ -23,7 +23,7 @@ typedef struct {
 	U32 prog_gl_id;
 } PACKED Shader;
 
-REVOLC_API void init_shader(Shader *shd);
+REVOLC_API void init_shader(Shader *shd, ResBlob *blob);
 REVOLC_API void deinit_shader(Shader *shd);
 
 REVOLC_API WARN_UNUSED

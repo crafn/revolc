@@ -18,18 +18,22 @@
 #include <math.h>
 #include <stdlib.h>
 
+#define DEFAULT_RES_FILE "../../resources/gamedata/test.res"
+
 int main(int argc, const char **argv)
 {
 	Device *d= plat_init("Revolc engine", 800, 600);
 
-	make_blob("main.blob", "../../resources/gamedata/test.res");
+	/// @todo Create blob only if resources have changed
+	make_blob("main.blob", DEFAULT_RES_FILE);
 
-	ResBlob* blob= load_blob("main.blob");
+	ResBlob* blob= g_env.res_blob= load_blob("main.blob");
+
 	print_blob(blob);
 
 	Renderer* rend= create_renderer();
 
-	Model* model= (Model*)resource_by_name(blob, ResType_Model, "woodenbarrel");
+	Model* model= (Model*)res_by_name(blob, ResType_Model, "woodenbarrel");
 #define ENTITY_COUNT 500
 	U32 entity_handles[ENTITY_COUNT];
 	for (int i= 0; i < ENTITY_COUNT; ++i) {
@@ -45,6 +49,11 @@ int main(int argc, const char **argv)
 			-2.0*d->cursor_pos[1]/d->win_size[1] + 1.0,
 		};
 		time += d->dt;
+
+		if (d->lmbDown) {
+			make_blob("main.blob", DEFAULT_RES_FILE);
+			blob= g_env.res_blob= reload_blob(blob, "main.blob");
+		}
 
 		for (int i= 0; i < ENTITY_COUNT; ++i) {
 			ModelEntity *e= get_modelentity(rend, entity_handles[i]);
@@ -62,6 +71,8 @@ int main(int argc, const char **argv)
 	destroy_renderer(rend);
 
 	unload_blob(blob);
+	g_env.res_blob= NULL;
+
 	plat_quit(d);
 
 	return 0;

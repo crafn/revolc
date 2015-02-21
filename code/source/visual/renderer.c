@@ -17,11 +17,17 @@ Renderer* create_renderer()
 	rend->entities= zero_malloc(sizeof(*rend->entities)*default_count);
 	rend->next_entity= 0;
 	rend->max_entity_count= default_count;
+
+	if (!g_env.renderer)
+		g_env.renderer= rend;
+
 	return rend;
 }
 
 void destroy_renderer(Renderer *rend)
 {
+	if (g_env.renderer == rend)
+		g_env.renderer= NULL;
 	free(rend->entities);
 	free(rend);
 }
@@ -41,10 +47,10 @@ U32 create_modelentity(Renderer *r, const Model *model)
 		ModelEntity *e= &r->entities[r->next_entity];
 		e->model= model;
 		e->pos.x= 0; e->pos.y= 0; e->pos.z= 0;
-		for (int i= 0; i < 3; ++i) {
+		for (int i= 0; i < MODEL_TEX_COUNT; ++i) {
 			Texture* tex= model_texture(model, 0);
 			if (tex)
-				e->tex_gl_ids[0]= tex->gl_id;
+				e->tex_gl_ids[i]= tex->gl_id;
 		}
 		e->vertices= (TriMeshVertex*)mesh_vertices(model_mesh(model));
 		e->indices= (MeshIndexType*)mesh_indices(model_mesh(model));
@@ -138,7 +144,7 @@ void render_frame(Renderer *r, float cam_x, float cam_y)
 		glBindTexture(GL_TEXTURE_2D, tex_gl_id);
 
 		Shader* shd=
-			(Shader*)resource_by_name(
+			(Shader*)res_by_name(
 					g_env.res_blob,
 					ResType_Shader,
 					"gen_shader");

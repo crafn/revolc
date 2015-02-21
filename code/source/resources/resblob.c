@@ -2,7 +2,6 @@
 #include "core/debug_print.h"
 #include "core/ensure.h"
 #include "core/json.h"
-#include "global/env.h"
 #include "resblob.h"
 
 #define HEADERS
@@ -37,30 +36,27 @@ U8* malloc_file(const char* path, U32 *file_size)
 	return buf;
 }
 
-ResBlob* load_blob(const char *path)
+ResBlob * load_blob(const char *path)
 {
-	ResBlob* blob= NULL;
+	ResBlob *blob= NULL;
 	{ // Load from file
-
 		U32 blob_size;
 		blob= (ResBlob*)malloc_file(path, &blob_size);
-		if (g_env.res_blob == NULL)
-			g_env.res_blob= blob;
-
-		debug_print("ResBlob loaded: %s, %i", path, (int)blob_size);
+		debug_print("load_blob: %s, %i", path, (int)blob_size);
 	}
 
 	{ // Initialize resources
 		for (ResType t= 0; t < ResType_last; ++t) {
 			for (U32 i= 0; i < blob->res_count; ++i) {
-				Resource* res= resource_by_index(blob, i);
+				Resource *res= res_by_index(blob, i);
+				res->blob= blob;
 				if (res->type != t)
 					continue;
 #define RESOURCE(type, init, deinit, blobify) \
 				{ \
 					void* fptr= (void*)init; \
 					if (fptr && ResType_ ## type == t) \
-						((void (*)(type *))fptr)((type*)res); \
+						((void (*)(type *, ResBlob *))fptr)((type*)res, blob); \
 				}
 #	include "resources/resources.def"
 #undef RESOURCE
@@ -78,7 +74,7 @@ void unload_blob(ResBlob *blob)
 			for (U32 i_= blob->res_count; i_ > 0; --i_) {
 				ResType t= t_ - 1;
 				U32 i= i_ - 1;
-				Resource* res= resource_by_index(blob, i);
+				Resource* res= res_by_index(blob, i);
 				if (res->type != t)
 					continue;
 #define RESOURCE(type, init, deinit, blobify) \
@@ -93,29 +89,83 @@ void unload_blob(ResBlob *blob)
 		}
 	}
 
-	if (g_env.res_blob == blob)
-		g_env.res_blob= NULL;
-
 	free(blob);
 }
 
-Resource* resource_by_index(const ResBlob *blob, U32 index)
+ResBlob* reload_blob(ResBlob *old_blob, const char *path)
+{
+	debug_print("reload_blob: %s", path);
+
+	ResBlob *new_blob= load_blob(path);
+
+	{ // Check that all resources can be found
+		/// @todo Can be done in O(n)
+		for (U32 i= 0; i < old_blob->res_count; ++i) {
+			Resource *old= res_by_index(old_blob, i);
+
+			if (!find_res_by_name(new_blob, old->type, old->name)) {
+				critical_print(
+						"Can't reload blob: new blob missing resource: %s, %s",
+						old->name, restype_to_str(old->type));
+
+				unload_blob(new_blob);
+				return old_blob;
+			}
+		}
+	}
+
+	// Update old res pointers to new blob
+	if (g_env.renderer) {
+		// Model
+		for (U32 e_i= 0; e_i < g_env.renderer->entity_count; ++e_i) {
+			ModelEntity *e= &g_env.renderer->entities[e_i];
+
+			const Model *m= e->model=
+				(Model*)res_by_name(
+						new_blob,
+						e->model->res.type,
+						e->model->res.name);
+
+			// Update cached values in EntityModels
+			for (int t_i= 0; t_i < MODEL_TEX_COUNT; ++t_i) {
+				Texture *tex= model_texture(m, t_i);
+				if (tex)
+					e->tex_gl_ids[t_i]= tex->gl_id;
+			}
+			e->vertices= (TriMeshVertex*)mesh_vertices(model_mesh(m));
+			e->indices= (MeshIndexType*)mesh_indices(model_mesh(m));
+			e->mesh_v_count= model_mesh(m)->v_count;
+			e->mesh_i_count= model_mesh(m)->i_count;
+		}
+	}
+
+	unload_blob(old_blob);
+	return new_blob;
+}
+
+Resource * res_by_index(const ResBlob *blob, U32 index)
 {
 	ensure(index < blob->res_count);
 	return (Resource*)((U8*)blob + blob->res_offsets[index]);
 }
 
-Resource* resource_by_name(const ResBlob *blob, ResType t, const char *name)
+Resource * res_by_name(const ResBlob *b, ResType t, const char *n)
+{
+	Resource *res= find_res_by_name(b, t, n);
+	if (!res)
+		fail("Resource not found: %s, %s", n, restype_to_str(t));
+	return res;
+}
+
+Resource * find_res_by_name(const ResBlob *b, ResType t, const char *n)
 {
 	/// @todo Binary search from organized blob
-	for (U32 i= 0; i < blob->res_count; ++i) {
-		Resource* res= resource_by_index(blob, i);
-		if (res->type == t && !strcmp(name, res->name))
+	for (U32 i= 0; i < b->res_count; ++i) {
+		Resource* res= res_by_index(b, i);
+		if (res->type == t && !strcmp(n, res->name))
 			return res;
 	}
-	
-	fail("Resource not found: %s, %s", name, restype_to_str(t));
-	return NULL;
+	return NULL;	
 }
 
 void* blob_ptr(ResBlob *blob, BlobOffset offset)
@@ -123,15 +173,15 @@ void* blob_ptr(ResBlob *blob, BlobOffset offset)
 
 void print_blob(const ResBlob *blob)
 {
-	debug_print("Res count: %i", (int)blob->res_count);
+	debug_print("print_blob - res count: %i", (int)blob->res_count);
 	for (int res_i= 0; res_i < blob->res_count; ++res_i) {
-		Resource* res= resource_by_index(blob, res_i);
+		Resource* res= res_by_index(blob, res_i);
 		debug_print(
-				"Resource: %s, %s",
+				"  resource: %s, %s",
 				res->name,
 				restype_to_str(res->type));
 
-		switch (res->type) {
+		/*switch (res->type) {
 			case ResType_Texture: {
 				Texture* tex= (Texture*)res;
 				debug_print(
@@ -146,7 +196,7 @@ void print_blob(const ResBlob *blob)
 					mesh->i_count);
 			} break;
 			default: break;
-		}
+		}*/
 	}
 }
 

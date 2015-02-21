@@ -41,8 +41,8 @@ typedef struct {
 	BlobOffset i_offset;
 } PACKED Mesh;
 
-REVOLC_API void* mesh_vertices(const Mesh *m);
-REVOLC_API MeshIndexType* mesh_indices(const Mesh *m);
+REVOLC_API void * mesh_vertices(const Mesh *m);
+REVOLC_API MeshIndexType * mesh_indices(const Mesh *m);
 
 REVOLC_API WARN_UNUSED
 int json_mesh_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j);

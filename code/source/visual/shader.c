@@ -1,14 +1,13 @@
 #include "core/debug_print.h"
-#include "global/env.h"
 #include "platform/gl.h"
 #include "resources/resblob.h"
 #include "shader.h"
 
-void init_shader(Shader *shd)
+void init_shader(Shader *shd, ResBlob *blob)
 {
-	const GLchar* vs_src= blob_ptr(g_env.res_blob, shd->vs_src_offset);
-	const GLchar* gs_src= blob_ptr(g_env.res_blob, shd->gs_src_offset);
-	const GLchar* fs_src= blob_ptr(g_env.res_blob, shd->fs_src_offset);
+	const GLchar* vs_src= blob_ptr(blob, shd->vs_src_offset);
+	const GLchar* gs_src= blob_ptr(blob, shd->gs_src_offset);
+	const GLchar* fs_src= blob_ptr(blob, shd->fs_src_offset);
 
 	U32 attrib_count;
 	const VertexAttrib *attribs;

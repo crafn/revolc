@@ -9,6 +9,7 @@ typedef struct Device {
 	int win_size[2];
 	bool quit_requested;
 	F32 dt;
+	bool lmbDown;
 
 	struct DevicePlatformData* data;
 } Device;

@@ -11,6 +11,7 @@ typedef struct {
 	/// @todo
 } BlendFunc;
 
+#define MODEL_TEX_COUNT 3
 typedef struct {
 	Resource res;
 	//F32 color[4];
@@ -19,7 +20,7 @@ typedef struct {
 	//bool casts_shadow;
 	//bool billboard;
 	//bool snap_to_pixels;
-	char textures[3][RES_NAME_LEN];
+	char textures[MODEL_TEX_COUNT][RES_NAME_LEN];
 	char mesh[RES_NAME_LEN];
 } PACKED Model;
 

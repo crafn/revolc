@@ -4,7 +4,7 @@
 #include "build.h"
 
 typedef U64 BlobOffset; // Offset from the beginning of a resource blob
-#define RES_NAME_LEN 16
+#define RES_NAME_LEN 32
 
 typedef enum {
 	ResType_None,
@@ -17,9 +17,12 @@ typedef enum {
 ResType str_to_restype(const char *str);
 const char * restype_to_str(ResType type);
 
+struct ResBlob;
+
 typedef struct {
 	ResType type;
 	char name[RES_NAME_LEN];
+	struct ResBlob *blob;
 } PACKED Resource;
 
 #endif // REVOLC_RESOURCES_RESOURCE_H

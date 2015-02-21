@@ -313,10 +313,10 @@ void plat_update(Device *d)
 			XFree(keysym);
 		}
 
-		/*if (xev.xbutton.type == ButtonPress)
-			env.lmbDown= true;
+		if (xev.xbutton.type == ButtonPress)
+			d->lmbDown= true;
 		else if (xev.xbutton.type == ButtonRelease)
-			env.lmbDown= false;*/
+			d->lmbDown= false;
 	}
 
 	XWindowAttributes gwa;

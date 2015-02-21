@@ -6,12 +6,12 @@
 
 void fail(const char *format, ...)
 {
-	printf("fail: ");
+	printf("\033[0;31mfail: ");
 	va_list a;
 	va_start(a, format);
 	vprintf(format, a);
 	va_end(a);
-	printf("\n");
+	printf("\033[0m\n");
 
 	abort();
 }

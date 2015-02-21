@@ -13,14 +13,14 @@ typedef struct {
 	Resource res;
 	U16 reso[2];
 
-	// Cached
+	// On init
 	U32 gl_id;
 
 	/// @todo Mipmaps
 	Texel texels[];
 } PACKED Texture;
 
-REVOLC_API void init_texture(Texture *tex);
+REVOLC_API void init_texture(Texture *tex, ResBlob *blob);
 REVOLC_API void deinit_texture(Texture *tex);
 
 REVOLC_API WARN_UNUSED

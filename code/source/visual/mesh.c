@@ -1,5 +1,4 @@
 #include "core/ensure.h"
-#include "global/env.h"
 #include "mesh.h"
 #include "resources/resblob.h"
 
@@ -33,11 +32,11 @@ U32 vertex_size(MeshType type)
 	return 0;
 }
 
-void* mesh_vertices(const Mesh *m)
-{ return blob_ptr(g_env.res_blob, m->v_offset); }
+void * mesh_vertices(const Mesh *m)
+{ return blob_ptr(m->res.blob, m->v_offset); }
 
-MeshIndexType* mesh_indices(const Mesh *m)
-{ return (MeshIndexType*)blob_ptr(g_env.res_blob, m->i_offset); }
+MeshIndexType * mesh_indices(const Mesh *m)
+{ return (MeshIndexType*)blob_ptr(m->res.blob, m->i_offset); }
 
 int json_mesh_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j)
 {
@@ -110,3 +109,4 @@ int json_mesh_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j)
 
 	return 0;
 }
+

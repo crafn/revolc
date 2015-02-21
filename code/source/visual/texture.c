@@ -6,10 +6,8 @@
 
 #include <lodepng/lodepng.h>
 
-void init_texture(Texture *tex)
+void init_texture(Texture *tex, ResBlob *blob)
 {
-	debug_print("Texture init: %s", tex->res.name);
-
 	glGenTextures(1, &tex->gl_id);
 	glBindTexture(GL_TEXTURE_2D, tex->gl_id);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
@@ -38,7 +36,6 @@ void init_texture(Texture *tex)
 
 void deinit_texture(Texture *tex)
 {
-	debug_print("Texture deinit: %s", tex->res.name);
 	glDeleteTextures(1, &tex->gl_id);
 }
 
@@ -56,7 +53,7 @@ int json_texture_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j)
 	}
 
 	total_path= malloc_joined_path(j.json_path, json_str(j_file));
-	debug_print("PATH %s", total_path);
+
 	U32 width, height;
 	int err=
 		lodepng_decode32_file(&image, &width, &height, total_path);
