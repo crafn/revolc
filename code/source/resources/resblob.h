@@ -25,4 +25,8 @@ REVOLC_API void print_blob(const ResBlob *blob);
 /// makes binary blob out of them to `dst_file
 REVOLC_API void make_blob(const char *dst_file, const char *src_file);
 
+typedef FILE* BlobBuf;
+REVOLC_API
+void blob_write(BlobBuf blob, BlobOffset *offset, const void *data, U32 byte_count);
+
 #endif // REVOLC_RESOURCES_RESBLOB_HPP

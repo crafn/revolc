@@ -38,3 +38,43 @@ void* mesh_vertices(const Mesh *m)
 
 MeshIndexType* mesh_indices(const Mesh *m)
 { return (MeshIndexType*)blob_ptr(g_env.res_blob, m->i_offset); }
+
+int json_mesh_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j)
+{
+	MeshType type= MeshType_tri;
+	const U32 v_count= 4;
+	const U32 i_count= 6;
+	BlobOffset v_offset= 0;
+	BlobOffset i_offset= 0;
+
+	TriMeshVertex vertices[4]= {};
+	vertices[1].pos.x= 0.7;
+	vertices[1].uv.x= 1.0;
+
+	vertices[2].pos.x= 1.0;
+	vertices[2].pos.y= 0.7;
+	vertices[2].uv.x= 1.0;
+	vertices[2].uv.y= 1.0;
+
+	vertices[3].pos.y= 1.0;
+	vertices[3].uv.y= 1.0;
+
+	MeshIndexType indices[6]= {
+		0, 1, 2, 0, 2, 3
+	};
+
+	blob_write(blob, offset, &type, sizeof(type));
+	blob_write(blob, offset, &v_count, sizeof(v_count));
+	blob_write(blob, offset, &i_count, sizeof(i_count));
+
+	v_offset= *offset + sizeof(v_offset) + sizeof(i_offset);
+	blob_write(blob, offset, &v_offset, sizeof(v_offset));
+
+	i_offset= *offset + sizeof(i_offset) + sizeof(vertices);
+	blob_write(blob, offset, &i_offset, sizeof(i_offset));
+
+	blob_write(blob, offset, &vertices[0], sizeof(vertices));
+	blob_write(blob, offset, &indices[0], sizeof(indices));
+
+	return 0;
+}

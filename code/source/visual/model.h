@@ -2,6 +2,7 @@
 #define REVOLC_VISUAL_MODEL_H
 
 #include "build.h"
+#include "core/json.h"
 #include "resources/resource.h"
 #include "texture.h"
 #include "mesh.h"
@@ -22,7 +23,11 @@ typedef struct {
 	char mesh[RES_NAME_LEN];
 } PACKED Model;
 
-Texture* model_texture(const Model *model, U32 index);
-Mesh* model_mesh(const Model *model);
+REVOLC_API Texture* model_texture(const Model *model, U32 index);
+REVOLC_API Mesh* model_mesh(const Model *model);
+
+REVOLC_API
+WARN_UNUSED
+int json_model_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j);
 
 #endif // REVOLC_VISUAL_MODEL_H

@@ -57,7 +57,7 @@ ResBlob* load_blob(const char *path)
 				Resource* res= resource_by_index(blob, i);
 				if (res->type != t)
 					continue;
-#define RESOURCE(type, init, deinit) \
+#define RESOURCE(type, init, deinit, blobify) \
 				{ \
 					void* fptr= (void*)init; \
 					if (fptr && ResType_ ## type == t) \
@@ -82,7 +82,7 @@ void unload_blob(ResBlob *blob)
 				Resource* res= resource_by_index(blob, i);
 				if (res->type != t)
 					continue;
-#define RESOURCE(type, init, deinit) \
+#define RESOURCE(type, init, deinit, blobify) \
 				{ \
 					void* fptr= (void*)deinit; \
 					if (fptr && ResType_ ## type == t) \
@@ -155,10 +155,6 @@ void print_blob(const ResBlob *blob)
 // JSON to blob
 //
 
-
-typedef FILE* BlobBuf;
-
-internal
 void blob_write(BlobBuf blob, BlobOffset *offset, const void *data, U32 byte_count)
 {
 	U32 ret= fwrite(data, byte_count, 1, blob);
@@ -167,150 +163,6 @@ void blob_write(BlobBuf blob, BlobOffset *offset, const void *data, U32 byte_cou
 	*offset += byte_count;
 }
 
-internal
-WARN_UNUSED
-int json_model_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j)
-{
-	char textures[3][RES_NAME_LEN]= {};
-	char mesh[RES_NAME_LEN]= {};
-
-	JsonTok j_mesh= json_value_by_key(j, "mesh");
-	JsonTok j_texs= json_value_by_key(j, "textures");
-
-	if (json_is_null(j_mesh)) {
-		critical_print("Attrib 'mesh' missing for Model: %s",
-				json_str(json_value_by_key(j, "name")));
-		return 1;
-	}
-
-	if (json_is_null(j_texs)) {
-		critical_print("Attrib 'textures' missing for Model: %s",
-				json_str(json_value_by_key(j, "name")));
-		return 1;
-	}
-
-	json_strcpy(mesh, sizeof(mesh), j_mesh);
-
-	for (U32 i= 0; i < json_member_count(j_texs); ++i) {
-		JsonTok m= json_member(j_texs, i);
-		if (!json_is_string(m)) {
-			fail("@todo ERR MSG");
-			return 1;
-		}
-		json_strcpy(textures[i], sizeof(textures[i]), m);
-	}
-
-	blob_write(blob, offset, textures, sizeof(textures));
-	blob_write(blob, offset, mesh, sizeof(mesh));
-	return 0;
-}
-
-internal
-WARN_UNUSED
-int json_texture_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j)
-{
-	U16 reso[2]= {8, 8};
-	U32 gl_id= 0; // Cached
-
-	Texel edge= {100, 200, 255, 255};
-	Texel data[reso[0]*reso[1]];
-	for (U32 y= 0; y < reso[1]; ++y) {
-		for (U32 x= 0; x < reso[0]; ++x) {
-			Texel t= {250, 200, 150, 150};
-			if (	x == 0 || x == reso[0] - 1 ||
-					y == 0 || y == reso[1] - 1)
-				t= edge;
-			data[x + reso[0]*y]= t;
-		}
-	}
-
-	blob_write(blob, offset, reso, sizeof(reso));
-	blob_write(blob, offset, &gl_id, sizeof(gl_id));
-	blob_write(blob, offset, &data, sizeof(data));
-	return 0;
-}
-
-internal
-WARN_UNUSED
-int json_mesh_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j)
-{
-	MeshType type= MeshType_tri;
-	const U32 v_count= 4;
-	const U32 i_count= 6;
-	BlobOffset v_offset= 0;
-	BlobOffset i_offset= 0;
-
-	TriMeshVertex vertices[4]= {};
-	vertices[1].pos.x= 0.7;
-	vertices[1].uv.x= 1.0;
-
-	vertices[2].pos.x= 1.0;
-	vertices[2].pos.y= 0.7;
-	vertices[2].uv.x= 1.0;
-	vertices[2].uv.y= 1.0;
-
-	vertices[3].pos.y= 1.0;
-	vertices[3].uv.y= 1.0;
-
-	MeshIndexType indices[6]= {
-		0, 1, 2, 0, 2, 3
-	};
-
-	blob_write(blob, offset, &type, sizeof(type));
-	blob_write(blob, offset, &v_count, sizeof(v_count));
-	blob_write(blob, offset, &i_count, sizeof(i_count));
-
-	v_offset= *offset + sizeof(v_offset) + sizeof(i_offset);
-	blob_write(blob, offset, &v_offset, sizeof(v_offset));
-
-	i_offset= *offset + sizeof(i_offset) + sizeof(vertices);
-	blob_write(blob, offset, &i_offset, sizeof(i_offset));
-
-	blob_write(blob, offset, &vertices[0], sizeof(vertices));
-	blob_write(blob, offset, &indices[0], sizeof(indices));
-
-	return 0;
-}
-
-internal
-WARN_UNUSED
-int json_shader_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j)
-{
-	const char* vs_src=
-		"#version 150 core\n"
-		"in vec3 a_pos;"
-		"in vec2 a_uv;"
-		"uniform vec2 u_cursor;"
-		"out vec2 v_uv;"
-		"void main() {"
-		"	v_uv= a_uv;"
-		"	gl_Position= vec4((a_pos.xy + u_cursor)/(1.0 + a_pos.z), 0.0, 1.0);"
-		"}\n";
-	const char* fs_src=
-		"#version 150 core\n"
-		"uniform sampler2D u_tex_color;"
-		"in vec2 v_uv;"
-		"void main() { gl_FragColor= texture2D(u_tex_color, v_uv); }\n";
-
-	BlobOffset vs_src_offset= *offset + sizeof(Shader) - sizeof(Resource);
-	BlobOffset gs_src_offset= 0;
-	BlobOffset fs_src_offset= vs_src_offset + strlen(vs_src) + 1;
-	MeshType mesh_type= MeshType_tri;
-	U32 cached= 0;
-
-	blob_write(blob, offset, &vs_src_offset, sizeof(vs_src_offset));
-	blob_write(blob, offset, &gs_src_offset, sizeof(gs_src_offset));
-	blob_write(blob, offset, &fs_src_offset, sizeof(fs_src_offset));
-	blob_write(blob, offset, &mesh_type, sizeof(mesh_type));
-	blob_write(blob, offset, &cached, sizeof(cached));
-	blob_write(blob, offset, &cached, sizeof(cached));
-	blob_write(blob, offset, &cached, sizeof(cached));
-	blob_write(blob, offset, &cached, sizeof(cached));
-	blob_write(blob, offset, vs_src, strlen(vs_src) + 1);
-	blob_write(blob, offset, fs_src, strlen(fs_src) + 1);
-
-	return 0;
-}
 /// Used only in blob making
 /// Information gathered at first scan
 /// Used to write header and perform second scan
@@ -319,6 +171,7 @@ typedef struct {
 	JsonTok tok;
 } ResInfo;
 
+internal
 int resinfo_cmp(const void *a_, const void *b_)
 {
 	const ResInfo *a= (ResInfo*)a_;
@@ -328,6 +181,17 @@ int resinfo_cmp(const void *a_, const void *b_)
 		return str_cmp;
 	else
 		return a->header.type - b->header.type;
+}
+
+internal
+int json_res_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j, ResType res_t)
+{
+#define RESOURCE(name, init, deinit, blobify) \
+	if (res_t == ResType_ ## name) \
+		return blobify(blob, offset, j);
+#	include "resources.def"
+#undef RESOURCE
+	return 1;
 }
 
 void make_blob(const char *dst_file, const char *src_file)
@@ -452,22 +316,7 @@ void make_blob(const char *dst_file, const char *src_file)
 
 			res_offsets[res_i]= offset;
 			blob_write(blob, &offset, &res->header, sizeof(res->header));
-			int err= 0;
-			if (res->header.type == ResType_Model) {
-				err= json_model_to_blob(blob, &offset, res->tok);
-			} else if (res->header.type == ResType_Texture) {
-				err= json_texture_to_blob(blob, &offset, res->tok);
-			} else if (res->header.type == ResType_Mesh) {
-				err= json_mesh_to_blob(blob, &offset, res->tok);
-			} else if (res->header.type == ResType_Shader) {
-				err= json_shader_to_blob(blob, &offset, res->tok);
-			} else {
-				for (U32 i= 0; i < json_member_count(res->tok); ++i) {
-					debug_print("  attrib: %s",
-							json_str(json_member(res->tok, i)));
-				}
-			}
-
+			int err= json_res_to_blob(blob, &offset, res->tok, res->header.type);
 			if (err)
 				goto error;
 		}

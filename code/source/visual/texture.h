@@ -2,6 +2,7 @@
 #define REVOLC_VISUAL_TEXTURE_H
 
 #include "build.h"
+#include "core/json.h"
 #include "resources/resource.h"
 
 typedef struct {
@@ -21,5 +22,8 @@ typedef struct {
 
 REVOLC_API void init_texture(Texture *tex);
 REVOLC_API void deinit_texture(Texture *tex);
+
+REVOLC_API WARN_UNUSED
+int json_texture_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j);
 
 #endif // REVOLC_VISUAL_TEXTURE_H

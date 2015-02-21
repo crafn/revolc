@@ -66,3 +66,42 @@ void deinit_shader(Shader *shd)
 			&shd->gs_gl_id,
 			&shd->fs_gl_id);
 }
+
+int json_shader_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j)
+{
+	const char* vs_src=
+		"#version 150 core\n"
+		"in vec3 a_pos;"
+		"in vec2 a_uv;"
+		"uniform vec2 u_cursor;"
+		"out vec2 v_uv;"
+		"void main() {"
+		"	v_uv= a_uv;"
+		"	gl_Position= vec4((a_pos.xy + u_cursor)/(1.0 + a_pos.z), 0.0, 1.0);"
+		"}\n";
+	const char* fs_src=
+		"#version 150 core\n"
+		"uniform sampler2D u_tex_color;"
+		"in vec2 v_uv;"
+		"void main() { gl_FragColor= texture2D(u_tex_color, v_uv); }\n";
+
+	BlobOffset vs_src_offset= *offset + sizeof(Shader) - sizeof(Resource);
+	BlobOffset gs_src_offset= 0;
+	BlobOffset fs_src_offset= vs_src_offset + strlen(vs_src) + 1;
+	MeshType mesh_type= MeshType_tri;
+	U32 cached= 0;
+
+	blob_write(blob, offset, &vs_src_offset, sizeof(vs_src_offset));
+	blob_write(blob, offset, &gs_src_offset, sizeof(gs_src_offset));
+	blob_write(blob, offset, &fs_src_offset, sizeof(fs_src_offset));
+	blob_write(blob, offset, &mesh_type, sizeof(mesh_type));
+	blob_write(blob, offset, &cached, sizeof(cached));
+	blob_write(blob, offset, &cached, sizeof(cached));
+	blob_write(blob, offset, &cached, sizeof(cached));
+	blob_write(blob, offset, &cached, sizeof(cached));
+	blob_write(blob, offset, vs_src, strlen(vs_src) + 1);
+	blob_write(blob, offset, fs_src, strlen(fs_src) + 1);
+
+	return 0;
+}
+
