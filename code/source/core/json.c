@@ -1,5 +1,7 @@
 #include "json.h"
 
+#include <stdlib.h>
+
 JsonTok json_value_by_key(JsonTok obj, const char *key)
 {
 	ensure(obj.tok->type == JSMN_OBJECT);
@@ -75,6 +77,12 @@ REVOLC_API const char * json_str(JsonTok j)
 {
 	if (j.tok->type != JSMN_STRING)
 		return "<JSON OBJ>";
-	else
-		return j.json + j.tok->start;
+	return j.json + j.tok->start;
 }
+
+F64 json_real(JsonTok j)
+{ return atof(j.json + j.tok->start); }
+
+S64 json_integer(JsonTok j)
+{ return atoll(j.json + j.tok->start); };
+

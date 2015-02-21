@@ -237,9 +237,10 @@ void make_blob(const char *dst_file, const char *src_file)
 		j_root.json= data;
 		j_root.tok= t;
 
-		{ // " to '\0' so that json strings are null-terminated
+		{ // Terminate strings and primitives so that they're easier to handle
 			for (U32 i= 1; i < r; ++i) {
-				if (t[i].type == JSMN_STRING)
+				if (	t[i].type == JSMN_STRING ||
+						t[i].type == JSMN_PRIMITIVE)
 					data[t[i].end]= '\0';
 			}
 		}

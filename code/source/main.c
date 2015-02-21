@@ -30,7 +30,7 @@ int main(int argc, const char **argv)
 	Renderer* rend= create_renderer();
 
 	Model* model= (Model*)resource_by_name(blob, ResType_Model, "woodenbarrel");
-#define ENTITY_COUNT 100
+#define ENTITY_COUNT 500
 	U32 entity_handles[ENTITY_COUNT];
 	for (int i= 0; i < ENTITY_COUNT; ++i) {
 		U32 h= create_modelentity(rend, model);
@@ -48,7 +48,7 @@ int main(int argc, const char **argv)
 
 		for (int i= 0; i < ENTITY_COUNT; ++i) {
 			ModelEntity *e= get_modelentity(rend, entity_handles[i]);
-			e->pos.z= 2.0 + i*0.5 + sin(i + time);
+			e->pos.z= 2.0 + i*0.1 + sin(i + time);
 			e->pos.x= sin(i + time*0.7)*3.0;
 		}
 
@@ -59,7 +59,7 @@ int main(int argc, const char **argv)
 		Shader* shd= (Shader*)resource_by_name(blob, ResType_Shader, "gen_shader");
 		glUseProgram(shd->prog_gl_id);
 		glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_tex_color"), 0);
-		glUniform2f(glGetUniformLocation(shd->prog_gl_id, "u_cursor"), c_gl[0], c_gl[1]);
+		glUniform2f(glGetUniformLocation(shd->prog_gl_id, "u_cursor"), c_gl[0]*3.0, c_gl[1]*3.0);
 
 		glViewport(0, 0, d.win_size[0], d.win_size[1]);
 		glClear(GL_COLOR_BUFFER_BIT);
