@@ -2,6 +2,6 @@
 mkdir -p ../builds/linux64
 cd ./source
 clang -std=gnu99 -Wall -g -I. \
-	-I ../deps/common/jsmn \
+	-I ../deps/common \
 	./unity.c \
 	-lX11 -lGL -lm -o ../../builds/linux64/clover

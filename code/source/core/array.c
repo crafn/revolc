@@ -1,6 +1,7 @@
 #include "array.h"
 #include "ensure.h"
 
+#include <stdlib.h>
 #include <string.h>
 
 void* enlarge_array(void *array, U32 *old_c, U32 elem_size)

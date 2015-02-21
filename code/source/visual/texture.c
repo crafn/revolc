@@ -3,6 +3,8 @@
 #include "platform/gl.h"
 #include "texture.h"
 
+#include <lodepng/lodepng.h>
+
 void init_texture(Texture *tex)
 {
 	debug_print("Texture init: %s", tex->res.name);
@@ -41,24 +43,30 @@ void deinit_texture(Texture *tex)
 
 int json_texture_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j)
 {
-	U16 reso[2]= {8, 8};
-	U32 gl_id= 0; // Cached
+	int return_value= 0;
 
-	Texel edge= {100, 200, 255, 255};
-	Texel data[reso[0]*reso[1]];
-	for (U32 y= 0; y < reso[1]; ++y) {
-		for (U32 x= 0; x < reso[0]; ++x) {
-			Texel t= {250, 200, 150, 150};
-			if (	x == 0 || x == reso[0] - 1 ||
-					y == 0 || y == reso[1] - 1)
-				t= edge;
-			data[x + reso[0]*y]= t;
-		}
+	U8 *image= NULL;
+	U32 width, height;
+	int err=
+		lodepng_decode32_file(&image, &width, &height, "../../resources/gamedata/barrel_color.png");
+	if (err) {
+		critical_print("PNG load error: %s", lodepng_error_text(err));
+		goto error;
 	}
+
+	U16 reso[2]= {(U16)width, (U16)height};
+	U32 gl_id= 0; // Cached
 
 	blob_write(blob, offset, reso, sizeof(reso));
 	blob_write(blob, offset, &gl_id, sizeof(gl_id));
-	blob_write(blob, offset, &data, sizeof(data));
-	return 0;
+	blob_write(blob, offset, image, width*height*4);
+
+cleanup:
+	free(image);
+	return return_value;
+
+error:
+	return_value= 1;
+	goto cleanup;
 }
 

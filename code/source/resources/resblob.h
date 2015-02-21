@@ -7,7 +7,7 @@
 typedef struct ResBlob {
 	U32 version;
 	U32 res_count;
-	BlobOffset res_offsets[1];
+	BlobOffset res_offsets[];
 } ResBlob;
 
 /// @note Sets g_env.res_blob

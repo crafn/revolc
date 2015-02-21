@@ -3,7 +3,7 @@
 
 #include "build.h"
 
-#include <jsmn.h>
+#include <jsmn/jsmn.h>
 
 typedef struct {
 	const char *json; // Strings are null-terminated

@@ -12,7 +12,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <jsmn.h>
 
 internal
 U8* malloc_file(const char* path, U32 *file_size)
@@ -157,9 +156,9 @@ void print_blob(const ResBlob *blob)
 
 void blob_write(BlobBuf blob, BlobOffset *offset, const void *data, U32 byte_count)
 {
-	U32 ret= fwrite(data, byte_count, 1, blob);
-	if (ret != 1)
-		fail("blob_write failed");
+	U32 ret= fwrite(data, 1, byte_count, blob);
+	if (ret != byte_count)
+		fail("blob_write failed: %i != %i", ret, byte_count);
 	*offset += byte_count;
 }
 
@@ -299,16 +298,14 @@ void make_blob(const char *dst_file, const char *src_file)
 			goto error;
 		}
 		BlobOffset offset= 0;
-		U32 blob_version= 1;
-		U32 res_count= res_info_count;
-		blob_write(blob, &offset, &blob_version, sizeof(blob_version));
-		blob_write(blob, &offset, &res_count, sizeof(res_count));
+		ResBlob header= {1, res_info_count};
+		blob_write(blob, &offset, &header, sizeof(header));
 
 		BlobOffset offset_of_offset_table= offset;
 
 		// Write zeros as offsets and fix them afterwards, as they aren't yet known
-		res_offsets= zero_malloc(sizeof(*res_offsets)*res_count);
-		blob_write(blob, &offset, &res_offsets[0], sizeof(*res_offsets)*res_count);
+		res_offsets= zero_malloc(sizeof(*res_offsets)*header.res_count);
+		blob_write(blob, &offset, &res_offsets[0], sizeof(*res_offsets)*header.res_count);
 
 		for (U32 res_i= 0; res_i < res_info_count; ++res_i) {
 			ResInfo *res= &res_infos[res_i];
@@ -323,7 +320,7 @@ void make_blob(const char *dst_file, const char *src_file)
 
 		// Write offsets to the header
 		fseek(blob, offset_of_offset_table, SEEK_SET);
-		blob_write(blob, &offset, &res_offsets[0], sizeof(*res_offsets)*res_count);
+		blob_write(blob, &offset, &res_offsets[0], sizeof(*res_offsets)*header.res_count);
 	}
 
 exit:

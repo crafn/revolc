@@ -1,4 +1,3 @@
-#include <jsmn.c>
 #include "core/array.c"
 #include "core/debug_print.c"
 #include "core/ensure.c"
@@ -16,3 +15,7 @@
 #include "visual/shader.c"
 #include "visual/texture.c"
 #include "visual/vao.c"
+
+/// @todo Separate compile for dependencies
+#include <jsmn/jsmn.c>
+#include <lodepng/lodepng.c>
