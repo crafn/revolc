@@ -14,7 +14,7 @@
 #include "visual/mesh.c"
 #include "visual/model.c"
 #include "visual/renderer.c"
-#include "visual/shader.c"
+#include "visual/shadersource.c"
 #include "visual/texture.c"
 #include "visual/vao.c"
 

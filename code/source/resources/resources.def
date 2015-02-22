@@ -3,13 +3,13 @@
 #include "visual/texture.h"
 #include "visual/mesh.h"
 #include "visual/model.h"
-#include "visual/shader.h"
+#include "visual/shadersource.h"
 
 #else
 
 RESOURCE(Texture, init_texture, deinit_texture, json_texture_to_blob)
 RESOURCE(Mesh, NULL, NULL, json_mesh_to_blob)
 RESOURCE(Model, NULL, NULL, json_model_to_blob)
-RESOURCE(Shader, init_shader, deinit_shader, json_shader_to_blob)
+RESOURCE(ShaderSource, init_shadersource, deinit_shadersource, json_shadersource_to_blob)
 
 #endif

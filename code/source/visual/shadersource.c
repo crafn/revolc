@@ -1,9 +1,9 @@
 #include "core/debug_print.h"
 #include "platform/gl.h"
 #include "resources/resblob.h"
-#include "shader.h"
+#include "shadersource.h"
 
-void init_shader(Shader *shd)
+void init_shadersource(ShaderSource *shd)
 {
 	const GLchar* vs_src= blob_ptr(&shd->res, shd->vs_src_offset);
 	const GLchar* gs_src= blob_ptr(&shd->res, shd->gs_src_offset);
@@ -57,7 +57,7 @@ void init_shader(Shader *shd)
 	}
 }
 
-void deinit_shader(Shader *shd)
+void deinit_shadersource(ShaderSource *shd)
 {
 	gl_destroy_shader_prog(
 			&shd->prog_gl_id,
@@ -66,7 +66,7 @@ void deinit_shader(Shader *shd)
 			&shd->fs_gl_id);
 }
 
-int json_shader_to_blob(BlobBuf *buf, JsonTok j)
+int json_shadersource_to_blob(BlobBuf *buf, JsonTok j)
 {
 	const char* vs_src=
 		"#version 150 core\n"
@@ -84,7 +84,7 @@ int json_shader_to_blob(BlobBuf *buf, JsonTok j)
 		"in vec2 v_uv;"
 		"void main() { gl_FragColor= texture2D(u_tex_color, v_uv); }\n";
 
-	BlobOffset vs_src_offset= buf->offset + sizeof(Shader) - sizeof(Resource);
+	BlobOffset vs_src_offset= buf->offset + sizeof(ShaderSource) - sizeof(Resource);
 	BlobOffset gs_src_offset= 0;
 	BlobOffset fs_src_offset= vs_src_offset + strlen(vs_src) + 1;
 	MeshType mesh_type= MeshType_tri;

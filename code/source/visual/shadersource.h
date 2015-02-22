@@ -1,5 +1,5 @@
-#ifndef REVOLC_VISUAL_SHADER_H
-#define REVOLC_VISUAL_SHADER_H
+#ifndef REVOLC_VISUAL_SHADERSOURCE_H
+#define REVOLC_VISUAL_SHADERSOURCE_H
 
 #include "build.h"
 #include "core/json.h"
@@ -21,12 +21,12 @@ typedef struct {
 	U32 gs_gl_id;
 	U32 fs_gl_id;
 	U32 prog_gl_id;
-} PACKED Shader;
+} PACKED ShaderSource;
 
-REVOLC_API void init_shader(Shader *shd);
-REVOLC_API void deinit_shader(Shader *shd);
+REVOLC_API void init_shadersource(ShaderSource *shd);
+REVOLC_API void deinit_shadersource(ShaderSource *shd);
 
 REVOLC_API WARN_UNUSED
-int json_shader_to_blob(BlobBuf *buf, JsonTok j);
+int json_shadersource_to_blob(BlobBuf *buf, JsonTok j);
 
-#endif // REVOLC_VISUAL_SHADER_H
+#endif // REVOLC_VISUAL_SHADERSOURCE_H

@@ -143,10 +143,10 @@ void render_frame(Renderer *r, float cam_x, float cam_y)
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, tex_gl_id);
 
-		Shader* shd=
-			(Shader*)res_by_name(
+		ShaderSource* shd=
+			(ShaderSource*)res_by_name(
 					g_env.res_blob,
-					ResType_Shader,
+					ResType_ShaderSource,
 					"gen_shader");
 		glUseProgram(shd->prog_gl_id);
 		glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_tex_color"), 0);
