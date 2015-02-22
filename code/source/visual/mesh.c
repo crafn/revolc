@@ -33,12 +33,12 @@ U32 vertex_size(MeshType type)
 }
 
 void * mesh_vertices(const Mesh *m)
-{ return blob_ptr(m->res.blob, m->v_offset); }
+{ return blob_ptr(&m->res, m->v_offset); }
 
 MeshIndexType * mesh_indices(const Mesh *m)
-{ return (MeshIndexType*)blob_ptr(m->res.blob, m->i_offset); }
+{ return (MeshIndexType*)blob_ptr(&m->res, m->i_offset); }
 
-int json_mesh_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j)
+int json_mesh_to_blob(BlobBuf *buf, JsonTok j)
 {
 	MeshType type= MeshType_tri;
 	BlobOffset v_offset= 0;
@@ -90,18 +90,18 @@ int json_mesh_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j)
 		for (U32 i= 0; i < i_count; ++i)
 			indices[i]= json_integer(json_member(j_ind, i));
 
-		blob_write(blob, offset, &type, sizeof(type));
-		blob_write(blob, offset, &v_count, sizeof(v_count));
-		blob_write(blob, offset, &i_count, sizeof(i_count));
+		blob_write(buf, &type, sizeof(type));
+		blob_write(buf, &v_count, sizeof(v_count));
+		blob_write(buf, &i_count, sizeof(i_count));
 
-		v_offset= *offset + sizeof(v_offset) + sizeof(i_offset);
-		blob_write(blob, offset, &v_offset, sizeof(v_offset));
+		v_offset= buf->offset + sizeof(v_offset) + sizeof(i_offset);
+		blob_write(buf, &v_offset, sizeof(v_offset));
 
-		i_offset= *offset + sizeof(i_offset) + sizeof(*vertices)*v_count;
-		blob_write(blob, offset, &i_offset, sizeof(i_offset));
+		i_offset= buf->offset + sizeof(i_offset) + sizeof(*vertices)*v_count;
+		blob_write(buf, &i_offset, sizeof(i_offset));
 
-		blob_write(blob, offset, &vertices[0], sizeof(*vertices)*v_count);
-		blob_write(blob, offset, &indices[0], sizeof(*indices)*i_count);
+		blob_write(buf, &vertices[0], sizeof(*vertices)*v_count);
+		blob_write(buf, &indices[0], sizeof(*indices)*i_count);
 
 		free(vertices);
 		free(indices);

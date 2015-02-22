@@ -4,7 +4,7 @@
 #include "build.h"
 
 typedef U64 BlobOffset; // Offset from the beginning of a resource blob
-#define RES_NAME_LEN 32
+#define RES_NAME_SIZE 32
 
 typedef enum {
 	ResType_None,
@@ -21,8 +21,22 @@ struct ResBlob;
 
 typedef struct {
 	ResType type;
-	char name[RES_NAME_LEN];
+	char name[RES_NAME_SIZE];
 	struct ResBlob *blob;
+	bool is_missing_res; /// true if Resource is owned by MissingResource
 } PACKED Resource;
+
+/// MissingResources are created on demand to separately allocated
+/// chunks, using the conventional blob creation facility.
+///
+/// Can't use just a single Resource represent missing ones, as then
+/// pointers can't be resolved when reloading updated blob.
+///
+/// For MissingResources, BlobOffsets are calculated from the
+/// beginning of the Resource, NOT from the beginning of the ResBlob.
+typedef struct MissingResource {
+	Resource *res;
+	struct MissingResource *next;
+} MissingResource;
 
 #endif // REVOLC_RESOURCES_RESOURCE_H

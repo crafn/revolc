@@ -6,7 +6,7 @@
 
 #include <lodepng/lodepng.h>
 
-void init_texture(Texture *tex, ResBlob *blob)
+void init_texture(Texture *tex)
 {
 	glGenTextures(1, &tex->gl_id);
 	glBindTexture(GL_TEXTURE_2D, tex->gl_id);
@@ -39,7 +39,7 @@ void deinit_texture(Texture *tex)
 	glDeleteTextures(1, &tex->gl_id);
 }
 
-int json_texture_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j)
+int json_texture_to_blob(BlobBuf *buf, JsonTok j)
 {
 	int return_value= 0;
 	U8 *image= NULL;
@@ -65,9 +65,9 @@ int json_texture_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j)
 	U16 reso[2]= {(U16)width, (U16)height};
 	U32 gl_id= 0; // Cached
 
-	blob_write(blob, offset, reso, sizeof(reso));
-	blob_write(blob, offset, &gl_id, sizeof(gl_id));
-	blob_write(blob, offset, image, width*height*4);
+	blob_write(buf, reso, sizeof(reso));
+	blob_write(buf, &gl_id, sizeof(gl_id));
+	blob_write(buf, image, width*height*4);
 
 cleanup:
 	free(image);

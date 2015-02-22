@@ -13,10 +13,10 @@ Mesh* model_mesh(const Model *model)
 { return (Mesh*)res_by_name(
 		model->res.blob, ResType_Mesh, model->mesh); }
 
-int json_model_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j)
+int json_model_to_blob(BlobBuf *buf, JsonTok j)
 {
-	char textures[MODEL_TEX_COUNT][RES_NAME_LEN]= {};
-	char mesh[RES_NAME_LEN]= {};
+	char textures[MODEL_TEX_COUNT][RES_NAME_SIZE]= {};
+	char mesh[RES_NAME_SIZE]= {};
 
 	JsonTok j_mesh= json_value_by_key(j, "mesh");
 	JsonTok j_texs= json_value_by_key(j, "textures");
@@ -42,7 +42,7 @@ int json_model_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j)
 		json_strcpy(textures[i], sizeof(textures[i]), m);
 	}
 
-	blob_write(blob, offset, textures, sizeof(textures));
-	blob_write(blob, offset, mesh, sizeof(mesh));
+	blob_write(buf, textures, sizeof(textures));
+	blob_write(buf, mesh, sizeof(mesh));
 	return 0;
 }

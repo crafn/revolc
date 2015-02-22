@@ -3,11 +3,11 @@
 #include "resources/resblob.h"
 #include "shader.h"
 
-void init_shader(Shader *shd, ResBlob *blob)
+void init_shader(Shader *shd)
 {
-	const GLchar* vs_src= blob_ptr(blob, shd->vs_src_offset);
-	const GLchar* gs_src= blob_ptr(blob, shd->gs_src_offset);
-	const GLchar* fs_src= blob_ptr(blob, shd->fs_src_offset);
+	const GLchar* vs_src= blob_ptr(&shd->res, shd->vs_src_offset);
+	const GLchar* gs_src= blob_ptr(&shd->res, shd->gs_src_offset);
+	const GLchar* fs_src= blob_ptr(&shd->res, shd->fs_src_offset);
 
 	U32 attrib_count;
 	const VertexAttrib *attribs;
@@ -66,7 +66,7 @@ void deinit_shader(Shader *shd)
 			&shd->fs_gl_id);
 }
 
-int json_shader_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j)
+int json_shader_to_blob(BlobBuf *buf, JsonTok j)
 {
 	const char* vs_src=
 		"#version 150 core\n"
@@ -84,22 +84,22 @@ int json_shader_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j)
 		"in vec2 v_uv;"
 		"void main() { gl_FragColor= texture2D(u_tex_color, v_uv); }\n";
 
-	BlobOffset vs_src_offset= *offset + sizeof(Shader) - sizeof(Resource);
+	BlobOffset vs_src_offset= buf->offset + sizeof(Shader) - sizeof(Resource);
 	BlobOffset gs_src_offset= 0;
 	BlobOffset fs_src_offset= vs_src_offset + strlen(vs_src) + 1;
 	MeshType mesh_type= MeshType_tri;
 	U32 cached= 0;
 
-	blob_write(blob, offset, &vs_src_offset, sizeof(vs_src_offset));
-	blob_write(blob, offset, &gs_src_offset, sizeof(gs_src_offset));
-	blob_write(blob, offset, &fs_src_offset, sizeof(fs_src_offset));
-	blob_write(blob, offset, &mesh_type, sizeof(mesh_type));
-	blob_write(blob, offset, &cached, sizeof(cached));
-	blob_write(blob, offset, &cached, sizeof(cached));
-	blob_write(blob, offset, &cached, sizeof(cached));
-	blob_write(blob, offset, &cached, sizeof(cached));
-	blob_write(blob, offset, vs_src, strlen(vs_src) + 1);
-	blob_write(blob, offset, fs_src, strlen(fs_src) + 1);
+	blob_write(buf, &vs_src_offset, sizeof(vs_src_offset));
+	blob_write(buf, &gs_src_offset, sizeof(gs_src_offset));
+	blob_write(buf, &fs_src_offset, sizeof(fs_src_offset));
+	blob_write(buf, &mesh_type, sizeof(mesh_type));
+	blob_write(buf, &cached, sizeof(cached));
+	blob_write(buf, &cached, sizeof(cached));
+	blob_write(buf, &cached, sizeof(cached));
+	blob_write(buf, &cached, sizeof(cached));
+	blob_write(buf, vs_src, strlen(vs_src) + 1);
+	blob_write(buf, fs_src, strlen(fs_src) + 1);
 
 	return 0;
 }

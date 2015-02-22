@@ -12,6 +12,19 @@
 #include <stdio.h>
 #include <string.h>
 
+#define MISSING_RES_FILE "../../resources/gamedata/missing"
+
+internal
+int json_res_to_blob(BlobBuf *buf, JsonTok j, ResType res_t)
+{
+#define RESOURCE(name, init, deinit, blobify) \
+	if (res_t == ResType_ ## name) \
+		return blobify(buf, j);
+#	include "resources.def"
+#undef RESOURCE
+	return 1;
+}
+
 internal
 U8* malloc_file(const char* path, U32 *file_size)
 {
@@ -36,6 +49,93 @@ U8* malloc_file(const char* path, U32 *file_size)
 	return buf;
 }
 
+typedef struct {
+	jsmntok_t *tokens;
+	char *json;
+	JsonTok root;
+} ParsedJsonFile;
+
+internal
+ParsedJsonFile malloc_parsed_json_file(const char *file)
+{
+	ParsedJsonFile ret= {};
+	U32 file_size;
+	ret.json= (char*)malloc_file(file, &file_size);
+
+	{ // Parse json
+		U32 token_count= file_size/4 + 64; // Intuition
+		ret.tokens= malloc(sizeof(jsmntok_t)*token_count);
+		jsmn_parser parser;
+		jsmn_init(&parser);
+		int r= jsmn_parse(&parser, ret.json, file_size,
+				ret.tokens, token_count);
+		switch (r) {
+			case JSMN_ERROR_NOMEM:
+				critical_print("Too large JSON file (engine problem): %s",
+						file);
+				goto error;
+			break;
+			case JSMN_ERROR_INVAL:
+				critical_print("JSON syntax error: %s",
+						file);
+				goto error;
+			break;
+			case JSMN_ERROR_PART:
+				critical_print("Unexpected JSON end: %s",
+						file);
+				goto error;
+			break;
+			case 0:
+				critical_print("Empty JSON file: %s",
+						file);
+				goto error;
+			break;
+			default: ensure(r > 0);
+		}
+
+		ret.root.json_path= file;
+		ret.root.json= ret.json;
+		ret.root.tok= ret.tokens;
+
+		{ // Terminate strings and primitives so that they're easier to handle
+			for (U32 i= 1; i < r; ++i) {
+				if (	ret.tokens[i].type == JSMN_STRING ||
+						ret.tokens[i].type == JSMN_PRIMITIVE)
+					ret.json[ret.tokens[i].end]= '\0';
+			}
+		}
+	}
+
+	return ret;
+
+error:
+	free(ret.json);
+	free(ret.tokens);
+
+	ParsedJsonFile null= {};
+	return null;
+}
+
+internal
+void free_parsed_json_file(ParsedJsonFile json)
+{
+	free(json.json);
+	free(json.tokens);
+}
+
+internal
+void init_res(Resource *res)
+{
+#define RESOURCE(rtype, init, deinit, blobify) \
+	{ \
+		void* fptr= (void*)init; \
+		if (fptr && ResType_ ## rtype == res->type) \
+			((void (*)(rtype *))fptr)((rtype*)res); \
+	}
+#	include "resources/resources.def"
+#undef RESOURCE
+}
+
 ResBlob * load_blob(const char *path)
 {
 	ResBlob *blob= NULL;
@@ -52,19 +152,25 @@ ResBlob * load_blob(const char *path)
 				res->blob= blob;
 				if (res->type != t)
 					continue;
-#define RESOURCE(type, init, deinit, blobify) \
-				{ \
-					void* fptr= (void*)init; \
-					if (fptr && ResType_ ## type == t) \
-						((void (*)(type *, ResBlob *))fptr)((type*)res, blob); \
-				}
-#	include "resources/resources.def"
-#undef RESOURCE
+				init_res(res);
 			}
 		}
 	}
 
 	return blob;
+}
+
+internal
+void deinit_res(Resource *res)
+{
+#define RESOURCE(rtype, init, deinit, blobify) \
+	{ \
+		void* fptr= (void*)deinit; \
+		if (fptr && ResType_ ## rtype == res->type) \
+			((void (*)(rtype *))fptr)((rtype*)res); \
+	}
+#	include "resources/resources.def"
+#undef RESOURCE
 }
 
 void unload_blob(ResBlob *blob)
@@ -76,16 +182,21 @@ void unload_blob(ResBlob *blob)
 				U32 i= i_ - 1;
 				Resource* res= res_by_index(blob, i);
 				if (res->type != t)
-					continue;
-#define RESOURCE(type, init, deinit, blobify) \
-				{ \
-					void* fptr= (void*)deinit; \
-					if (fptr && ResType_ ## type == t) \
-						((void (*)(type *))fptr)((type*)res); \
-				}
-#	include "resources/resources.def"
-#undef RESOURCE
+	 				continue;
+				deinit_res(res);
 			}
+		}
+	}
+
+	{ // Free MissingResources
+		MissingResource *res= blob->first_missing_res;
+		/// @note Proper order would be reverse
+		while (res) {
+			MissingResource *next= res->next;
+			deinit_res(res->res);
+			free(res->res);
+			free(res);
+			res= next;
 		}
 	}
 
@@ -149,12 +260,78 @@ Resource * res_by_index(const ResBlob *blob, U32 index)
 	return (Resource*)((U8*)blob + blob->res_offsets[index]);
 }
 
-Resource * res_by_name(const ResBlob *b, ResType t, const char *n)
+Resource * res_by_name(ResBlob *blob, ResType type, const char *name)
 {
-	Resource *res= find_res_by_name(b, t, n);
-	if (!res)
-		fail("Resource not found: %s, %s", n, restype_to_str(t));
-	return res;
+	Resource *res= find_res_by_name(blob, type, name);
+	if (res)
+		return res;
+
+	critical_print("Resource not found: %s, %s", name, restype_to_str(type));
+	// Search already created missing resources
+	MissingResource *missing= NULL;
+	if (blob->first_missing_res) {
+		missing= blob->first_missing_res;
+		while (missing) {
+			if (	missing->res->type == type &&
+					!strcmp(missing->res->name, name))
+				break; // Found
+			missing= missing->next;
+		}
+	}
+
+	if (missing) {
+		critical_print("Using MissingResource");
+		return missing->res;
+	} else {
+		critical_print("Creating MissingResource");
+
+		Resource res_header= {};
+		snprintf(res_header.name, RES_NAME_SIZE, "%s", name);
+		res_header.type= type;
+		res_header.blob= blob;
+		res_header.is_missing_res= true;
+
+		MissingResource *new_res= zero_malloc(sizeof(*new_res));
+		const U32 missing_res_max_size= 1024;
+		new_res->res= zero_malloc(missing_res_max_size);
+
+		BlobBuf buf= {
+			.data= new_res->res,
+			.is_file= false
+		};
+
+		blob_write(&buf, &res_header, sizeof(res_header));
+
+		ParsedJsonFile parsed_json= malloc_parsed_json_file(MISSING_RES_FILE);
+		if (parsed_json.tokens == NULL)
+			fail("Failed parsing %s", MISSING_RES_FILE);
+
+		int err=
+			json_res_to_blob(
+					&buf,
+					json_value_by_key(
+						parsed_json.root, 
+						restype_to_str(type)),
+					type);
+		if (err)
+			fail("Creating MissingResource failed (wtf, where's your resources?)");
+		ensure(buf.offset <= missing_res_max_size);
+
+		free_parsed_json_file(parsed_json);
+		init_res(new_res->res);
+
+		// Insert to missing resources of the blob
+		if (!blob->first_missing_res) {
+			blob->first_missing_res= new_res;
+		} else {
+			MissingResource *last= blob->first_missing_res;
+			while (last->next)
+				last= last->next;
+			last->next= new_res;
+		}
+
+		return new_res->res;
+	}
 }
 
 Resource * find_res_by_name(const ResBlob *b, ResType t, const char *n)
@@ -168,8 +345,13 @@ Resource * find_res_by_name(const ResBlob *b, ResType t, const char *n)
 	return NULL;	
 }
 
-void* blob_ptr(ResBlob *blob, BlobOffset offset)
-{ return (void*)((U8*)blob + offset); }
+void* blob_ptr(const Resource *who_asks, BlobOffset offset)
+{
+	if (!who_asks->is_missing_res)
+		return (void*)((U8*)who_asks->blob + offset);
+	else /// @see MissingResource definition
+		return (void*)((U8*)who_asks + offset);
+}
 
 void print_blob(const ResBlob *blob)
 {
@@ -204,12 +386,16 @@ void print_blob(const ResBlob *blob)
 // JSON to blob
 //
 
-void blob_write(BlobBuf blob, BlobOffset *offset, const void *data, U32 byte_count)
+void blob_write(BlobBuf *buf, const void *data, U32 byte_count)
 {
-	U32 ret= fwrite(data, 1, byte_count, blob);
-	if (ret != byte_count)
-		fail("blob_write failed: %i != %i", ret, byte_count);
-	*offset += byte_count;
+	if (buf->is_file) {
+		U32 ret= fwrite(data, 1, byte_count, buf->data);
+		if (ret != byte_count)
+			fail("blob_write failed: %i != %i", ret, byte_count);
+	} else {
+		memcpy(buf->data + buf->offset, data, byte_count);
+	}
+	buf->offset += byte_count;
 }
 
 /// Used only in blob making
@@ -232,74 +418,18 @@ int resinfo_cmp(const void *a_, const void *b_)
 		return a->header.type - b->header.type;
 }
 
-internal
-int json_res_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j, ResType res_t)
-{
-#define RESOURCE(name, init, deinit, blobify) \
-	if (res_t == ResType_ ## name) \
-		return blobify(blob, offset, j);
-#	include "resources.def"
-#undef RESOURCE
-	return 1;
-}
-
 void make_blob(const char *dst_file_path, const char *src_file_path)
 {
 	// Resources-to-be-allocated
 	char *data= NULL;
-	jsmntok_t *t= NULL;
-	FILE *blob= NULL;
+	FILE *blob_file= NULL;
 	ResInfo *res_infos= NULL;
 	BlobOffset *res_offsets= NULL;
 
-	// Input file
-	U32 file_size;
-	data= (char*)malloc_file(src_file_path, &file_size);
-
-	JsonTok j_root= {};
-	{ // Parse json
-		U32 token_count= file_size/4 + 64; // Intuition
-		t= malloc(sizeof(jsmntok_t)*token_count);
-		jsmn_parser parser;
-		jsmn_init(&parser);
-		int r= jsmn_parse(&parser, (char*)data, file_size,
-				t, token_count);
-		switch (r) {
-			case JSMN_ERROR_NOMEM:
-				critical_print("Too large JSON file (engine problem): %s",
-						src_file_path);
-				goto error;
-			break;
-			case JSMN_ERROR_INVAL:
-				critical_print("JSON syntax error: %s",
-						src_file_path);
-				goto error;
-			break;
-			case JSMN_ERROR_PART:
-				critical_print("Unexpected JSON end: %s",
-						src_file_path);
-				goto error;
-			break;
-			case 0:
-				critical_print("Empty JSON file: %s",
-						src_file_path);
-				goto error;
-			break;
-			default: ensure(r > 0);
-		}
-
-		j_root.json_path= src_file_path;
-		j_root.json= data;
-		j_root.tok= t;
-
-		{ // Terminate strings and primitives so that they're easier to handle
-			for (U32 i= 1; i < r; ++i) {
-				if (	t[i].type == JSMN_STRING ||
-						t[i].type == JSMN_PRIMITIVE)
-					data[t[i].end]= '\0';
-			}
-		}
-	}
+	ParsedJsonFile parsed_json= malloc_parsed_json_file(src_file_path);
+	if (parsed_json.tokens == NULL)
+		goto error;
+	JsonTok j_root= parsed_json.root;
 
 	U32 res_info_count= 0;
 	U32 res_info_capacity= 1024;
@@ -348,28 +478,34 @@ void make_blob(const char *dst_file_path, const char *src_file_path)
 	}
 
 	{ // Output file
-		blob= fopen(dst_file_path, "wb");
-		if (!blob) {
+		blob_file= fopen(dst_file_path, "wb"); 
+		if (!blob_file) {
 			critical_print("Opening for write failed: %s", dst_file_path);
 			goto error;
 		}
-		BlobOffset offset= 0;
-		ResBlob header= {1, res_info_count};
-		blob_write(blob, &offset, &header, sizeof(header));
+		BlobBuf buf= {};
+		buf.data= blob_file;
+		buf.is_file= true;
 
-		BlobOffset offset_of_offset_table= offset;
+		ResBlob header= {
+			.version= 1,
+			.res_count= res_info_count
+		};
+		blob_write(&buf, &header, sizeof(header));
+
+		BlobOffset offset_of_offset_table= buf.offset;
 
 		// Write zeros as offsets and fix them afterwards, as they aren't yet known
 		res_offsets= zero_malloc(sizeof(*res_offsets)*header.res_count);
-		blob_write(blob, &offset, &res_offsets[0], sizeof(*res_offsets)*header.res_count);
+		blob_write(&buf, &res_offsets[0], sizeof(*res_offsets)*header.res_count);
 
 		for (U32 res_i= 0; res_i < res_info_count; ++res_i) {
 			ResInfo *res= &res_infos[res_i];
 			debug_print("blobbing: %s, %s", res->header.name, restype_to_str(res->header.type));
 
-			res_offsets[res_i]= offset;
-			blob_write(blob, &offset, &res->header, sizeof(res->header));
-			int err= json_res_to_blob(blob, &offset, res->tok, res->header.type);
+			res_offsets[res_i]= buf.offset;
+			blob_write(&buf, &res->header, sizeof(res->header));
+			int err= json_res_to_blob(&buf, res->tok, res->header.type);
 			if (err) {
 				critical_print("Failed to process resource: %s, %s",
 					res->header.name, restype_to_str(res->header.type));
@@ -378,16 +514,16 @@ void make_blob(const char *dst_file_path, const char *src_file_path)
 		}
 
 		// Write offsets to the header
-		fseek(blob, offset_of_offset_table, SEEK_SET);
-		blob_write(blob, &offset, &res_offsets[0], sizeof(*res_offsets)*header.res_count);
+		fseek(buf.data, offset_of_offset_table, SEEK_SET);
+		blob_write(&buf, &res_offsets[0], sizeof(*res_offsets)*header.res_count);
 	}
 
 exit:
+	free_parsed_json_file(parsed_json);
 	free(res_offsets);
-	if (blob)
-		fclose(blob);
+	if (blob_file)
+		fclose(blob_file);
 	free(res_infos);
-	free(t);
 	free(data);
 
 	return;

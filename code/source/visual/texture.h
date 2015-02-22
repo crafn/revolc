@@ -20,10 +20,10 @@ typedef struct {
 	Texel texels[];
 } PACKED Texture;
 
-REVOLC_API void init_texture(Texture *tex, ResBlob *blob);
+REVOLC_API void init_texture(Texture *tex);
 REVOLC_API void deinit_texture(Texture *tex);
 
 REVOLC_API WARN_UNUSED
-int json_texture_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j);
+int json_texture_to_blob(BlobBuf *buf, JsonTok j);
 
 #endif // REVOLC_VISUAL_TEXTURE_H

@@ -20,8 +20,8 @@ typedef struct {
 	//bool casts_shadow;
 	//bool billboard;
 	//bool snap_to_pixels;
-	char textures[MODEL_TEX_COUNT][RES_NAME_LEN];
-	char mesh[RES_NAME_LEN];
+	char textures[MODEL_TEX_COUNT][RES_NAME_SIZE];
+	char mesh[RES_NAME_SIZE];
 } PACKED Model;
 
 REVOLC_API Texture* model_texture(const Model *model, U32 index);
@@ -29,6 +29,6 @@ REVOLC_API Mesh* model_mesh(const Model *model);
 
 REVOLC_API
 WARN_UNUSED
-int json_model_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j);
+int json_model_to_blob(BlobBuf *buf, JsonTok j);
 
 #endif // REVOLC_VISUAL_MODEL_H

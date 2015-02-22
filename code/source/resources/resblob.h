@@ -7,6 +7,7 @@
 typedef struct ResBlob {
 	U32 version;
 	U32 res_count;
+	MissingResource *first_missing_res;
 	BlobOffset res_offsets[];
 } ResBlob;
 
@@ -15,10 +16,10 @@ REVOLC_API void unload_blob(ResBlob *blob);
 REVOLC_API WARN_UNUSED ResBlob * reload_blob(ResBlob *blob, const char *path);
 
 REVOLC_API Resource * res_by_index(const ResBlob *blob, U32 index);
-REVOLC_API Resource * res_by_name(const ResBlob *b, ResType t, const char *n);
+REVOLC_API Resource * res_by_name(ResBlob *b, ResType t, const char *n);
 REVOLC_API Resource * find_res_by_name(const ResBlob *b, ResType t, const char *n);
 
-REVOLC_API void * blob_ptr(ResBlob *blob, BlobOffset offset);
+REVOLC_API void * blob_ptr(const Resource *who_asks, BlobOffset offset);
 
 REVOLC_API void print_blob(const ResBlob *blob);
 
@@ -26,8 +27,13 @@ REVOLC_API void print_blob(const ResBlob *blob);
 /// makes binary blob out of them to `dst_file
 REVOLC_API void make_blob(const char *dst_file, const char *src_file);
 
-typedef FILE* BlobBuf;
+typedef struct {
+	void *data;
+	U32 offset;
+	bool is_file;
+} BlobBuf;
+
 REVOLC_API
-void blob_write(BlobBuf blob, BlobOffset *offset, const void *data, U32 byte_count);
+void blob_write(BlobBuf *buf, const void *data, U32 byte_count);
 
 #endif // REVOLC_RESOURCES_RESBLOB_HPP

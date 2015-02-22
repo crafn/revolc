@@ -23,10 +23,10 @@ typedef struct {
 	U32 prog_gl_id;
 } PACKED Shader;
 
-REVOLC_API void init_shader(Shader *shd, ResBlob *blob);
+REVOLC_API void init_shader(Shader *shd);
 REVOLC_API void deinit_shader(Shader *shd);
 
 REVOLC_API WARN_UNUSED
-int json_shader_to_blob(BlobBuf blob, BlobOffset *offset, JsonTok j);
+int json_shader_to_blob(BlobBuf *buf, JsonTok j);
 
 #endif // REVOLC_VISUAL_SHADER_H
