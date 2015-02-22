@@ -1,17 +1,13 @@
 #include "build.h"
 #include "core/ensure.h"
+#include "core/file.h"
 #include "core/debug_print.h"
 #include "core/vector.h"
 #include "global/env.h"
 #include "platform/device.h"
-#include "platform/gl.h"
 #include "resources/resblob.h"
-#include "visual/mesh.h"
 #include "visual/model.h"
-#include "visual/texture.h"
-#include "visual/shader.h"
 #include "visual/renderer.h"
-#include "visual/vao.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -24,7 +20,9 @@ int main(int argc, const char **argv)
 {
 	Device *d= plat_init("Revolc engine", 800, 600);
 
-	make_blob("main.blob", DEFAULT_RES_FILE);
+	if (!file_exists("main.blob"))
+		make_blob("main.blob", DEFAULT_RES_FILE);
+
 	ResBlob* blob= g_env.res_blob= load_blob("main.blob");
 	print_blob(blob);
 

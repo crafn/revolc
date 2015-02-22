@@ -209,7 +209,9 @@ ResBlob* reload_blob(ResBlob *old_blob, const char *path)
 
 	ResBlob *new_blob= load_blob(path);
 
-	{ // Check that all resources can be found
+	// This might not be needed, as missing resources are handled
+	// in res_by_name
+	if (0) { // Check that all resources can be found
 		/// @todo Can be done in O(n)
 		for (U32 i= 0; i < old_blob->res_count; ++i) {
 			Resource *old= res_by_index(old_blob, i);

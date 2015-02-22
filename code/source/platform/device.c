@@ -61,6 +61,7 @@ int ctxErrorHandler( Display *dpy, XErrorEvent *ev )
 
 Device * plat_init(const char* title, int width, int height)
 {
+	debug_print("plat_init");
 	Device *d= zero_malloc(sizeof(*d));
 	if (g_env.device == NULL)
 		g_env.device= d;
@@ -293,6 +294,8 @@ void plat_quit(Device *d)
 	free(d->data);
 	d->data= NULL;
 	free(d);
+	
+	debug_print("plat_quit successful");
 }
 
 void plat_update(Device *d)
