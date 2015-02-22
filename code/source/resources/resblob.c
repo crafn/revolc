@@ -284,14 +284,15 @@ Resource * res_by_name(ResBlob *blob, ResType type, const char *name)
 		ParsedJsonFile parsed_json= malloc_parsed_json_file(MISSING_RES_FILE);
 		if (parsed_json.tokens == NULL)
 			fail("Failed parsing %s", MISSING_RES_FILE);
+		ensure(parsed_json.root.tok);
 
-		int err=
-			json_res_to_blob(
-					&buf,
-					json_value_by_key(
-						parsed_json.root, 
-						restype_to_str(type)),
-					type);
+		JsonTok j_res= json_value_by_key(
+							parsed_json.root, 
+							restype_to_str(type));
+		if (json_is_null(j_res))
+			fail("Config for missing resources invalid, not found: %s", restype_to_str(type));
+
+		int err= json_res_to_blob(&buf, j_res, type);
 		if (err)
 			fail("Creating MissingResource failed (wtf, where's your resources?)");
 		ensure(buf.offset <= missing_res_max_size);
@@ -397,7 +398,7 @@ int resinfo_cmp(const void *a_, const void *b_)
 		return a->header.type - b->header.type;
 }
 
-void make_blob(const char *dst_file_path, const char *src_file_path)
+void make_blob(const char *dst_file_path, char **res_file_paths)
 {
 	// Resources-to-be-allocated
 	char *data= NULL;
@@ -405,52 +406,67 @@ void make_blob(const char *dst_file_path, const char *src_file_path)
 	ResInfo *res_infos= NULL;
 	BlobOffset *res_offsets= NULL;
 
-	ParsedJsonFile parsed_json= malloc_parsed_json_file(src_file_path);
-	if (parsed_json.tokens == NULL)
-		goto error;
-	JsonTok j_root= parsed_json.root;
+	U32 res_file_count= 0;
+	for (; res_file_paths[res_file_count]; ++res_file_count)
+		;
+
+	// Parse all resource files
+	ParsedJsonFile *parsed_jsons=
+		zero_malloc(sizeof(*parsed_jsons)*res_file_count);
+	for (U32 i= 0; i < res_file_count; ++i) {
+		parsed_jsons[i]= malloc_parsed_json_file(res_file_paths[i]);
+		if (parsed_jsons[i].tokens == NULL)
+			goto error;
+	}
 
 	U32 res_info_count= 0;
 	U32 res_info_capacity= 1024;
 	res_infos= malloc(sizeof(*res_infos)*res_info_capacity);
 	{ // Scan throught JSON and gather ResInfos
-		for (U32 res_i= 0; res_i < json_member_count(j_root); ++res_i) {
-			JsonTok j_res= json_member(j_root, res_i);
-			ResInfo res_info= {};
-			res_info.tok= j_res;
+		for (U32 json_i= 0; json_i < res_file_count; ++json_i) {
+			debug_print(
+					"make_blob: gathering res file: %s",
+					res_file_paths[json_i]);
 
-			ensure(json_is_object(j_res));
+			JsonTok j_root= parsed_jsons[json_i].root;
+			for (U32 res_i= 0; res_i < json_member_count(j_root); ++res_i) {
+				JsonTok j_res= json_member(j_root, res_i);
+				ResInfo res_info= {};
+				res_info.tok= j_res;
 
-			// Read type
-			JsonTok j_type= json_value_by_key(j_res, "type");
-			if (!json_is_null(j_type)) {
-				const char *type_str= json_str(j_type);
-				res_info.header.type= str_to_restype(type_str);
-				if (res_info.header.type == ResType_None) {
-					critical_print("Invalid resource type: %s", type_str);
+				ensure(json_is_object(j_res));
+
+				// Read type
+				JsonTok j_type= json_value_by_key(j_res, "type");
+				if (!json_is_null(j_type)) {
+					const char *type_str= json_str(j_type);
+					res_info.header.type= str_to_restype(type_str);
+					if (res_info.header.type == ResType_None) {
+						critical_print("Invalid resource type: %s", type_str);
+						goto error;
+					}
+				} else {
+					critical_print("JSON resource missing 'type'");
 					goto error;
 				}
-			} else {
-				critical_print("JSON resource missing 'type'");
-				goto error;
-			}
 
-			// Read name
-			JsonTok j_name= json_value_by_key(j_res, "name");
-			if (!json_is_null(j_name)) {
-				json_strcpy(
-						res_info.header.name,
-						sizeof(res_info.header.name),
-						j_name);
-			} else {
-				critical_print("JSON resource missing 'name'");
-				goto error;
-			}
+				// Read name
+				JsonTok j_name= json_value_by_key(j_res, "name");
+				if (!json_is_null(j_name)) {
+					json_strcpy(
+							res_info.header.name,
+							sizeof(res_info.header.name),
+							j_name);
+				} else {
+					critical_print("JSON resource missing 'name'");
+					goto error;
+				}
 
-			res_infos= push_dyn_array(
-					res_infos,
-					&res_info_capacity, &res_info_count, sizeof(*res_infos),
-					&res_info);
+				res_infos= push_dyn_array(
+						res_infos,
+						&res_info_capacity, &res_info_count, sizeof(*res_infos),
+						&res_info);
+			}
 		}
 
 		qsort(res_infos, res_info_count, sizeof(*res_infos), resinfo_cmp);
@@ -498,7 +514,11 @@ void make_blob(const char *dst_file_path, const char *src_file_path)
 	}
 
 exit:
-	free_parsed_json_file(parsed_json);
+	{
+		for (U32 i= 0; i < res_file_count; ++i)
+			free_parsed_json_file(parsed_jsons[i]);
+		free(parsed_jsons);
+	}
 	free(res_offsets);
 	if (blob_file)
 		fclose(blob_file);

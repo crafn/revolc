@@ -20,6 +20,7 @@ REVOLC_API void plat_quit(Device *d);
 
 REVOLC_API void plat_update(Device *d);
 REVOLC_API void plat_sleep(int ms);
+/// @return Mallocated null-terminated array of null-terminated, mallocated strings
 REVOLC_API char ** plat_find_paths_with_end(const char *path_to_dir, const char *end);
 
 #endif // REVOLC_PLATFORM_DEVICE_H

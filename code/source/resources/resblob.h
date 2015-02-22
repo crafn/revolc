@@ -23,9 +23,10 @@ REVOLC_API void * blob_ptr(const Resource *who_asks, BlobOffset offset);
 
 REVOLC_API void print_blob(const ResBlob *blob);
 
-/// Gathers human-readable resources by `src_file` and
+/// Gathers human-readable resources from `res_file_paths` and
 /// makes binary blob out of them to `dst_file
-REVOLC_API void make_blob(const char *dst_file, const char *src_file);
+/// @param res_file_paths Null-terminated array of null-terminated strings
+REVOLC_API void make_blob(const char *dst_file, char **res_file_paths);
 
 typedef struct {
 	void *data;

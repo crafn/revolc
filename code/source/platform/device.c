@@ -348,37 +348,55 @@ void plat_sleep(int ms)
 	usleep(ms*1000);
 }
 
+
+#define PATH_MAX_TABLE_SIZE 1024
+
 // Thanks lloydm: http://stackoverflow.com/questions/8436841/how-to-recursively-list-directories-in-c-on-linux 
 internal
-void listdir(const char *name, int level, const char *end)
+void listdir(char **path_table, U32 *path_count, const char *name, int level, const char *end)
 {
     DIR *dir;
     struct dirent *entry;
 
-    if (!(dir = opendir(name)))
-        return;
-    if (!(entry = readdir(dir)))
-        return;
+    if (!(dir= opendir(name)))
+		plat_fail("opendir failed");
+    if (!(entry= readdir(dir)))
+		plat_fail("readdir failed");
 
     do {
         if (entry->d_type == DT_DIR) {
-            char path[1024];
-            int len = snprintf(path, sizeof(path)-1, "%s/%s", name, entry->d_name);
+            char path[1024]; /// @todo Dynamic allocation
+            int len= snprintf(path, sizeof(path)-1, "%s/%s", name, entry->d_name);
+			if (len + 1 >= 1024)
+				plat_fail(	"plat_find_paths_with_end: "
+							"Too long path (@todo Fix engine)");
             path[len] = 0;
             if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
                 continue;
-            printf("%*s[%s]\n", level*2, "", entry->d_name);
-            listdir(path, level + 1, end);
-        }
-        else
-            printf("%*s- %s\n", level*2, "", entry->d_name);
-    } while ((entry = readdir(dir)));
+            listdir(path_table, path_count, path, level + 1, end);
+        } else {
+			if (is_str_end(entry->d_name, end)) {
+				if (*path_count + 1 >= PATH_MAX_TABLE_SIZE)
+					plat_fail(	"plat_find_paths_with_end: "
+								"too many found files (@todo Fix engine)");
+				U32 path_size= strlen(name) + 1 + strlen(entry->d_name) + 1;
+				char *path= malloc(path_size);
+				snprintf(path, path_size, "%s/%s", name, entry->d_name);
+				path_table[*path_count]= path;
+				++*path_count;
+			}
+		}
+    } while ((entry= readdir(dir)));
+
     closedir(dir);
 }
 
 char ** plat_find_paths_with_end(const char *path_to_dir, const char *end)
 {
-	listdir(path_to_dir, 0, end);
-	return NULL;
+	U32 path_count= 0;
+	char **path_table= zero_malloc(sizeof(*path_table)*PATH_MAX_TABLE_SIZE);
+
+	listdir(path_table, &path_count, path_to_dir, 0, end);
+	return path_table;
 }
 

@@ -28,7 +28,7 @@ bool is_str_end(const char *str, const char *end)
 		return false;
 
 	for (U32 i= 0; i < end_len; ++i) {
-		if (str[str_len - 1 - i] != end[i])
+		if (str[str_len - 1 - i] != end[end_len - 1 - i])
 			return false;
 	}
 	return true;

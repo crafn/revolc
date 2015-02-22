@@ -15,16 +15,23 @@
 #include <stdlib.h>
 
 #define DEFAULT_RES_ROOT "../../resources/gamedata/"
-#define DEFAULT_RES_FILE "../../resources/gamedata/test.res"
+
+internal
+void make_main_blob()
+{
+	char **res_paths= plat_find_paths_with_end(DEFAULT_RES_ROOT, ".res");
+	make_blob("main.blob", res_paths);
+	for (U32 i= 0; res_paths[i]; ++i)
+		free(res_paths[i]);
+	free(res_paths);
+}
 
 int main(int argc, const char **argv)
 {
 	Device *d= plat_init("Revolc engine", 800, 600);
 
-	plat_find_paths_with_end(DEFAULT_RES_ROOT, ".res");
-
 	if (!file_exists("main.blob"))
-		make_blob("main.blob", DEFAULT_RES_FILE);
+		make_main_blob();
 
 	ResBlob* blob= g_env.res_blob= load_blob("main.blob");
 	print_blob(blob);
@@ -49,7 +56,7 @@ int main(int argc, const char **argv)
 		time += d->dt;
 
 		if (d->lmbDown) {
-			make_blob("main.blob", DEFAULT_RES_FILE);
+			make_main_blob();
 			blob= g_env.res_blob= reload_blob(blob, "main.blob");
 		}
 
