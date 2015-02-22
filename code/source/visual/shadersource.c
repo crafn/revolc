@@ -71,8 +71,8 @@ void deinit_shadersource(ShaderSource *shd)
 int json_shadersource_to_blob(BlobBuf *buf, JsonTok j)
 {
 	int return_value= 0;
-	char *vs_src= NULL;
-	char *fs_src= NULL;
+	char *vs_src= NULL; /// @warning Not null-terminated!
+	char *fs_src= NULL; /// @warning Not null-terminated!
 	char *vs_total_path= NULL;
 	char *fs_total_path= NULL;
 
@@ -92,14 +92,17 @@ int json_shadersource_to_blob(BlobBuf *buf, JsonTok j)
 	vs_total_path= malloc_joined_path(j.json_path, json_str(j_vs_file));
 	fs_total_path= malloc_joined_path(j.json_path, json_str(j_fs_file));
 
-	vs_src= malloc_file(vs_total_path, NULL);
-	fs_src= malloc_file(fs_total_path, NULL);
+	U32 vs_src_len;
+	U32 fs_src_len;
+	vs_src= malloc_file(vs_total_path, &vs_src_len);
+	fs_src= malloc_file(fs_total_path, &fs_src_len);
 
 	BlobOffset vs_src_offset= buf->offset + sizeof(ShaderSource) - sizeof(Resource);
 	BlobOffset gs_src_offset= 0;
-	BlobOffset fs_src_offset= vs_src_offset + strlen(vs_src) + 1;
+	BlobOffset fs_src_offset= vs_src_offset + vs_src_len + 1;
 	MeshType mesh_type= MeshType_tri;
 	U32 cached= 0;
+	U8 null_byte= 0;
 
 	blob_write(buf, &vs_src_offset, sizeof(vs_src_offset));
 	blob_write(buf, &gs_src_offset, sizeof(gs_src_offset));
@@ -109,8 +112,10 @@ int json_shadersource_to_blob(BlobBuf *buf, JsonTok j)
 	blob_write(buf, &cached, sizeof(cached));
 	blob_write(buf, &cached, sizeof(cached));
 	blob_write(buf, &cached, sizeof(cached));
-	blob_write(buf, vs_src, strlen(vs_src) + 1);
-	blob_write(buf, fs_src, strlen(fs_src) + 1);
+	blob_write(buf, vs_src, vs_src_len);
+	blob_write(buf, &null_byte, 1);
+	blob_write(buf, fs_src, fs_src_len);
+	blob_write(buf, &null_byte, 1);
 
 cleanup:
 	free(vs_total_path);

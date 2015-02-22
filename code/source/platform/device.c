@@ -11,6 +11,9 @@
 #include <X11/Xlib.h>
 #include <time.h>
 #include <unistd.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 typedef struct DevicePlatformData {
 	Display* dpy;
@@ -343,5 +346,39 @@ void plat_update(Device *d)
 void plat_sleep(int ms)
 {
 	usleep(ms*1000);
+}
+
+// Thanks lloydm: http://stackoverflow.com/questions/8436841/how-to-recursively-list-directories-in-c-on-linux 
+internal
+void listdir(const char *name, int level, const char *end)
+{
+    DIR *dir;
+    struct dirent *entry;
+
+    if (!(dir = opendir(name)))
+        return;
+    if (!(entry = readdir(dir)))
+        return;
+
+    do {
+        if (entry->d_type == DT_DIR) {
+            char path[1024];
+            int len = snprintf(path, sizeof(path)-1, "%s/%s", name, entry->d_name);
+            path[len] = 0;
+            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+                continue;
+            printf("%*s[%s]\n", level*2, "", entry->d_name);
+            listdir(path, level + 1, end);
+        }
+        else
+            printf("%*s- %s\n", level*2, "", entry->d_name);
+    } while ((entry = readdir(dir)));
+    closedir(dir);
+}
+
+char ** plat_find_paths_with_end(const char *path_to_dir, const char *end)
+{
+	listdir(path_to_dir, 0, end);
+	return NULL;
 }
 

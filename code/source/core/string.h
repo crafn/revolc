@@ -8,6 +8,8 @@
 /// @note	If this seems non-obvious later, make more specific function.
 ///			Removing file from `a` is required in making paths from relative
 ///			to json file easily.
-char * malloc_joined_path(const char *a, const char *b);
+REVOLC_API char * malloc_joined_path(const char *a, const char *b);
+
+REVOLC_API bool is_str_end(const char *str, const char *end);
 
 #endif // REVOLC_CORE_STRING_H

@@ -15,10 +15,11 @@ typedef struct Device {
 } Device;
 
 /// @note Sets g_env.device
-Device * plat_init(const char* title, int width, int height);
-void plat_quit(Device *d);
+REVOLC_API Device * plat_init(const char* title, int width, int height);
+REVOLC_API void plat_quit(Device *d);
 
-void plat_update(Device *d);
-void plat_sleep(int ms);
+REVOLC_API void plat_update(Device *d);
+REVOLC_API void plat_sleep(int ms);
+REVOLC_API char ** plat_find_paths_with_end(const char *path_to_dir, const char *end);
 
 #endif // REVOLC_PLATFORM_DEVICE_H

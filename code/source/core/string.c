@@ -18,3 +18,18 @@ char * malloc_joined_path(const char *a, const char *b)
 	snprintf(path, total_size, "%.*s/%s", stripped_a_len, a, b);
 	return path;
 }
+
+bool is_str_end(const char *str, const char *end)
+{
+	U32 str_len= strlen(str);
+	U32 end_len= strlen(end);
+
+	if (end_len > str_len)
+		return false;
+
+	for (U32 i= 0; i < end_len; ++i) {
+		if (str[str_len - 1 - i] != end[i])
+			return false;
+	}
+	return true;
+}

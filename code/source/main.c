@@ -14,11 +14,14 @@
 #include <math.h>
 #include <stdlib.h>
 
+#define DEFAULT_RES_ROOT "../../resources/gamedata/"
 #define DEFAULT_RES_FILE "../../resources/gamedata/test.res"
 
 int main(int argc, const char **argv)
 {
 	Device *d= plat_init("Revolc engine", 800, 600);
+
+	plat_find_paths_with_end(DEFAULT_RES_ROOT, ".res");
 
 	if (!file_exists("main.blob"))
 		make_blob("main.blob", DEFAULT_RES_FILE);
