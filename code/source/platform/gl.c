@@ -10,8 +10,7 @@ void gl_check_shader_status(GLuint shd)
 		const GLsizei max_len= 512;
 		GLchar log[max_len];
 		glGetShaderInfoLog(shd, max_len, NULL, log);
-		debug_print("Shader compilation failed (%i): %s", shd, log);
-		fail("");
+		fail("Shader compilation failed (%i): %s", shd, log);
 	}
 }
 
@@ -23,8 +22,7 @@ void gl_check_program_status(GLuint prog)
 		const GLsizei size= 512;
 		GLchar log[size];
 		glGetProgramInfoLog(prog, size, NULL, log);
-		debug_print("Program link failed: %s", log);
-		fail("");
+		fail("Program link failed: %s", log);
 	}
 }
 

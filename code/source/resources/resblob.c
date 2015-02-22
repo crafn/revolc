@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#define MISSING_RES_FILE "../../resources/gamedata/missing"
+#define MISSING_RES_FILE "../../resources/gamedata/basic/missing"
 
 internal
 int json_res_to_blob(BlobBuf *buf, JsonTok j, ResType res_t)
