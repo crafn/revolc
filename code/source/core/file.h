@@ -4,5 +4,6 @@
 #include <stdlib.h>
 
 bool file_exists(const char *path);
+void * malloc_file(const char *path, U32 *file_size);
 
 #endif // REVOLC_CORE_FILE_H

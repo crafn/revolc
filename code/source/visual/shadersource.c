@@ -1,4 +1,6 @@
 #include "core/debug_print.h"
+#include "core/string.h"
+#include "core/file.h"
 #include "platform/gl.h"
 #include "resources/resblob.h"
 #include "shadersource.h"
@@ -68,21 +70,30 @@ void deinit_shadersource(ShaderSource *shd)
 
 int json_shadersource_to_blob(BlobBuf *buf, JsonTok j)
 {
-	const char* vs_src=
-		"#version 150 core\n"
-		"in vec3 a_pos;"
-		"in vec2 a_uv;"
-		"uniform vec2 u_cursor;"
-		"out vec2 v_uv;"
-		"void main() {"
-		"	v_uv= a_uv;"
-		"	gl_Position= vec4((a_pos.xy + u_cursor)/(1.0 + a_pos.z), 0.0, 1.0);"
-		"}\n";
-	const char* fs_src=
-		"#version 150 core\n"
-		"uniform sampler2D u_tex_color;"
-		"in vec2 v_uv;"
-		"void main() { gl_FragColor= texture2D(u_tex_color, v_uv); }\n";
+	int return_value= 0;
+	char *vs_src= NULL;
+	char *fs_src= NULL;
+	char *vs_total_path= NULL;
+	char *fs_total_path= NULL;
+
+	JsonTok j_vs_file= json_value_by_key(j, "vs_file");
+	JsonTok j_fs_file= json_value_by_key(j, "fs_file");
+
+	if (json_is_null(j_vs_file)) {
+		critical_print("Attrib 'vs_file' missing");
+		goto error;
+	}
+
+	if (json_is_null(j_fs_file)) {
+		critical_print("Attrib 'fs_file' missing");
+		goto error;
+	}
+
+	vs_total_path= malloc_joined_path(j.json_path, json_str(j_vs_file));
+	fs_total_path= malloc_joined_path(j.json_path, json_str(j_fs_file));
+
+	vs_src= malloc_file(vs_total_path, NULL);
+	fs_src= malloc_file(fs_total_path, NULL);
 
 	BlobOffset vs_src_offset= buf->offset + sizeof(ShaderSource) - sizeof(Resource);
 	BlobOffset gs_src_offset= 0;
@@ -101,6 +112,15 @@ int json_shadersource_to_blob(BlobBuf *buf, JsonTok j)
 	blob_write(buf, vs_src, strlen(vs_src) + 1);
 	blob_write(buf, fs_src, strlen(fs_src) + 1);
 
-	return 0;
+cleanup:
+	free(vs_total_path);
+	free(fs_total_path);
+	free(vs_src);
+	free(fs_src);
+	return return_value;
+
+error:
+	return_value= 1;
+	goto cleanup;
 }
 

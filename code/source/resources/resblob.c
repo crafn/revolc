@@ -1,6 +1,7 @@
 #include "core/array.h"
 #include "core/debug_print.h"
 #include "core/ensure.h"
+#include "core/file.h"
 #include "core/json.h"
 #include "resblob.h"
 
@@ -23,30 +24,6 @@ int json_res_to_blob(BlobBuf *buf, JsonTok j, ResType res_t)
 #	include "resources.def"
 #undef RESOURCE
 	return 1;
-}
-
-internal
-U8* malloc_file(const char* path, U32 *file_size)
-{
-	FILE *file= fopen(path, "rb");
-	if (!file)
-		fail("Couldn't open file: %s", path);
-
-	fseek(file, 0, SEEK_END);
-	U32 size= ftell(file);
-	fseek(file, 0, SEEK_SET);
-
-	U8 *buf= malloc(size);
-	U64 len= fread(buf, size, 1, file);
-	if (len != 1)
-		fail("Couldn't fully read file: %s", path);
-
-	fclose(file);
-
-	if (file_size)
-		*file_size= size;
-
-	return buf;
 }
 
 typedef struct {

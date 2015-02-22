@@ -47,8 +47,7 @@ int json_texture_to_blob(BlobBuf *buf, JsonTok j)
 
 	JsonTok j_file= json_value_by_key(j, "file");
 	if (json_is_null(j_file)) {
-		critical_print("Attrib 'file' missing for Texture: %s",
-				json_str(json_value_by_key(j, "name")));
+		critical_print("Attrib 'file' missing");
 		goto error;
 	}
 
