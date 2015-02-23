@@ -10,10 +10,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define ATLAS_WIDTH 2048
+#define ATLAS_WIDTH 4096
 
 /// Helper in `recreate_texture_atlas`
 typedef struct {
+	Texture *tex;
 	V2i reso;
 	V3f *atlas_uv;
 	Texel *texels;
@@ -30,9 +31,9 @@ int texinfo_cmp(const void *a_, const void *b_)
 internal
 void recreate_texture_atlas(Renderer *r, ResBlob *blob)
 {
-	if (r->atlas_gl_id) {
+	gl_check_errors("recreate_texture_atlas: begin");
+	if (r->atlas_gl_id)
 		glDeleteTextures(1, &r->atlas_gl_id);
-	}
 
 	glGenTextures(1, &r->atlas_gl_id);
 	ensure(r->atlas_gl_id);
@@ -54,6 +55,7 @@ void recreate_texture_atlas(Renderer *r, ResBlob *blob)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_LOD, -1000);
 
 	// Gather TexInfos
+	/// @todo MissingResource
 	U32 tex_count= 0;
 	TexInfo *texs= NULL;
 	{
@@ -65,6 +67,7 @@ void recreate_texture_atlas(Renderer *r, ResBlob *blob)
 				++cur_res, ++i) {
 			Texture *tex= (Texture*)res_by_index(blob, cur_res);
 			texs[i]= (TexInfo) {
+				.tex= tex,
 				.reso= tex->reso,
 				.atlas_uv= &tex->atlas_uv,
 				.texels= tex->texels,
@@ -75,8 +78,30 @@ void recreate_texture_atlas(Renderer *r, ResBlob *blob)
 
 	// Blit to atlas
 	int x= 0, y= 0, z= 0;
+	int last_row_height= 0;
 	for (U32 i= 0; i < tex_count; ++i) {
 		TexInfo *tex= &texs[i];
+
+		if (	tex->reso.x > ATLAS_WIDTH ||
+				tex->reso.y > ATLAS_WIDTH)
+			fail("Too large texture (max %i): %s",
+					ATLAS_WIDTH, tex->tex->res.name);
+
+		if (x + tex->reso.x > ATLAS_WIDTH) {
+			y += last_row_height;
+			x= 0;
+			last_row_height= 0;
+		}
+
+		if (y + tex->reso.y > ATLAS_WIDTH) {
+			x= 0;
+			y= 0;
+			++z;
+		}
+
+		if (z > layers)
+			critical_print("Texture atlas full!");
+
 		glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0,
 				x, y, z,
 				tex->reso.x, tex->reso.y, 1,
@@ -84,13 +109,16 @@ void recreate_texture_atlas(Renderer *r, ResBlob *blob)
 		*tex->atlas_uv= (V3f) {
 			(F32)x/ATLAS_WIDTH,
 			(F32)y/ATLAS_WIDTH,
-			0
+			z
 		};
+
 		x += tex->reso.x;
-		/// @todo Change rows/depth
+		if (tex->reso.y > last_row_height)
+			last_row_height= tex->reso.y;
 	}
 
 	free(texs);
+	gl_check_errors("recreate_texture_atlas: end");
 }
 
 

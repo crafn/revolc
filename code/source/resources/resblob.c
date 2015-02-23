@@ -335,22 +335,22 @@ void print_blob(const ResBlob *blob)
 				res->name,
 				restype_to_str(res->type));
 
-		/*switch (res->type) {
+		switch (res->type) {
 			case ResType_Texture: {
 				Texture* tex= (Texture*)res;
 				debug_print(
 					"  reso: %i, %i",
-					tex->reso[0], tex->reso[1]);
+					tex->reso.x, tex->reso.y);
 			} break;
-			case ResType_Mesh: {
+			/*case ResType_Mesh: {
 				Mesh* mesh= (Mesh*)res;
 				debug_print(
 					"  vcount: %i\n  icount: %i",
 					mesh->v_count,
 					mesh->i_count);
-			} break;
+			} break;*/
 			default: break;
-		}*/
+		}
 	}
 }
 
