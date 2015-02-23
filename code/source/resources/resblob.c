@@ -205,32 +205,8 @@ ResBlob* reload_blob(ResBlob *old_blob, const char *path)
 	}
 
 	// Update old res pointers to new blob
-	if (g_env.renderer) {
-		recreate_texture_atlas(g_env.renderer, new_blob);
-
-		// Model
-		for (U32 e_i= 0; e_i < g_env.renderer->entity_count; ++e_i) {
-			ModelEntity *e= &g_env.renderer->entities[e_i];
-
-			const Model *m= e->model=
-				(Model*)res_by_name(
-						new_blob,
-						e->model->res.type,
-						e->model->res.name);
-			const Texture *tex= model_texture(m, 0);
-
-			// Update cached values in EntityModels
-			e->atlas_uv= tex->atlas_uv;
-			e->scale_to_atlas_uv= (V2f) {
-				(F32)tex->reso.x/ATLAS_WIDTH,
-				(F32)tex->reso.y/ATLAS_WIDTH,
-			};
-			e->vertices= (TriMeshVertex*)mesh_vertices(model_mesh(m));
-			e->indices= (MeshIndexType*)mesh_indices(model_mesh(m));
-			e->mesh_v_count= model_mesh(m)->v_count;
-			e->mesh_i_count= model_mesh(m)->i_count;
-		}
-	}
+	if (g_env.renderer)
+		on_res_reload(g_env.renderer, new_blob);
 
 	unload_blob(old_blob);
 	return new_blob;

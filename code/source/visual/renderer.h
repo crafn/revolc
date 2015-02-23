@@ -22,8 +22,7 @@ REVOLC_API ModelEntity* get_modelentity(Renderer *rend, U32 h);
 
 REVOLC_API void render_frame(Renderer *r, float cam_x, float cam_y);
 
-REVOLC_API void recreate_texture_atlas(Renderer *r, ResBlob *blob);
-
-#define ATLAS_WIDTH 2048
+struct ResBlob;
+REVOLC_API void on_res_reload(Renderer *r, struct ResBlob *new_blob);
 
 #endif // REVOLC_VISUAL_RENDERER_H

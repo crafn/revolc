@@ -65,8 +65,9 @@ int main(int argc, const char **argv)
 
 		for (int i= 0; i < ENTITY_COUNT; ++i) {
 			ModelEntity *e= get_modelentity(rend, entity_handles[i]);
-			e->pos.z= 2.0 + i*0.1 + sin(i + time);
 			e->pos.x= sin(i + time*0.7)*3.0;
+			e->pos.y= sin(i*i + time*0.3427)*1.5;
+			e->pos.z= 2.0 + i*0.1 + sin(i + time);
 		}
 
 		render_frame(rend, cursor[0]*3.0, cursor[1]*3.0);

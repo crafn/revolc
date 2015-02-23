@@ -4,10 +4,95 @@
 #include "core/malloc.h"
 #include "core/vector.h"
 #include "renderer.h"
+#include "resources/resblob.h"
 #include "vao.h"
 
 #include <stdlib.h>
 #include <string.h>
+
+#define ATLAS_WIDTH 2048
+
+/// Helper in `recreate_texture_atlas`
+typedef struct {
+	V2i reso;
+	V3f *atlas_uv;
+	Texel *texels;
+} TexInfo;
+
+int texinfo_cmp(const void *a_, const void *b_)
+{
+	const TexInfo *a= a_, *b= b_;
+	if (a->reso.y == b->reso.y)
+		return b->reso.x - a->reso.x;
+	return b->reso.y - a->reso.y;
+}
+
+internal
+void recreate_texture_atlas(Renderer *r, ResBlob *blob)
+{
+	if (r->atlas_gl_id) {
+		glDeleteTextures(1, &r->atlas_gl_id);
+	}
+
+	glGenTextures(1, &r->atlas_gl_id);
+	ensure(r->atlas_gl_id);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, r->atlas_gl_id);
+
+	const U32 mip_levels= 1;
+	const U32 layers= 4;
+
+	glTexStorage3D(GL_TEXTURE_2D_ARRAY, mip_levels, GL_RGBA8,
+			ATLAS_WIDTH, ATLAS_WIDTH, layers);
+
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_BASE_LEVEL, 0);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_LEVEL, 0); /// @todo Mipmaps
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 1000);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_LOD, -1000);
+
+	// Gather TexInfos
+	U32 tex_count= 0;
+	TexInfo *texs= NULL;
+	{
+		U32 first_res;
+		all_res_by_type(&first_res, &tex_count, blob, ResType_Texture);
+		texs= malloc(sizeof(*texs)*tex_count);
+		for (	U32 cur_res= first_res, i= 0;
+				i < tex_count;
+				++cur_res, ++i) {
+			Texture *tex= (Texture*)res_by_index(blob, cur_res);
+			texs[i]= (TexInfo) {
+				.reso= tex->reso,
+				.atlas_uv= &tex->atlas_uv,
+				.texels= tex->texels,
+			};
+		}
+		qsort(texs, tex_count, sizeof(*texs), texinfo_cmp);
+	}
+
+	// Blit to atlas
+	int x= 0, y= 0, z= 0;
+	for (U32 i= 0; i < tex_count; ++i) {
+		TexInfo *tex= &texs[i];
+		glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0,
+				x, y, z,
+				tex->reso.x, tex->reso.y, 1,
+				GL_RGBA, GL_UNSIGNED_BYTE, tex->texels);
+		*tex->atlas_uv= (V3f) {
+			(F32)x/ATLAS_WIDTH,
+			(F32)y/ATLAS_WIDTH,
+			0
+		};
+		x += tex->reso.x;
+		/// @todo Change rows/depth
+	}
+
+	free(texs);
+}
+
 
 Renderer* create_renderer()
 {
@@ -35,6 +120,23 @@ void destroy_renderer(Renderer *r)
 	free(r);
 }
 
+internal
+void init_modelentity(ModelEntity *e, const Model *model)
+{
+	Texture *tex= model_texture(model, 0);
+	e->model= model;
+	e->pos.x= 0; e->pos.y= 0; e->pos.z= 0;
+	e->atlas_uv= tex->atlas_uv;
+	e->scale_to_atlas_uv= (V2f) {
+		(F32)tex->reso.x/ATLAS_WIDTH,
+		(F32)tex->reso.y/ATLAS_WIDTH,
+	};
+	e->vertices= (TriMeshVertex*)mesh_vertices(model_mesh(model));
+	e->indices= (MeshIndexType*)mesh_indices(model_mesh(model));
+	e->mesh_v_count= model_mesh(model)->v_count;
+	e->mesh_i_count= model_mesh(model)->i_count;
+}
+
 U32 create_modelentity(Renderer *r, const Model *model)
 {
 	if (r->entity_count == r->max_entity_count) {
@@ -46,21 +148,8 @@ U32 create_modelentity(Renderer *r, const Model *model)
 	while (r->entities[r->next_entity].model)
 		r->next_entity= (r->next_entity + 1) % r->max_entity_count;
 
-	{ // Init entity
-		ModelEntity *e= &r->entities[r->next_entity];
-		Texture *tex= model_texture(model, 0);
-		e->model= model;
-		e->pos.x= 0; e->pos.y= 0; e->pos.z= 0;
-		e->atlas_uv= tex->atlas_uv;
-		e->scale_to_atlas_uv= (V2f) {
-			(F32)tex->reso.x/ATLAS_WIDTH,
-			(F32)tex->reso.y/ATLAS_WIDTH,
-		};
-		e->vertices= (TriMeshVertex*)mesh_vertices(model_mesh(model));
-		e->indices= (MeshIndexType*)mesh_indices(model_mesh(model));
-		e->mesh_v_count= model_mesh(model)->v_count;
-		e->mesh_i_count= model_mesh(model)->i_count;
-	}
+	ModelEntity *e= &r->entities[r->next_entity];
+	init_modelentity(e, model);
 
 	++r->entity_count;
 	return r->next_entity++;
@@ -172,83 +261,17 @@ void render_frame(Renderer *r, float cam_x, float cam_y)
 	destroy_vao(&vao);
 }
 
-/// Helper in `recreate_texture_atlas`
-typedef struct {
-	V2i reso;
-	V3f *atlas_uv;
-	Texel *texels;
-} TexInfo;
-
-int texinfo_cmp(const void *a_, const void *b_)
+void on_res_reload(Renderer *r, ResBlob *new_blob)
 {
-	const TexInfo *a= a_, *b= b_;
-	if (a->reso.y == b->reso.y)
-		return b->reso.x - a->reso.x;
-	return b->reso.y - a->reso.y;
-}
+	recreate_texture_atlas(r, new_blob);
 
-void recreate_texture_atlas(Renderer *r, ResBlob *blob)
-{
-	if (r->atlas_gl_id) {
-		glDeleteTextures(1, &r->atlas_gl_id);
+	for (U32 e_i= 0; e_i < r->entity_count; ++e_i) {
+		ModelEntity *e= &r->entities[e_i];
+		const Model *m= e->model=
+			(Model*)res_by_name(
+					new_blob,
+					e->model->res.type,
+					e->model->res.name);
+		init_modelentity(e, m);
 	}
-
-	glGenTextures(1, &r->atlas_gl_id);
-	ensure(r->atlas_gl_id);
-	glBindTexture(GL_TEXTURE_2D_ARRAY, r->atlas_gl_id);
-
-	const U32 mip_levels= 1;
-	const U32 layers= 4;
-
-	glTexStorage3D(GL_TEXTURE_2D_ARRAY, mip_levels, GL_RGBA8,
-			ATLAS_WIDTH, ATLAS_WIDTH, layers);
-
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_BASE_LEVEL, 0);
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_LEVEL, 0); /// @todo Mipmaps
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 1000);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_LOD, -1000);
-
-	// Gather TexInfos
-	U32 tex_count= 0;
-	TexInfo *texs= NULL;
-	{
-		U32 first_res;
-		all_res_by_type(&first_res, &tex_count, blob, ResType_Texture);
-		debug_print("f: %i, c: %i", first_res, tex_count);
-		texs= malloc(sizeof(*texs)*tex_count);
-		for (	U32 cur_res= first_res, i= 0;
-				i < tex_count;
-				++cur_res, ++i) {
-			Texture *tex= (Texture*)res_by_index(blob, cur_res);
-			texs[i]= (TexInfo) {
-				.reso= tex->reso,
-				.atlas_uv= &tex->atlas_uv,
-				.texels= tex->texels,
-			};
-		}
-		qsort(texs, tex_count, sizeof(*texs), texinfo_cmp);
-	}
-
-	// Blit to atlas
-	int x= 0, y= 0, z= 0;
-	for (U32 i= 0; i < tex_count; ++i) {
-		TexInfo *tex= &texs[i];
-		glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0,
-				x, y, z,
-				tex->reso.x, tex->reso.y, 1,
-				GL_RGBA, GL_UNSIGNED_BYTE, tex->texels);
-		*tex->atlas_uv= (V3f) {
-			(F32)x/ATLAS_WIDTH,
-			(F32)y/ATLAS_WIDTH,
-			0
-		};
-		x += tex->reso.x;
-		/// @todo Change rows/depth
-	}	
-
-	free(texs);
 }
