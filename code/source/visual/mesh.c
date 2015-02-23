@@ -38,7 +38,7 @@ void * mesh_vertices(const Mesh *m)
 MeshIndexType * mesh_indices(const Mesh *m)
 { return (MeshIndexType*)blob_ptr(&m->res, m->i_offset); }
 
-int json_mesh_to_blob(BlobBuf *buf, JsonTok j)
+int json_mesh_to_blob(struct BlobBuf *buf, JsonTok j)
 {
 	MeshType type= MeshType_tri;
 	BlobOffset v_offset= 0;

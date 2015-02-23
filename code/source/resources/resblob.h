@@ -1,5 +1,5 @@
-#ifndef REVOLC_RESOURCES_RESBLOB_HPP
-#define REVOLC_RESOURCES_RESBLOB_HPP
+#ifndef REVOLC_RESOURCES_RESBLOB_H
+#define REVOLC_RESOURCES_RESBLOB_H
 
 #include "build.h"
 #include "resource.h"
@@ -30,7 +30,7 @@ REVOLC_API void print_blob(const ResBlob *blob);
 /// @param res_file_paths Null-terminated array of null-terminated strings
 REVOLC_API void make_blob(const char *dst_file, char **res_file_paths);
 
-typedef struct {
+typedef struct BlobBuf {
 	void *data;
 	U32 offset;
 	bool is_file;
@@ -39,4 +39,4 @@ typedef struct {
 REVOLC_API
 void blob_write(BlobBuf *buf, const void *data, U32 byte_count);
 
-#endif // REVOLC_RESOURCES_RESBLOB_HPP
+#endif // REVOLC_RESOURCES_RESBLOB_H

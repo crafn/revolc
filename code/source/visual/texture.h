@@ -22,6 +22,6 @@ typedef struct {
 } PACKED Texture;
 
 REVOLC_API WARN_UNUSED
-int json_texture_to_blob(BlobBuf *buf, JsonTok j);
+int json_texture_to_blob(struct BlobBuf *buf, JsonTok j);
 
 #endif // REVOLC_VISUAL_TEXTURE_H

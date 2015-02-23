@@ -6,7 +6,7 @@
 
 #include <lodepng/lodepng.h>
 
-int json_texture_to_blob(BlobBuf *buf, JsonTok j)
+int json_texture_to_blob(struct BlobBuf *buf, JsonTok j)
 {
 	int return_value= 0;
 	U8 *image= NULL;

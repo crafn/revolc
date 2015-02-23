@@ -27,7 +27,7 @@ REVOLC_API void init_shadersource(ShaderSource *shd);
 REVOLC_API void deinit_shadersource(ShaderSource *shd);
 
 REVOLC_API WARN_UNUSED
-int json_shadersource_to_blob(BlobBuf *buf, JsonTok j);
+int json_shadersource_to_blob(struct BlobBuf *buf, JsonTok j);
 
 
 #endif // REVOLC_VISUAL_SHADERSOURCE_H

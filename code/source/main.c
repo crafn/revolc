@@ -3,6 +3,7 @@
 #include "core/file.h"
 #include "core/debug_print.h"
 #include "core/vector.h"
+#include "game/world.h"
 #include "global/env.h"
 #include "platform/device.h"
 #include "resources/resblob.h"
@@ -38,15 +39,19 @@ int main(int argc, const char **argv)
 
 	Renderer *rend= create_renderer();
 
-	Model *barrel= (Model*)res_by_name(blob, ResType_Model, "woodenbarrel");
+	World world= {};
+
+	Model *barrel= (Model*)res_by_name(blob, ResType_Model, "wbarrel");
 	Model *roll= (Model*)res_by_name(blob, ResType_Model, "rollbot");
-#define ENTITY_COUNT 500
-	U32 entity_handles[ENTITY_COUNT];
+#define ENTITY_COUNT 10
 	for (int i= 0; i < ENTITY_COUNT; ++i) {
 		Model *model= barrel;
-		if (i % 11 == 0)
+		if (i % 2 == 0)
 			model= roll;
-		entity_handles[i]= create_modelentity(rend, model);
+		//U32 t_node_h= alloc_node(&world, NodeType_Transform2);
+		U32 m_node_h= alloc_node(&world, NodeType_ModelEntity);
+		U32 modelentity_h= node_impl_handle(&world, m_node_h);
+		set_modelentity(rend, modelentity_h, model);
 	}
 
 	F32 time= 0;
@@ -63,12 +68,7 @@ int main(int argc, const char **argv)
 			blob= g_env.res_blob= reload_blob(blob, "main.blob");
 		}
 
-		for (int i= 0; i < ENTITY_COUNT; ++i) {
-			ModelEntity *e= get_modelentity(rend, entity_handles[i]);
-			e->pos.x= sin(i + time*0.7)*3.0;
-			e->pos.y= sin(i*i + time*0.3427)*1.5;
-			e->pos.z= 2.0 + i*0.1 + sin(i + time);
-		}
+		upd_world(&world, d->dt);
 
 		render_frame(rend, cursor[0]*3.0, cursor[1]*3.0);
 

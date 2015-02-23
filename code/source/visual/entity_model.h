@@ -6,9 +6,11 @@
 #include "model.h"
 #include "mesh.h"
 
+
 typedef struct {
+	bool allocated;
 	V3f pos;
-	const Model* model;
+	char model_name[RES_NAME_SIZE];
 
 	// Cached
 	V3f atlas_uv;

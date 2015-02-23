@@ -6,6 +6,14 @@
 /// @todo Generate this file
 
 typedef struct {
+	F64 x, y, z;
+} V3d;
+
+typedef struct {
+	F64 x, y;
+} V2d;
+
+typedef struct {
 	F32 x, y, z;
 } V3f;
 

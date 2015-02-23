@@ -1,4 +1,3 @@
-#include "core/array.h"
 #include "core/debug_print.h"
 #include "core/ensure.h"
 #include "core/malloc.h"
@@ -9,8 +8,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-
-#define ATLAS_WIDTH 4096
 
 /// Helper in `recreate_texture_atlas`
 typedef struct {
@@ -40,10 +37,10 @@ void recreate_texture_atlas(Renderer *r, ResBlob *blob)
 	glBindTexture(GL_TEXTURE_2D_ARRAY, r->atlas_gl_id);
 
 	const U32 mip_levels= 1;
-	const U32 layers= 4;
+	const U32 layers= TEXTURE_ATLAS_LAYER_COUNT;
 
 	glTexStorage3D(GL_TEXTURE_2D_ARRAY, mip_levels, GL_RGBA8,
-			ATLAS_WIDTH, ATLAS_WIDTH, layers);
+			TEXTURE_ATLAS_WIDTH, TEXTURE_ATLAS_WIDTH, layers);
 
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_BASE_LEVEL, 0);
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_LEVEL, 0); /// @todo Mipmaps
@@ -82,18 +79,18 @@ void recreate_texture_atlas(Renderer *r, ResBlob *blob)
 	for (U32 i= 0; i < tex_count; ++i) {
 		TexInfo *tex= &texs[i];
 
-		if (	tex->reso.x > ATLAS_WIDTH ||
-				tex->reso.y > ATLAS_WIDTH)
+		if (	tex->reso.x > TEXTURE_ATLAS_WIDTH ||
+				tex->reso.y > TEXTURE_ATLAS_WIDTH)
 			fail("Too large texture (max %i): %s",
-					ATLAS_WIDTH, tex->tex->res.name);
+					TEXTURE_ATLAS_WIDTH, tex->tex->res.name);
 
-		if (x + tex->reso.x > ATLAS_WIDTH) {
+		if (x + tex->reso.x > TEXTURE_ATLAS_WIDTH) {
 			y += last_row_height;
 			x= 0;
 			last_row_height= 0;
 		}
 
-		if (y + tex->reso.y > ATLAS_WIDTH) {
+		if (y + tex->reso.y > TEXTURE_ATLAS_WIDTH) {
 			x= 0;
 			y= 0;
 			++z;
@@ -107,8 +104,8 @@ void recreate_texture_atlas(Renderer *r, ResBlob *blob)
 				tex->reso.x, tex->reso.y, 1,
 				GL_RGBA, GL_UNSIGNED_BYTE, tex->texels);
 		*tex->atlas_uv= (V3f) {
-			(F32)x/ATLAS_WIDTH,
-			(F32)y/ATLAS_WIDTH,
+			(F32)x/TEXTURE_ATLAS_WIDTH,
+			(F32)y/TEXTURE_ATLAS_WIDTH,
 			z
 		};
 
@@ -124,12 +121,8 @@ void recreate_texture_atlas(Renderer *r, ResBlob *blob)
 
 Renderer* create_renderer()
 {
-	const U32 default_count= 1024;
-
 	Renderer *rend= zero_malloc(sizeof(*rend));
-	rend->entities= zero_malloc(sizeof(*rend->entities)*default_count);
 	rend->next_entity= 0;
-	rend->max_entity_count= default_count;
 
 	recreate_texture_atlas(rend, g_env.res_blob);
 
@@ -144,20 +137,41 @@ void destroy_renderer(Renderer *r)
 	if (g_env.renderer == r)
 		g_env.renderer= NULL;
 	glDeleteTextures(1, &r->atlas_gl_id);
-	free(r->entities);
 	free(r);
 }
 
-internal
-void init_modelentity(ModelEntity *e, const Model *model)
+U32 alloc_modelentity(Renderer *r)
 {
+	if (r->entity_count == MAX_MODELENTITY_COUNT)
+		fail("Too many modelentities");
+
+	while (r->entities[r->next_entity].allocated)
+		r->next_entity= (r->next_entity + 1) % MAX_MODELENTITY_COUNT;
+
+	ModelEntity *e= &r->entities[r->next_entity];
+	*e= (ModelEntity) { .allocated= true };
+
+	++r->entity_count;
+	return r->next_entity;
+}
+
+void free_modelentity(Renderer *r, U32 h)
+{
+	ensure(h < MAX_MODELENTITY_COUNT);
+	r->entities[h]= (ModelEntity) { .allocated= false };
+	--r->entity_count;
+}
+
+void set_modelentity(Renderer *r, U32 h, const Model *model)
+{
+	ModelEntity *e= &r->entities[h];
 	Texture *tex= model_texture(model, 0);
-	e->model= model;
 	e->pos.x= 0; e->pos.y= 0; e->pos.z= 0;
+	strncpy(e->model_name, model->res.name, sizeof(e->model_name));
 	e->atlas_uv= tex->atlas_uv;
 	e->scale_to_atlas_uv= (V2f) {
-		(F32)tex->reso.x/ATLAS_WIDTH,
-		(F32)tex->reso.y/ATLAS_WIDTH,
+		(F32)tex->reso.x/TEXTURE_ATLAS_WIDTH,
+		(F32)tex->reso.y/TEXTURE_ATLAS_WIDTH,
 	};
 	e->vertices= (TriMeshVertex*)mesh_vertices(model_mesh(model));
 	e->indices= (MeshIndexType*)mesh_indices(model_mesh(model));
@@ -165,35 +179,10 @@ void init_modelentity(ModelEntity *e, const Model *model)
 	e->mesh_i_count= model_mesh(model)->i_count;
 }
 
-U32 create_modelentity(Renderer *r, const Model *model)
-{
-	if (r->entity_count == r->max_entity_count) {
-		debug_print("Enlargening entity array: %i", (int)r->max_entity_count);
-		r->entities= enlarge_array(
-			r->entities, &r->max_entity_count, sizeof(*r->entities));
-	}
-
-	while (r->entities[r->next_entity].model)
-		r->next_entity= (r->next_entity + 1) % r->max_entity_count;
-
-	ModelEntity *e= &r->entities[r->next_entity];
-	init_modelentity(e, model);
-
-	++r->entity_count;
-	return r->next_entity++;
-}
-
-void destroy_modelentity(Renderer *r, U32 h)
-{
-	ensure(h < r->max_entity_count);
-	r->entities[h].model= NULL;
-	--r->entity_count;
-}
-
 ModelEntity* get_modelentity(Renderer *r, U32 h)
 {
-	ensure(h < r->max_entity_count);
-	ensure(r->entities[h].model != NULL);
+	ensure(h < MAX_MODELENTITY_COUNT);
+	ensure(r->entities[h].allocated);
 	return &r->entities[h];
 }
 
@@ -209,9 +198,9 @@ void render_frame(Renderer *r, float cam_x, float cam_y)
 {
 	U32 total_v_count= 0;
 	U32 total_i_count= 0;
-	for (U32 i= 0; i < r->max_entity_count; ++i) {
+	for (U32 i= 0; i < MAX_MODELENTITY_COUNT; ++i) {
 		ModelEntity *e= &r->entities[i];
-		if (!e->model)
+		if (!e->model_name[0])
 			continue;
 
 		total_v_count += e->mesh_v_count;
@@ -222,19 +211,19 @@ void render_frame(Renderer *r, float cam_x, float cam_y)
 	bind_vao(&vao);
 
 	{ // Meshes to Vao
-		ModelEntity *entities= malloc(sizeof(*r->entities)*r->max_entity_count);	
-		memcpy(entities, r->entities, sizeof(*r->entities)*r->max_entity_count);
+		ModelEntity *entities= malloc(sizeof(*r->entities)*MAX_MODELENTITY_COUNT);	
+		memcpy(entities, r->entities, sizeof(*r->entities)*MAX_MODELENTITY_COUNT);
 
 		// Z-sort
-		qsort(entities, r->max_entity_count, sizeof(*entities), entity_cmp);
+		qsort(entities, MAX_MODELENTITY_COUNT, sizeof(*entities), entity_cmp);
 
 		TriMeshVertex *total_verts= malloc(sizeof(*total_verts)*total_v_count);
 		MeshIndexType *total_inds= malloc(sizeof(*total_inds)*total_i_count);
 		U32 cur_v= 0;
 		U32 cur_i= 0;
-		for (U32 i= 0; i < r->max_entity_count; ++i) {
+		for (U32 i= 0; i < MAX_MODELENTITY_COUNT; ++i) {
 			ModelEntity *e= &entities[i];
-			if (!e->model)
+			if (!e->model_name[0])
 				continue;
 
 			for (U32 k= 0; k < e->mesh_i_count; ++k) {
@@ -295,11 +284,11 @@ void on_res_reload(Renderer *r, ResBlob *new_blob)
 
 	for (U32 e_i= 0; e_i < r->entity_count; ++e_i) {
 		ModelEntity *e= &r->entities[e_i];
-		const Model *m= e->model=
+		const Model *m=
 			(Model*)res_by_name(
 					new_blob,
-					e->model->res.type,
-					e->model->res.name);
-		init_modelentity(e, m);
+					ResType_Model,
+					e->model_name);
+		set_modelentity(r, e_i, m);
 	}
 }

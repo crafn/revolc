@@ -4,7 +4,7 @@
 #include "build.h"
 
 typedef U64 BlobOffset; // Offset from the beginning of a resource blob
-#define RES_NAME_SIZE 32
+#define RES_NAME_SIZE 16
 
 typedef enum {
 	ResType_None,
@@ -18,6 +18,7 @@ ResType str_to_restype(const char *str);
 const char * restype_to_str(ResType type);
 
 struct ResBlob;
+struct BlobBuf;
 
 typedef struct {
 	ResType type;

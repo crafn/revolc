@@ -68,7 +68,7 @@ void deinit_shadersource(ShaderSource *shd)
 			&shd->fs_gl_id);
 }
 
-int json_shadersource_to_blob(BlobBuf *buf, JsonTok j)
+int json_shadersource_to_blob(struct BlobBuf *buf, JsonTok j)
 {
 	int return_value= 0;
 	char *vs_src= NULL; /// @warning Not null-terminated!

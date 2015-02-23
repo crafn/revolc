@@ -13,7 +13,7 @@ Mesh* model_mesh(const Model *model)
 { return (Mesh*)res_by_name(
 		model->res.blob, ResType_Mesh, model->mesh); }
 
-int json_model_to_blob(BlobBuf *buf, JsonTok j)
+int json_model_to_blob(struct BlobBuf *buf, JsonTok j)
 {
 	char textures[MODEL_TEX_COUNT][RES_NAME_SIZE]= {};
 	char mesh[RES_NAME_SIZE]= {};
