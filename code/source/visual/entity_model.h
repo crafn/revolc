@@ -9,7 +9,7 @@
 
 typedef struct {
 	bool allocated;
-	V3f pos;
+	V3d pos;
 	char model_name[RES_NAME_SIZE];
 
 	// Cached

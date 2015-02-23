@@ -7,19 +7,28 @@
 #include "visual/entity_model.h"
 
 typedef struct {
-	V2d pos;
-	F64 rot;
-} Transform2Node;
+	V3d pos;
+} T3d;
 
 typedef enum {
 	NodeType_ModelEntity,
-	NodeType_Transform2
+	NodeType_T3d
 } NodeType;
+
+typedef struct {
+	U8 allocated;
+	U8 src_offset;
+	U8 dst_offset;
+	U8 size;
+	U32 dst_node;
+} SlotRouting;
 
 typedef struct {
 	bool allocated;
 	NodeType type;
 	U32 impl_handle; /// e.g. Handle to ModelEntity
+
+	SlotRouting routing[MAX_NODE_ROUTING_COUNT];
 } NodeInfo;
 
 typedef struct World {
@@ -30,14 +39,25 @@ typedef struct World {
 	F64 time;
 } World;
 
+
+REVOLC_API
+void upd_t3d_nodes(	World *w,
+					T3d *t,
+					U32 count);
+
+REVOLC_API
 void upd_modelentity_nodes(	World *w,
-							ModelEntity *node,
+							ModelEntity *e,
 							U32 count);
 
-void upd_world(World *w, F64 dt);
+REVOLC_API void upd_world(World *w, F64 dt);
 
 REVOLC_API U32 alloc_node(World *w, NodeType type);
 REVOLC_API void free_node(World *w, U32 handle);
 REVOLC_API U32 node_impl_handle(World *w, U32 node_handle);
+REVOLC_API void add_routing(World *w,
+							U32 dst_node_h, U32 dst_offset,
+							U32 src_node_h, U32 src_offset,
+							U32 size);
 
 #endif // REVOLC_GAME_WORLD_H

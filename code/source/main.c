@@ -31,8 +31,8 @@ int main(int argc, const char **argv)
 {
 	Device *d= plat_init("Revolc engine", 800, 600);
 
-	//if (!file_exists("main.blob"))
-	make_main_blob();
+	if (!file_exists("main.blob"))
+		make_main_blob();
 
 	ResBlob *blob= g_env.res_blob= load_blob("main.blob");
 	print_blob(blob);
@@ -43,15 +43,20 @@ int main(int argc, const char **argv)
 
 	Model *barrel= (Model*)res_by_name(blob, ResType_Model, "wbarrel");
 	Model *roll= (Model*)res_by_name(blob, ResType_Model, "rollbot");
-#define ENTITY_COUNT 10
+#define ENTITY_COUNT 30
 	for (int i= 0; i < ENTITY_COUNT; ++i) {
 		Model *model= barrel;
 		if (i % 2 == 0)
 			model= roll;
-		//U32 t_node_h= alloc_node(&world, NodeType_Transform2);
+		U32 t_node_h= alloc_node(&world, NodeType_T3d);
 		U32 m_node_h= alloc_node(&world, NodeType_ModelEntity);
 		U32 modelentity_h= node_impl_handle(&world, m_node_h);
 		set_modelentity(rend, modelentity_h, model);
+
+		add_routing(&world,
+				m_node_h, offsetof(ModelEntity, pos),
+				t_node_h, offsetof(T3d, pos),
+				sizeof(V3d));
 	}
 
 	F32 time= 0;
