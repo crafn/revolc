@@ -1,8 +1,8 @@
 #version 150 core
-uniform sampler2D u_tex_color;
-in vec2 v_uv;
+uniform sampler2DArray u_tex_color;
+in vec3 v_uv;
 out vec4 f_color;
 void main()
 {
-	gl_FragColor= texture2D(u_tex_color, v_uv);
+	gl_FragColor= texture(u_tex_color, v_uv);
 }

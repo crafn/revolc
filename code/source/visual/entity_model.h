@@ -11,7 +11,8 @@ typedef struct {
 	const Model* model;
 
 	// Cached
-	U32 tex_gl_ids[MODEL_TEX_COUNT];
+	V3f atlas_uv;
+	V2f scale_to_atlas_uv;
 	const TriMeshVertex* vertices;
 	const MeshIndexType* indices;
 	U32 mesh_v_count;

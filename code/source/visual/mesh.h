@@ -25,8 +25,7 @@ REVOLC_API U32 vertex_size(MeshType type);
 
 typedef struct {
 	V3f pos;
-	F32 _pad;
-	V2f uv;
+	V3f uv;
 	F32 color[4];
 	V3f normal;
 	V3f tangent;

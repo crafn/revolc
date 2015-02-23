@@ -7,7 +7,7 @@ void vertex_attributes(MeshType type, const VertexAttrib **attribs, U32 *count)
 	if (type == MeshType_tri) {
 		local_persist VertexAttrib tri_attribs[]= {
 			{ "a_pos", 3, GL_FLOAT, false, offsetof(TriMeshVertex, pos) },
-			{ "a_uv", 2, GL_FLOAT, false, offsetof(TriMeshVertex, uv) },
+			{ "a_uv", 3, GL_FLOAT, false, offsetof(TriMeshVertex, uv) },
 			{ "a_color", 4, GL_FLOAT, false, offsetof(TriMeshVertex, color) },
 			{ "a_normal", 3, GL_FLOAT, false, offsetof(TriMeshVertex, normal) },
 			{ "a_tangent", 3, GL_FLOAT, false, offsetof(TriMeshVertex, tangent) }
@@ -70,8 +70,8 @@ int json_mesh_to_blob(BlobBuf *buf, JsonTok j)
 	{
 		const U32 v_count= json_member_count(j_pos);
 		const U32 i_count= json_member_count(j_ind);
-		TriMeshVertex *vertices= malloc(sizeof(*vertices)*v_count);
-		MeshIndexType *indices= malloc(sizeof(*indices)*i_count);
+		TriMeshVertex *vertices= zero_malloc(sizeof(*vertices)*v_count);
+		MeshIndexType *indices= zero_malloc(sizeof(*indices)*i_count);
 		for (U32 i= 0; i < v_count; ++i) {
 			JsonTok j_p= json_member(j_pos, i);
 			V3f p= {};
@@ -82,7 +82,7 @@ int json_mesh_to_blob(BlobBuf *buf, JsonTok j)
 			if (json_is_null(j_uv))
 				continue;
 			JsonTok j_u= json_member(j_uv, i);
-			V2f u= {};
+			V3f u= {};
 			for (U32 c= 0; c < json_member_count(j_u); ++c)
 				(&u.x)[c]= json_real(json_member(j_u, c));
 			vertices[i].uv= u;

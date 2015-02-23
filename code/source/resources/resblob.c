@@ -119,7 +119,7 @@ ResBlob * load_blob(const char *path)
 	{ // Load from file
 		U32 blob_size;
 		blob= (ResBlob*)malloc_file(path, &blob_size);
-		debug_print("load_blob: %s, %i", path, (int)blob_size);
+		debug_print("load_blob: %s, %iM", path, (int)blob_size/(1024*1024));
 	}
 
 	{ // Initialize resources
@@ -206,6 +206,8 @@ ResBlob* reload_blob(ResBlob *old_blob, const char *path)
 
 	// Update old res pointers to new blob
 	if (g_env.renderer) {
+		recreate_texture_atlas(g_env.renderer, new_blob);
+
 		// Model
 		for (U32 e_i= 0; e_i < g_env.renderer->entity_count; ++e_i) {
 			ModelEntity *e= &g_env.renderer->entities[e_i];
@@ -215,13 +217,14 @@ ResBlob* reload_blob(ResBlob *old_blob, const char *path)
 						new_blob,
 						e->model->res.type,
 						e->model->res.name);
+			const Texture *tex= model_texture(m, 0);
 
 			// Update cached values in EntityModels
-			for (int t_i= 0; t_i < MODEL_TEX_COUNT; ++t_i) {
-				Texture *tex= model_texture(m, t_i);
-				if (tex)
-					e->tex_gl_ids[t_i]= tex->gl_id;
-			}
+			e->atlas_uv= tex->atlas_uv;
+			e->scale_to_atlas_uv= (V2f) {
+				(F32)tex->reso.x/ATLAS_WIDTH,
+				(F32)tex->reso.y/ATLAS_WIDTH,
+			};
 			e->vertices= (TriMeshVertex*)mesh_vertices(model_mesh(m));
 			e->indices= (MeshIndexType*)mesh_indices(model_mesh(m));
 			e->mesh_v_count= model_mesh(m)->v_count;
@@ -325,6 +328,19 @@ Resource * find_res_by_name(const ResBlob *b, ResType t, const char *n)
 	return NULL;	
 }
 
+void all_res_by_type(	U32 *start_index, U32 *count,
+						const ResBlob *blob, ResType t)
+{
+	*start_index= 0;
+	*count= 0;
+	while (	*start_index < blob->res_count &&
+			res_by_index(blob, *start_index)->type != t)
+		++*start_index;
+	while (	*start_index + *count < blob->res_count &&
+			res_by_index(blob, *start_index + *count)->type == t)
+		++*count;
+}
+
 void* blob_ptr(const Resource *who_asks, BlobOffset offset)
 {
 	if (!who_asks->is_missing_res)
@@ -391,11 +407,13 @@ int resinfo_cmp(const void *a_, const void *b_)
 {
 	const ResInfo *a= (ResInfo*)a_;
 	const ResInfo *b= (ResInfo*)b_;
-	int str_cmp= strcmp(a->header.name, b->header.name);
-	if (str_cmp != 0)
-		return str_cmp;
+	int type_dif= a->header.type - b->header.type;
+	/// @note	Resources of the same type should be contiguous.
+	///			all_res_by_type relies on this order.
+	if (type_dif != 0)
+		return type_dif;
 	else
-		return a->header.type - b->header.type;
+		return strcmp(a->header.name, b->header.name);
 }
 
 void make_blob(const char *dst_file_path, char **res_file_paths)

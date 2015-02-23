@@ -274,6 +274,8 @@ Device * plat_init(const char* title, int width, int height)
 		glGenVertexArrays= (GlGenVertexArrays)plat_query_gl_func("glGenVertexArrays");
 		glDeleteVertexArrays= (GlDeleteVertexArrays)plat_query_gl_func("glDeleteVertexArrays");
 		glBindVertexArray= (GlBindVertexArray)plat_query_gl_func("glBindVertexArray");
+		glTexStorage3D= (GlTexStorage3D)plat_query_gl_func("glTexStorage3D");
+		//glTexSubImage3D= (GlTexSubImage3D)plat_query_gl_func("glTexSubImage3D");
 	}
 
 	{

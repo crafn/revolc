@@ -18,6 +18,8 @@ REVOLC_API WARN_UNUSED ResBlob * reload_blob(ResBlob *blob, const char *path);
 REVOLC_API Resource * res_by_index(const ResBlob *blob, U32 index);
 REVOLC_API Resource * res_by_name(ResBlob *b, ResType t, const char *n);
 REVOLC_API Resource * find_res_by_name(const ResBlob *b, ResType t, const char *n);
+REVOLC_API void all_res_by_type(U32 *start_index, U32 *count,
+								const ResBlob *blob, ResType t);
 
 REVOLC_API void * blob_ptr(const Resource *who_asks, BlobOffset offset);
 

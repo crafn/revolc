@@ -18,18 +18,21 @@ Renderer* create_renderer()
 	rend->next_entity= 0;
 	rend->max_entity_count= default_count;
 
+	recreate_texture_atlas(rend, g_env.res_blob);
+
 	if (!g_env.renderer)
 		g_env.renderer= rend;
 
 	return rend;
 }
 
-void destroy_renderer(Renderer *rend)
+void destroy_renderer(Renderer *r)
 {
-	if (g_env.renderer == rend)
+	if (g_env.renderer == r)
 		g_env.renderer= NULL;
-	free(rend->entities);
-	free(rend);
+	glDeleteTextures(1, &r->atlas_gl_id);
+	free(r->entities);
+	free(r);
 }
 
 U32 create_modelentity(Renderer *r, const Model *model)
@@ -45,13 +48,14 @@ U32 create_modelentity(Renderer *r, const Model *model)
 
 	{ // Init entity
 		ModelEntity *e= &r->entities[r->next_entity];
+		Texture *tex= model_texture(model, 0);
 		e->model= model;
 		e->pos.x= 0; e->pos.y= 0; e->pos.z= 0;
-		for (int i= 0; i < MODEL_TEX_COUNT; ++i) {
-			Texture* tex= model_texture(model, 0);
-			if (tex)
-				e->tex_gl_ids[i]= tex->gl_id;
-		}
+		e->atlas_uv= tex->atlas_uv;
+		e->scale_to_atlas_uv= (V2f) {
+			(F32)tex->reso.x/ATLAS_WIDTH,
+			(F32)tex->reso.y/ATLAS_WIDTH,
+		};
 		e->vertices= (TriMeshVertex*)mesh_vertices(model_mesh(model));
 		e->indices= (MeshIndexType*)mesh_indices(model_mesh(model));
 		e->mesh_v_count= model_mesh(model)->v_count;
@@ -88,14 +92,11 @@ void render_frame(Renderer *r, float cam_x, float cam_y)
 {
 	U32 total_v_count= 0;
 	U32 total_i_count= 0;
-	U32 tex_gl_id= 0; /// @todo TEMP, need texture atlas
 	for (U32 i= 0; i < r->max_entity_count; ++i) {
 		ModelEntity *e= &r->entities[i];
 		if (!e->model)
 			continue;
 
-		if (e->tex_gl_ids[0])
-			tex_gl_id= e->tex_gl_ids[0];
 		total_v_count += e->mesh_v_count;
 		total_i_count += e->mesh_i_count;
 	}
@@ -123,11 +124,20 @@ void render_frame(Renderer *r, float cam_x, float cam_y)
 				total_inds[cur_i]= e->indices[k] + cur_v;
 				++cur_i;
 			}
+
 			for (U32 k= 0; k < e->mesh_v_count; ++k) {
 				TriMeshVertex v= e->vertices[k];
 				v.pos.x += e->pos.x;
 				v.pos.y += e->pos.y;
 				v.pos.z += e->pos.z;
+
+				v.uv.x *= e->scale_to_atlas_uv.x;
+				v.uv.y *= e->scale_to_atlas_uv.y;
+
+				v.uv.x += e->atlas_uv.x;
+				v.uv.y += e->atlas_uv.y;
+				v.uv.z += e->atlas_uv.z;
+
 				total_verts[cur_v]= v;
 				++cur_v;
 			}
@@ -141,7 +151,7 @@ void render_frame(Renderer *r, float cam_x, float cam_y)
 
 	{ // Actual rendering
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, tex_gl_id);
+		glBindTexture(GL_TEXTURE_2D_ARRAY, r->atlas_gl_id);
 
 		ShaderSource* shd=
 			(ShaderSource*)res_by_name(
@@ -160,4 +170,85 @@ void render_frame(Renderer *r, float cam_x, float cam_y)
 	}
 
 	destroy_vao(&vao);
+}
+
+/// Helper in `recreate_texture_atlas`
+typedef struct {
+	V2i reso;
+	V3f *atlas_uv;
+	Texel *texels;
+} TexInfo;
+
+int texinfo_cmp(const void *a_, const void *b_)
+{
+	const TexInfo *a= a_, *b= b_;
+	if (a->reso.y == b->reso.y)
+		return b->reso.x - a->reso.x;
+	return b->reso.y - a->reso.y;
+}
+
+void recreate_texture_atlas(Renderer *r, ResBlob *blob)
+{
+	if (r->atlas_gl_id) {
+		glDeleteTextures(1, &r->atlas_gl_id);
+	}
+
+	glGenTextures(1, &r->atlas_gl_id);
+	ensure(r->atlas_gl_id);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, r->atlas_gl_id);
+
+	const U32 mip_levels= 1;
+	const U32 layers= 4;
+
+	glTexStorage3D(GL_TEXTURE_2D_ARRAY, mip_levels, GL_RGBA8,
+			ATLAS_WIDTH, ATLAS_WIDTH, layers);
+
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_BASE_LEVEL, 0);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_LEVEL, 0); /// @todo Mipmaps
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 1000);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_LOD, -1000);
+
+	// Gather TexInfos
+	U32 tex_count= 0;
+	TexInfo *texs= NULL;
+	{
+		U32 first_res;
+		all_res_by_type(&first_res, &tex_count, blob, ResType_Texture);
+		debug_print("f: %i, c: %i", first_res, tex_count);
+		texs= malloc(sizeof(*texs)*tex_count);
+		for (	U32 cur_res= first_res, i= 0;
+				i < tex_count;
+				++cur_res, ++i) {
+			Texture *tex= (Texture*)res_by_index(blob, cur_res);
+			texs[i]= (TexInfo) {
+				.reso= tex->reso,
+				.atlas_uv= &tex->atlas_uv,
+				.texels= tex->texels,
+			};
+		}
+		qsort(texs, tex_count, sizeof(*texs), texinfo_cmp);
+	}
+
+	// Blit to atlas
+	int x= 0, y= 0, z= 0;
+	for (U32 i= 0; i < tex_count; ++i) {
+		TexInfo *tex= &texs[i];
+		glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0,
+				x, y, z,
+				tex->reso.x, tex->reso.y, 1,
+				GL_RGBA, GL_UNSIGNED_BYTE, tex->texels);
+		*tex->atlas_uv= (V3f) {
+			(F32)x/ATLAS_WIDTH,
+			(F32)y/ATLAS_WIDTH,
+			0
+		};
+		x += tex->reso.x;
+		/// @todo Change rows/depth
+	}	
+
+	free(texs);
 }

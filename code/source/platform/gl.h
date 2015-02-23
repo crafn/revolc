@@ -84,6 +84,7 @@ GlBindAttribLocation glBindAttribLocation;
 
 #define GL_FRAMEBUFFER 0x8D40
 #define GL_COLOR_ATTACHMENT0 0x8CE0
+#define GL_TEXTURE_2D_ARRAY 0x8C1A
 
 typedef void (*GlGenFramebuffers)(GLsizei, GLuint*);
 GlGenFramebuffers glGenFramebuffers;
@@ -99,6 +100,11 @@ typedef void (*GlDeleteVertexArrays)(GLsizei, const GLuint*);
 GlDeleteVertexArrays glDeleteVertexArrays;
 typedef void (*GlBindVertexArray)(GLuint);
 GlBindVertexArray glBindVertexArray;
+typedef void (*GlTexStorage3D)(GLenum, GLsizei, GLenum, GLsizei, GLsizei, GLsizei);
+GlTexStorage3D glTexStorage3D;
+// Already in gl.h !?
+//typedef void (*GlTexSubImage3D)(GLenum, GLint, GLint, GLint, GLint, GLsizei, GLsizei, GLsizei, GLenum, GLenum, const GLvoid *);
+//GlTexSubImage3D glTexSubImage3D;
 
 // Useful utilities wrapping multiple OpenGL commands
 

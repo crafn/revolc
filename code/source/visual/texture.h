@@ -3,6 +3,7 @@
 
 #include "build.h"
 #include "core/json.h"
+#include "core/vector.h"
 #include "resources/resource.h"
 
 typedef struct {
@@ -11,17 +12,14 @@ typedef struct {
 
 typedef struct {
 	Resource res;
-	U16 reso[2];
+	V2i reso;
 
-	// On init
-	U32 gl_id;
+	// Renderer sets
+	V3f atlas_uv;
 
 	/// @todo Mipmaps
 	Texel texels[];
 } PACKED Texture;
-
-REVOLC_API void init_texture(Texture *tex);
-REVOLC_API void deinit_texture(Texture *tex);
 
 REVOLC_API WARN_UNUSED
 int json_texture_to_blob(BlobBuf *buf, JsonTok j);

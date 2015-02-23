@@ -13,6 +13,10 @@ typedef struct {
 	F32 x, y;
 } V2f;
 
+typedef struct {
+	S32 x, y;
+} V2i;
+
 inline
 V3f zero_v3f()
 {

@@ -30,20 +30,23 @@ int main(int argc, const char **argv)
 {
 	Device *d= plat_init("Revolc engine", 800, 600);
 
-	if (!file_exists("main.blob"))
-		make_main_blob();
+	//if (!file_exists("main.blob"))
+	make_main_blob();
 
-	ResBlob* blob= g_env.res_blob= load_blob("main.blob");
+	ResBlob *blob= g_env.res_blob= load_blob("main.blob");
 	print_blob(blob);
 
 	Renderer *rend= create_renderer();
 
-	Model *model= (Model*)res_by_name(blob, ResType_Model, "woodenbarrel");
+	Model *barrel= (Model*)res_by_name(blob, ResType_Model, "woodenbarrel");
+	Model *roll= (Model*)res_by_name(blob, ResType_Model, "rollbot");
 #define ENTITY_COUNT 500
 	U32 entity_handles[ENTITY_COUNT];
 	for (int i= 0; i < ENTITY_COUNT; ++i) {
-		U32 h= create_modelentity(rend, model);
-		entity_handles[i]= h;
+		Model *model= barrel;
+		if (i % 11 == 0)
+			model= roll;
+		entity_handles[i]= create_modelentity(rend, model);
 	}
 
 	F32 time= 0;

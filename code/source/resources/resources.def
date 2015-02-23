@@ -7,7 +7,7 @@
 
 #else
 
-RESOURCE(Texture, init_texture, deinit_texture, json_texture_to_blob)
+RESOURCE(Texture, NULL, NULL, json_texture_to_blob)
 RESOURCE(Mesh, NULL, NULL, json_mesh_to_blob)
 RESOURCE(Model, NULL, NULL, json_model_to_blob)
 RESOURCE(ShaderSource, init_shadersource, deinit_shadersource, json_shadersource_to_blob)

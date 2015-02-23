@@ -1,8 +1,8 @@
 #version 150 core
 in vec3 a_pos;
-in vec2 a_uv;
+in vec3 a_uv;
 uniform vec2 u_cursor;
-out vec2 v_uv;
+out vec3 v_uv;
 void main()
 {
 	v_uv= a_uv;
