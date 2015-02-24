@@ -122,6 +122,7 @@ void recreate_texture_atlas(Renderer *r, ResBlob *blob)
 Renderer* create_renderer()
 {
 	Renderer *rend= zero_malloc(sizeof(*rend));
+	rend->cam_pos.z= 5.0;
 
 	recreate_texture_atlas(rend, g_env.res_blob);
 
@@ -185,6 +186,24 @@ int entity_cmp(const void *e1, const void *e2)
 	F32 b= ((ModelEntity*)e2)->pos.z;
 	// Largest Z first (nearest camera)
 	return (a < b) - (a > b);
+}
+
+typedef struct {
+	F32 e[16];
+} M44f;
+
+internal
+M44f mul_m44f(const M44f a, const M44f b)
+{
+	M44f result;
+	for (U32 r= 0; r < 4; ++r)
+	for (U32 c= 0; c < 4; ++c)
+		result.e[c + 4*r]=
+			a.e[0 + 4*r]*b.e[c + 4*0] +
+			a.e[1 + 4*r]*b.e[c + 4*1] +
+			a.e[2 + 4*r]*b.e[c + 4*2] +
+			a.e[3 + 4*r]*b.e[c + 4*3];
+	return result;
 }
 
 void render_frame(Renderer *r)
@@ -264,13 +283,27 @@ void render_frame(Renderer *r)
 		F32 cx= r->cam_pos.x;
 		F32 cy= r->cam_pos.y;
 		F32 cz= r->cam_pos.z;
-		F32 s= 1.0/(1.0 + cz);
-		F32 cam_matrix[16]= {
-			s,   0.0, 0.0, 0.0,
-			0.0, s,   0.0, 0.0,
-			0.0, 0.0, s,   0.0,
-			cx,  cy,  cz,  1.0,
-		};
+		F32 near= 0.1;
+		F32 far= 1.0;
+
+		F32 fov= 3.141/2.0; // 45
+    	F32 h= tan(fov/2)*near;
+    	F32 w= h; // 1:1
+ 
+		M44f p_matrix= {{
+			near/w, 0, 0, 0,
+			0, near/h, 0, 0,
+			0, 0, (far + near)/(near - far), -1,
+			0, 0, 2*far*near/(near - far), 0,
+		}};
+		M44f t_matrix= {{
+			1, 0, 0, 0,
+			0, 1, 0, 0,
+			0, 0, 1, 0,
+			-cx, -cy, -cz, 0,
+		}};
+
+		M44f cam_matrix= mul_m44f(t_matrix, p_matrix);
 
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -290,7 +323,7 @@ void render_frame(Renderer *r)
 				glGetUniformLocation(shd->prog_gl_id, "u_cam"),
 				1,
 				GL_FALSE,
-				cam_matrix);
+				cam_matrix.e);
 
 		glViewport(0, 0,
 				g_env.device->win_size[0],

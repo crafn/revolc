@@ -79,14 +79,32 @@ int main(int argc, const char **argv)
 			2.0*d->cursor_pos[0]/d->win_size[0] - 1.0,
 			-2.0*d->cursor_pos[1]/d->win_size[1] + 1.0
 		};
-		rend->cam_pos.z= (cursor.y + 1)*20;
+
+		{
+			F32 dt= d->dt;
+			F32 spd= 25.0;
+			if (d->keyDown['w'])
+				rend->cam_pos.y += spd*dt;
+			if (d->keyDown['a'])
+				rend->cam_pos.x -= spd*dt;
+			if (d->keyDown['s'])
+				rend->cam_pos.y -= spd*dt;
+			if (d->keyDown['d'])
+				rend->cam_pos.x += spd*dt;
+
+			if (d->keyDown['y'])
+				rend->cam_pos.z -= spd*dt;
+			if (d->keyDown['h'])
+				rend->cam_pos.z += spd*dt;
+			
+			phys_world->debug_draw= d->keyDown['q'];
+		}
 
 		if (d->lmbDown) {
 			make_main_blob();
 			blob= g_env.res_blob= reload_blob(blob, "main.blob");
 		}
 
-		phys_world->debug_draw= cursor.x <  0;
 
 		upd_physworld(phys_world, d->dt);
 		upd_world(world, d->dt);

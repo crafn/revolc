@@ -3,6 +3,8 @@
 
 #include "build.h"
 
+#define KEYBOARD_KEY_COUNT 256
+
 struct DevicePlatformData;
 typedef struct Device {
 	int cursor_pos[2];
@@ -10,6 +12,7 @@ typedef struct Device {
 	bool quit_requested;
 	F32 dt;
 	bool lmbDown;
+	bool keyDown[KEYBOARD_KEY_COUNT];
 
 	struct DevicePlatformData* data;
 } Device;

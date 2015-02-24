@@ -104,7 +104,7 @@ void phys_draw_circle(
 	v[0].x= v[0].x*0.9 + pos.x*0.1;
 	v[0].y= v[0].y*0.9 + pos.y*0.1;
 
-	Color c= {1.0, 0.5, 0.1, 0.5};
+	Color c= {0.4, 0.7, 1.0, 0.5};
 	ddraw_poly(
 			g_env.renderer,
 			c,

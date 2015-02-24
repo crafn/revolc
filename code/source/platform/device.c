@@ -144,7 +144,7 @@ Device * plat_init(const char* title, int width, int height)
 								 vi->visual, AllocNone );
 		swa.background_pixmap = None ;
 		swa.border_pixel      = 0;
-		swa.event_mask= ExposureMask | KeyPressMask | ButtonPressMask | ButtonReleaseMask;
+		swa.event_mask= ExposureMask | KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask;
 
 		Window win = XCreateWindow( display, RootWindow( display, vi->screen ), 
 					  0, 0, width, height, 0, vi->depth, InputOutput, 
@@ -305,14 +305,23 @@ void plat_update(Device *d)
 	while(XPending(d->data->dpy)) {
 		XEvent xev;
         XNextEvent(d->data->dpy, &xev);
-		if(xev.type == KeyPress) {
+
+		if (	xev.type == KeyPress ||
+				xev.type == KeyRelease) {
 			int keys_ret;
 			KeySym* keysym=
 				XGetKeyboardMapping(d->data->dpy, xev.xkey.keycode, 1, &keys_ret);
-			
-			if (*keysym == XK_Escape)
-				d->quit_requested= true;
 
+			if(xev.type == KeyPress) {
+				if (*keysym == XK_Escape)
+					d->quit_requested= true;
+			}
+
+			if (*keysym < KEYBOARD_KEY_COUNT)
+				d->keyDown[*keysym]= (xev.type == KeyPress);
+			
+			//debug_print("key: %i", *keysym);
+			
 			XFree(keysym);
 		}
 

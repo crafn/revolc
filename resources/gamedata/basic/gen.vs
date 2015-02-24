@@ -12,5 +12,7 @@ void main()
 	v_uv= a_uv;
 	v_pos= a_pos;
 	v_color= a_color;
-	gl_Position= vec4((u_cam*vec4(a_pos, 1.0)).xy, 0.0, 1.0);
+
+	vec4 p= u_cam*vec4(a_pos, 1.0);
+	gl_Position= vec4(p.xy, 0.0, p.w);
 }
