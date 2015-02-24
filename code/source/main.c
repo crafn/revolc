@@ -79,6 +79,9 @@ int main(int argc, const char **argv)
 			blob= g_env.res_blob= reload_blob(blob, "main.blob");
 		}
 
+		phys_world->debug_draw= cursor[0] < 0;
+
+
 		upd_physworld(phys_world, d->dt);
 		upd_world(world, d->dt);
 		render_frame(rend, cursor[0]*3.0, cursor[1]*3.0);

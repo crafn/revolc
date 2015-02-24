@@ -1,5 +1,7 @@
+#include "global/env.h"
 #include "core/malloc.h"
 #include "phys_world.h"
+#include "visual/renderer.h" // Debug draw
 
 PhysWorld *create_physworld()
 {
@@ -8,6 +10,7 @@ PhysWorld *create_physworld()
 		g_env.phys_world= w;
 
 	w->space= cpSpaceNew();
+	 cpSpaceSetIterations(w->space, 20);
 	cpSpaceSetGravity(w->space, cpv(0, -100));
 
 	w->ground=
@@ -46,13 +49,23 @@ U32 alloc_rigidbody(PhysWorld *w)
 		cpFloat radius = 1;
 		cpFloat mass = 1;
 		cpFloat moment = cpMomentForCircle(mass, 0, radius, cpvzero);
-		cpBody *ballBody = cpSpaceAddBody(w->space, cpBodyNew(mass, moment));
-		cpBodySetPosition(ballBody, cpv(sin(w->next_body), 1+cos(w->next_body)));
-		cpShape *ballShape = cpSpaceAddShape(w->space, cpCircleShapeNew(ballBody, radius, cpvzero));
-		cpShapeSetFriction(ballShape, 0.7);
 
-		w->bodies[w->next_body].body= ballBody;
-		w->bodies[w->next_body].shape= ballShape;
+		cpBody *body = cpSpaceAddBody(w->space, cpBodyNew(mass, moment));
+		cpBodySetPosition(body, cpv(sin(w->next_body), 1+cos(w->next_body)));
+	
+		cpShape *shape= NULL;
+		if (w->next_body % 2 == 0) {
+			shape= cpSpaceAddShape(w->space, cpCircleShapeNew(body, radius, cpvzero));
+		} else {
+			cpVect rect[]= {
+				cpv(-1, -1), cpv(-1, 1), cpv(1, 1), cpv(1, -1)
+			};
+			shape= cpSpaceAddShape(w->space, cpPolyShapeNew(body, 4, rect, cpTransformIdentity, 0.0));
+		}
+		cpShapeSetFriction(shape, 0.7);
+
+		w->bodies[w->next_body].body= body;
+		w->bodies[w->next_body].shape= shape;
 	}
 
 	++w->body_count;
@@ -71,6 +84,51 @@ void free_rigidbody(PhysWorld *w, U32 h)
 	--w->body_count;
 }
 
+internal
+void phys_draw_circle(
+		cpVect pos, cpFloat angle, cpFloat radius,
+		cpSpaceDebugColor outlineColor,
+		cpSpaceDebugColor fillColor,
+		cpDataPointer data)
+{
+	const U32 v_count= 30;
+	V2d v[v_count];
+	for (U32 i= 0; i < v_count; ++i) {
+		F64 a= angle + i*3.141*2.0/v_count;
+		v[i].x= pos.x + cos(a)*radius;
+		v[i].y= pos.y + sin(a)*radius;
+	}
+	v[0].x= v[0].x*0.9 + pos.x*0.1;
+	v[0].y= v[0].y*0.9 + pos.y*0.1;
+
+	Color c= {1.0, 0.5, 0.1, 0.5};
+	ddraw_poly(
+			g_env.renderer,
+			c,
+			v,
+			v_count);
+}
+
+internal
+void phys_draw_poly(
+		int count, const cpVect *verts, cpFloat radius,
+		cpSpaceDebugColor outlineColor, cpSpaceDebugColor fillColor,
+		cpDataPointer data)
+{
+	V2d v[count];
+	for (U32 i= 0; i < count; ++i) {
+		v[i].x= verts[i].x;
+		v[i].y= verts[i].y;
+	}
+
+	Color c= {0.4, 0.7, 1.0, 0.5};
+	ddraw_poly(
+			g_env.renderer,
+			c,
+			v,
+			count);
+}
+
 void upd_physworld(PhysWorld *w, F32 dt)
 {
 	/// @todo Accumulation
@@ -86,4 +144,14 @@ void upd_physworld(PhysWorld *w, F32 dt)
 		b->rot.cs= cpBodyGetRotation(b->body).x;
 		b->rot.sn= cpBodyGetRotation(b->body).y;
 	}
+	
+	if (w->debug_draw) {
+		cpSpaceDebugDrawOptions options= {
+			.drawCircle= phys_draw_circle,
+			.drawPolygon= phys_draw_poly,
+			.flags= CP_SPACE_DEBUG_DRAW_SHAPES,
+		};
+		cpSpaceDebugDraw(w->space, &options);
+	}
+
 }

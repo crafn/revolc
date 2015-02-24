@@ -1,7 +1,7 @@
 #!/bin/sh
 mkdir -p ./temp
 cd ./deps/common
-clang -std=gnu99 -O2 -Wall -march=native -ffast-math -I . -c \
+clang -std=gnu99 -O2 -Wall -march=native -ffast-math -g -I . -c \
 	-Wno-compare-distinct-pointer-types \
 	-Wno-incompatible-pointer-types \
 	-I ./chipmunk/include -I ./chipmunk/src \

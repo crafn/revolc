@@ -15,6 +15,8 @@ typedef struct RigidBody {
 } RigidBody;
 
 typedef struct PhysWorld {
+	bool debug_draw;
+
 	RigidBody bodies[MAX_RIGIDBODY_COUNT];
 	U32 next_body;
 	U32 body_count;

@@ -122,7 +122,6 @@ void recreate_texture_atlas(Renderer *r, ResBlob *blob)
 Renderer* create_renderer()
 {
 	Renderer *rend= zero_malloc(sizeof(*rend));
-	rend->next_entity= 0;
 
 	recreate_texture_atlas(rend, g_env.res_blob);
 
@@ -188,7 +187,7 @@ int entity_cmp(const void *e1, const void *e2)
 	return (a < b) - (a > b);
 }
 
-void render_frame(Renderer *r, float cam_x, float cam_y)
+void render_frame(Renderer *r, F64 cam_x, F64 cam_y)
 {
 	U32 total_v_count= 0;
 	U32 total_i_count= 0;
@@ -248,6 +247,8 @@ void render_frame(Renderer *r, float cam_x, float cam_y)
 				v.uv.y += e->atlas_uv.y;
 				v.uv.z += e->atlas_uv.z;
 
+				v.color= (Color) {1, 1, 1, 1};
+
 				total_verts[cur_v]= v;
 				++cur_v;
 			}
@@ -282,9 +283,57 @@ void render_frame(Renderer *r, float cam_x, float cam_y)
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		draw_vao(&vao);
+
+		// Debug draw
+		if (r->ddraw_v_count > 0) {
+			Vao ddraw_vao=
+				create_vao(MeshType_tri, r->ddraw_v_count, r->ddraw_i_count);
+			bind_vao(&ddraw_vao);
+			add_vertices_to_vao(&ddraw_vao, r->ddraw_v, r->ddraw_v_count);
+			add_indices_to_vao(&ddraw_vao, r->ddraw_i, r->ddraw_i_count);
+			draw_vao(&ddraw_vao);
+			destroy_vao(&ddraw_vao);
+
+			r->ddraw_v_count= 0;
+			r->ddraw_i_count= 0;
+		}
 	}
 
+
 	destroy_vao(&vao);
+}
+
+void ddraw_poly(Renderer *r, Color c, V2d *poly, U32 count)
+{
+	if (r->ddraw_v_count + count > MAX_DEBUG_DRAW_VERTICES)
+		critical_print("ddraw_poly: Too many vertices");
+	if (r->ddraw_i_count + count > MAX_DEBUG_DRAW_INDICES)
+		critical_print("ddraw_poly: Too many indices");
+
+	Texture *white=
+		(Texture*)res_by_name(
+			g_env.res_blob,
+			ResType_Texture,
+			"white");
+	V3f atlas_uv= white->atlas_uv;
+	atlas_uv.x += 0.5*white->reso.x/TEXTURE_ATLAS_WIDTH;
+	atlas_uv.y += 0.5*white->reso.y/TEXTURE_ATLAS_WIDTH;
+
+	U32 start_index= r->ddraw_v_count;
+	for (U32 i= 0; i < count; ++i) {
+		TriMeshVertex v= {
+			.pos= { .x= poly[i].x, .y= poly[i].y },
+			.uv= atlas_uv,
+			.color= c,
+		};
+		r->ddraw_v[r->ddraw_v_count++]= v;
+	}
+
+	for (U32 i= 0; i < count - 2; ++i) {
+		r->ddraw_i[r->ddraw_i_count++]= start_index;
+		r->ddraw_i[r->ddraw_i_count++]= start_index + i + 1;
+		r->ddraw_i[r->ddraw_i_count++]= start_index + i + 2;
+	}
 }
 
 void on_res_reload(Renderer *r, ResBlob *new_blob)

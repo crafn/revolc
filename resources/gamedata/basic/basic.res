@@ -1,5 +1,10 @@
 [
 	{
+		"type" : "Texture",
+		"name" : "white",
+		"file" : "./white.png",
+	},
+	{
 		"type" : "Mesh",
 		"name" : "quad",
 		"pos" : [	[-1.0, -1.0, 0.0], 

@@ -14,6 +14,10 @@ typedef struct {
 } V2d;
 
 typedef struct {
+	F32 r, g, b, a;
+} Color;
+
+typedef struct {
 	F32 x, y, z;
 } V3f;
 

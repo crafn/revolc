@@ -4,6 +4,8 @@
 // These options largely determine the memory usage of the engine
 
 #define MAX_MODELENTITY_COUNT (1024*20)
+#define MAX_DEBUG_DRAW_VERTICES (1024*40)
+#define MAX_DEBUG_DRAW_INDICES (MAX_DEBUG_DRAW_VERTICES*2)
 #define TEXTURE_ATLAS_WIDTH 4096
 #define TEXTURE_ATLAS_LAYER_COUNT 4
 #define MAX_NODE_COUNT (1024*20)
