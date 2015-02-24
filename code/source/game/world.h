@@ -50,6 +50,9 @@ void upd_modelentity_nodes(	World *w,
 							ModelEntity *e,
 							U32 count);
 
+REVOLC_API WARN_UNUSED World * create_world();
+REVOLC_API void destroy_world(World *w);
+
 REVOLC_API void upd_world(World *w, F64 dt);
 
 REVOLC_API U32 alloc_node(World *w, NodeType type);

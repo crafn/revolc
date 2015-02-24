@@ -18,7 +18,3 @@
 #include "visual/shadersource.c"
 #include "visual/texture.c"
 #include "visual/vao.c"
-
-/// @todo Separate compile for dependencies
-#include <jsmn/jsmn.c>
-#include <lodepng/lodepng.c>

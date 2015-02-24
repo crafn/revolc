@@ -142,7 +142,7 @@ void destroy_renderer(Renderer *r)
 
 U32 alloc_modelentity(Renderer *r)
 {
-	if (r->entity_count == MAX_MODELENTITY_COUNT)
+	if (r->entity_count >= MAX_MODELENTITY_COUNT)
 		fail("Too many modelentities");
 
 	while (r->entities[r->next_entity].allocated)
@@ -191,6 +191,7 @@ int entity_cmp(const void *e1, const void *e2)
 {
 	F32 a= ((ModelEntity*)e1)->pos.z;
 	F32 b= ((ModelEntity*)e2)->pos.z;
+	// Largest Z first (nearest camera)
 	return (a < b) - (a > b);
 }
 
@@ -256,6 +257,10 @@ void render_frame(Renderer *r, float cam_x, float cam_y)
 	}
 
 	{ // Actual rendering
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glClearColor(0.0, 0.0, 0.0, 0.0);
+
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D_ARRAY, r->atlas_gl_id);
 
@@ -271,7 +276,8 @@ void render_frame(Renderer *r, float cam_x, float cam_y)
 		glViewport(0, 0,
 				g_env.device->win_size[0],
 				g_env.device->win_size[1]);
-		glClear(GL_COLOR_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 		draw_vao(&vao);
 	}
 

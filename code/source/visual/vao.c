@@ -3,14 +3,6 @@
 #include "platform/gl.h"
 #include "vao.h"
 
-internal
-void unbind_vao()
-{
-	glBindVertexArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-}
-
 Vao create_vao(MeshType m, U32 max_v_count, U32 max_i_count)
 {
 	U32 attrib_count;
@@ -77,6 +69,13 @@ void bind_vao(const Vao *vao)
 	glBindBuffer(GL_ARRAY_BUFFER, vao->vbo_id);
 	if (vao->ibo_id)
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vao->ibo_id);
+}
+
+void unbind_vao()
+{
+	glBindVertexArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
 void add_mesh_to_vao(Vao *vao, const Mesh* mesh)

@@ -21,6 +21,7 @@ REVOLC_API Vao create_vao(MeshType m, U32 max_v_count, U32 max_i_count);
 REVOLC_API void destroy_vao(Vao *vao);
 
 REVOLC_API void bind_vao(const Vao *vao);
+REVOLC_API void unbind_vao();
 REVOLC_API void add_mesh_to_vao(Vao *vao, const Mesh *mesh);
 REVOLC_API void add_vertices_to_vao(Vao *vao, void *vertices, U32 count);
 REVOLC_API void add_indices_to_vao(Vao *vao, MeshIndexType *indices, U32 count);

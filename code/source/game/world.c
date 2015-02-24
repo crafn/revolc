@@ -1,32 +1,12 @@
+#include "core/malloc.h"
 #include "game/world.h"
 #include "global/env.h"
 #include "visual/renderer.h"
 
 #include <math.h>
 
-/*
-void init_visualnodes(VisualNode *node, VisualNode *end)
-{
-	while (node++ != end) {
-		node->handle=
-			create_modelentity(
-					g_env.renderer,
-					(Model*)resource_by_name(g_env.res_blob, node->model_input));
-	}
-}
-
-void deinit_visualnodes(VisualNode *node, VisualNode *end)
-{
-	while (node++ != end) {
-		destroy_modelentity(
-				g_env.renderer,
-				node->handle);
-	}
-}
-*/
-
 internal
-T3d temptest_t3d_storage[1024];
+T3d temptest_t3d_storage[MAX_NODE_COUNT];
 internal
 U32 next_t3d= 0;
 
@@ -50,7 +30,6 @@ void * node_impl(NodeInfo *node)
 void upd_t3d_nodes(	World *w,
 					T3d *t,
 					U32 count)
-
 {
 	for (U32 i= 0; i < count; ++i, ++t) {
 		int asd= (int)t;
@@ -65,14 +44,18 @@ void upd_modelentity_nodes(	World *w,
 							U32 count)
 {
 	for (U32 i= 0; i < count; ++i, ++e) {
-		/*if (!changed[i].model_name) {
-			set_modelentity(
-					&node[i],
-					(Model*)res_by_name(g_env.res_blob,
-										ResType_Model,
-										node[i].model_name));
-		}*/
 	}
+}
+
+World * create_world()
+{
+	World *w= zero_malloc(sizeof(*w));
+	return w;
+}
+
+void destroy_world(World *w)
+{
+	free(w);
 }
 
 void upd_world(World *w, F64 dt)
@@ -105,10 +88,10 @@ void upd_world(World *w, F64 dt)
 			ensure(r->dst_node < MAX_NODE_COUNT);
 			NodeInfo *dst_node= &w->nodes[r->dst_node];
 
-			for (U32 i= 0; i < r->size; ++i) {
-				((U8*)node_impl(dst_node))[r->dst_offset + i]=
-					((U8*)node_impl(node))[r->src_offset + i];
-			}
+			U8 *dst= (U8*)node_impl(dst_node) + r->dst_offset;
+			U8 *src= (U8*)node_impl(node) + r->src_offset;
+			for (U32 i= 0; i < r->size; ++i)
+				dst[i]= src[i];
 		}
 	}
 }

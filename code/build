@@ -4,4 +4,6 @@ cd ./source
 clang -std=gnu99 -O0 -Wall -march=native -ffast-math -g -I. \
 	-I ../deps/common \
 	./unity.c \
-	-lX11 -lGL -lm -o ../../builds/linux64/clover
+	../temp/deps.o \
+	-lX11 -lGL -lm -lpthread \
+	-o ../../builds/linux64/clover

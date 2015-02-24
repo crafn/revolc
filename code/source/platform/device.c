@@ -278,11 +278,6 @@ Device * plat_init(const char* title, int width, int height)
 		//glTexSubImage3D= (GlTexSubImage3D)plat_query_gl_func("glTexSubImage3D");
 	}
 
-	{
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		glClearColor(0.0, 0.0, 0.0, 0.0);
-	}
 	return d;
 }
 
