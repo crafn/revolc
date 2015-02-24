@@ -2,17 +2,20 @@
 #define REVOLC_GAME_WORLD_H
 
 #include "build.h"
+#include "core/quaternion.h"
 #include "core/vector.h"
 #include "global/cfg.h"
 #include "visual/entity_model.h"
 
 typedef struct {
 	V3d pos;
+	Qd rot;
 } T3d;
 
 typedef enum {
 	NodeType_ModelEntity,
-	NodeType_T3d
+	NodeType_T3d,
+	NodeType_RigidBody,
 } NodeType;
 
 typedef struct {

@@ -8,6 +8,7 @@
 #include "game/world.c"
 #include "global/env.c"
 #include "main.c"
+#include "physics/phys_world.c"
 #include "platform/device.c"
 #include "platform/gl.c"
 #include "resources/resblob.c"

@@ -179,13 +179,6 @@ void set_modelentity(Renderer *r, U32 h, const Model *model)
 	e->mesh_i_count= model_mesh(model)->i_count;
 }
 
-ModelEntity* get_modelentity(Renderer *r, U32 h)
-{
-	ensure(h < MAX_MODELENTITY_COUNT);
-	ensure(r->entities[h].allocated);
-	return &r->entities[h];
-}
-
 internal
 int entity_cmp(const void *e1, const void *e2)
 {
@@ -232,8 +225,18 @@ void render_frame(Renderer *r, float cam_x, float cam_y)
 				++cur_i;
 			}
 
+			F64 cs= e->rot.cs;
+			F64 sn= e->rot.sn;
+
 			for (U32 k= 0; k < e->mesh_v_count; ++k) {
 				TriMeshVertex v= e->vertices[k];
+
+				// Rotate
+				V2d p= {v.pos.x, v.pos.y};
+				v.pos.x = cs*p.x - sn*p.y;
+				v.pos.y = sn*p.x + cs*p.y;
+
+				// Translate
 				v.pos.x += e->pos.x;
 				v.pos.y += e->pos.y;
 				v.pos.z += e->pos.z;

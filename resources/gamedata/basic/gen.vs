@@ -8,5 +8,5 @@ void main()
 {
 	v_uv= a_uv;
 	v_pos= a_pos;
-	gl_Position= vec4((v_pos.xy + u_cursor)/(1.0 + a_pos.z), 0.0, 1.0);
+	gl_Position= vec4((v_pos.xy + u_cursor)/(5.0 + a_pos.z), 0.0, 1.0);
 }

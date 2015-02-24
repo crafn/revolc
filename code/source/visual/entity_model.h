@@ -2,6 +2,7 @@
 #define REVOLC_VISUAL_ENTITY_MODEL_H
 
 #include "build.h"
+#include "core/quaternion.h"
 #include "core/vector.h"
 #include "model.h"
 #include "mesh.h"
@@ -10,6 +11,7 @@
 typedef struct {
 	bool allocated;
 	V3d pos;
+	Qd rot;
 	char model_name[RES_NAME_SIZE];
 
 	// Cached

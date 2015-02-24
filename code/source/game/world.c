@@ -1,7 +1,10 @@
 #include "core/malloc.h"
 #include "game/world.h"
 #include "global/env.h"
+
+/// TEMP
 #include "visual/renderer.h"
+#include "physics/phys_world.h"
 
 #include <math.h>
 
@@ -16,13 +19,16 @@ void * node_impl(NodeInfo *node)
 {
 	switch (node->type) {
 		case NodeType_ModelEntity:
-			return get_modelentity(g_env.renderer, node->impl_handle);
+			return &g_env.renderer->entities[node->impl_handle];
 		break;
 		case NodeType_T3d:
 			return &temptest_t3d_storage[node->impl_handle];
 		break;
+		case NodeType_RigidBody:
+			return &g_env.phys_world->bodies[node->impl_handle];
+		break;
 		default:
-			fail("node_impl: unhandled type: %s", node->type);
+			fail("node_impl: unhandled type: %i", node->type);
 	}
 	return NULL;
 }
@@ -39,14 +45,6 @@ void upd_t3d_nodes(	World *w,
 	}
 }
 
-void upd_modelentity_nodes(	World *w,
-							ModelEntity *e,
-							U32 count)
-{
-	for (U32 i= 0; i < count; ++i, ++e) {
-	}
-}
-
 World * create_world()
 {
 	World *w= zero_malloc(sizeof(*w));
@@ -55,6 +53,16 @@ World * create_world()
 
 void destroy_world(World *w)
 {
+	U32 not_freed= 0;
+	for (U32 i= 0; i < MAX_NODE_COUNT; ++i) {
+		if (w->nodes[i].allocated) {
+			++not_freed;
+			free_node(w, i);
+		}
+	}
+	if (not_freed)
+		critical_print("destroy_world: %i nodes not freed", not_freed);
+
 	free(w);
 }
 
@@ -71,10 +79,12 @@ void upd_world(World *w, F64 dt)
 
 		switch (node->type) {
 			case NodeType_ModelEntity:
-				upd_modelentity_nodes(w, node_impl(node), 1);
+				//upd_modelentity_nodes(w, node_impl(node), 1);
 			break;
 			case NodeType_T3d:
 				upd_t3d_nodes(w, node_impl(node), 1);
+			break;
+			case NodeType_RigidBody:
 			break;
 			default: fail("upd_world: unhandled type: %i", node->type);
 		}
@@ -112,6 +122,9 @@ U32 alloc_node(World *w, NodeType type)
 		case NodeType_T3d:
 			info.impl_handle= next_t3d++;
 		break;
+		case NodeType_RigidBody:
+			info.impl_handle= alloc_rigidbody(g_env.phys_world);
+		break;
 		default: fail("create_node: unhandled type: %i", type);
 	}
 
@@ -135,6 +148,9 @@ void free_node(World *w, U32 handle)
 			free_modelentity(g_env.renderer, impl_handle);
 		break;
 		case NodeType_T3d:
+		break;
+		case NodeType_RigidBody:
+			free_rigidbody(g_env.phys_world, impl_handle);
 		break;
 		default: fail("destroy_node: unhandled type: %i", type);
 	}

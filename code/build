@@ -2,7 +2,7 @@
 mkdir -p ../builds/linux64
 cd ./source
 clang -std=gnu99 -O0 -Wall -march=native -ffast-math -g -I. \
-	-I ../deps/common \
+	-I ../deps/common -I ../deps/common/chipmunk/include \
 	./unity.c \
 	../temp/deps.o \
 	-lX11 -lGL -lm -lpthread \

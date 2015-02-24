@@ -4,11 +4,13 @@
 #include "build.h"
 
 struct Device;
+struct PhysWorld;
 struct ResBlob;
 struct Renderer;
 
 typedef struct {
 	struct Device* device;
+	struct PhysWorld* phys_world;
 	struct Renderer* renderer;
 	struct ResBlob* res_blob;
 } Env;
