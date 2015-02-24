@@ -7,6 +7,8 @@
 #include "mesh.h"
 
 typedef struct Renderer {
+	V3d cam_pos;
+
 	ModelEntity entities[MAX_MODELENTITY_COUNT];
 	U32 next_entity;
 	U32 entity_count;
@@ -27,7 +29,7 @@ REVOLC_API U32 alloc_modelentity(Renderer *r);
 REVOLC_API void free_modelentity(Renderer *r, U32 h);
 REVOLC_API void set_modelentity(Renderer *r, U32 h, const Model *model);
 
-REVOLC_API void render_frame(Renderer *r, F64 cam_x, F64 cam_y);
+REVOLC_API void render_frame(Renderer *r);
 
 REVOLC_API void ddraw_poly(Renderer *r, Color c, V2d *poly, U32 count);
 

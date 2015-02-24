@@ -45,6 +45,10 @@ int main(int argc, const char **argv)
 
 	Model *barrel= (Model*)res_by_name(blob, ResType_Model, "wbarrel");
 	Model *roll= (Model*)res_by_name(blob, ResType_Model, "rollbot");
+
+#define MAX_ENTITY_NODE_COUNT 1000
+	U32 entity_nodes[MAX_ENTITY_NODE_COUNT];
+	U32 entity_node_count= 0;
 #define ENTITY_COUNT 100
 	for (int i= 0; i < ENTITY_COUNT; ++i) {
 		Model *model= barrel;
@@ -53,6 +57,8 @@ int main(int argc, const char **argv)
 		/// @todo Free at end
 		U32 b_node_h= alloc_node(world, NodeType_RigidBody);
 		U32 m_node_h= alloc_node(world, NodeType_ModelEntity);
+		entity_nodes[entity_node_count++]= b_node_h;
+		entity_nodes[entity_node_count++]= m_node_h;
 
 		U32 modelentity_h= node_impl_handle(world, m_node_h);
 		set_modelentity(rend, modelentity_h, model);
@@ -69,26 +75,29 @@ int main(int argc, const char **argv)
 
 	while (!d->quit_requested) {
 		plat_update(d);
-		F32 cursor[2]= {
+		V2d cursor= {
 			2.0*d->cursor_pos[0]/d->win_size[0] - 1.0,
-			-2.0*d->cursor_pos[1]/d->win_size[1] + 1.0,
+			-2.0*d->cursor_pos[1]/d->win_size[1] + 1.0
 		};
+		rend->cam_pos.z= (cursor.y + 1)*20;
 
 		if (d->lmbDown) {
 			make_main_blob();
 			blob= g_env.res_blob= reload_blob(blob, "main.blob");
 		}
 
-		phys_world->debug_draw= cursor[0] < 0;
-
+		phys_world->debug_draw= cursor.x <  0;
 
 		upd_physworld(phys_world, d->dt);
 		upd_world(world, d->dt);
-		render_frame(rend, cursor[0]*3.0, cursor[1]*3.0);
+		render_frame(rend);
 
 		gl_check_errors("loop");
 		plat_sleep(1);
 	}
+
+	for (U32 i= 0; i < entity_node_count; ++i)
+		free_node(world, entity_nodes[i]);
 
 	destroy_world(world);
 	destroy_physworld(phys_world);

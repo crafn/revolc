@@ -187,7 +187,7 @@ int entity_cmp(const void *e1, const void *e2)
 	return (a < b) - (a > b);
 }
 
-void render_frame(Renderer *r, F64 cam_x, F64 cam_y)
+void render_frame(Renderer *r)
 {
 	U32 total_v_count= 0;
 	U32 total_i_count= 0;
@@ -261,6 +261,17 @@ void render_frame(Renderer *r, F64 cam_x, F64 cam_y)
 	}
 
 	{ // Actual rendering
+		F32 cx= r->cam_pos.x;
+		F32 cy= r->cam_pos.y;
+		F32 cz= r->cam_pos.z;
+		F32 s= 1.0/(1.0 + cz);
+		F32 cam_matrix[16]= {
+			s,   0.0, 0.0, 0.0,
+			0.0, s,   0.0, 0.0,
+			0.0, 0.0, s,   0.0,
+			cx,  cy,  cz,  1.0,
+		};
+
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glClearColor(0.0, 0.0, 0.0, 0.0);
@@ -275,7 +286,11 @@ void render_frame(Renderer *r, F64 cam_x, F64 cam_y)
 					"gen");
 		glUseProgram(shd->prog_gl_id);
 		glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_tex_color"), 0);
-		glUniform2f(glGetUniformLocation(shd->prog_gl_id, "u_cursor"), cam_x, cam_y);
+		glUniformMatrix4fv(
+				glGetUniformLocation(shd->prog_gl_id, "u_cam"),
+				1,
+				GL_FALSE,
+				cam_matrix);
 
 		glViewport(0, 0,
 				g_env.device->win_size[0],

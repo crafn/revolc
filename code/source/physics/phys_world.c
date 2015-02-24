@@ -25,6 +25,7 @@ PhysWorld *create_physworld()
 
 void destroy_physworld(PhysWorld *w)
 {
+	cpSpaceRemoveShape(w->space, w->ground);
 	cpShapeFree(w->ground);
 	cpSpaceFree(w->space);
 
@@ -77,7 +78,9 @@ void free_rigidbody(PhysWorld *w, U32 h)
 	ensure(h < MAX_RIGIDBODY_COUNT);
 
 	RigidBody *b= &w->bodies[h];
+	cpSpaceRemoveShape(w->space, b->shape);
 	cpShapeFree(b->shape);
+	cpSpaceRemoveBody(w->space, b->body);
 	cpBodyFree(b->body);
 
 	*b= (RigidBody) { .allocated= false };
@@ -131,6 +134,9 @@ void phys_draw_poly(
 
 void upd_physworld(PhysWorld *w, F32 dt)
 {
+	if (dt > 1.0/30.0)
+		dt= 1.0/30.0;
+
 	/// @todo Accumulation
 	cpSpaceStep(w->space, dt);
 
