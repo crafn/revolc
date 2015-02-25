@@ -140,7 +140,7 @@ void load_world(World *w, const char *path)
 		ensure(node_h == i); // Must retain handles because of routing
 
 		NodeInfo *node= &w->nodes[node_h];
-		memcpy(node->routing, dead_node.routing, sizeof(*node->routing));
+		memcpy(node->routing, dead_node.routing, sizeof(node->routing));
 
 		switch (dead_node.type) {
 			case NodeType_ModelEntity: {
