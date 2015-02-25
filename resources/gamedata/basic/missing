@@ -30,4 +30,15 @@
 		"vs_file" : "./missing.vs",
 		"fs_file" : "./missing.fs",
 	},
+	"RigidBodyDef" : {
+		"type" : "RigidBodyDef",
+		"name" : "missing",
+		"shapes" : [
+			{
+				"type" : "Circle",
+				"pos" : [0.0, 0.0],
+				"rad" : 0.5,
+			},
+		],
+	},
 }

@@ -12,6 +12,7 @@ typedef struct Circle {
 /// @todo Concave support.
 typedef struct Poly {
 	V2d v[MAX_POLY_VERTEX_COUNT];
+	U32 v_count;
 } Poly;
 
 #endif // REVOLC_PHYSICS_SHAPES_H

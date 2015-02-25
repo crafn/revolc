@@ -36,13 +36,15 @@ void make_main_blob()
 internal
 void spawn_entity(World *world, PhysWorld *phys_world, Renderer *rend, ResBlob *blob, V2d pos)
 {
-	Model *barrel= (Model*)res_by_name(blob, ResType_Model, "wbarrel");
-	Model *roll= (Model*)res_by_name(blob, ResType_Model, "rollbot");
-	Model *model= barrel;
 	local_persist U32 i= 0;
 	++i;
-	if (i % 2 == 0)
-		model= roll;
+	const char *name= "wbarrel";
+	if (i % 3 == 1)
+		name= "rollbot";
+	else if (i % 3 == 2)
+		name= "wbox";
+
+	Model *model= (Model*)res_by_name(blob, ResType_Model, name);
 	/// @todo Free at end
 	U32 b_node_h= alloc_node(world, NodeType_RigidBody);
 	U32 m_node_h= alloc_node(world, NodeType_ModelEntity);
@@ -55,7 +57,7 @@ void spawn_entity(World *world, PhysWorld *phys_world, Renderer *rend, ResBlob *
 	U32 body_h= node_impl_handle(world, b_node_h);
 	set_rigidbody(phys_world, body_h,
 			pos, 0.0,
-			(RigidBodyDef*)res_by_name(blob, ResType_RigidBodyDef, "wbarrel"));
+			(RigidBodyDef*)res_by_name(blob, ResType_RigidBodyDef, name));
 
 	add_routing(world,
 			m_node_h, offsetof(ModelEntity, pos),

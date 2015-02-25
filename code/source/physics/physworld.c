@@ -71,21 +71,31 @@ void set_rigidbody(PhysWorld *w, U32 h, V2d p, F64 r, RigidBodyDef *def)
 	ensure(h < MAX_RIGIDBODY_COUNT && w->bodies[h].cp_body == NULL);
 	RigidBody *b= &w->bodies[h];
 
-	F64 mass= 0;
-	F64 moment= 0;
+	/// @todo Mass & moment could be precalculated to ResBlob
+	F64 total_mass= 0;
+	F64 total_moment= 0;
 	for (U32 i= 0; i < def->circle_count; ++i) {
-		F32 c_mass= 1.0;
-		mass += c_mass; /// @todo Mass from density	
-		moment +=
-			cpMomentForCircle(c_mass, 0,
+		F32 mass= 1.0; /// @todo Mass from density	
+		total_mass += mass;
+		total_moment +=
+			cpMomentForCircle(mass, 0,
 				def->circles[i].rad, to_cpv(def->circles[i].pos));
 	}
 
 	for (U32 i= 0; i < def->poly_count; ++i) {
-		fail("@todo Polys");
+		Poly *poly= &def->polys[i];
+		F32 mass= 1.0;
+
+		cpVect cp_verts[poly->v_count];
+		for (U32 v_i= 0; v_i < poly->v_count; ++v_i)
+			cp_verts[v_i]= to_cpv(poly->v[v_i]);
+
+		total_mass += mass;
+		total_moment +=
+			cpMomentForPoly(mass, poly->v_count, cp_verts, cpvzero, 0.0);
 	}
 
-	b->cp_body= cpBodyNew(mass, moment);
+	b->cp_body= cpBodyNew(total_mass, total_moment);
 	cpSpaceAddBody(w->space, b->cp_body);
 	cpBodySetPosition(b->cp_body, to_cpv(p));
 	cpBodySetAngle(b->cp_body, r);
@@ -94,19 +104,29 @@ void set_rigidbody(PhysWorld *w, U32 h, V2d p, F64 r, RigidBodyDef *def)
 		b->cp_shapes[b->cp_shape_count++]=
 			cpSpaceAddShape(
 					w->space,
-					cpCircleShapeNew(
-						b->cp_body,
-						def->circles[i].rad,
-						to_cpv(def->circles[i].pos)));
+					cpCircleShapeNew(	b->cp_body,
+										def->circles[i].rad,
+										to_cpv(def->circles[i].pos)));
 	}
 
 	for (U32 i= 0; i < def->poly_count; ++i) {
-		fail("@todo Polys");
-		/*cpVect rect[]= {
-			cpv(-1, -1), cpv(-1, 1), cpv(1, 1), cpv(1, -1)
-		};
-		shape= cpSpaceAddShape(w->space, cpPolyShapeNew(body, 4, rect, cpTransformIdentity, 0.0));
-		*/
+		Poly *poly= &def->polys[i];
+		F32 mass= 1.0;
+
+		cpVect cp_verts[poly->v_count];
+		for (U32 v_i= 0; v_i < poly->v_count; ++v_i)
+			cp_verts[v_i]= to_cpv(poly->v[v_i]);
+
+		total_mass += mass;
+		total_moment +=
+			cpMomentForPoly(mass, poly->v_count, cp_verts, cpvzero, 0.0);
+		b->cp_shapes[b->cp_shape_count++]=
+			cpSpaceAddShape(w->space,
+					cpPolyShapeNew(	b->cp_body,
+									poly->v_count,
+									cp_verts,
+									cpTransformIdentity,
+									0.0));
 	}
 
 	for (U32 i= 0; i < b->cp_shape_count; ++i) {
