@@ -4,6 +4,7 @@
 #include "core/file.c"
 #include "core/json.c"
 #include "core/malloc.c"
+#include "core/matrix.c"
 #include "core/string.c"
 #include "game/world.c"
 #include "global/env.c"

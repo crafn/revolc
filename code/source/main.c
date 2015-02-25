@@ -119,7 +119,7 @@ int main(int argc, const char **argv)
 				if (!body && shape) {
 					body= cpShapeGetBody(shape);
 				}
-				
+
 				if (body) {
 					cpBodySetPosition(body, p);
 					cpBodySetVelocity(body, cpv(0, 0));
