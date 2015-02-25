@@ -28,11 +28,6 @@ void make_main_blob()
 	free(res_paths);
 }
 
-#define MAX_ENTITY_NODE_COUNT 1024*10
-	U32 entity_nodes[MAX_ENTITY_NODE_COUNT];
-	U32 entity_node_count= 0;
-#define INIT_ENTITY_COUNT 50
-
 internal
 void spawn_entity(World *world, PhysWorld *phys_world, Renderer *rend, ResBlob *blob, V2d pos)
 {
@@ -45,11 +40,8 @@ void spawn_entity(World *world, PhysWorld *phys_world, Renderer *rend, ResBlob *
 		name= "wbox";
 
 	Model *model= (Model*)res_by_name(blob, ResType_Model, name);
-	/// @todo Free at end
 	U32 b_node_h= alloc_node(world, NodeType_RigidBody);
 	U32 m_node_h= alloc_node(world, NodeType_ModelEntity);
-	entity_nodes[entity_node_count++]= b_node_h;
-	entity_nodes[entity_node_count++]= m_node_h;
 
 	U32 modelentity_h= node_impl_handle(world, m_node_h);
 	set_modelentity(rend, modelentity_h, model);
@@ -69,14 +61,17 @@ void spawn_entity(World *world, PhysWorld *phys_world, Renderer *rend, ResBlob *
 			sizeof(Qd));
 }
 
+#define SAVEFILE_PATH "save.bin"
+#define DEFAULT_BLOB_PATH "main.blob"
+
 int main(int argc, const char **argv)
 {
 	Device *d= plat_init("Revolc engine", 800, 600);
 
-	//if (!file_exists("main.blob"))
-	make_main_blob();
+	if (!file_exists(DEFAULT_BLOB_PATH))
+		make_main_blob();
 
-	ResBlob *blob= g_env.res_blob= load_blob("main.blob");
+	ResBlob *blob= g_env.res_blob= load_blob(DEFAULT_BLOB_PATH);
 	print_blob(blob);
 
 	Renderer *rend= create_renderer();
@@ -84,10 +79,14 @@ int main(int argc, const char **argv)
 	PhysWorld *phys_world= create_physworld();
 	World *world= create_world();
 
-	for (int i= 0; i < INIT_ENTITY_COUNT; ++i) {
-		spawn_entity(
-				world, phys_world, rend, blob,
-				(V2d) {sin(i), 1 + cos(i)});
+	if (file_exists(SAVEFILE_PATH)) {
+		load_world(world, SAVEFILE_PATH);
+	} else {
+		for (int i= 0; i < 50; ++i) {
+			spawn_entity(
+					world, phys_world, rend, blob,
+					(V2d) {sin(i), 1 + cos(i)});
+		}
 	}
 
 	while (!d->quit_requested) {
@@ -125,7 +124,15 @@ int main(int argc, const char **argv)
 
 			if (d->keyPressed[KEY_F12]) {
 				make_main_blob();
-				blob= g_env.res_blob= reload_blob(blob, "main.blob");
+				blob= g_env.res_blob= reload_blob(blob, DEFAULT_BLOB_PATH);
+			}
+
+			if (d->keyPressed[KEY_F5])
+				save_world(world, SAVEFILE_PATH);
+			if (d->keyPressed[KEY_F9]) {
+				destroy_world(world);
+				world= create_world();
+				load_world(world, SAVEFILE_PATH);
 			}
 
 			local_persist cpBody *body= NULL;
@@ -157,9 +164,6 @@ int main(int argc, const char **argv)
 		gl_check_errors("loop");
 		plat_sleep(1);
 	}
-
-	for (U32 i= 0; i < entity_node_count; ++i)
-		free_node(world, entity_nodes[i]);
 
 	destroy_world(world);
 	destroy_physworld(phys_world);

@@ -70,6 +70,7 @@ void set_rigidbody(PhysWorld *w, U32 h, V2d p, F64 r, RigidBodyDef *def)
 {
 	ensure(h < MAX_RIGIDBODY_COUNT && w->bodies[h].cp_body == NULL);
 	RigidBody *b= &w->bodies[h];
+	strncpy(b->def_name, def->res.name, sizeof(b->def_name));
 
 	/// @todo Mass & moment could be precalculated to ResBlob
 	F64 total_mass= 0;

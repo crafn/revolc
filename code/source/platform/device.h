@@ -4,7 +4,18 @@
 #include "build.h"
 
 #define KEYBOARD_KEY_COUNT 256
-#define KEY_F12 124
+#define KEY_F1  127
+#define KEY_F2  128
+#define KEY_F3  129
+#define KEY_F4  130
+#define KEY_F5  131
+#define KEY_F6  132
+#define KEY_F7  133
+#define KEY_F8  134
+#define KEY_F9  135
+#define KEY_F10 136
+#define KEY_F11 137
+#define KEY_F12 138
 
 struct DevicePlatformData;
 typedef struct Device {

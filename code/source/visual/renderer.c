@@ -160,7 +160,8 @@ void recreate_texture_atlas(Renderer *r, ResBlob *blob)
 Renderer* create_renderer()
 {
 	Renderer *rend= zero_malloc(sizeof(*rend));
-	rend->cam_pos.z= 5.0;
+	rend->cam_pos.y= 10.0;
+	rend->cam_pos.z= 20.0;
 	rend->cam_fov= 3.141/2.0;
 
 	recreate_texture_atlas(rend, g_env.res_blob);
@@ -401,8 +402,11 @@ void on_res_reload(Renderer *r, ResBlob *new_blob)
 {
 	recreate_texture_atlas(r, new_blob);
 
-	for (U32 e_i= 0; e_i < r->entity_count; ++e_i) {
+	for (U32 e_i= 0; e_i < MAX_MODELENTITY_COUNT; ++e_i) {
 		ModelEntity *e= &r->entities[e_i];
+		if (!e->allocated)
+			continue;
+
 		const Model *m=
 			(Model*)res_by_name(
 					new_blob,

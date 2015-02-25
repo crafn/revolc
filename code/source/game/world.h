@@ -58,6 +58,9 @@ REVOLC_API void destroy_world(World *w);
 
 REVOLC_API void upd_world(World *w, F64 dt);
 
+REVOLC_API void load_world(World *w, const char *path);
+REVOLC_API void save_world(World *w, const char *path);
+
 REVOLC_API U32 alloc_node(World *w, NodeType type);
 REVOLC_API void free_node(World *w, U32 handle);
 REVOLC_API U32 node_impl_handle(World *w, U32 node_handle);

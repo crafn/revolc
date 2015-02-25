@@ -1,3 +1,4 @@
+#include "core/file.h"
 #include "core/malloc.h"
 #include "game/world.h"
 #include "global/env.h"
@@ -5,6 +6,7 @@
 /// TEMP
 #include "visual/renderer.h"
 #include "physics/physworld.h"
+#include "resources/resblob.h"
 
 #include <math.h>
 
@@ -13,22 +15,24 @@ T3d temptest_t3d_storage[MAX_NODE_COUNT];
 internal
 U32 next_t3d= 0;
 
-
 internal
-void * node_impl(NodeInfo *node)
+void * node_impl(U32 *size, NodeInfo *node)
 {
 	switch (node->type) {
 		case NodeType_ModelEntity:
+			if (size) *size= sizeof(ModelEntity);
 			return &g_env.renderer->entities[node->impl_handle];
 		break;
 		case NodeType_T3d:
+			if (size) *size= sizeof(T3d);
 			return &temptest_t3d_storage[node->impl_handle];
 		break;
 		case NodeType_RigidBody:
+			if (size) *size= sizeof(RigidBody);
 			return &g_env.phys_world->bodies[node->impl_handle];
 		break;
 		default:
-			fail("node_impl: unhandled type: %i", node->type);
+			fail("node_impl: Unhandled type: %i", node->type);
 	}
 	return NULL;
 }
@@ -53,16 +57,11 @@ World * create_world()
 
 void destroy_world(World *w)
 {
-	U32 not_freed= 0;
+	debug_print("destroy_world: %i nodes", w->node_count);
 	for (U32 i= 0; i < MAX_NODE_COUNT; ++i) {
-		if (w->nodes[i].allocated) {
-			++not_freed;
+		if (w->nodes[i].allocated)
 			free_node(w, i);
-		}
 	}
-	if (not_freed)
-		critical_print("destroy_world: %i nodes not freed", not_freed);
-
 	free(w);
 }
 
@@ -79,14 +78,13 @@ void upd_world(World *w, F64 dt)
 
 		switch (node->type) {
 			case NodeType_ModelEntity:
-				//upd_modelentity_nodes(w, node_impl(node), 1);
 			break;
 			case NodeType_T3d:
-				upd_t3d_nodes(w, node_impl(node), 1);
+				upd_t3d_nodes(w, node_impl(NULL, node), 1);
 			break;
 			case NodeType_RigidBody:
 			break;
-			default: fail("upd_world: unhandled type: %i", node->type);
+			default: fail("upd_world: Unhandled type: %i", node->type);
 		}
 
 		// Propagate values
@@ -98,12 +96,122 @@ void upd_world(World *w, F64 dt)
 			ensure(r->dst_node < MAX_NODE_COUNT);
 			NodeInfo *dst_node= &w->nodes[r->dst_node];
 
-			U8 *dst= (U8*)node_impl(dst_node) + r->dst_offset;
-			U8 *src= (U8*)node_impl(node) + r->src_offset;
+			U8 *dst= (U8*)node_impl(NULL, dst_node) + r->dst_offset;
+			U8 *src= (U8*)node_impl(NULL, node) + r->src_offset;
 			for (U32 i= 0; i < r->size; ++i)
 				dst[i]= src[i];
 		}
 	}
+}
+
+typedef struct {
+	U32 version;
+	U32 node_count;
+} PACKED SaveHeader;
+
+void load_world(World *w, const char *path)
+{
+	debug_print("load_world: %s", path);
+	if (w->node_count > 0) {
+		debug_print("load_world: destroying current world");
+		for (U32 i= 0; i < MAX_NODE_COUNT; ++i) {
+			if (w->nodes[i].allocated)
+				free_node(w, i);
+		}
+	}
+	ensure(w->node_count == 0);
+
+	FILE *file= fopen(path, "rb");
+	if (!file)
+		fail("load_world: Couldn't open: %s", path);
+
+	SaveHeader header;
+	int len= fread(&header, 1, sizeof(header), file);
+	if (len != sizeof(header))
+		fail("load_world: Read error");
+
+	for (U32 i= 0; i < header.node_count; ++i) {
+		// Create node from dump
+
+		NodeInfo dead_node;
+		fread(&dead_node, 1, sizeof(dead_node), file);
+
+		U32 node_h= alloc_node(w, dead_node.type);
+		ensure(node_h == i); // Must retain handles because of routing
+
+		NodeInfo *node= &w->nodes[node_h];
+		memcpy(node->routing, dead_node.routing, sizeof(*node->routing));
+
+		switch (dead_node.type) {
+			case NodeType_ModelEntity: {
+				ModelEntity dead_impl;
+				fread(&dead_impl, 1, sizeof(dead_impl), file);
+				set_modelentity(
+						g_env.renderer,
+						node->impl_handle,
+						(Model*)res_by_name(
+							g_env.res_blob,
+							ResType_Model,
+							dead_impl.model_name));
+				ModelEntity *impl= &g_env.renderer->entities[node->impl_handle];
+				impl->pos= dead_impl.pos;
+				impl->rot= dead_impl.rot;
+			}
+			break;
+			case NodeType_T3d: {
+				T3d dead_impl;
+				fread(&dead_impl, 1, sizeof(dead_impl), file);
+				T3d *impl= &temptest_t3d_storage[node->impl_handle];
+				*impl= dead_impl;
+			 }
+			break;
+			case NodeType_RigidBody: {
+				RigidBody dead_impl;
+				fread(&dead_impl, 1, sizeof(dead_impl), file);
+				set_rigidbody(
+						g_env.phys_world,
+						node->impl_handle,
+						(V2d) {dead_impl.pos.x, dead_impl.pos.y},
+						rot_z_qd(dead_impl.rot),
+						(RigidBodyDef*)res_by_name(
+							g_env.res_blob,
+							ResType_RigidBodyDef,
+							dead_impl.def_name));
+			}
+			break;
+			default: fail("resurrect_node: Unhandled type: %i", node->type);
+		}
+	}
+
+	fclose(file);
+}
+
+void save_world(World *w, const char *path)
+{
+	debug_print("save_world: %s, %i nodes", path, w->node_count);
+	FILE *file= fopen(path, "wb");
+	if (!file)
+		fail("save_world: Couldn't open: %s", path);
+
+	SaveHeader header= {
+		.version= 1,
+		.node_count= w->node_count,
+	};
+
+	fwrite(&header, 1, sizeof(header), file);
+	for (U32 i= 0; i < MAX_NODE_COUNT; ++i) {
+		NodeInfo *node= &w->nodes[i];
+		if (!node->allocated)
+			continue;
+
+		U32 impl_size;
+		void *impl= node_impl(&impl_size, node);
+
+		fwrite(node, 1, sizeof(*node), file);
+		fwrite(impl, 1, impl_size, file);
+	}
+
+	fclose(file);
 }
 
 U32 alloc_node(World *w, NodeType type)
@@ -125,7 +233,7 @@ U32 alloc_node(World *w, NodeType type)
 		case NodeType_RigidBody:
 			info.impl_handle= alloc_rigidbody(g_env.phys_world);
 		break;
-		default: fail("create_node: unhandled type: %i", type);
+		default: fail("create_node: Unhandled type: %i", type);
 	}
 
 	while (w->nodes[w->next_node].allocated)
@@ -152,7 +260,7 @@ void free_node(World *w, U32 handle)
 		case NodeType_RigidBody:
 			free_rigidbody(g_env.phys_world, impl_handle);
 		break;
-		default: fail("destroy_node: unhandled type: %i", type);
+		default: fail("destroy_node: Unhandled type: %i", type);
 	}
 	--w->node_count;
 	w->nodes[handle].allocated= false;

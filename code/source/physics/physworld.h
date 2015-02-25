@@ -14,6 +14,7 @@ typedef struct RigidBody {
 	bool allocated;
 	V3d pos;
 	Qd rot;
+	char def_name[RES_NAME_SIZE];
 	cpShape *cp_shapes[MAX_SHAPES_PER_BODY];
 	U8 cp_shape_count;
 	cpBody *cp_body;

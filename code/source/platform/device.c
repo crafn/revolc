@@ -324,8 +324,8 @@ void plat_update(Device *d)
 			int table_index= 0;
 			if (*keysym < KEYBOARD_KEY_COUNT)
 				table_index= *keysym;
-			else if (*keysym == 65481)
-				table_index= KEY_F12;
+			else if (*keysym >= 65470 && *keysym <= 65481)
+				table_index= KEY_F1 + (*keysym - 65470);
 
 			d->keyDown[table_index]= (xev.type == KeyPress);
 			d->keyPressed[table_index]= (xev.type == KeyPress);
