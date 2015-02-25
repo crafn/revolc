@@ -1,0 +1,42 @@
+# generic
+*.o
+*.o.d
+*.a
+*.so
+.*.swp
+
+# generated
+pre-process.h
+sparse.pc
+version.h
+
+# programs
+test-inspect
+test-lexing
+test-parsing
+obfuscate
+sparse
+compile
+graph
+test-dissect
+test-linearize
+example
+test-unssa
+ctags
+c2xml
+sparse-llvm
+
+# tags
+tags
+TAGS
+
+# stgit generated dirs
+patches-*
+
+# quilt's files
+patches
+series
+
+# local makefile
+local.mk
+

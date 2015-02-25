@@ -179,7 +179,7 @@ void load_world(World *w, const char *path)
 							dead_impl.def_name));
 			}
 			break;
-			default: fail("resurrect_node: Unhandled type: %i", node->type);
+			default: fail("load_world: Unhandled type: %i", node->type);
 		}
 	}
 

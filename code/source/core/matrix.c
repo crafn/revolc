@@ -1,4 +1,5 @@
 #include "matrix.h"
+#include "ensure.h"
 
 // Thanks MESA
 internal
