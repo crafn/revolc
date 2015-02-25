@@ -9,6 +9,191 @@
 #include <stdlib.h>
 #include <string.h>
 
+typedef struct {
+	F32 e[16];
+} M44f;
+
+// Thanks MESA
+bool gluInvertMatrix(const float m[16], float invOut[16])
+{
+    float inv[16], det;
+    int i;
+
+    inv[0] = m[5]  * m[10] * m[15] - 
+             m[5]  * m[11] * m[14] - 
+             m[9]  * m[6]  * m[15] + 
+             m[9]  * m[7]  * m[14] +
+             m[13] * m[6]  * m[11] - 
+             m[13] * m[7]  * m[10];
+
+    inv[4] = -m[4]  * m[10] * m[15] + 
+              m[4]  * m[11] * m[14] + 
+              m[8]  * m[6]  * m[15] - 
+              m[8]  * m[7]  * m[14] - 
+              m[12] * m[6]  * m[11] + 
+              m[12] * m[7]  * m[10];
+
+    inv[8] = m[4]  * m[9] * m[15] - 
+             m[4]  * m[11] * m[13] - 
+             m[8]  * m[5] * m[15] + 
+             m[8]  * m[7] * m[13] + 
+             m[12] * m[5] * m[11] - 
+             m[12] * m[7] * m[9];
+
+    inv[12] = -m[4]  * m[9] * m[14] + 
+               m[4]  * m[10] * m[13] +
+               m[8]  * m[5] * m[14] - 
+               m[8]  * m[6] * m[13] - 
+               m[12] * m[5] * m[10] + 
+               m[12] * m[6] * m[9];
+
+    inv[1] = -m[1]  * m[10] * m[15] + 
+              m[1]  * m[11] * m[14] + 
+              m[9]  * m[2] * m[15] - 
+              m[9]  * m[3] * m[14] - 
+              m[13] * m[2] * m[11] + 
+              m[13] * m[3] * m[10];
+
+    inv[5] = m[0]  * m[10] * m[15] - 
+             m[0]  * m[11] * m[14] - 
+             m[8]  * m[2] * m[15] + 
+             m[8]  * m[3] * m[14] + 
+             m[12] * m[2] * m[11] - 
+             m[12] * m[3] * m[10];
+
+    inv[9] = -m[0]  * m[9] * m[15] + 
+              m[0]  * m[11] * m[13] + 
+              m[8]  * m[1] * m[15] - 
+              m[8]  * m[3] * m[13] - 
+              m[12] * m[1] * m[11] + 
+              m[12] * m[3] * m[9];
+
+    inv[13] = m[0]  * m[9] * m[14] - 
+              m[0]  * m[10] * m[13] - 
+              m[8]  * m[1] * m[14] + 
+              m[8]  * m[2] * m[13] + 
+              m[12] * m[1] * m[10] - 
+              m[12] * m[2] * m[9];
+
+    inv[2] = m[1]  * m[6] * m[15] - 
+             m[1]  * m[7] * m[14] - 
+             m[5]  * m[2] * m[15] + 
+             m[5]  * m[3] * m[14] + 
+             m[13] * m[2] * m[7] - 
+             m[13] * m[3] * m[6];
+
+    inv[6] = -m[0]  * m[6] * m[15] + 
+              m[0]  * m[7] * m[14] + 
+              m[4]  * m[2] * m[15] - 
+              m[4]  * m[3] * m[14] - 
+              m[12] * m[2] * m[7] + 
+              m[12] * m[3] * m[6];
+
+    inv[10] = m[0]  * m[5] * m[15] - 
+              m[0]  * m[7] * m[13] - 
+              m[4]  * m[1] * m[15] + 
+              m[4]  * m[3] * m[13] + 
+              m[12] * m[1] * m[7] - 
+              m[12] * m[3] * m[5];
+
+    inv[14] = -m[0]  * m[5] * m[14] + 
+               m[0]  * m[6] * m[13] + 
+               m[4]  * m[1] * m[14] - 
+               m[4]  * m[2] * m[13] - 
+               m[12] * m[1] * m[6] + 
+               m[12] * m[2] * m[5];
+
+    inv[3] = -m[1] * m[6] * m[11] + 
+              m[1] * m[7] * m[10] + 
+              m[5] * m[2] * m[11] - 
+              m[5] * m[3] * m[10] - 
+              m[9] * m[2] * m[7] + 
+              m[9] * m[3] * m[6];
+
+    inv[7] = m[0] * m[6] * m[11] - 
+             m[0] * m[7] * m[10] - 
+             m[4] * m[2] * m[11] + 
+             m[4] * m[3] * m[10] + 
+             m[8] * m[2] * m[7] - 
+             m[8] * m[3] * m[6];
+
+    inv[11] = -m[0] * m[5] * m[11] + 
+               m[0] * m[7] * m[9] + 
+               m[4] * m[1] * m[11] - 
+               m[4] * m[3] * m[9] - 
+               m[8] * m[1] * m[7] + 
+               m[8] * m[3] * m[5];
+
+    inv[15] = m[0] * m[5] * m[10] - 
+              m[0] * m[6] * m[9] - 
+              m[4] * m[1] * m[10] + 
+              m[4] * m[2] * m[9] + 
+              m[8] * m[1] * m[6] - 
+              m[8] * m[2] * m[5];
+
+    det = m[0] * inv[0] + m[1] * inv[4] + m[2] * inv[8] + m[3] * inv[12];
+
+    if (det == 0)
+        return false;
+
+    det = 1.0 / det;
+
+    for (i = 0; i < 16; i++)
+        invOut[i] = inv[i] * det;
+
+    return true;
+}
+
+internal
+M44f mul_m44f(M44f a, M44f b)
+{
+	M44f result;
+	for (U32 r= 0; r < 4; ++r)
+	for (U32 c= 0; c < 4; ++c)
+		result.e[c + 4*r]=
+			a.e[0 + 4*r]*b.e[c + 4*0] +
+			a.e[1 + 4*r]*b.e[c + 4*1] +
+			a.e[2 + 4*r]*b.e[c + 4*2] +
+			a.e[3 + 4*r]*b.e[c + 4*3];
+	return result;
+}
+
+internal
+M44f view_matrix(const Renderer *r)
+{
+	F32 cx= r->cam_pos.x;
+	F32 cy= r->cam_pos.y;
+	F32 cz= r->cam_pos.z;
+	M44f m= {{
+		1, 0, 0, 0,
+		0, 1, 0, 0,
+		0, 0, 1, 0,
+		-cx, -cy, -cz, 1,
+	}};
+	return m;
+}
+
+// World point to screen
+internal
+M44f cam_matrix(const Renderer *r)
+{
+	F32 near= 0.1;
+	F32 far= 1.0;
+	F32 fov= r->cam_fov;
+	F32 h= tan(fov/2)*near;
+	/// @todo Aspect ratio
+	F32 w= h; // 1:1
+
+	M44f p_matrix= {{
+		near/w, 0, 0, 0,
+		0, near/h, 0, 0,
+		0, 0, (far + near)/(near - far), -1,
+		0, 0, 2*far*near/(near - far), 0,
+	}};
+
+	return mul_m44f(view_matrix(r), p_matrix);
+}
+
 /// Helper in `recreate_texture_atlas`
 typedef struct {
 	Texture *tex;
@@ -17,6 +202,7 @@ typedef struct {
 	Texel *texels;
 } TexInfo;
 
+internal
 int texinfo_cmp(const void *a_, const void *b_)
 {
 	const TexInfo *a= a_, *b= b_;
@@ -123,6 +309,7 @@ Renderer* create_renderer()
 {
 	Renderer *rend= zero_malloc(sizeof(*rend));
 	rend->cam_pos.z= 5.0;
+	rend->cam_fov= 3.141/2.0;
 
 	recreate_texture_atlas(rend, g_env.res_blob);
 
@@ -186,24 +373,6 @@ int entity_cmp(const void *e1, const void *e2)
 	F32 b= ((ModelEntity*)e2)->pos.z;
 	// Largest Z first (nearest camera)
 	return (a < b) - (a > b);
-}
-
-typedef struct {
-	F32 e[16];
-} M44f;
-
-internal
-M44f mul_m44f(const M44f a, const M44f b)
-{
-	M44f result;
-	for (U32 r= 0; r < 4; ++r)
-	for (U32 c= 0; c < 4; ++c)
-		result.e[c + 4*r]=
-			a.e[0 + 4*r]*b.e[c + 4*0] +
-			a.e[1 + 4*r]*b.e[c + 4*1] +
-			a.e[2 + 4*r]*b.e[c + 4*2] +
-			a.e[3 + 4*r]*b.e[c + 4*3];
-	return result;
 }
 
 void render_frame(Renderer *r)
@@ -280,30 +449,6 @@ void render_frame(Renderer *r)
 	}
 
 	{ // Actual rendering
-		F32 cx= r->cam_pos.x;
-		F32 cy= r->cam_pos.y;
-		F32 cz= r->cam_pos.z;
-		F32 near= 0.1;
-		F32 far= 1.0;
-
-		F32 fov= 3.141/2.0; // 45
-    	F32 h= tan(fov/2)*near;
-    	F32 w= h; // 1:1
- 
-		M44f p_matrix= {{
-			near/w, 0, 0, 0,
-			0, near/h, 0, 0,
-			0, 0, (far + near)/(near - far), -1,
-			0, 0, 2*far*near/(near - far), 0,
-		}};
-		M44f t_matrix= {{
-			1, 0, 0, 0,
-			0, 1, 0, 0,
-			0, 0, 1, 0,
-			-cx, -cy, -cz, 0,
-		}};
-
-		M44f cam_matrix= mul_m44f(t_matrix, p_matrix);
 
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -323,7 +468,7 @@ void render_frame(Renderer *r)
 				glGetUniformLocation(shd->prog_gl_id, "u_cam"),
 				1,
 				GL_FALSE,
-				cam_matrix.e);
+				cam_matrix(r).e);
 
 		glViewport(0, 0,
 				g_env.device->win_size[0],
@@ -382,6 +527,27 @@ void ddraw_poly(Renderer *r, Color c, V2d *poly, U32 count)
 		r->ddraw_i[r->ddraw_i_count++]= start_index + i + 1;
 		r->ddraw_i[r->ddraw_i_count++]= start_index + i + 2;
 	}
+}
+
+V2d screen_to_world_point(Renderer *r, V2d p)
+{
+	/// @todo Aspect ratio
+	V2d view_p= {
+		p.x*tan(r->cam_fov*0.5)*r->cam_pos.z,
+		p.y*tan(r->cam_fov*0.5)*r->cam_pos.z,
+	};
+
+	M44f view_m= view_matrix(r);
+	M44f m;
+	bool success= gluInvertMatrix(view_m.e, m.e);
+	if (!success)
+		fail("Inverting matrix failed");
+
+	V2d result= {
+		.x= view_p.x*m.e[0] + view_p.y*m.e[4] + m.e[12],
+		.y= view_p.x*m.e[1] + view_p.y*m.e[5] + m.e[13],
+	};
+	return result;
 }
 
 void on_res_reload(Renderer *r, ResBlob *new_blob)

@@ -11,7 +11,7 @@ PhysWorld *create_physworld()
 
 	w->space= cpSpaceNew();
 	 cpSpaceSetIterations(w->space, 20);
-	cpSpaceSetGravity(w->space, cpv(0, -100));
+	cpSpaceSetGravity(w->space, cpv(0, -20));
 
 	w->ground=
 		cpSegmentShapeNew(
@@ -47,7 +47,7 @@ U32 alloc_rigidbody(PhysWorld *w)
 
 	// Test init
 	{
-		cpFloat radius = 1;
+		cpFloat radius = 0.85;
 		cpFloat mass = 1;
 		cpFloat moment = cpMomentForCircle(mass, 0, radius, cpvzero);
 
@@ -64,6 +64,7 @@ U32 alloc_rigidbody(PhysWorld *w)
 			shape= cpSpaceAddShape(w->space, cpPolyShapeNew(body, 4, rect, cpTransformIdentity, 0.0));
 		}
 		cpShapeSetFriction(shape, 0.7);
+		cpShapeSetElasticity(shape, 0.7);
 
 		w->bodies[w->next_body].body= body;
 		w->bodies[w->next_body].shape= shape;

@@ -302,6 +302,9 @@ void plat_update(Device *d)
 {
 	glXSwapBuffers(d->data->dpy, d->data->win);
 
+	for (int i= 0; i < KEYBOARD_KEY_COUNT; ++i)
+		d->keyPressed[i]= d->keyReleased[i]= false;
+
 	while(XPending(d->data->dpy)) {
 		XEvent xev;
         XNextEvent(d->data->dpy, &xev);
@@ -316,11 +319,17 @@ void plat_update(Device *d)
 				if (*keysym == XK_Escape)
 					d->quit_requested= true;
 			}
-
-			if (*keysym < KEYBOARD_KEY_COUNT)
-				d->keyDown[*keysym]= (xev.type == KeyPress);
-			
 			//debug_print("key: %i", *keysym);
+
+			int table_index= 0;
+			if (*keysym < KEYBOARD_KEY_COUNT)
+				table_index= *keysym;
+			else if (*keysym == 65481)
+				table_index= KEY_F12;
+
+			d->keyDown[table_index]= (xev.type == KeyPress);
+			d->keyPressed[table_index]= (xev.type == KeyPress);
+			d->keyReleased[table_index]= (xev.type == KeyRelease);
 			
 			XFree(keysym);
 		}

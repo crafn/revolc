@@ -8,6 +8,7 @@
 
 typedef struct Renderer {
 	V3d cam_pos;
+	F32 cam_fov;
 
 	ModelEntity entities[MAX_MODELENTITY_COUNT];
 	U32 next_entity;
@@ -32,6 +33,7 @@ REVOLC_API void set_modelentity(Renderer *r, U32 h, const Model *model);
 REVOLC_API void render_frame(Renderer *r);
 
 REVOLC_API void ddraw_poly(Renderer *r, Color c, V2d *poly, U32 count);
+REVOLC_API V2d screen_to_world_point(Renderer *r, V2d p);
 
 struct ResBlob;
 REVOLC_API void on_res_reload(Renderer *r, struct ResBlob *new_blob);

@@ -49,7 +49,7 @@ int main(int argc, const char **argv)
 #define MAX_ENTITY_NODE_COUNT 1000
 	U32 entity_nodes[MAX_ENTITY_NODE_COUNT];
 	U32 entity_node_count= 0;
-#define ENTITY_COUNT 100
+#define ENTITY_COUNT 50
 	for (int i= 0; i < ENTITY_COUNT; ++i) {
 		Model *model= barrel;
 		if (i % 2 == 0)
@@ -75,12 +75,14 @@ int main(int argc, const char **argv)
 
 	while (!d->quit_requested) {
 		plat_update(d);
-		V2d cursor= {
-			2.0*d->cursor_pos[0]/d->win_size[0] - 1.0,
-			-2.0*d->cursor_pos[1]/d->win_size[1] + 1.0
-		};
+		{ // User input
+			V2d cursor= {
+				2.0*d->cursor_pos[0]/d->win_size[0] - 1.0,
+				-2.0*d->cursor_pos[1]/d->win_size[1] + 1.0
+			};
 
-		{
+			V2d cursor_on_world= screen_to_world_point(rend, cursor);
+
 			F32 dt= d->dt;
 			F32 spd= 25.0;
 			if (d->keyDown['w'])
@@ -97,14 +99,35 @@ int main(int argc, const char **argv)
 			if (d->keyDown['h'])
 				rend->cam_pos.z += spd*dt;
 			
-			phys_world->debug_draw= d->keyDown['q'];
-		}
+			if (d->keyPressed['q'])
+				phys_world->debug_draw= !phys_world->debug_draw;
 
-		if (d->lmbDown) {
-			make_main_blob();
-			blob= g_env.res_blob= reload_blob(blob, "main.blob");
-		}
+			if (d->keyPressed[KEY_F12]) {
+				make_main_blob();
+				blob= g_env.res_blob= reload_blob(blob, "main.blob");
+			}
 
+			local_persist cpBody *body= NULL;
+			if (d->lmbDown) {
+				cpVect p= {cursor_on_world.x, cursor_on_world.y};
+				cpShape *shape=
+					cpSpacePointQueryNearest(
+							phys_world->space,
+							p, 0.1,
+							CP_SHAPE_FILTER_ALL, NULL);
+
+				if (!body && shape) {
+					body= cpShapeGetBody(shape);
+				}
+				
+				if (body) {
+					cpBodySetPosition(body, p);
+					cpBodySetVelocity(body, cpv(0, 0));
+				}
+			} else if (body) {
+				body= NULL;
+			}
+		}
 
 		upd_physworld(phys_world, d->dt);
 		upd_world(world, d->dt);
