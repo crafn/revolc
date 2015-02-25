@@ -1,6 +1,7 @@
 #include "global/env.h"
+#include "chipmunk_util.h"
 #include "core/malloc.h"
-#include "phys_world.h"
+#include "physworld.h"
 #include "visual/renderer.h" // Debug draw
 
 PhysWorld *create_physworld()
@@ -16,7 +17,7 @@ PhysWorld *create_physworld()
 	w->ground=
 		cpSegmentShapeNew(
 				cpSpaceGetStaticBody(w->space),
-				cpv(-20, 0), cpv(20, -1), 0);
+				cpv(-50, 0), cpv(50, -1), 0);
 	cpShapeSetFriction(w->ground, 1);
 	cpSpaceAddShape(w->space, w->ground);
 
@@ -45,31 +46,6 @@ U32 alloc_rigidbody(PhysWorld *w)
 	RigidBody *b= &w->bodies[w->next_body];
 	*b= (RigidBody) { .allocated= true };
 
-	// Test init
-	{
-		cpFloat radius = 0.85;
-		cpFloat mass = 1;
-		cpFloat moment = cpMomentForCircle(mass, 0, radius, cpvzero);
-
-		cpBody *body = cpSpaceAddBody(w->space, cpBodyNew(mass, moment));
-		cpBodySetPosition(body, cpv(sin(w->next_body), 1+cos(w->next_body)));
-	
-		cpShape *shape= NULL;
-		if (w->next_body % 2 == 0) {
-			shape= cpSpaceAddShape(w->space, cpCircleShapeNew(body, radius, cpvzero));
-		} else {
-			cpVect rect[]= {
-				cpv(-1, -1), cpv(-1, 1), cpv(1, 1), cpv(1, -1)
-			};
-			shape= cpSpaceAddShape(w->space, cpPolyShapeNew(body, 4, rect, cpTransformIdentity, 0.0));
-		}
-		cpShapeSetFriction(shape, 0.7);
-		cpShapeSetElasticity(shape, 0.7);
-
-		w->bodies[w->next_body].body= body;
-		w->bodies[w->next_body].shape= shape;
-	}
-
 	++w->body_count;
 	return w->next_body;
 }
@@ -79,13 +55,65 @@ void free_rigidbody(PhysWorld *w, U32 h)
 	ensure(h < MAX_RIGIDBODY_COUNT);
 
 	RigidBody *b= &w->bodies[h];
-	cpSpaceRemoveShape(w->space, b->shape);
-	cpShapeFree(b->shape);
-	cpSpaceRemoveBody(w->space, b->body);
-	cpBodyFree(b->body);
+	for (U32 i= 0; i < b->cp_shape_count; ++i) {
+		cpSpaceRemoveShape(w->space, b->cp_shapes[i]);
+		cpShapeFree(b->cp_shapes[i]);
+	}
+	cpSpaceRemoveBody(w->space, b->cp_body);
+	cpBodyFree(b->cp_body);
 
 	*b= (RigidBody) { .allocated= false };
 	--w->body_count;
+}
+
+void set_rigidbody(PhysWorld *w, U32 h, V2d p, F64 r, RigidBodyDef *def)
+{
+	ensure(h < MAX_RIGIDBODY_COUNT && w->bodies[h].cp_body == NULL);
+	RigidBody *b= &w->bodies[h];
+
+	F64 mass= 0;
+	F64 moment= 0;
+	for (U32 i= 0; i < def->circle_count; ++i) {
+		F32 c_mass= 1.0;
+		mass += c_mass; /// @todo Mass from density	
+		moment +=
+			cpMomentForCircle(c_mass, 0,
+				def->circles[i].rad, to_cpv(def->circles[i].pos));
+	}
+
+	for (U32 i= 0; i < def->poly_count; ++i) {
+		fail("@todo Polys");
+	}
+
+	b->cp_body= cpBodyNew(mass, moment);
+	cpSpaceAddBody(w->space, b->cp_body);
+	cpBodySetPosition(b->cp_body, to_cpv(p));
+	cpBodySetAngle(b->cp_body, r);
+
+	for (U32 i= 0; i < def->circle_count; ++i) {
+		b->cp_shapes[b->cp_shape_count++]=
+			cpSpaceAddShape(
+					w->space,
+					cpCircleShapeNew(
+						b->cp_body,
+						def->circles[i].rad,
+						to_cpv(def->circles[i].pos)));
+	}
+
+	for (U32 i= 0; i < def->poly_count; ++i) {
+		fail("@todo Polys");
+		/*cpVect rect[]= {
+			cpv(-1, -1), cpv(-1, 1), cpv(1, 1), cpv(1, -1)
+		};
+		shape= cpSpaceAddShape(w->space, cpPolyShapeNew(body, 4, rect, cpTransformIdentity, 0.0));
+		*/
+	}
+
+	for (U32 i= 0; i < b->cp_shape_count; ++i) {
+		cpShape *shape= b->cp_shapes[i];
+		cpShapeSetFriction(shape, 0.7);
+		cpShapeSetElasticity(shape, 0.7);
+	}
 }
 
 internal
@@ -146,10 +174,12 @@ void upd_physworld(PhysWorld *w, F32 dt)
 		if (!b->allocated)
 			continue;
 
-		b->pos.x= cpBodyGetPosition(b->body).x;
-		b->pos.y= cpBodyGetPosition(b->body).y;
-		b->rot.cs= cpBodyGetRotation(b->body).x;
-		b->rot.sn= cpBodyGetRotation(b->body).y;
+		cpVect p= cpBodyGetPosition(b->cp_body);
+		cpVect r= cpBodyGetRotation(b->cp_body);
+		b->pos.x= p.x;
+		b->pos.y= p.y;
+		b->rot.cs= r.x;
+		b->rot.sn= r.y;
 	}
 	
 	if (w->debug_draw) {

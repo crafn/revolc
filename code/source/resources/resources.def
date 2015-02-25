@@ -1,5 +1,6 @@
 #ifdef HEADERS
 
+#include "physics/rigidbodydef.h"
 #include "visual/texture.h"
 #include "visual/mesh.h"
 #include "visual/model.h"
@@ -11,5 +12,6 @@ RESOURCE(Texture, NULL, NULL, json_texture_to_blob)
 RESOURCE(Mesh, NULL, NULL, json_mesh_to_blob)
 RESOURCE(Model, NULL, NULL, json_model_to_blob)
 RESOURCE(ShaderSource, init_shadersource, deinit_shadersource, json_shadersource_to_blob)
+RESOURCE(RigidBodyDef, NULL, NULL, json_rigidbodydef_to_blob)
 
 #endif

@@ -5,7 +5,7 @@
 #include "core/vector.h"
 #include "game/world.h"
 #include "global/env.h"
-#include "physics/phys_world.h"
+#include "physics/physworld.h"
 #include "platform/device.h"
 #include "resources/resblob.h"
 #include "visual/model.h"
@@ -28,6 +28,45 @@ void make_main_blob()
 	free(res_paths);
 }
 
+#define MAX_ENTITY_NODE_COUNT 1024*10
+	U32 entity_nodes[MAX_ENTITY_NODE_COUNT];
+	U32 entity_node_count= 0;
+#define INIT_ENTITY_COUNT 50
+
+internal
+void spawn_entity(World *world, PhysWorld *phys_world, Renderer *rend, ResBlob *blob, V2d pos)
+{
+	Model *barrel= (Model*)res_by_name(blob, ResType_Model, "wbarrel");
+	Model *roll= (Model*)res_by_name(blob, ResType_Model, "rollbot");
+	Model *model= barrel;
+	local_persist U32 i= 0;
+	++i;
+	if (i % 2 == 0)
+		model= roll;
+	/// @todo Free at end
+	U32 b_node_h= alloc_node(world, NodeType_RigidBody);
+	U32 m_node_h= alloc_node(world, NodeType_ModelEntity);
+	entity_nodes[entity_node_count++]= b_node_h;
+	entity_nodes[entity_node_count++]= m_node_h;
+
+	U32 modelentity_h= node_impl_handle(world, m_node_h);
+	set_modelentity(rend, modelentity_h, model);
+
+	U32 body_h= node_impl_handle(world, b_node_h);
+	set_rigidbody(phys_world, body_h,
+			pos, 0.0,
+			(RigidBodyDef*)res_by_name(blob, ResType_RigidBodyDef, "wbarrel"));
+
+	add_routing(world,
+			m_node_h, offsetof(ModelEntity, pos),
+			b_node_h, offsetof(RigidBody, pos),
+			sizeof(V3d));
+	add_routing(world,
+			m_node_h, offsetof(ModelEntity, rot),
+			b_node_h, offsetof(RigidBody, rot),
+			sizeof(Qd));
+}
+
 int main(int argc, const char **argv)
 {
 	Device *d= plat_init("Revolc engine", 800, 600);
@@ -43,34 +82,10 @@ int main(int argc, const char **argv)
 	PhysWorld *phys_world= create_physworld();
 	World *world= create_world();
 
-	Model *barrel= (Model*)res_by_name(blob, ResType_Model, "wbarrel");
-	Model *roll= (Model*)res_by_name(blob, ResType_Model, "rollbot");
-
-#define MAX_ENTITY_NODE_COUNT 1000
-	U32 entity_nodes[MAX_ENTITY_NODE_COUNT];
-	U32 entity_node_count= 0;
-#define ENTITY_COUNT 50
-	for (int i= 0; i < ENTITY_COUNT; ++i) {
-		Model *model= barrel;
-		if (i % 2 == 0)
-			model= roll;
-		/// @todo Free at end
-		U32 b_node_h= alloc_node(world, NodeType_RigidBody);
-		U32 m_node_h= alloc_node(world, NodeType_ModelEntity);
-		entity_nodes[entity_node_count++]= b_node_h;
-		entity_nodes[entity_node_count++]= m_node_h;
-
-		U32 modelentity_h= node_impl_handle(world, m_node_h);
-		set_modelentity(rend, modelentity_h, model);
-
-		add_routing(world,
-				m_node_h, offsetof(ModelEntity, pos),
-				b_node_h, offsetof(RigidBody, pos),
-				sizeof(V3d));
-		add_routing(world,
-				m_node_h, offsetof(ModelEntity, rot),
-				b_node_h, offsetof(RigidBody, rot),
-				sizeof(Qd));
+	for (int i= 0; i < INIT_ENTITY_COUNT; ++i) {
+		spawn_entity(
+				world, phys_world, rend, blob,
+				(V2d) {sin(i), 1 + cos(i)});
 	}
 
 	while (!d->quit_requested) {
@@ -98,6 +113,10 @@ int main(int argc, const char **argv)
 				rend->cam_pos.z -= spd*dt;
 			if (d->keyDown['h'])
 				rend->cam_pos.z += spd*dt;
+
+			if (d->keyDown['e']) {
+				spawn_entity(world, phys_world, rend, blob, cursor_on_world);
+			}
 			
 			if (d->keyPressed['q'])
 				phys_world->debug_draw= !phys_world->debug_draw;

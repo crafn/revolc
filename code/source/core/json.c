@@ -86,3 +86,11 @@ F64 json_real(JsonTok j)
 S64 json_integer(JsonTok j)
 { return atoll(j.json + j.tok->start); };
 
+V2d json_v2(JsonTok j)
+{
+	return (V2d) {
+		json_real(json_member(j, 0)),
+		json_real(json_member(j, 1))
+	};
+}
+

@@ -2,7 +2,7 @@
 #define REVOLC_VISUAL_RENDERER_H
 
 #include "build.h"
-#include "entity_model.h"
+#include "modelentity.h"
 #include "global/cfg.h"
 #include "mesh.h"
 

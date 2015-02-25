@@ -5,7 +5,7 @@
 #include "core/quaternion.h"
 #include "core/vector.h"
 #include "global/cfg.h"
-#include "visual/entity_model.h"
+#include "visual/modelentity.h"
 
 typedef struct {
 	V3d pos;

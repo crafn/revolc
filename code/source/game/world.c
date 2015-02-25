@@ -4,7 +4,7 @@
 
 /// TEMP
 #include "visual/renderer.h"
-#include "physics/phys_world.h"
+#include "physics/physworld.h"
 
 #include <math.h>
 
