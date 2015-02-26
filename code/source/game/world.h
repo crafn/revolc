@@ -7,16 +7,11 @@
 #include "global/cfg.h"
 #include "visual/modelentity.h"
 
-typedef struct AiTest {
-	V2d input_pos;
-	V2d force;
-} AiTest;
-
 typedef enum {
-	NodeType_ModelEntity,
-	NodeType_AiTest,
-	NodeType_RigidBody,
-} NodeType;
+	NodeTypeId_ModelEntity,
+	NodeTypeId_AiTest,
+	NodeTypeId_RigidBody,
+} NodeTypeId;
 
 typedef struct SlotRouting {
 	U8 allocated;
@@ -28,7 +23,7 @@ typedef struct SlotRouting {
 
 typedef struct NodeInfo {
 	bool allocated;
-	NodeType type;
+	NodeTypeId type;
 	U32 impl_handle; /// e.g. Handle to ModelEntity
 
 	SlotRouting routing[MAX_NODE_ROUTING_COUNT];
@@ -42,17 +37,6 @@ typedef struct World {
 	F64 time;
 } World;
 
-
-REVOLC_API
-void upd_aitest_nodes(	World *w,
-						AiTest *t,
-						U32 count);
-
-REVOLC_API
-void upd_modelentity_nodes(	World *w,
-							ModelEntity *e,
-							U32 count);
-
 REVOLC_API WARN_UNUSED World * create_world();
 REVOLC_API void destroy_world(World *w);
 
@@ -61,7 +45,7 @@ REVOLC_API void upd_world(World *w, F64 dt);
 REVOLC_API void load_world(World *w, const char *path);
 REVOLC_API void save_world(World *w, const char *path);
 
-REVOLC_API U32 alloc_node(World *w, NodeType type);
+REVOLC_API U32 alloc_node(World *w, NodeTypeId type);
 REVOLC_API void free_node(World *w, U32 handle);
 REVOLC_API U32 node_impl_handle(World *w, U32 node_handle);
 REVOLC_API void add_routing(World *w,

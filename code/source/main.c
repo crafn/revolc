@@ -3,6 +3,7 @@
 #include "core/file.h"
 #include "core/debug_print.h"
 #include "core/vector.h"
+#include "game/aitest.h"
 #include "game/world.h"
 #include "global/env.h"
 #include "physics/physworld.h"
@@ -40,9 +41,9 @@ void spawn_entity(World *world, PhysWorld *phys_world, Renderer *rend, ResBlob *
 		name= "wbox";
 
 	Model *model= (Model*)res_by_name(blob, ResType_Model, name);
-	U32 b_node_h= alloc_node(world, NodeType_RigidBody);
-	U32 m_node_h= alloc_node(world, NodeType_ModelEntity);
-	U32 a_node_h= alloc_node(world, NodeType_AiTest);
+	U32 b_node_h= alloc_node(world, NodeTypeId_RigidBody);
+	U32 m_node_h= alloc_node(world, NodeTypeId_ModelEntity);
+	U32 a_node_h= alloc_node(world, NodeTypeId_AiTest);
 
 	U32 modelentity_h= node_impl_handle(world, m_node_h);
 	set_modelentity(rend, modelentity_h, model);

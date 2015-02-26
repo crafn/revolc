@@ -5,10 +5,10 @@ if [ ! -f ./codegen ]; then
 fi
 ./codegen > /dev/null 2>&1
 cd ./source
-clang -std=gnu99 -O0 -Wall -march=native -ffast-math -g -I. \
+clang -std=gnu99 -O0 -Wall -march=native -ffast-math -rdynamic -g -I. \
 	-Wno-unused-function \
 	-I ../deps/common -I ../deps/common/chipmunk/include \
 	./unity.c \
 	../temp/deps.o \
-	-lX11 -lGL -lm -lpthread \
+	-lX11 -lGL -lm -ldl -lpthread \
 	-o ../../builds/linux64/clover

@@ -7,27 +7,23 @@
 #include "visual/renderer.h"
 #include "physics/physworld.h"
 #include "resources/resblob.h"
+#include "game/aitest.h"
 
 #include <math.h>
-
-internal
-AiTest temptest_aitest_storage[MAX_NODE_COUNT];
-internal
-U32 next_aitest= 0;
 
 internal
 void * node_impl(U32 *size, NodeInfo *node)
 {
 	switch (node->type) {
-		case NodeType_ModelEntity:
+		case NodeTypeId_ModelEntity:
 			if (size) *size= sizeof(ModelEntity);
 			return &g_env.renderer->entities[node->impl_handle];
 		break;
-		case NodeType_AiTest:
+		case NodeTypeId_AiTest:
 			if (size) *size= sizeof(AiTest);
-			return &temptest_aitest_storage[node->impl_handle];
+			return (U8*)aitest_storage() + sizeof(AiTest)*node->impl_handle;
 		break;
-		case NodeType_RigidBody:
+		case NodeTypeId_RigidBody:
 			if (size) *size= sizeof(RigidBody);
 			return &g_env.phys_world->bodies[node->impl_handle];
 		break;
@@ -35,18 +31,6 @@ void * node_impl(U32 *size, NodeInfo *node)
 			fail("node_impl: Unhandled type: %i", node->type);
 	}
 	return NULL;
-}
-
-void upd_aitest_nodes(	World *w,
-						AiTest *t,
-						U32 count)
-{
-	V2d target= {0.0, 30.0};
-	for (U32 i= 0; i < count; ++i, ++t) {
-		V2d dif= sub_v2d(target, t->input_pos);
-		F64 r2= length_sqr_v2d(dif);
-		t->force= scaled_v2d(dif, 1000.0/(r2 + 10.0));
-	}
 }
 
 World * create_world()
@@ -77,12 +61,12 @@ void upd_world(World *w, F64 dt)
 			continue;
 
 		switch (node->type) {
-			case NodeType_ModelEntity:
+			case NodeTypeId_ModelEntity:
 			break;
-			case NodeType_AiTest:
-				upd_aitest_nodes(w, node_impl(NULL, node), 1);
+			case NodeTypeId_AiTest:
+				upd_aitest(w, node_impl(NULL, node), 1);
 			break;
-			case NodeType_RigidBody:
+			case NodeTypeId_RigidBody:
 			break;
 			default: fail("upd_world: Unhandled type: %i", node->type);
 		}
@@ -143,7 +127,7 @@ void load_world(World *w, const char *path)
 		memcpy(node->routing, dead_node.routing, sizeof(node->routing));
 
 		switch (dead_node.type) {
-			case NodeType_ModelEntity: {
+			case NodeTypeId_ModelEntity: {
 				ModelEntity dead_impl;
 				fread(&dead_impl, 1, sizeof(dead_impl), file);
 				set_modelentity(
@@ -158,14 +142,14 @@ void load_world(World *w, const char *path)
 				impl->rot= dead_impl.rot;
 			}
 			break;
-			case NodeType_AiTest: {
+			case NodeTypeId_AiTest: {
 				AiTest dead_impl;
 				fread(&dead_impl, 1, sizeof(dead_impl), file);
-				AiTest *impl= &temptest_aitest_storage[node->impl_handle];
+				AiTest *impl= (AiTest*)((U8*)aitest_storage() + sizeof(AiTest)*node->impl_handle);
 				*impl= dead_impl;
-			 }
+			}
 			break;
-			case NodeType_RigidBody: {
+			case NodeTypeId_RigidBody: {
 				RigidBody dead_impl;
 				fread(&dead_impl, 1, sizeof(dead_impl), file);
 				set_rigidbody(
@@ -214,7 +198,7 @@ void save_world(World *w, const char *path)
 	fclose(file);
 }
 
-U32 alloc_node(World *w, NodeType type)
+U32 alloc_node(World *w, NodeTypeId type)
 {
 	if (w->node_count == MAX_NODE_COUNT)
 		fail("Too many nodes");
@@ -224,13 +208,13 @@ U32 alloc_node(World *w, NodeType type)
 		.type= type
 	};
 	switch (type) {
-		case NodeType_ModelEntity:
+		case NodeTypeId_ModelEntity:
 			info.impl_handle= alloc_modelentity(g_env.renderer);
 		break;
-		case NodeType_AiTest:
-			info.impl_handle= next_aitest++;
+		case NodeTypeId_AiTest:
+			info.impl_handle= alloc_aitest();
 		break;
-		case NodeType_RigidBody:
+		case NodeTypeId_RigidBody:
 			info.impl_handle= alloc_rigidbody(g_env.phys_world);
 		break;
 		default: fail("create_node: Unhandled type: %i", type);
@@ -250,14 +234,14 @@ void free_node(World *w, U32 handle)
 	ensure(w->nodes[handle].allocated);
 
 	U32 impl_handle= w->nodes[handle].impl_handle;
-	NodeType type= w->nodes[handle].type;
+	NodeTypeId type= w->nodes[handle].type;
 	switch (w->nodes[handle].type) {
-		case NodeType_ModelEntity:
+		case NodeTypeId_ModelEntity:
 			free_modelentity(g_env.renderer, impl_handle);
 		break;
-		case NodeType_AiTest:
+		case NodeTypeId_AiTest:
 		break;
-		case NodeType_RigidBody:
+		case NodeTypeId_RigidBody:
 			free_rigidbody(g_env.phys_world, impl_handle);
 		break;
 		default: fail("destroy_node: Unhandled type: %i", type);
