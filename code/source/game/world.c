@@ -29,33 +29,68 @@ void destroy_world(World *w)
 	free(w);
 }
 
+internal
+int node_cmp(const void * a_, const void * b_)
+{
+	const NodeInfo *a= a_, *b= b_;
+	// Sort for batching
+	// Non-allocated should be at the end
+	/// @todo Prioritize by routing, but still clumping by type
+	int str_cmp= strcmp(a->type_name, b->type_name);
+	if (!str_cmp)
+		return str_cmp;
+	else
+		return	(a->impl_handle < b->impl_handle) -
+				(b->impl_handle > a->impl_handle);
+}
+
 void upd_world(World *w, F64 dt)
 {
 	w->time += dt;
-	NodeInfo *nodes= w->nodes;
 
-	/// @todo Sorting, update batches
-	for (U32 node_i= 0; node_i < MAX_NODE_COUNT; ++node_i) {
-		NodeInfo *node= &nodes[node_i];
-		if (!node->allocated)
-			continue;
+	memcpy(w->sort_space, w->nodes, sizeof(w->nodes));
+	qsort(w->sort_space, MAX_NODE_COUNT, sizeof(*w->nodes), node_cmp);
 
-		if (node->type->upd)
-			node->type->upd(w, node_impl(NULL, node), 1);
+	U32 node_i= 0;
+	while (node_i < MAX_NODE_COUNT) {
+		if (!w->sort_space[node_i].allocated)
+			break; // At the end
+
+		NodeInfo *node= &w->sort_space[node_i];
+		U32 batch_begin_i= node_i;
+		NodeType *batch_begin_type= node->type;
+
+		while (	node_i < MAX_NODE_COUNT &&
+				node->type == batch_begin_type) {
+			++node_i;
+			++node;
+		}
+
+		// Process batch
+		const U32 batch_size= node_i - batch_begin_i;
+		if (batch_begin_type->upd) {
+			batch_begin_type->upd(
+					w,
+					node_impl(NULL, &w->sort_space[batch_begin_i]),
+					batch_size);
+		}
 
 		// Propagate values
-		for (U32 r_i= 0; r_i < MAX_NODE_ROUTING_COUNT; ++r_i) {
-			if (!node->routing[r_i].allocated)
-				continue;
+		for (U32 src_i= batch_begin_i; src_i < node_i; ++src_i) {
+			NodeInfo *src_node= &w->sort_space[src_i];
+			for (U32 r_i= 0; r_i < MAX_NODE_ROUTING_COUNT; ++r_i) {
+				if (!src_node->routing[r_i].allocated)
+					continue;
 
-			SlotRouting *r= &node->routing[r_i];
-			ensure(r->dst_node < MAX_NODE_COUNT);
-			NodeInfo *dst_node= &w->nodes[r->dst_node];
+				SlotRouting *r= &src_node->routing[r_i];
+				ensure(r->dst_node < MAX_NODE_COUNT);
+				NodeInfo *dst_node= &w->nodes[r->dst_node];
 
-			U8 *dst= (U8*)node_impl(NULL, dst_node) + r->dst_offset;
-			U8 *src= (U8*)node_impl(NULL, node) + r->src_offset;
-			for (U32 i= 0; i < r->size; ++i)
-				dst[i]= src[i];
+				U8 *dst= (U8*)node_impl(NULL, dst_node) + r->dst_offset;
+				U8 *src= (U8*)node_impl(NULL, src_node) + r->src_offset;
+				for (U32 i= 0; i < r->size; ++i)
+					dst[i]= src[i];
+			}
 		}
 	}
 }

@@ -31,6 +31,7 @@ typedef struct World {
 	U32 node_count;
 
 	F64 time;
+	NodeInfo sort_space[MAX_NODE_COUNT];
 } World;
 
 REVOLC_API WARN_UNUSED World * create_world();

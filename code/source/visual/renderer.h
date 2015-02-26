@@ -20,6 +20,8 @@ typedef struct Renderer {
 	U32 ddraw_i_count;
 
 	U32 atlas_gl_id;
+
+	ModelEntity sort_space[MAX_MODELENTITY_COUNT];
 } Renderer;
 
 // Sets g_env.renderer
