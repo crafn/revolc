@@ -32,18 +32,23 @@ void make_main_blob()
 internal
 void spawn_entity(World *world, ResBlob *blob, V2d pos)
 {
-	local_persist U32 i= 0;
-	++i;
+	local_persist U64 entity_id= 0;
+	++entity_id;
 	const char *name= "wbarrel";
-	if (i % 3 == 1)
+	if (entity_id % 3 == 1)
 		name= "rollbot";
-	else if (i % 3 == 2)
+	else if (entity_id % 3 == 2)
 		name= "wbox";
 
+	entity_id %= 3;
+
 	Model *model= (Model*)res_by_name(blob, ResType_Model, name);
-	U32 b_node_h= alloc_node(world, (NodeType*)res_by_name(blob, ResType_NodeType, "RigidBody"));
-	U32 m_node_h= alloc_node(world, (NodeType*)res_by_name(blob, ResType_NodeType, "ModelEntity"));
-	U32 a_node_h= alloc_node(world, (NodeType*)res_by_name(blob, ResType_NodeType, "AiTest"));
+	NodeType *rbody_node= (NodeType*)res_by_name(blob, ResType_NodeType, "RigidBody");
+	NodeType *model_node= (NodeType*)res_by_name(blob, ResType_NodeType, "ModelEntity");
+	NodeType *aitest_node= (NodeType*)res_by_name(blob, ResType_NodeType, "AiTest");
+	U32 b_node_h= alloc_node(world, rbody_node, entity_id);
+	U32 m_node_h= alloc_node(world, model_node, entity_id);
+	U32 a_node_h= alloc_node(world, aitest_node, entity_id);
 
 	U32 modelentity_h= node_impl_handle(world, m_node_h);
 	set_modelentity(modelentity_h, model);
@@ -125,9 +130,15 @@ int main(int argc, const char **argv)
 			if (d->key_down['h'])
 				g_env.renderer->cam_pos.z += spd*dt;
 
-			if (d->key_down['e']) {
+			if (d->key_down['e'])
 				spawn_entity(world, blob, cursor_on_world);
-			}
+
+			if (d->key_pressed['r'])
+				free_node_group(world, 0);
+			if (d->key_pressed['t'])
+				free_node_group(world, 1);
+			if (d->key_pressed['g'])
+				free_node_group(world, 2);
 			
 			if (d->key_pressed['q'])
 				g_env.phys_world->debug_draw= !g_env.phys_world->debug_draw;

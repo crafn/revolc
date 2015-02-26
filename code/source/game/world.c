@@ -36,22 +36,26 @@ int node_cmp(const void * a_, const void * b_)
 	// Sort for batching
 	// Non-allocated should be at the end
 	/// @todo Prioritize by routing, but still clumping by type
-	int str_cmp= strcmp(a->type_name, b->type_name);
-	if (!str_cmp)
-		return str_cmp;
-	else
-		return	(a->impl_handle < b->impl_handle) -
-				(b->impl_handle > a->impl_handle);
+	int alloc_cmp= b->allocated - a->allocated;
+	if (alloc_cmp) {
+		return alloc_cmp;
+	} else { 
+		int str_cmp= strcmp(a->type_name, b->type_name);
+		if (!str_cmp)
+			return str_cmp;
+		else
+			return	(a->impl_handle < b->impl_handle) -
+					(b->impl_handle > a->impl_handle);
+	}
 }
 
 void upd_world(World *w, F64 dt)
 {
-	w->time += dt;
-
 	memcpy(w->sort_space, w->nodes, sizeof(w->nodes));
 	qsort(w->sort_space, MAX_NODE_COUNT, sizeof(*w->nodes), node_cmp);
 
 	U32 node_i= 0;
+	U32 updated_count= 0;
 	while (node_i < MAX_NODE_COUNT) {
 		if (!w->sort_space[node_i].allocated)
 			break; // At the end
@@ -62,12 +66,14 @@ void upd_world(World *w, F64 dt)
 
 		while (	node_i < MAX_NODE_COUNT &&
 				node->type == batch_begin_type) {
+			ensure(node->allocated);
 			++node_i;
 			++node;
 		}
 
-		// Process batch
+		// Update batch
 		const U32 batch_size= node_i - batch_begin_i;
+		updated_count += batch_size; 
 		if (batch_begin_type->upd) {
 			batch_begin_type->upd(
 					w,
@@ -85,6 +91,7 @@ void upd_world(World *w, F64 dt)
 				SlotRouting *r= &src_node->routing[r_i];
 				ensure(r->dst_node < MAX_NODE_COUNT);
 				NodeInfo *dst_node= &w->nodes[r->dst_node];
+				ensure(src_node->allocated && dst_node->allocated);
 
 				U8 *dst= (U8*)node_impl(NULL, dst_node) + r->dst_offset;
 				U8 *src= (U8*)node_impl(NULL, src_node) + r->src_offset;
@@ -121,21 +128,30 @@ void load_world(World *w, const char *path)
 	if (len != sizeof(header))
 		fail("load_world: Read error");
 
-	for (U32 i= 0; i < header.node_count; ++i) {
+	U32 node_count= 0;
+	for (U32 i= 0; i < header.node_count;
+			++i, w->next_node= (w->next_node + 1) % MAX_NODE_COUNT) {
+		ensure(w->next_node == i);
 		// New NodeInfo from binary
 		NodeInfo dead_node;
 		fread(&dead_node, 1, sizeof(dead_node), file);
+		if (!dead_node.allocated)
+			continue;
+
 		U32 node_h= alloc_node(
 				w,
 				(NodeType*)res_by_name(
 					g_env.res_blob,
 					ResType_NodeType,
-					dead_node.type_name));
+					dead_node.type_name),
+				dead_node.group_id);
 		ensure(node_h == i); // Must retain handles because of routing
+		++node_count;
 
 		NodeInfo *n= &w->nodes[node_h];
-		memcpy(n->routing, dead_node.routing, sizeof(n->routing));
 		memcpy(n->type_name, dead_node.type_name, sizeof(n->type_name));
+		memcpy(n->routing, dead_node.routing, sizeof(n->routing));
+		n->group_id= dead_node.group_id;
 
 		// New Node implementation from binary
 		U8 dead_impl_bytes[n->type->size]; /// @todo Alignment!!!
@@ -146,6 +162,8 @@ void load_world(World *w, const char *path)
 		else
 			memcpy(impl, dead_impl_bytes, n->type->size);
 	}
+
+	ensure(node_count == w->node_count);
 	fclose(file);
 }
 
@@ -158,33 +176,35 @@ void save_world(World *w, const char *path)
 
 	SaveHeader header= {
 		.version= 1,
-		.node_count= w->node_count,
+		.node_count= MAX_NODE_COUNT,
 	};
 
 	fwrite(&header, 1, sizeof(header), file);
 	for (U32 i= 0; i < MAX_NODE_COUNT; ++i) {
 		NodeInfo *node= &w->nodes[i];
+		// Save all, even non-allocated nodes
+		// Easy way to keep routing handles valid
+		fwrite(node, 1, sizeof(*node), file);
 		if (!node->allocated)
 			continue;
 
 		U32 impl_size;
 		void *impl= node_impl(&impl_size, node);
-
-		fwrite(node, 1, sizeof(*node), file);
 		fwrite(impl, 1, impl_size, file);
 	}
 
 	fclose(file);
 }
 
-U32 alloc_node(World *w, NodeType* type)
+U32 alloc_node(World *w, NodeType* type, U64 group_id)
 {
 	if (w->node_count == MAX_NODE_COUNT)
 		fail("Too many nodes");
 
 	NodeInfo info= {
 		.allocated= true,
-		.type= type
+		.type= type,
+		.group_id= group_id,
 	};
 	info.impl_handle= type->alloc();
 	snprintf(info.type_name, sizeof(info.type_name), "%s", type->res.name);
@@ -192,6 +212,8 @@ U32 alloc_node(World *w, NodeType* type)
 	while (w->nodes[w->next_node].allocated)
 		w->next_node= (w->next_node + 1) % MAX_NODE_COUNT;
 
+	ensure(w->next_node < MAX_NODE_COUNT);
+	ensure(!w->nodes[w->next_node].allocated);
 	++w->node_count;
 	w->nodes[w->next_node]= info;
 	return w->next_node;
@@ -206,7 +228,19 @@ void free_node(World *w, U32 handle)
 	w->nodes[handle].type->free(impl_handle);
 
 	--w->node_count;
-	w->nodes[handle].allocated= false;
+	w->nodes[handle]= (NodeInfo) { .allocated= false };
+}
+
+void free_node_group(World *w, U64 group_id)
+{
+	for (U32 i= 0; i < MAX_NODE_COUNT; ++i) {
+		NodeInfo *node= &w->nodes[i];
+		if (!node->allocated)
+			continue;
+
+		if (node->group_id == group_id)
+			free_node(w, i);
+	}
 }
 
 U32 node_impl_handle(World *w, U32 node_handle)

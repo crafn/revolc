@@ -17,12 +17,12 @@ typedef struct SlotRouting {
 } SlotRouting;
 
 typedef struct NodeInfo {
-	bool allocated;
+	bool allocated; /// @todo Can be substituted by type (== NULL)
 	NodeType *type;
 	char type_name[RES_NAME_SIZE];
-	U32 impl_handle; /// e.g. Handle to ModelEntity
-
+	U32 impl_handle; // e.g. Handle to ModelEntity
 	SlotRouting routing[MAX_NODE_ROUTING_COUNT];
+	U64 group_id; // Entity id
 } NodeInfo;
 
 typedef struct World {
@@ -30,7 +30,6 @@ typedef struct World {
 	U32 next_node;
 	U32 node_count;
 
-	F64 time;
 	NodeInfo sort_space[MAX_NODE_COUNT];
 } World;
 
@@ -42,8 +41,9 @@ REVOLC_API void upd_world(World *w, F64 dt);
 REVOLC_API void load_world(World *w, const char *path);
 REVOLC_API void save_world(World *w, const char *path);
 
-REVOLC_API U32 alloc_node(World *w, NodeType *type);
+REVOLC_API U32 alloc_node(World *w, NodeType *type, U64 group_id);
 REVOLC_API void free_node(World *w, U32 handle);
+REVOLC_API void free_node_group(World *w, U64 group_id);
 REVOLC_API U32 node_impl_handle(World *w, U32 node_handle);
 REVOLC_API void add_routing(World *w,
 							U32 src_node_h, U32 src_offset,
