@@ -4,11 +4,11 @@
 #include "physworld.h"
 #include "visual/renderer.h" // Debug draw
 
-PhysWorld *create_physworld()
+void create_physworld()
 {
 	PhysWorld *w= zero_malloc(sizeof(*w));
-	if (g_env.phys_world == NULL)
-		g_env.phys_world= w;
+	ensure(!g_env.phys_world);
+	g_env.phys_world= w;
 
 	w->space= cpSpaceNew();
 	 cpSpaceSetIterations(w->space, 20);
@@ -17,26 +17,27 @@ PhysWorld *create_physworld()
 	w->ground=
 		cpSegmentShapeNew(
 				cpSpaceGetStaticBody(w->space),
-				cpv(-50, 0), cpv(50, -1), 0);
+				cpv(-100, 0), cpv(100, -1), 0);
 	cpShapeSetFriction(w->ground, 1);
 	cpSpaceAddShape(w->space, w->ground);
-
-	return w;
 }
 
-void destroy_physworld(PhysWorld *w)
+void destroy_physworld()
 {
+	PhysWorld *w= g_env.phys_world;
+	ensure(w);
+	g_env.phys_world= NULL;
 	cpSpaceRemoveShape(w->space, w->ground);
 	cpShapeFree(w->ground);
 	cpSpaceFree(w->space);
 
-	if (g_env.phys_world == w)
-		g_env.phys_world= NULL;
 	free(w);
 }
 
-U32 alloc_rigidbody(PhysWorld *w)
+U32 alloc_rigidbody()
 {
+	PhysWorld *w= g_env.phys_world;
+
 	if (w->body_count >= MAX_RIGIDBODY_COUNT)
 		fail("Too many rigid bodies");
 
@@ -50,8 +51,10 @@ U32 alloc_rigidbody(PhysWorld *w)
 	return w->next_body;
 }
 
-void free_rigidbody(PhysWorld *w, U32 h)
+void free_rigidbody(U32 h)
 {
+	PhysWorld *w= g_env.phys_world;
+
 	ensure(h < MAX_RIGIDBODY_COUNT);
 
 	RigidBody *b= &w->bodies[h];
@@ -66,8 +69,10 @@ void free_rigidbody(PhysWorld *w, U32 h)
 	--w->body_count;
 }
 
-void set_rigidbody(PhysWorld *w, U32 h, V2d p, F64 r, RigidBodyDef *def)
+void set_rigidbody(U32 h, V2d p, F64 r, RigidBodyDef *def)
 {
+	PhysWorld *w= g_env.phys_world;
+
 	ensure(h < MAX_RIGIDBODY_COUNT && w->bodies[h].cp_body == NULL);
 	RigidBody *b= &w->bodies[h];
 	strncpy(b->def_name, def->res.name, sizeof(b->def_name));
@@ -137,6 +142,21 @@ void set_rigidbody(PhysWorld *w, U32 h, V2d p, F64 r, RigidBodyDef *def)
 	}
 }
 
+void * storage_rigidbody()
+{ return g_env.phys_world->bodies; }
+
+void resurrect_rigidbody(U32 h, RigidBody *dead)
+{
+	set_rigidbody(
+			h,
+			(V2d) {dead->pos.x, dead->pos.y},
+			rot_z_qd(dead->rot),
+			(RigidBodyDef*)res_by_name(
+				g_env.res_blob,
+				ResType_RigidBodyDef,
+				dead->def_name));
+}
+
 internal
 void phys_draw_circle(
 		cpVect pos, cpFloat angle, cpFloat radius,
@@ -156,7 +176,6 @@ void phys_draw_circle(
 
 	Color c= {0.4, 0.7, 1.0, 0.5};
 	ddraw_poly(
-			g_env.renderer,
 			c,
 			v,
 			v_count);
@@ -176,14 +195,15 @@ void phys_draw_poly(
 
 	Color c= {0.4, 0.7, 1.0, 0.5};
 	ddraw_poly(
-			g_env.renderer,
 			c,
 			v,
 			count);
 }
 
-void upd_physworld(PhysWorld *w, F32 dt)
+void upd_physworld(F32 dt)
 {
+	PhysWorld *w= g_env.phys_world;
+
 	dt= 1.0/60.0;
 
 	for (U32 i= 0; i < MAX_RIGIDBODY_COUNT; ++i) {

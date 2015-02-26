@@ -205,8 +205,9 @@ ResBlob* reload_blob(ResBlob *old_blob, const char *path)
 	}
 
 	// Update old res pointers to new blob
-	if (g_env.renderer)
-		on_res_reload(g_env.renderer, new_blob);
+	renderer_on_res_reload(new_blob);
+	if (g_env.world)
+		world_on_res_reload(g_env.world, new_blob);
 
 	unload_blob(old_blob);
 	return new_blob;

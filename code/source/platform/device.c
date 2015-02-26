@@ -303,7 +303,7 @@ void plat_update(Device *d)
 	glXSwapBuffers(d->data->dpy, d->data->win);
 
 	for (int i= 0; i < KEYBOARD_KEY_COUNT; ++i)
-		d->keyPressed[i]= d->keyReleased[i]= false;
+		d->key_pressed[i]= d->key_released[i]= false;
 
 	while(XPending(d->data->dpy)) {
 		XEvent xev;
@@ -327,17 +327,17 @@ void plat_update(Device *d)
 			else if (*keysym >= 65470 && *keysym <= 65481)
 				table_index= KEY_F1 + (*keysym - 65470);
 
-			d->keyDown[table_index]= (xev.type == KeyPress);
-			d->keyPressed[table_index]= (xev.type == KeyPress);
-			d->keyReleased[table_index]= (xev.type == KeyRelease);
+			d->key_down[table_index]= (xev.type == KeyPress);
+			d->key_pressed[table_index]= (xev.type == KeyPress);
+			d->key_released[table_index]= (xev.type == KeyRelease);
 			
 			XFree(keysym);
 		}
 
 		if (xev.xbutton.type == ButtonPress)
-			d->lmbDown= true;
+			d->lmb_down= true;
 		else if (xev.xbutton.type == ButtonRelease)
-			d->lmbDown= false;
+			d->lmb_down= false;
 	}
 
 	XWindowAttributes gwa;

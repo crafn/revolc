@@ -143,8 +143,11 @@ int main(int argc, char **argv)
 		fprintf(h, "extern const U32 %s_member_sizes[];\n", s->sym->ident->name);
 		fprintf(c, "const U32 %s_member_sizes[]= {", s->sym->ident->name);
 		for (int k= 0; k < s->member_count; ++k) {
-			fprintf(c, "%i, ",
-					(int)get_base_type(s->member_syms[k])->bit_size/8);
+			struct symbol *m= get_base_type(s->member_syms[k]);
+			int byte_size= m->bit_size/8;
+			if (byte_size == 0) // Happens with bools for some reason
+				byte_size= 1;
+			fprintf(c, "%i, ", byte_size);
 		}
 		fprintf(c, "};\n");
 

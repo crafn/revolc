@@ -30,7 +30,7 @@ void make_main_blob()
 }
 
 internal
-void spawn_entity(World *world, PhysWorld *phys_world, Renderer *rend, ResBlob *blob, V2d pos)
+void spawn_entity(World *world, ResBlob *blob, V2d pos)
 {
 	local_persist U32 i= 0;
 	++i;
@@ -41,15 +41,15 @@ void spawn_entity(World *world, PhysWorld *phys_world, Renderer *rend, ResBlob *
 		name= "wbox";
 
 	Model *model= (Model*)res_by_name(blob, ResType_Model, name);
-	U32 b_node_h= alloc_node(world, NodeTypeId_RigidBody);
-	U32 m_node_h= alloc_node(world, NodeTypeId_ModelEntity);
-	U32 a_node_h= alloc_node(world, NodeTypeId_AiTest);
+	U32 b_node_h= alloc_node(world, (NodeType*)res_by_name(blob, ResType_NodeType, "RigidBody"));
+	U32 m_node_h= alloc_node(world, (NodeType*)res_by_name(blob, ResType_NodeType, "ModelEntity"));
+	U32 a_node_h= alloc_node(world, (NodeType*)res_by_name(blob, ResType_NodeType, "AiTest"));
 
 	U32 modelentity_h= node_impl_handle(world, m_node_h);
-	set_modelentity(rend, modelentity_h, model);
+	set_modelentity(modelentity_h, model);
 
 	U32 body_h= node_impl_handle(world, b_node_h);
-	set_rigidbody(phys_world, body_h,
+	set_rigidbody(body_h,
 			pos, 0.0,
 			(RigidBodyDef*)res_by_name(blob, ResType_RigidBodyDef, name));
 
@@ -85,17 +85,16 @@ int main(int argc, const char **argv)
 	ResBlob *blob= g_env.res_blob= load_blob(DEFAULT_BLOB_PATH);
 	print_blob(blob);
 
-	Renderer *rend= create_renderer();
-
-	PhysWorld *phys_world= create_physworld();
-	World *world= create_world();
+	create_renderer();
+	create_physworld();
+	World *world= g_env.world= create_world();
 
 	if (file_exists(SAVEFILE_PATH)) {
 		load_world(world, SAVEFILE_PATH);
 	} else {
 		for (int i= 0; i < 50; ++i) {
 			spawn_entity(
-					world, phys_world, rend, blob,
+					world, blob,
 					(V2d) {sin(i), 1 + cos(i)});
 		}
 	}
@@ -108,50 +107,50 @@ int main(int argc, const char **argv)
 				-2.0*d->cursor_pos[1]/d->win_size[1] + 1.0
 			};
 
-			V2d cursor_on_world= screen_to_world_point(rend, cursor);
+			V2d cursor_on_world= screen_to_world_point(cursor);
 
 			F32 dt= d->dt;
 			F32 spd= 25.0;
-			if (d->keyDown['w'])
-				rend->cam_pos.y += spd*dt;
-			if (d->keyDown['a'])
-				rend->cam_pos.x -= spd*dt;
-			if (d->keyDown['s'])
-				rend->cam_pos.y -= spd*dt;
-			if (d->keyDown['d'])
-				rend->cam_pos.x += spd*dt;
+			if (d->key_down['w'])
+				g_env.renderer->cam_pos.y += spd*dt;
+			if (d->key_down['a'])
+				g_env.renderer->cam_pos.x -= spd*dt;
+			if (d->key_down['s'])
+				g_env.renderer->cam_pos.y -= spd*dt;
+			if (d->key_down['d'])
+				g_env.renderer->cam_pos.x += spd*dt;
 
-			if (d->keyDown['y'])
-				rend->cam_pos.z -= spd*dt;
-			if (d->keyDown['h'])
-				rend->cam_pos.z += spd*dt;
+			if (d->key_down['y'])
+				g_env.renderer->cam_pos.z -= spd*dt;
+			if (d->key_down['h'])
+				g_env.renderer->cam_pos.z += spd*dt;
 
-			if (d->keyDown['e']) {
-				spawn_entity(world, phys_world, rend, blob, cursor_on_world);
+			if (d->key_down['e']) {
+				spawn_entity(world, blob, cursor_on_world);
 			}
 			
-			if (d->keyPressed['q'])
-				phys_world->debug_draw= !phys_world->debug_draw;
+			if (d->key_pressed['q'])
+				g_env.phys_world->debug_draw= !g_env.phys_world->debug_draw;
 
-			if (d->keyPressed[KEY_F12]) {
+			if (d->key_pressed[KEY_F12]) {
 				make_main_blob();
 				blob= g_env.res_blob= reload_blob(blob, DEFAULT_BLOB_PATH);
 			}
 
-			if (d->keyPressed[KEY_F5])
+			if (d->key_pressed[KEY_F5])
 				save_world(world, SAVEFILE_PATH);
-			if (d->keyPressed[KEY_F9]) {
+			if (d->key_pressed[KEY_F9]) {
 				destroy_world(world);
-				world= create_world();
+				world= g_env.world= create_world();
 				load_world(world, SAVEFILE_PATH);
 			}
 
 			local_persist cpBody *body= NULL;
-			if (d->lmbDown) {
+			if (d->lmb_down) {
 				cpVect p= {cursor_on_world.x, cursor_on_world.y};
 				cpShape *shape=
 					cpSpacePointQueryNearest(
-							phys_world->space,
+							g_env.phys_world->space,
 							p, 0.1,
 							CP_SHAPE_FILTER_ALL, NULL);
 
@@ -168,17 +167,19 @@ int main(int argc, const char **argv)
 			}
 		}
 
-		upd_physworld(phys_world, d->dt);
+		upd_physworld(d->dt);
 		upd_world(world, d->dt);
-		render_frame(rend);
+		render_frame();
 
 		gl_check_errors("loop");
 		plat_sleep(1);
 	}
 
 	destroy_world(world);
-	destroy_physworld(phys_world);
-	destroy_renderer(rend);
+	g_env.world= NULL;
+
+	destroy_physworld();
+	destroy_renderer();
 
 	unload_blob(blob);
 	g_env.res_blob= NULL;

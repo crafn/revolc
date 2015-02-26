@@ -5,13 +5,8 @@
 #include "core/quaternion.h"
 #include "core/vector.h"
 #include "global/cfg.h"
+#include "nodetype.h"
 #include "visual/modelentity.h"
-
-typedef enum {
-	NodeTypeId_ModelEntity,
-	NodeTypeId_AiTest,
-	NodeTypeId_RigidBody,
-} NodeTypeId;
 
 typedef struct SlotRouting {
 	U8 allocated;
@@ -23,7 +18,8 @@ typedef struct SlotRouting {
 
 typedef struct NodeInfo {
 	bool allocated;
-	NodeTypeId type;
+	NodeType *type;
+	char type_name[RES_NAME_SIZE];
 	U32 impl_handle; /// e.g. Handle to ModelEntity
 
 	SlotRouting routing[MAX_NODE_ROUTING_COUNT];
@@ -45,12 +41,16 @@ REVOLC_API void upd_world(World *w, F64 dt);
 REVOLC_API void load_world(World *w, const char *path);
 REVOLC_API void save_world(World *w, const char *path);
 
-REVOLC_API U32 alloc_node(World *w, NodeTypeId type);
+REVOLC_API U32 alloc_node(World *w, NodeType *type);
 REVOLC_API void free_node(World *w, U32 handle);
 REVOLC_API U32 node_impl_handle(World *w, U32 node_handle);
 REVOLC_API void add_routing(World *w,
 							U32 src_node_h, U32 src_offset,
 							U32 dst_node_h, U32 dst_offset,
 							U32 size);
+
+struct ResBlob;
+internal
+void world_on_res_reload(World *w, struct ResBlob* blob);
 
 #endif // REVOLC_GAME_WORLD_H

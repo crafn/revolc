@@ -7,12 +7,14 @@ struct Device;
 struct PhysWorld;
 struct ResBlob;
 struct Renderer;
+struct World;
 
 typedef struct Env {
 	struct Device* device;
 	struct PhysWorld* phys_world;
 	struct Renderer* renderer;
 	struct ResBlob* res_blob;
+	struct World* world;
 } Env;
 
 extern REVOLC_API Env g_env;

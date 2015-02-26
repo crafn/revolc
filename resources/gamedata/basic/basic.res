@@ -23,4 +23,22 @@
 		"vs_file" : "./gen.vs",
 		"fs_file" : "./gen.fs",
 	},
+	{
+		"type" : "NodeType",
+		"name" : "ModelEntity",
+		"alloc_func" : "alloc_modelentity",
+		"free_func" : "free_modelentity",
+		"upd_func" : "",
+		"storage_func" : "storage_modelentity",
+		"resurrect_func" : "resurrect_modelentity",
+	},
+	{
+		"type" : "NodeType",
+		"name" : "RigidBody",
+		"alloc_func" : "alloc_rigidbody",
+		"free_func" : "free_rigidbody",
+		"upd_func" : "",
+		"storage_func" : "storage_rigidbody",
+		"resurrect_func" : "resurrect_rigidbody",
+	},
 ]

@@ -19,7 +19,7 @@ void free_aitest(U32 handle)
 	temptest_aitest_storage[handle].allocated= false;
 }
 
-void *aitest_storage()
+void * storage_aitest()
 { return temptest_aitest_storage; }
 
 void upd_aitest(	World *w,

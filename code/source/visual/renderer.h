@@ -22,20 +22,22 @@ typedef struct Renderer {
 	U32 atlas_gl_id;
 } Renderer;
 
-/// @note Modifies g_env.renderer
-REVOLC_API Renderer* create_renderer();
-REVOLC_API void destroy_renderer(Renderer *r);
+// Sets g_env.renderer
+REVOLC_API void create_renderer();
+REVOLC_API void destroy_renderer();
 
-REVOLC_API U32 alloc_modelentity(Renderer *r);
-REVOLC_API void free_modelentity(Renderer *r, U32 h);
-REVOLC_API void set_modelentity(Renderer *r, U32 h, const Model *model);
+REVOLC_API U32 alloc_modelentity();
+REVOLC_API void free_modelentity(U32 h);
+REVOLC_API void * storage_modelentity();
+REVOLC_API void set_modelentity(U32 h, const Model *model);
+REVOLC_API void resurrect_modelentity(U32 h, ModelEntity *dead);
 
-REVOLC_API void render_frame(Renderer *r);
+REVOLC_API void render_frame();
 
-REVOLC_API void ddraw_poly(Renderer *r, Color c, V2d *poly, U32 count);
-REVOLC_API V2d screen_to_world_point(Renderer *r, V2d p);
+REVOLC_API void ddraw_poly(Color c, V2d *poly, U32 count);
+REVOLC_API V2d screen_to_world_point(V2d p);
 
 struct ResBlob;
-REVOLC_API void on_res_reload(Renderer *r, struct ResBlob *new_blob);
+internal void renderer_on_res_reload(struct ResBlob *new_blob);
 
 #endif // REVOLC_VISUAL_RENDERER_H

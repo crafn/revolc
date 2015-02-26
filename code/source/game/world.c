@@ -3,34 +3,14 @@
 #include "game/world.h"
 #include "global/env.h"
 
-/// TEMP
-#include "visual/renderer.h"
-#include "physics/physworld.h"
-#include "resources/resblob.h"
-#include "game/aitest.h"
-
 #include <math.h>
 
 internal
 void * node_impl(U32 *size, NodeInfo *node)
 {
-	switch (node->type) {
-		case NodeTypeId_ModelEntity:
-			if (size) *size= sizeof(ModelEntity);
-			return &g_env.renderer->entities[node->impl_handle];
-		break;
-		case NodeTypeId_AiTest:
-			if (size) *size= sizeof(AiTest);
-			return (U8*)aitest_storage() + sizeof(AiTest)*node->impl_handle;
-		break;
-		case NodeTypeId_RigidBody:
-			if (size) *size= sizeof(RigidBody);
-			return &g_env.phys_world->bodies[node->impl_handle];
-		break;
-		default:
-			fail("node_impl: Unhandled type: %i", node->type);
-	}
-	return NULL;
+	if (size)
+		*size= node->type->size;
+	return (U8*)node->type->storage() + node->type->size*node->impl_handle;
 }
 
 World * create_world()
@@ -60,16 +40,8 @@ void upd_world(World *w, F64 dt)
 		if (!node->allocated)
 			continue;
 
-		switch (node->type) {
-			case NodeTypeId_ModelEntity:
-			break;
-			case NodeTypeId_AiTest:
-				upd_aitest(w, node_impl(NULL, node), 1);
-			break;
-			case NodeTypeId_RigidBody:
-			break;
-			default: fail("upd_world: Unhandled type: %i", node->type);
-		}
+		if (node->type->upd)
+			node->type->upd(w, node_impl(NULL, node), 1);
 
 		// Propagate values
 		for (U32 r_i= 0; r_i < MAX_NODE_ROUTING_COUNT; ++r_i) {
@@ -115,58 +87,30 @@ void load_world(World *w, const char *path)
 		fail("load_world: Read error");
 
 	for (U32 i= 0; i < header.node_count; ++i) {
-		// Create node from dump
-
+		// New NodeInfo from binary
 		NodeInfo dead_node;
 		fread(&dead_node, 1, sizeof(dead_node), file);
-
-		U32 node_h= alloc_node(w, dead_node.type);
+		U32 node_h= alloc_node(
+				w,
+				(NodeType*)res_by_name(
+					g_env.res_blob,
+					ResType_NodeType,
+					dead_node.type_name));
 		ensure(node_h == i); // Must retain handles because of routing
 
-		NodeInfo *node= &w->nodes[node_h];
-		memcpy(node->routing, dead_node.routing, sizeof(node->routing));
+		NodeInfo *n= &w->nodes[node_h];
+		memcpy(n->routing, dead_node.routing, sizeof(n->routing));
+		memcpy(n->type_name, dead_node.type_name, sizeof(n->type_name));
 
-		switch (dead_node.type) {
-			case NodeTypeId_ModelEntity: {
-				ModelEntity dead_impl;
-				fread(&dead_impl, 1, sizeof(dead_impl), file);
-				set_modelentity(
-						g_env.renderer,
-						node->impl_handle,
-						(Model*)res_by_name(
-							g_env.res_blob,
-							ResType_Model,
-							dead_impl.model_name));
-				ModelEntity *impl= &g_env.renderer->entities[node->impl_handle];
-				impl->pos= dead_impl.pos;
-				impl->rot= dead_impl.rot;
-			}
-			break;
-			case NodeTypeId_AiTest: {
-				AiTest dead_impl;
-				fread(&dead_impl, 1, sizeof(dead_impl), file);
-				AiTest *impl= (AiTest*)((U8*)aitest_storage() + sizeof(AiTest)*node->impl_handle);
-				*impl= dead_impl;
-			}
-			break;
-			case NodeTypeId_RigidBody: {
-				RigidBody dead_impl;
-				fread(&dead_impl, 1, sizeof(dead_impl), file);
-				set_rigidbody(
-						g_env.phys_world,
-						node->impl_handle,
-						(V2d) {dead_impl.pos.x, dead_impl.pos.y},
-						rot_z_qd(dead_impl.rot),
-						(RigidBodyDef*)res_by_name(
-							g_env.res_blob,
-							ResType_RigidBodyDef,
-							dead_impl.def_name));
-			}
-			break;
-			default: fail("load_world: Unhandled type: %i", node->type);
-		}
+		// New Node implementation from binary
+		U8 dead_impl_bytes[n->type->size]; /// @todo Alignment!!!
+		fread(dead_impl_bytes, 1, n->type->size, file);
+		U8 *impl= node_impl(NULL, n);
+		if (n->type->resurrect)
+			n->type->resurrect(n->impl_handle, dead_impl_bytes);
+		else
+			memcpy(impl, dead_impl_bytes, n->type->size);
 	}
-
 	fclose(file);
 }
 
@@ -198,7 +142,7 @@ void save_world(World *w, const char *path)
 	fclose(file);
 }
 
-U32 alloc_node(World *w, NodeTypeId type)
+U32 alloc_node(World *w, NodeType* type)
 {
 	if (w->node_count == MAX_NODE_COUNT)
 		fail("Too many nodes");
@@ -207,18 +151,8 @@ U32 alloc_node(World *w, NodeTypeId type)
 		.allocated= true,
 		.type= type
 	};
-	switch (type) {
-		case NodeTypeId_ModelEntity:
-			info.impl_handle= alloc_modelentity(g_env.renderer);
-		break;
-		case NodeTypeId_AiTest:
-			info.impl_handle= alloc_aitest();
-		break;
-		case NodeTypeId_RigidBody:
-			info.impl_handle= alloc_rigidbody(g_env.phys_world);
-		break;
-		default: fail("create_node: Unhandled type: %i", type);
-	}
+	info.impl_handle= type->alloc();
+	snprintf(info.type_name, sizeof(info.type_name), "%s", type->res.name);
 
 	while (w->nodes[w->next_node].allocated)
 		w->next_node= (w->next_node + 1) % MAX_NODE_COUNT;
@@ -234,18 +168,8 @@ void free_node(World *w, U32 handle)
 	ensure(w->nodes[handle].allocated);
 
 	U32 impl_handle= w->nodes[handle].impl_handle;
-	NodeTypeId type= w->nodes[handle].type;
-	switch (w->nodes[handle].type) {
-		case NodeTypeId_ModelEntity:
-			free_modelentity(g_env.renderer, impl_handle);
-		break;
-		case NodeTypeId_AiTest:
-		break;
-		case NodeTypeId_RigidBody:
-			free_rigidbody(g_env.phys_world, impl_handle);
-		break;
-		default: fail("destroy_node: Unhandled type: %i", type);
-	}
+	w->nodes[handle].type->free(impl_handle);
+
 	--w->node_count;
 	w->nodes[handle].allocated= false;
 }
@@ -278,4 +202,9 @@ void add_routing(	World *w,
 		.size= size,
 		.dst_node= dst_node_h
 	};
+}
+
+void world_on_res_reload(World *w, struct ResBlob* blob)
+{
+	fail("@todo world res reload");
 }

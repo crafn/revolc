@@ -23,11 +23,11 @@ typedef struct Device {
 	int win_size[2];
 	bool quit_requested;
 	F32 dt;
-	bool lmbDown;
+	bool lmb_down;
 
-	bool keyDown[KEYBOARD_KEY_COUNT];
-	bool keyPressed[KEYBOARD_KEY_COUNT];
-	bool keyReleased[KEYBOARD_KEY_COUNT];
+	bool key_down[KEYBOARD_KEY_COUNT];
+	bool key_pressed[KEYBOARD_KEY_COUNT];
+	bool key_released[KEYBOARD_KEY_COUNT];
 
 	struct DevicePlatformData* data;
 } Device;

@@ -156,32 +156,33 @@ void recreate_texture_atlas(Renderer *r, ResBlob *blob)
 	gl_check_errors("recreate_texture_atlas: end");
 }
 
-
-Renderer* create_renderer()
+void create_renderer()
 {
-	Renderer *rend= zero_malloc(sizeof(*rend));
-	rend->cam_pos.y= 10.0;
-	rend->cam_pos.z= 20.0;
-	rend->cam_fov= 3.141/2.0;
+	Renderer *r= zero_malloc(sizeof(*r));
 
-	recreate_texture_atlas(rend, g_env.res_blob);
+	r->cam_pos.y= 10.0;
+	r->cam_pos.z= 20.0;
+	r->cam_fov= 3.141/2.0;
 
-	if (!g_env.renderer)
-		g_env.renderer= rend;
+	recreate_texture_atlas(r, g_env.res_blob);
 
-	return rend;
+	ensure(!g_env.renderer);
+	g_env.renderer= r;
 }
 
-void destroy_renderer(Renderer *r)
+void destroy_renderer()
 {
-	if (g_env.renderer == r)
-		g_env.renderer= NULL;
+	Renderer *r= g_env.renderer;
+	g_env.renderer= NULL;
+
 	glDeleteTextures(1, &r->atlas_gl_id);
 	free(r);
 }
 
-U32 alloc_modelentity(Renderer *r)
+U32 alloc_modelentity()
 {
+	Renderer *r= g_env.renderer;
+
 	if (r->entity_count >= MAX_MODELENTITY_COUNT)
 		fail("Too many modelentities");
 
@@ -195,15 +196,22 @@ U32 alloc_modelentity(Renderer *r)
 	return r->next_entity;
 }
 
-void free_modelentity(Renderer *r, U32 h)
+void free_modelentity(U32 h)
 {
+	Renderer *r= g_env.renderer;
+
 	ensure(h < MAX_MODELENTITY_COUNT);
 	r->entities[h]= (ModelEntity) { .allocated= false };
 	--r->entity_count;
 }
 
-void set_modelentity(Renderer *r, U32 h, const Model *model)
+void * storage_modelentity()
+{ return g_env.renderer->entities; }
+
+void set_modelentity(U32 h, const Model *model)
 {
+	Renderer *r= g_env.renderer;
+
 	ModelEntity *e= &r->entities[h];
 	Texture *tex= model_texture(model, 0);
 	e->pos.x= 0; e->pos.y= 0; e->pos.z= 0;
@@ -219,6 +227,19 @@ void set_modelentity(Renderer *r, U32 h, const Model *model)
 	e->mesh_i_count= model_mesh(model)->i_count;
 }
 
+void resurrect_modelentity(U32 h, ModelEntity *dead)
+{
+	set_modelentity(
+			h,
+			(Model*)res_by_name(
+				g_env.res_blob,
+				ResType_Model,
+				dead->model_name));
+	ModelEntity *e= &g_env.renderer->entities[h];
+	e->pos= dead->pos;
+	e->rot= dead->rot;
+}
+
 internal
 int entity_cmp(const void *e1, const void *e2)
 {
@@ -228,8 +249,10 @@ int entity_cmp(const void *e1, const void *e2)
 	return (a < b) - (a > b);
 }
 
-void render_frame(Renderer *r)
+void render_frame()
 {
+	Renderer *r= g_env.renderer;
+
 	U32 total_v_count= 0;
 	U32 total_i_count= 0;
 	for (U32 i= 0; i < MAX_MODELENTITY_COUNT; ++i) {
@@ -349,8 +372,10 @@ void render_frame(Renderer *r)
 	destroy_vao(&vao);
 }
 
-void ddraw_poly(Renderer *r, Color c, V2d *poly, U32 count)
+void ddraw_poly(Color c, V2d *poly, U32 count)
 {
+	Renderer *r= g_env.renderer;
+
 	if (r->ddraw_v_count + count > MAX_DEBUG_DRAW_VERTICES)
 		critical_print("ddraw_poly: Too many vertices");
 	if (r->ddraw_i_count + count > MAX_DEBUG_DRAW_INDICES)
@@ -382,8 +407,10 @@ void ddraw_poly(Renderer *r, Color c, V2d *poly, U32 count)
 	}
 }
 
-V2d screen_to_world_point(Renderer *r, V2d p)
+V2d screen_to_world_point(V2d p)
 {
+	Renderer *r= g_env.renderer;
+
 	/// @todo Aspect ratio
 	V2d view_p= {
 		p.x*tan(r->cam_fov*0.5)*r->cam_pos.z,
@@ -398,8 +425,10 @@ V2d screen_to_world_point(Renderer *r, V2d p)
 	return result;
 }
 
-void on_res_reload(Renderer *r, ResBlob *new_blob)
+void renderer_on_res_reload(ResBlob *new_blob)
 {
+	Renderer *r= g_env.renderer;
+
 	recreate_texture_atlas(r, new_blob);
 
 	for (U32 e_i= 0; e_i < MAX_MODELENTITY_COUNT; ++e_i) {
@@ -412,6 +441,6 @@ void on_res_reload(Renderer *r, ResBlob *new_blob)
 					new_blob,
 					ResType_Model,
 					e->model_name);
-		set_modelentity(r, e_i, m);
+		set_modelentity(e_i, m);
 	}
 }
