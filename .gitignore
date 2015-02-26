@@ -36,5 +36,5 @@ code/codegen
 *.fuse*
 
 # Generated
-code/source/global/rtti.h
-code/source/global/rtti.c
+code/source/global/generated_rtti.h
+code/source/global/generated_rtti.c
