@@ -7,9 +7,11 @@
 #include "core/matrix.c"
 #include "core/string.c"
 #include "game/aitest.c"
+#include "game/nodegroupdef.c"
 #include "game/nodetype.c"
 #include "game/world.c"
 #include "global/env.c"
+#include "global/rtti.c"
 #include "main.c"
 #include "physics/physworld.c"
 #include "physics/rigidbodydef.c"
@@ -26,5 +28,5 @@
 #include "visual/vao.c"
 
 #ifndef CODEGEN
-#	include "global/rtti.c"
+#	include "global/generated_rtti.c"
 #endif

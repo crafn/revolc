@@ -1,20 +1,24 @@
+#include "global/rtti.h"
 #include "nodetype.h"
-#include "platform/dll.h"
 #include "resources/resblob.h"
 
 void init_nodetype(NodeType *node)
 {
+	bool resurrect_by_memcpy=
+		!strcmp(node->resurrect_func_name, "memcpy");
+
 	node->alloc=
-		(AllocNodeImpl)query_dll_sym(main_program_dll, node->alloc_func_name);
+		(AllocNodeImpl)func_ptr(node->alloc_func_name);
 	node->free=
-		(FreeNodeImpl)query_dll_sym(main_program_dll, node->free_func_name);
+		(FreeNodeImpl)func_ptr(node->free_func_name);
 	node->upd=
-		(UpdNodeImpl)query_dll_sym(main_program_dll, node->upd_func_name);
+		(UpdNodeImpl)func_ptr(node->upd_func_name);
 	node->storage=
-		(StorageNodeImpl)query_dll_sym(main_program_dll, node->storage_func_name);
-	if (strcmp(node->resurrect_func_name, "memcpy") != 0)
+		(StorageNodeImpl)func_ptr(node->storage_func_name);
+	if (!resurrect_by_memcpy) {
 		node->resurrect=
-			(ResurrectNodeImpl)query_dll_sym(main_program_dll, node->resurrect_func_name);
+			(ResurrectNodeImpl)func_ptr(node->resurrect_func_name);
+	}
 
 	if (!node->alloc)
 		fail("Func not found: %s", node->alloc_func_name);
@@ -24,18 +28,15 @@ void init_nodetype(NodeType *node)
 		fail("Func not found: %s", node->upd_func_name);
 	if (!node->storage)
 		fail("Func not found: %s", node->storage_func_name);
-	if (!node->resurrect && strcmp(node->resurrect_func_name, "memcpy") != 0)
+	if (!node->resurrect && !resurrect_by_memcpy)
 		fail("Func not found: %s", node->resurrect_func_name);
 
 	// Figure out node struct size by custom RTTI
-	char postfix[]= "_size";
-	char size_sym[strlen(node->res.name) + strlen(postfix) + 1];
-	snprintf(size_sym, sizeof(size_sym), "%s%s", node->res.name, postfix);
-	U32 *size_ptr= (U32*)query_dll_sym(main_program_dll, size_sym);
-	if (!size_ptr)
+
+	node->size= struct_size(node->res.name);
+	if (!node->size)
 		fail("Couldn't find struct %s size. Has codegen run?",
 				node->res.name);
-	node->size= *size_ptr;
 }
 
 int json_nodetype_to_blob(struct BlobBuf *buf, JsonTok j)
@@ -46,26 +47,16 @@ int json_nodetype_to_blob(struct BlobBuf *buf, JsonTok j)
 	JsonTok j_storage= json_value_by_key(j, "storage_func");
 	JsonTok j_resurrect= json_value_by_key(j, "resurrect_func");
 
-	if (json_is_null(j_alloc)) {
-		critical_print("Attrib 'alloc_func' missing");
-		return 1;
-	}
-	if (json_is_null(j_free)) {
-		critical_print("Attrib 'free_func' missing");
-		return 1;
-	}
-	if (json_is_null(j_upd)) {
-		critical_print("Attrib 'upd_func' missing");
-		return 1;
-	}
-	if (json_is_null(j_storage)) {
-		critical_print("Attrib 'storage_func' missing");
-		return 1;
-	}
-	if (json_is_null(j_resurrect)) {
-		critical_print("Attrib 'resurrect_func' missing");
-		return 1;
-	}
+	if (json_is_null(j_alloc))
+		RES_ATTRIB_MISSING("alloc_func");
+	if (json_is_null(j_free))
+		RES_ATTRIB_MISSING("free_func");
+	if (json_is_null(j_upd))
+		RES_ATTRIB_MISSING("upd_func");
+	if (json_is_null(j_storage))
+		RES_ATTRIB_MISSING("storage");
+	if (json_is_null(j_resurrect))
+		RES_ATTRIB_MISSING("resurrect_func");
 
 	NodeType n= {};
 	snprintf(

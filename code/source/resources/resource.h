@@ -6,6 +6,9 @@
 typedef U64 BlobOffset; // Offset from the beginning of a resource blob
 #define RES_NAME_SIZE 16
 
+#define RES_ATTRIB_MISSING(name) \
+	do { critical_print("Attrib '%s' missing", name); return 1; } while(0)
+
 typedef enum {
 	ResType_None,
 #define RESOURCE(x, init, deinit, blobify) ResType_ ## x,

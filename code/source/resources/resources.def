@@ -1,5 +1,6 @@
 #ifdef HEADERS
 
+#include "game/nodegroupdef.h"
 #include "game/nodetype.h"
 #include "physics/rigidbodydef.h"
 #include "visual/texture.h"
@@ -15,5 +16,6 @@ RESOURCE(Model, NULL, NULL, json_model_to_blob)
 RESOURCE(ShaderSource, init_shadersource, deinit_shadersource, json_shadersource_to_blob)
 RESOURCE(RigidBodyDef, NULL, NULL, json_rigidbodydef_to_blob)
 RESOURCE(NodeType, init_nodetype, NULL, json_nodetype_to_blob)
+RESOURCE(NodeGroupDef, NULL, NULL, json_nodegroupdef_to_blob)
 
 #endif
