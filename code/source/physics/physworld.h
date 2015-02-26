@@ -12,9 +12,13 @@
 
 typedef struct RigidBody {
 	bool allocated;
+
+	/// @todo Mechanism for separating input variables
+	V2d input_force;
+	char def_name[RES_NAME_SIZE];
+
 	V3d pos;
 	Qd rot;
-	char def_name[RES_NAME_SIZE];
 	cpShape *cp_shapes[MAX_SHAPES_PER_BODY];
 	U8 cp_shape_count;
 	cpBody *cp_body;

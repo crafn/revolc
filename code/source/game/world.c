@@ -11,9 +11,9 @@
 #include <math.h>
 
 internal
-T3d temptest_t3d_storage[MAX_NODE_COUNT];
+AiTest temptest_aitest_storage[MAX_NODE_COUNT];
 internal
-U32 next_t3d= 0;
+U32 next_aitest= 0;
 
 internal
 void * node_impl(U32 *size, NodeInfo *node)
@@ -23,9 +23,9 @@ void * node_impl(U32 *size, NodeInfo *node)
 			if (size) *size= sizeof(ModelEntity);
 			return &g_env.renderer->entities[node->impl_handle];
 		break;
-		case NodeType_T3d:
-			if (size) *size= sizeof(T3d);
-			return &temptest_t3d_storage[node->impl_handle];
+		case NodeType_AiTest:
+			if (size) *size= sizeof(AiTest);
+			return &temptest_aitest_storage[node->impl_handle];
 		break;
 		case NodeType_RigidBody:
 			if (size) *size= sizeof(RigidBody);
@@ -37,15 +37,15 @@ void * node_impl(U32 *size, NodeInfo *node)
 	return NULL;
 }
 
-void upd_t3d_nodes(	World *w,
-					T3d *t,
-					U32 count)
+void upd_aitest_nodes(	World *w,
+						AiTest *t,
+						U32 count)
 {
+	V2d target= {0.0, 30.0};
 	for (U32 i= 0; i < count; ++i, ++t) {
-		int asd= (int)t;
-		t->pos.x= sin(asd + w->time*0.7)*3.0;
-		t->pos.y= sin(asd*asd + w->time*0.3427)*1.5;
-		t->pos.z= sin(asd)*5 + 6;
+		V2d dif= sub_v2d(target, t->input_pos);
+		F64 r2= length_sqr_v2d(dif);
+		t->force= scaled_v2d(dif, 1000.0/(r2 + 10.0));
 	}
 }
 
@@ -79,8 +79,8 @@ void upd_world(World *w, F64 dt)
 		switch (node->type) {
 			case NodeType_ModelEntity:
 			break;
-			case NodeType_T3d:
-				upd_t3d_nodes(w, node_impl(NULL, node), 1);
+			case NodeType_AiTest:
+				upd_aitest_nodes(w, node_impl(NULL, node), 1);
 			break;
 			case NodeType_RigidBody:
 			break;
@@ -158,10 +158,10 @@ void load_world(World *w, const char *path)
 				impl->rot= dead_impl.rot;
 			}
 			break;
-			case NodeType_T3d: {
-				T3d dead_impl;
+			case NodeType_AiTest: {
+				AiTest dead_impl;
 				fread(&dead_impl, 1, sizeof(dead_impl), file);
-				T3d *impl= &temptest_t3d_storage[node->impl_handle];
+				AiTest *impl= &temptest_aitest_storage[node->impl_handle];
 				*impl= dead_impl;
 			 }
 			break;
@@ -227,8 +227,8 @@ U32 alloc_node(World *w, NodeType type)
 		case NodeType_ModelEntity:
 			info.impl_handle= alloc_modelentity(g_env.renderer);
 		break;
-		case NodeType_T3d:
-			info.impl_handle= next_t3d++;
+		case NodeType_AiTest:
+			info.impl_handle= next_aitest++;
 		break;
 		case NodeType_RigidBody:
 			info.impl_handle= alloc_rigidbody(g_env.phys_world);
@@ -255,7 +255,7 @@ void free_node(World *w, U32 handle)
 		case NodeType_ModelEntity:
 			free_modelentity(g_env.renderer, impl_handle);
 		break;
-		case NodeType_T3d:
+		case NodeType_AiTest:
 		break;
 		case NodeType_RigidBody:
 			free_rigidbody(g_env.phys_world, impl_handle);
@@ -273,8 +273,8 @@ U32 node_impl_handle(World *w, U32 node_handle)
 }
 
 void add_routing(	World *w,
-					U32 dst_node_h, U32 dst_offset,
 					U32 src_node_h, U32 src_offset,
+					U32 dst_node_h, U32 dst_offset,
 					U32 size)
 {
 	ensure(src_node_h < MAX_NODE_COUNT);

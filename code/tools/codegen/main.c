@@ -118,6 +118,9 @@ int main(int argc, char **argv)
 		examine_symbol_list(file, file_scope->symbols);
 	} END_FOR_EACH_PTR_NOTAG(file);
 
+	//
+	// Code generation
+	//
 
 	FILE *h= fopen("./source/global/rtti.h", "wb");
 	assert(h);

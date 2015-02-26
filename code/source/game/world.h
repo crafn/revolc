@@ -7,14 +7,14 @@
 #include "global/cfg.h"
 #include "visual/modelentity.h"
 
-typedef struct T3d {
-	V3d pos;
-	Qd rot;
-} T3d;
+typedef struct AiTest {
+	V2d input_pos;
+	V2d force;
+} AiTest;
 
 typedef enum {
 	NodeType_ModelEntity,
-	NodeType_T3d,
+	NodeType_AiTest,
 	NodeType_RigidBody,
 } NodeType;
 
@@ -44,9 +44,9 @@ typedef struct World {
 
 
 REVOLC_API
-void upd_t3d_nodes(	World *w,
-					T3d *t,
-					U32 count);
+void upd_aitest_nodes(	World *w,
+						AiTest *t,
+						U32 count);
 
 REVOLC_API
 void upd_modelentity_nodes(	World *w,
@@ -65,8 +65,8 @@ REVOLC_API U32 alloc_node(World *w, NodeType type);
 REVOLC_API void free_node(World *w, U32 handle);
 REVOLC_API U32 node_impl_handle(World *w, U32 node_handle);
 REVOLC_API void add_routing(World *w,
-							U32 dst_node_h, U32 dst_offset,
 							U32 src_node_h, U32 src_offset,
+							U32 dst_node_h, U32 dst_offset,
 							U32 size);
 
 #endif // REVOLC_GAME_WORLD_H

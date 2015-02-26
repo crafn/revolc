@@ -42,6 +42,7 @@ void spawn_entity(World *world, PhysWorld *phys_world, Renderer *rend, ResBlob *
 	Model *model= (Model*)res_by_name(blob, ResType_Model, name);
 	U32 b_node_h= alloc_node(world, NodeType_RigidBody);
 	U32 m_node_h= alloc_node(world, NodeType_ModelEntity);
+	U32 a_node_h= alloc_node(world, NodeType_AiTest);
 
 	U32 modelentity_h= node_impl_handle(world, m_node_h);
 	set_modelentity(rend, modelentity_h, model);
@@ -52,12 +53,21 @@ void spawn_entity(World *world, PhysWorld *phys_world, Renderer *rend, ResBlob *
 			(RigidBodyDef*)res_by_name(blob, ResType_RigidBodyDef, name));
 
 	add_routing(world,
-			m_node_h, offsetof(ModelEntity, pos),
 			b_node_h, offsetof(RigidBody, pos),
+			a_node_h, offsetof(AiTest, input_pos),
+			sizeof(V2d));
+	add_routing(world,
+			a_node_h, offsetof(AiTest, force),
+			b_node_h, offsetof(RigidBody, input_force),
+			sizeof(V2d));
+
+	add_routing(world,
+			b_node_h, offsetof(RigidBody, pos),
+			m_node_h, offsetof(ModelEntity, pos),
 			sizeof(V3d));
 	add_routing(world,
-			m_node_h, offsetof(ModelEntity, rot),
 			b_node_h, offsetof(RigidBody, rot),
+			m_node_h, offsetof(ModelEntity, rot),
 			sizeof(Qd));
 }
 

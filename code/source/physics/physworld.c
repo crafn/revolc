@@ -184,9 +184,21 @@ void phys_draw_poly(
 
 void upd_physworld(PhysWorld *w, F32 dt)
 {
-	if (dt > 1.0/30.0)
-		dt= 1.0/30.0;
+	dt= 1.0/60.0;
 
+	for (U32 i= 0; i < MAX_RIGIDBODY_COUNT; ++i) {
+		RigidBody *b= &w->bodies[i];
+		if (!b->allocated)
+			continue;
+
+		if (b->input_force.x != 0.0 || b->input_force.y != 0.0) {
+			cpBodyApplyForceAtWorldPoint(
+					b->cp_body,
+					to_cpv(b->input_force),
+					cpv(b->pos.x, b->pos.y));
+			b->input_force= (V2d) {};
+		}
+	}
 	/// @todo Accumulation
 	cpSpaceStep(w->space, dt);
 
