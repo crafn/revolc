@@ -51,6 +51,6 @@ REVOLC_API void add_routing(World *w,
 
 struct ResBlob;
 internal
-void world_on_res_reload(World *w, struct ResBlob* blob);
+void world_on_res_reload(struct ResBlob* blob);
 
 #endif // REVOLC_GAME_WORLD_H

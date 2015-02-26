@@ -204,7 +204,13 @@ void add_routing(	World *w,
 	};
 }
 
-void world_on_res_reload(World *w, struct ResBlob* blob)
+void world_on_res_reload(struct ResBlob* blob)
 {
-	fail("@todo world res reload");
+	for (U32 i= 0; i < MAX_NODE_COUNT; ++i) {
+		NodeInfo *n= &g_env.world->nodes[i];
+		if (!n->allocated)
+			continue;
+
+		n->type= (NodeType*)res_by_name(blob, ResType_NodeType, n->type_name);
+	}
 }
