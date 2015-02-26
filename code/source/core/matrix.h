@@ -3,7 +3,7 @@
 
 #include "build.h"
 
-typedef struct {
+typedef struct M44f {
 	// Column-major
 	F32 e[16];
 } M44f;

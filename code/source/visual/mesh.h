@@ -11,7 +11,7 @@ typedef enum { MeshType_tri, MeshType_point } MeshType;
 typedef U32 MeshIndexType;
 #define MESH_INDEX_GL_TYPE GL_UNSIGNED_INT
 
-typedef struct {
+typedef struct VertexAttrib {
 	const GLchar *name;
 	GLint size;
 	GLenum type;	
@@ -23,7 +23,7 @@ REVOLC_API void vertex_attributes(MeshType type, const VertexAttrib **attribs, U
 REVOLC_API bool is_indexed_mesh(MeshType type);
 REVOLC_API U32 vertex_size(MeshType type);
 
-typedef struct {
+typedef struct TriMeshVertex {
 	V3f pos;
 	V3f uv;
 	Color color;
@@ -31,7 +31,7 @@ typedef struct {
 	V3f tangent;
 } TriMeshVertex ALIGNED(64);
 
-typedef struct {
+typedef struct Mesh {
 	Resource res;
 	MeshType mesh_type;
 	U32 v_count;

@@ -1,5 +1,9 @@
 #!/bin/sh
 mkdir -p ../builds/linux64
+if [ ! -f ./codegen ]; then
+	./build_codegen
+fi
+./codegen > /dev/null 2>&1
 cd ./source
 clang -std=gnu99 -O0 -Wall -march=native -ffast-math -g -I. \
 	-I ../deps/common -I ../deps/common/chipmunk/include \

@@ -46,6 +46,7 @@ IDENT(force);
 IDENT(address_space);
 IDENT(context);
 IDENT(mode); IDENT(__mode__);
+IDENT(node_struct); IDENT(__node_struct__);
 IDENT(QI); IDENT(__QI__);
 IDENT(HI); IDENT(__HI__);
 IDENT(SI); IDENT(__SI__);

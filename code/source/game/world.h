@@ -7,7 +7,7 @@
 #include "global/cfg.h"
 #include "visual/modelentity.h"
 
-typedef struct {
+typedef struct T3d {
 	V3d pos;
 	Qd rot;
 } T3d;
@@ -18,7 +18,7 @@ typedef enum {
 	NodeType_RigidBody,
 } NodeType;
 
-typedef struct {
+typedef struct SlotRouting {
 	U8 allocated;
 	U8 src_offset;
 	U8 dst_offset;
@@ -26,7 +26,7 @@ typedef struct {
 	U32 dst_node;
 } SlotRouting;
 
-typedef struct {
+typedef struct NodeInfo {
 	bool allocated;
 	NodeType type;
 	U32 impl_handle; /// e.g. Handle to ModelEntity

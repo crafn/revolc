@@ -26,7 +26,7 @@ int json_res_to_blob(BlobBuf *buf, JsonTok j, ResType res_t)
 	return 1;
 }
 
-typedef struct {
+typedef struct ParsedJsonFile {
 	jsmntok_t *tokens;
 	char *json;
 	JsonTok root;
@@ -373,7 +373,7 @@ void blob_write(BlobBuf *buf, const void *data, U32 byte_count)
 /// Used only in blob making
 /// Information gathered at first scan
 /// Used to write header and perform second scan
-typedef struct {
+typedef struct ResInfo {
 	Resource header;
 	JsonTok tok;
 } ResInfo;

@@ -47,7 +47,7 @@ M44f cam_matrix(const Renderer *r)
 }
 
 /// Helper in `recreate_texture_atlas`
-typedef struct {
+typedef struct TexInfo {
 	Texture *tex;
 	V2i reso;
 	V3f *atlas_uv;

@@ -104,7 +104,7 @@ void upd_world(World *w, F64 dt)
 	}
 }
 
-typedef struct {
+typedef struct SaveHeader {
 	U32 version;
 	U32 node_count;
 } PACKED SaveHeader;

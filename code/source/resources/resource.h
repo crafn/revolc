@@ -20,7 +20,7 @@ const char * restype_to_str(ResType type);
 struct ResBlob;
 struct BlobBuf;
 
-typedef struct {
+typedef struct Resource {
 	ResType type;
 	char name[RES_NAME_SIZE];
 	struct ResBlob *blob;

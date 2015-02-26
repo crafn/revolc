@@ -34,3 +34,7 @@ code/codegen
 *~
 *.swp
 *.fuse*
+
+# Generated
+code/source/global/rtti.h
+code/source/global/rtti.c

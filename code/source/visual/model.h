@@ -7,12 +7,12 @@
 #include "texture.h"
 #include "mesh.h"
 
-typedef struct {
+typedef struct BlendFunc {
 	/// @todo
 } BlendFunc;
 
 #define MODEL_TEX_COUNT 3
-typedef struct {
+typedef struct Model {
 	Resource res;
 	//F32 color[4];
 	//BlendFunc blend_func;

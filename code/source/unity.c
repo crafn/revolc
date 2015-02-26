@@ -21,3 +21,7 @@
 #include "visual/shadersource.c"
 #include "visual/texture.c"
 #include "visual/vao.c"
+
+#ifndef CODEGEN
+#	include "global/rtti.c"
+#endif

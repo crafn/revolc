@@ -6,7 +6,7 @@
 #include "resources/resource.h"
 #include "mesh.h" // MeshType
 
-typedef struct {
+typedef struct ShaderSource {
 	Resource res;
 	// NULL-terminated strings
 	BlobOffset vs_src_offset;

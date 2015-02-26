@@ -6,7 +6,7 @@
 
 #include <jsmn/jsmn.h>
 
-typedef struct {
+typedef struct JsonTok {
 	const char *json_path;
 	const char *json; // Strings and primitives are null-terminated
 	jsmntok_t *tok;

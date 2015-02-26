@@ -6,11 +6,11 @@
 #include "core/vector.h"
 #include "resources/resource.h"
 
-typedef struct {
+typedef struct Texel {
 	U8 r, g, b, a;
 } Texel;
 
-typedef struct {
+typedef struct Texture {
 	Resource res;
 	V2i reso;
 

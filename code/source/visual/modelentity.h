@@ -8,7 +8,7 @@
 #include "mesh.h"
 
 
-typedef struct {
+typedef struct ModelEntity {
 	bool allocated;
 	V3d pos;
 	Qd rot;

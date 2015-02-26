@@ -5,27 +5,27 @@
 
 /// @todo Generate this file
 
-typedef struct {
+typedef struct V3d {
 	F64 x, y, z;
 } V3d;
 
-typedef struct {
+typedef struct V2d {
 	F64 x, y;
 } V2d;
 
-typedef struct {
+typedef struct Color {
 	F32 r, g, b, a;
 } Color;
 
-typedef struct {
+typedef struct V3f {
 	F32 x, y, z;
 } V3f;
 
-typedef struct {
+typedef struct V2f {
 	F32 x, y;
 } V2f;
 
-typedef struct {
+typedef struct V2i {
 	S32 x, y;
 } V2i;
 

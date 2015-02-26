@@ -8,7 +8,7 @@ struct PhysWorld;
 struct ResBlob;
 struct Renderer;
 
-typedef struct {
+typedef struct Env {
 	struct Device* device;
 	struct PhysWorld* phys_world;
 	struct Renderer* renderer;

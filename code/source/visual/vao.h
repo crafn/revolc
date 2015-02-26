@@ -4,7 +4,7 @@
 #include "build.h"
 #include "mesh.h"
 
-typedef struct {
+typedef struct Vao {
 	U32 vao_id;
 	U32 vbo_id;
 	U32 ibo_id;

@@ -109,7 +109,7 @@ enum {
 };
 
 enum {
-	SNone = 0, STypedef, SAuto, SRegister, SExtern, SStatic, SForced
+	SNone = 0, STypedef, SAuto, SRegister, SExtern, SStatic, SForced 
 };
 
 static struct symbol_op typedef_op = {
