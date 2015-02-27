@@ -31,7 +31,6 @@ REVOLC_API void destroy_renderer();
 REVOLC_API U32 resurrect_modelentity(const ModelEntity *dead);
 REVOLC_API void free_modelentity(U32 h);
 REVOLC_API void * storage_modelentity();
-REVOLC_API void set_modelentity(U32 h, const Model *model);
 
 REVOLC_API void render_frame();
 

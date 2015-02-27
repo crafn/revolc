@@ -86,9 +86,11 @@ int json_nodegroupdef_to_blob(struct BlobBuf *buf, JsonTok j)
 			U32 size= member_size(node->type_name, field_str);
 			U32 offset= member_offset(node->type_name, field_str);
 
+			const U32 value_size= strlen(value_str) + 1;
 			ensure(offset + size < MAX_DEFAULT_STRUCT_SIZE);
-			ensure(strlen(value_str) <= offset);
-			memcpy(node->default_struct + offset, value_str, strlen(value_str));
+			ensure(value_size <= size);
+			memcpy(node->default_struct + offset, value_str, value_size);
+			memset(node->default_struct_set_bytes + offset, 1, value_size);
 		}
 
 		++def.node_count;

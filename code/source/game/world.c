@@ -70,31 +70,39 @@ int node_cmp(const void * a_, const void * b_)
 		return alloc_cmp;
 	} else { 
 		int str_cmp= strcmp(a->type_name, b->type_name);
-		if (!str_cmp)
+		if (str_cmp)
 			return str_cmp;
 		else
 			return	(a->impl_handle < b->impl_handle) -
-					(b->impl_handle > a->impl_handle);
+					(a->impl_handle > b->impl_handle);
 	}
 }
-
+ 
 void upd_world(World *w, F64 dt)
 {
 	memcpy(w->sort_space, w->nodes, sizeof(w->nodes));
-	qsort(w->sort_space, MAX_NODE_COUNT, sizeof(*w->nodes), node_cmp);
+	/// @todo	Optimize sorting -- this qsort causes a major fps drop.
+	///			Maybe don't sort everything again every frame?
+	///			Maybe calculate priorities beforehand for fast cmp?
+	///			See clover/code/source/nodes/updateline.cpp for priorization
+	//qsort(w->sort_space, MAX_NODE_COUNT, sizeof(*w->nodes), node_cmp);
 
 	U32 node_i= 0;
 	U32 updated_count= 0;
+	U32 batch_count= 0;
 	while (node_i < MAX_NODE_COUNT) {
 		if (!w->sort_space[node_i].allocated)
 			break; // At the end
 
 		NodeInfo *node= &w->sort_space[node_i];
-		U32 batch_begin_i= node_i;
-		NodeType *batch_begin_type= node->type;
+		const U32 batch_begin_i= node_i;
+		const U32 batch_begin_impl_handle= node->impl_handle;
+		const NodeType *batch_begin_type= node->type;
 
 		while (	node_i < MAX_NODE_COUNT &&
-				node->type == batch_begin_type) {
+				node->type == batch_begin_type &&
+				node->impl_handle ==	batch_begin_impl_handle +
+										batch_begin_i - node_i) {
 			ensure(node->allocated);
 			++node_i;
 			++node;
@@ -109,6 +117,7 @@ void upd_world(World *w, F64 dt)
 					node_impl(NULL, &w->sort_space[batch_begin_i]),
 					batch_size);
 		}
+		++batch_count;
 
 		// Propagate values
 		for (U32 src_i= batch_begin_i; src_i < node_i; ++src_i) {
@@ -129,6 +138,8 @@ void upd_world(World *w, F64 dt)
 			}
 		}
 	}
+
+	//debug_print("upd batch count: %i", batch_count);
 }
 
 typedef struct SaveHeader {
@@ -230,33 +241,41 @@ void create_nodes(	World *w,
 
 	// Create nodes
 	for (U32 node_i= 0; node_i < def->node_count; ++node_i) {
-		const NodeGroupDef_Node *node= &def->nodes[node_i];
+		const NodeGroupDef_Node *node_def= &def->nodes[node_i];
 		/// @todo Don't query NodeType
 		U32 h= alloc_node_without_impl(
 							w,
 							(NodeType*)res_by_name(	g_env.res_blob,
 													ResType_NodeType,
-													node->type_name),
+													node_def->type_name),
 							group_id);
 		handles[node_i]= h;
+		NodeInfo *node= &w->nodes[h];
 
-		U8 default_struct[sizeof(node->default_struct)];
-		memcpy(default_struct, node->default_struct, sizeof(node->default_struct));
+		U8 default_struct[sizeof(node_def->default_struct)]= {};
+		if (node->type->init)
+			node->type->init(default_struct);
 
-		// Apply init_vals
+		// Default values in NodeGroupDef override struct init value
+		for (U32 i= 0; i < node_def->default_struct_size; ++i) {
+			if (node_def->default_struct_set_bytes[i])
+				default_struct[i]= node_def->default_struct[i];
+		}
+
+		// Passed init values override default values of NodeGroupDef
 		for (U32 i= 0; i < init_vals_count; ++i) {
 			const SlotVal *val= &init_vals[i];
-			if (strcmp(val->node_name, node->name))
+			if (strcmp(val->node_name, node_def->name))
 				continue;
 
 			/// @todo Don't do this. Slow. Or make RTTI fast.
-			U32 size= member_size(node->type_name, val->member_name);
-			U32 offset= member_offset(node->type_name, val->member_name);
+			U32 size= member_size(node_def->type_name, val->member_name);
+			U32 offset= member_offset(node_def->type_name, val->member_name);
 			ensure(val->size <= size);
 			memcpy(default_struct + offset, val->data, val->size);
 		}
 
-		// Resurrect impl from default value
+		// Resurrect impl from constructed value
 		resurrect_node_impl(&w->nodes[h], default_struct);
 	}
 

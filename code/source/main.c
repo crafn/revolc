@@ -5,6 +5,7 @@
 #include "core/vector.h"
 #include "game/aitest.h"
 #include "game/world.h"
+#include "game/worldgen.h"
 #include "global/env.h"
 #include "physics/physworld.h"
 #include "platform/device.h"
@@ -16,6 +17,7 @@
 #include <string.h>
 #include <math.h>
 #include <stdlib.h>
+#include <time.h>
 
 #define DEFAULT_RES_ROOT "../../resources/gamedata/"
 
@@ -28,11 +30,6 @@ void make_main_blob()
 		free(res_paths[i]);
 	free(res_paths);
 }
-
-#define WITH_DEREF_SIZEOF(x) x, sizeof(*(x))
-#define WITH_STR_SIZE(x) x, (strlen(x) + 1)
-#define ARRAY_COUNT(x) (sizeof(x)/sizeof(*x))
-#define WITH_ARRAY_COUNT(x) x, (sizeof(x)/sizeof(*x))
 
 internal
 void spawn_entity(World *world, ResBlob *blob, V2d pos)
@@ -58,6 +55,8 @@ void spawn_entity(World *world, ResBlob *blob, V2d pos)
 
 int main(int argc, const char **argv)
 {
+	ensure(sizeof(bool) == 1 && "Codegen relies on this");
+
 	Device *d= plat_init("Revolc engine", 800, 600);
 
 	if (!file_exists(DEFAULT_BLOB_PATH))
@@ -70,18 +69,22 @@ int main(int argc, const char **argv)
 	create_physworld();
 	World *world= g_env.world= create_world();
 
-	if (file_exists(SAVEFILE_PATH)) {
+	if (file_exists(SAVEFILE_PATH))
 		load_world(world, SAVEFILE_PATH);
-	} else {
-		for (int i= 0; i < 50; ++i) {
-			spawn_entity(
-					world, blob,
-					(V2d) {sin(i), 1 + cos(i)});
-		}
-	}
+	else
+		generate_world(world, (U32)time(NULL));
 
+	F64 time_accum= 0.0; // For fps
+	U32 frame= 0;
 	while (!d->quit_requested) {
 		plat_update(d);
+		time_accum += d->dt;
+		if (frame++ == 60) {
+			debug_print("fps: %f", frame/time_accum);
+			frame= 0;
+			time_accum= 0;
+		}
+
 		{ // User input
 			V2d cursor= {
 				2.0*d->cursor_pos[0]/d->win_size[0] - 1.0,

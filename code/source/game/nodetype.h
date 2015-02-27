@@ -5,6 +5,7 @@
 #include "resources/resource.h"
 
 struct World;
+typedef void (*InitNodeImpl)(const void *data);
 typedef U32 (*ResurrectNodeImpl)(const void *dead);
 typedef void (*FreeNodeImpl)(U32 handle);
 typedef void * (*StorageNodeImpl)();
@@ -17,12 +18,14 @@ typedef void (*UpdNodeImpl)(struct World *,
 typedef struct NodeType {
 	Resource res;
 
+	char init_func_name[MAX_FUNC_NAME_SIZE];
 	char resurrect_func_name[MAX_FUNC_NAME_SIZE];
 	char free_func_name[MAX_FUNC_NAME_SIZE];
 	char upd_func_name[MAX_FUNC_NAME_SIZE];
 	char storage_func_name[MAX_FUNC_NAME_SIZE];
 
 	// Cached
+	InitNodeImpl init;
 	ResurrectNodeImpl resurrect;
 	FreeNodeImpl free;
 	StorageNodeImpl storage;

@@ -99,6 +99,7 @@ int main(int argc, char **argv)
 	/// @todo Don't hard-code
 	char *sparse_argv[]= {
 		"codegen",
+		"-I/usr/include/",
 		"-I/usr/include/x86_64-linux-gnu/",
 		"-I/usr/lib/gcc/x86_64-linux-gnu/4.8/include/",
 		"-I./source/",

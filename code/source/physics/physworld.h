@@ -14,11 +14,13 @@ typedef struct RigidBody {
 	bool allocated;
 
 	/// @todo Mechanism for separating input variables
-	V2d input_force;
-	char def_name[RES_NAME_SIZE];
+	V2d input_force; // in
+	char def_name[RES_NAME_SIZE]; // in
+
 
 	V3d pos;
 	Qd rot;
+	bool is_static;
 	cpShape *cp_shapes[MAX_SHAPES_PER_BODY];
 	U8 cp_shape_count;
 	cpBody *cp_body;
@@ -36,7 +38,6 @@ typedef struct PhysWorld {
 	//U32 next_poly, poly_count;
 
 	cpSpace *space;
-	cpShape *ground;
 } PhysWorld;
 
 /// @note Sets g_env.phys_world
@@ -45,7 +46,6 @@ REVOLC_API void destroy_physworld();
 
 REVOLC_API U32 resurrect_rigidbody(const RigidBody *dead);
 REVOLC_API void free_rigidbody(U32 h);
-REVOLC_API void set_rigidbody(U32 h, V2d p, F64 r, RigidBodyDef *def);
 REVOLC_API void * storage_rigidbody();
 
 REVOLC_API void upd_physworld(F32 dt);

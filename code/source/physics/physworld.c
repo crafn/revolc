@@ -13,13 +13,6 @@ void create_physworld()
 	w->space= cpSpaceNew();
 	 cpSpaceSetIterations(w->space, 20);
 	cpSpaceSetGravity(w->space, cpv(0, -20));
-
-	w->ground=
-		cpSegmentShapeNew(
-				cpSpaceGetStaticBody(w->space),
-				cpv(-100, 0), cpv(100, -1), 0);
-	cpShapeSetFriction(w->ground, 1);
-	cpSpaceAddShape(w->space, w->ground);
 }
 
 void destroy_physworld()
@@ -27,15 +20,13 @@ void destroy_physworld()
 	PhysWorld *w= g_env.phys_world;
 	ensure(w);
 	g_env.phys_world= NULL;
-	cpSpaceRemoveShape(w->space, w->ground);
-	cpShapeFree(w->ground);
 	cpSpaceFree(w->space);
 
 	free(w);
 }
 
 internal
-U32 alloc_rigidbody()
+U32 alloc_rigidbody_noinit()
 {
 	PhysWorld *w= g_env.phys_world;
 
@@ -45,48 +36,12 @@ U32 alloc_rigidbody()
 	while (w->bodies[w->next_body].allocated)
 		w->next_body= (w->next_body + 1) % MAX_RIGIDBODY_COUNT;
 
-	RigidBody *b= &w->bodies[w->next_body];
-	*b= (RigidBody) { .allocated= true };
-
 	++w->body_count;
 	return w->next_body;
 }
 
-U32 resurrect_rigidbody(const RigidBody *dead)
-{
-	/// @todo	Copy byte-by-byte and then fix what needs to be fixed
-	///			This way new members automatically work
-	U32 h= alloc_rigidbody();
-	set_rigidbody(
-			h,
-			(V2d) {dead->pos.x, dead->pos.y},
-			rot_z_qd(dead->rot),
-			(RigidBodyDef*)res_by_name(
-				g_env.res_blob,
-				ResType_RigidBodyDef,
-				dead->def_name));
-	return h;
-}
-
-void free_rigidbody(U32 h)
-{
-	PhysWorld *w= g_env.phys_world;
-
-	ensure(h < MAX_RIGIDBODY_COUNT);
-
-	RigidBody *b= &w->bodies[h];
-	for (U32 i= 0; i < b->cp_shape_count; ++i) {
-		cpSpaceRemoveShape(w->space, b->cp_shapes[i]);
-		cpShapeFree(b->cp_shapes[i]);
-	}
-	cpSpaceRemoveBody(w->space, b->cp_body);
-	cpBodyFree(b->cp_body);
-
-	*b= (RigidBody) { .allocated= false };
-	--w->body_count;
-}
-
-void set_rigidbody(U32 h, V2d p, F64 r, RigidBodyDef *def)
+internal
+void set_rigidbody(U32 h, RigidBodyDef *def)
 {
 	PhysWorld *w= g_env.phys_world;
 
@@ -118,10 +73,12 @@ void set_rigidbody(U32 h, V2d p, F64 r, RigidBodyDef *def)
 			cpMomentForPoly(mass, poly->v_count, cp_verts, cpvzero, 0.0);
 	}
 
-	b->cp_body= cpBodyNew(total_mass, total_moment);
+	if (!b->is_static)
+		b->cp_body= cpBodyNew(total_mass, total_moment);
+	else
+		b->cp_body= cpBodyNewStatic();
 	cpSpaceAddBody(w->space, b->cp_body);
-	cpBodySetPosition(b->cp_body, to_cpv(p));
-	cpBodySetAngle(b->cp_body, r);
+	cpBodySetPosition(b->cp_body, to_cpv((V2d) {b->pos.x, b->pos.y}));
 
 	for (U32 i= 0; i < def->circle_count; ++i) {
 		b->cp_shapes[b->cp_shape_count++]=
@@ -157,6 +114,44 @@ void set_rigidbody(U32 h, V2d p, F64 r, RigidBodyDef *def)
 		cpShapeSetFriction(shape, 0.7);
 		cpShapeSetElasticity(shape, 0.7);
 	}
+}
+
+U32 resurrect_rigidbody(const RigidBody *dead)
+{
+	PhysWorld *w= g_env.phys_world;
+
+	U32 h= alloc_rigidbody_noinit();
+	w->bodies[h]= *dead;
+	w->bodies[h].allocated= true;
+	w->bodies[h].cp_body= NULL;
+	w->bodies[h].cp_shape_count= 0;
+
+	set_rigidbody(
+			h,
+			(RigidBodyDef*)res_by_name(
+				g_env.res_blob,
+				ResType_RigidBodyDef,
+				dead->def_name));
+	return h;
+}
+
+
+void free_rigidbody(U32 h)
+{
+	PhysWorld *w= g_env.phys_world;
+
+	ensure(h < MAX_RIGIDBODY_COUNT);
+
+	RigidBody *b= &w->bodies[h];
+	for (U32 i= 0; i < b->cp_shape_count; ++i) {
+		cpSpaceRemoveShape(w->space, b->cp_shapes[i]);
+		cpShapeFree(b->cp_shapes[i]);
+	}
+	cpSpaceRemoveBody(w->space, b->cp_body);
+	cpBodyFree(b->cp_body);
+
+	*b= (RigidBody) { .allocated= false };
+	--w->body_count;
 }
 
 void * storage_rigidbody()

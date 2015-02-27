@@ -160,8 +160,8 @@ void create_renderer()
 {
 	Renderer *r= zero_malloc(sizeof(*r));
 
-	r->cam_pos.y= 10.0;
-	r->cam_pos.z= 20.0;
+	r->cam_pos.y= 5.0;
+	r->cam_pos.z= 10.0;
 	r->cam_fov= 3.141/2.0;
 
 	recreate_texture_atlas(r, g_env.res_blob);
@@ -180,7 +180,7 @@ void destroy_renderer()
 }
 
 internal
-U32 alloc_modelentity()
+U32 alloc_modelentity_noinit()
 {
 	Renderer *r= g_env.renderer;
 
@@ -197,20 +197,40 @@ U32 alloc_modelentity()
 	return r->next_entity;
 }
 
+internal
+void set_modelentity(U32 h, const Model *model)
+{
+	Renderer *r= g_env.renderer;
+
+	ModelEntity *e= &r->entities[h];
+	Texture *tex= model_texture(model, 0);
+	strncpy(e->model_name, model->res.name, sizeof(e->model_name));
+	e->atlas_uv= tex->atlas_uv;
+	e->scale_to_atlas_uv= (V2f) {
+		(F32)tex->reso.x/TEXTURE_ATLAS_WIDTH,
+		(F32)tex->reso.y/TEXTURE_ATLAS_WIDTH,
+	};
+	e->vertices= (TriMeshVertex*)mesh_vertices(model_mesh(model));
+	e->indices= (MeshIndexType*)mesh_indices(model_mesh(model));
+	e->mesh_v_count= model_mesh(model)->v_count;
+	e->mesh_i_count= model_mesh(model)->i_count;
+}
+
 U32 resurrect_modelentity(const ModelEntity *dead)
 {
-	/// @todo	Copy byte-by-byte and then fix what needs to be fixed
-	///			This way new members automatically work
-	U32 h= alloc_modelentity();
+	Renderer *r= g_env.renderer;
+	U32 h= alloc_modelentity_noinit();
+	r->entities[h]= *dead;
+	r->entities[h].allocated= true;
+	r->entities[h].vertices= NULL;
+	r->entities[h].indices= NULL;
+
 	set_modelentity(
 			h,
 			(Model*)res_by_name(
 				g_env.res_blob,
 				ResType_Model,
 				dead->model_name));
-	ModelEntity *e= &g_env.renderer->entities[h];
-	e->pos= dead->pos;
-	e->rot= dead->rot;
 	return h;
 }
 
@@ -227,32 +247,13 @@ void free_modelentity(U32 h)
 void * storage_modelentity()
 { return g_env.renderer->entities; }
 
-void set_modelentity(U32 h, const Model *model)
-{
-	Renderer *r= g_env.renderer;
-
-	ModelEntity *e= &r->entities[h];
-	Texture *tex= model_texture(model, 0);
-	e->pos.x= 0; e->pos.y= 0; e->pos.z= 0;
-	strncpy(e->model_name, model->res.name, sizeof(e->model_name));
-	e->atlas_uv= tex->atlas_uv;
-	e->scale_to_atlas_uv= (V2f) {
-		(F32)tex->reso.x/TEXTURE_ATLAS_WIDTH,
-		(F32)tex->reso.y/TEXTURE_ATLAS_WIDTH,
-	};
-	e->vertices= (TriMeshVertex*)mesh_vertices(model_mesh(model));
-	e->indices= (MeshIndexType*)mesh_indices(model_mesh(model));
-	e->mesh_v_count= model_mesh(model)->v_count;
-	e->mesh_i_count= model_mesh(model)->i_count;
-}
-
 internal
 int entity_cmp(const void *e1, const void *e2)
 {
 	F32 a= ((ModelEntity*)e1)->pos.z;
 	F32 b= ((ModelEntity*)e2)->pos.z;
-	// Largest Z first (nearest camera)
-	return (a < b) - (a > b);
+	// Smallest Z first (furthest away from camera)
+	return (a > b) - (a < b);
 }
 
 void render_frame()
@@ -299,6 +300,11 @@ void render_frame()
 
 			for (U32 k= 0; k < e->mesh_v_count; ++k) {
 				TriMeshVertex v= e->vertices[k];
+
+				// Scale
+				v.pos.x *= e->scale.x;
+				v.pos.y *= e->scale.y;
+				v.pos.z *= e->scale.z;
 
 				// Rotate
 				V2d p= {v.pos.x, v.pos.y};

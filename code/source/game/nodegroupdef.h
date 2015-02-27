@@ -21,6 +21,8 @@ typedef struct NodeGroupDef_Node {
 
 	// Bytes of default node struct, which can be resurrected
 	U8 default_struct[MAX_DEFAULT_STRUCT_SIZE];
+	// 1 if corresponding byte is set in default_struct
+	U8 default_struct_set_bytes[MAX_DEFAULT_STRUCT_SIZE];
 	U32 default_struct_size;
 
 	NodeGroupDef_Node_Output outputs[MAX_OUTPUTS_IN_GROUP_DEF];

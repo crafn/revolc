@@ -16,6 +16,11 @@
 #define PACKED __attribute__((packed))
 #define WARN_UNUSED __attribute__((warn_unused_result))
 
+#define WITH_DEREF_SIZEOF(x) x, sizeof(*(x))
+#define WITH_STR_SIZE(x) x, (strlen(x) + 1)
+#define ARRAY_COUNT(x) (sizeof(x)/sizeof(*x))
+#define WITH_ARRAY_COUNT(x) x, (sizeof(x)/sizeof(*x))
+
 typedef unsigned char U8;
 typedef unsigned short U16;
 typedef unsigned int U32;

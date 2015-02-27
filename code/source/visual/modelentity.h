@@ -7,11 +7,11 @@
 #include "model.h"
 #include "mesh.h"
 
-
 typedef struct ModelEntity {
 	bool allocated;
 	V3d pos;
 	Qd rot;
+	V3d scale;
 	char model_name[RES_NAME_SIZE];
 
 	// Cached
@@ -23,5 +23,7 @@ typedef struct ModelEntity {
 	U32 mesh_i_count;
 
 } ModelEntity;
+
+REVOLC_API void init_modelentity(ModelEntity *data);
 
 #endif // REVOLC_VISUAL_ENTITY_MODEL_H
