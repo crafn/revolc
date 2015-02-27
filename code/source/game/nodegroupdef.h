@@ -5,7 +5,7 @@
 #include "resources/resource.h"
 
 #define MAX_NODES_IN_GROUP_DEF 16
-#define MAX_DEFAULT_STRUCT_SIZE 256
+#define MAX_DEFAULT_STRUCT_SIZE 512
 #define MAX_OUTPUTS_IN_GROUP_DEF 8
 
 typedef struct NodeGroupDef_Node_Output {

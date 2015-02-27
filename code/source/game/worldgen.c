@@ -1,4 +1,5 @@
 #include "worldgen.h"
+#include "physics/shapes.h"
 
 #define U32_MAX 4294967295
 
@@ -42,9 +43,59 @@ F64 random_f64(F64 min, F64 max, U64 *seed)
 }
 
 internal
+F64 ground_surf_y(F64 x)
+{
+	return	sin(x*0.02 + 2.0)*(sin(x*0.075 + 0.3)*0.8 +
+			sin(x*0.07)*2.0) + sin(x*0.0037 + 2.0)*(sin(x*0.02 + 0.1) + 1.0)*10.0 +
+			0.3*sin(x*0.5)*sin(x*0.011 + 0.4) + sin(x*0.0001)*50;
+}
+
+internal
+void try_spawn_ground(World *world, V2d pos)
+{
+	F64 l_g_y= ground_surf_y(pos.x - 0.5);
+	F64 r_g_y= ground_surf_y(pos.x + 0.5);
+	if (pos.y - 0.5 > l_g_y ||
+		pos.y - 0.5 > r_g_y)
+		return; // Too high
+
+	U8 poly_count= 1;
+	Poly poly= {};
+	poly.v[0]= (V2d) {-0.5, -0.5};
+	poly.v[1]= (V2d) {+0.5, -0.5};
+	poly.v[2]= (V2d) {+0.5, +0.5};
+	poly.v[3]= (V2d) {-0.5, +0.5};
+	poly.v_count= 4;
+
+	if (pos.y + 0.5 < l_g_y &&
+		pos.y + 0.5 < r_g_y) {
+		// Under surface
+		// Nop
+	} else {
+		// Near surface, extend block
+		poly.v[3].y= l_g_y - pos.y;
+		poly.v[2].y= r_g_y - pos.y;
+	}
+
+	bool true_var= true;
+	SlotVal init_vals[]= {
+		{"body",	"pos",				WITH_DEREF_SIZEOF(&pos)},
+		{"body",	"is_static",		WITH_DEREF_SIZEOF(&true_var)},
+		{"body",	"has_own_shape",	WITH_DEREF_SIZEOF(&true_var)},
+		{"body",	"def_name",			WITH_STR_SIZE("block_dirt")},
+		{"body",	"polys",			WITH_DEREF_SIZEOF(&poly)},
+		{"body",	"poly_count",		WITH_DEREF_SIZEOF(&poly_count)},
+		{"visual",	"model_name",		WITH_STR_SIZE("block_dirt")},
+	};
+	NodeGroupDef *def=
+		(NodeGroupDef*)res_by_name(g_env.res_blob, ResType_NodeGroupDef, "phys_prop");
+	create_nodes(world, def, WITH_ARRAY_COUNT(init_vals), 0);
+}
+
+internal
 void spawn_visual_prop(World *world, V3d pos, V3d scale, const char *name)
 {
-	SlotVal init_vals[]= { // Override default values from json
+	SlotVal init_vals[]= {
 		{"visual",	"pos",			WITH_DEREF_SIZEOF(&pos)},
 		{"visual",	"scale",		WITH_DEREF_SIZEOF(&scale)},
 		{"visual",	"model_name",	WITH_STR_SIZE(name)},
@@ -60,7 +111,7 @@ void spawn_phys_prop(World *world, V2d pos, const char *name, bool is_static)
 	local_persist U64 group_i= 0;
 	group_i= (group_i + 1) % 3;
 
-	SlotVal init_vals[]= { // Override default values from json
+	SlotVal init_vals[]= {
 		{"body",	"pos",			WITH_DEREF_SIZEOF(&pos)},
 		{"body",	"is_static",	WITH_DEREF_SIZEOF(&is_static)},
 		{"body",	"def_name",		WITH_STR_SIZE(name)},
@@ -82,12 +133,10 @@ void generate_world(World *w, U64 seed)
 	spawn_visual_prop(w, (V3d) {150, -50, -300}, (V3d) {200, 90, 1}, "bg_meadow");
 	spawn_visual_prop(w, (V3d) {400, -70, -350}, (V3d) {200, 110, 1}, "bg_meadow");
 
-	for (int y= -50; y <= 0; ++y) {
+	for (int y= -50; y <= 50; ++y) {
 		for (int x= -50; x < 50; ++x) {
-			if (y == 0 && abs(x) % 10 < 5)
-				continue;
 			V2d pos= {x, y};
-			spawn_phys_prop(w, pos, "block_dirt", true);
+			try_spawn_ground(w, pos);
 		}
 	}
 	for (int i= 0; i < 30; ++i) {
@@ -95,6 +144,8 @@ void generate_world(World *w, U64 seed)
 				random_f64(-30.0, 30.0, &seed),
 				random_f64(0.0, 40.0, &seed),
 			};
+			if (pos.y < ground_surf_y(pos.x))
+				continue;
 			spawn_phys_prop(w, pos, "wbarrel", false);
 			spawn_phys_prop(w, pos, "rollbot", false);
 			spawn_phys_prop(w, pos, "wbox", false);

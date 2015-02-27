@@ -17,10 +17,17 @@ typedef struct RigidBody {
 	V2d input_force; // in
 	char def_name[RES_NAME_SIZE]; // in
 
-
 	V3d pos;
 	Qd rot;
 	bool is_static;
+	bool has_own_shape; // Ignores shape of def_name
+
+	/// @todo These should be set even when has_own_shape isn't true
+	Poly polys[MAX_SHAPES_PER_BODY];
+	Circle circles[MAX_SHAPES_PER_BODY];
+	U8 poly_count;
+	U8 circle_count;
+
 	cpShape *cp_shapes[MAX_SHAPES_PER_BODY];
 	U8 cp_shape_count;
 	cpBody *cp_body;
@@ -31,11 +38,6 @@ typedef struct PhysWorld {
 
 	RigidBody bodies[MAX_RIGIDBODY_COUNT];
 	U32 next_body, body_count;
-
-	//Circle circles[MAX_CIRCLE_COUNT];
-	//U32 next_circle, circle_count;
-	//Poly polys[MAX_POLY_COUNT];
-	//U32 next_poly, poly_count;
 
 	cpSpace *space;
 } PhysWorld;

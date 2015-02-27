@@ -18,6 +18,7 @@
 
 #define WITH_DEREF_SIZEOF(x) x, sizeof(*(x))
 #define WITH_STR_SIZE(x) x, (strlen(x) + 1)
+#define WITH_SIZEOF(x) x, (sizeof(x))
 #define ARRAY_COUNT(x) (sizeof(x)/sizeof(*x))
 #define WITH_ARRAY_COUNT(x) x, (sizeof(x)/sizeof(*x))
 

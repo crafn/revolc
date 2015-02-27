@@ -11,7 +11,7 @@ void create_physworld()
 	g_env.phys_world= w;
 
 	w->space= cpSpaceNew();
-	 cpSpaceSetIterations(w->space, 20);
+	cpSpaceSetIterations(w->space, 10);
 	cpSpaceSetGravity(w->space, cpv(0, -20));
 }
 
@@ -80,17 +80,28 @@ void set_rigidbody(U32 h, RigidBodyDef *def)
 	cpSpaceAddBody(w->space, b->cp_body);
 	cpBodySetPosition(b->cp_body, to_cpv((V2d) {b->pos.x, b->pos.y}));
 
-	for (U32 i= 0; i < def->circle_count; ++i) {
+	U32 circle_count= def->circle_count;
+	U32 poly_count= def->poly_count;
+	Circle *circles= def->circles;
+	Poly *polys= def->polys;
+	if (b->has_own_shape) {
+		circle_count= b->circle_count;
+		poly_count= b->poly_count;
+		circles= b->circles;
+		polys= b->polys;
+	}
+
+	for (U32 i= 0; i < circle_count; ++i) {
 		b->cp_shapes[b->cp_shape_count++]=
 			cpSpaceAddShape(
 					w->space,
 					cpCircleShapeNew(	b->cp_body,
-										def->circles[i].rad,
-										to_cpv(def->circles[i].pos)));
+										circles[i].rad,
+										to_cpv(circles[i].pos)));
 	}
 
-	for (U32 i= 0; i < def->poly_count; ++i) {
-		Poly *poly= &def->polys[i];
+	for (U32 i= 0; i < poly_count; ++i) {
+		Poly *poly= &polys[i];
 		F32 mass= 1.0;
 
 		cpVect cp_verts[poly->v_count];
@@ -220,7 +231,8 @@ void upd_physworld(F32 dt)
 		}
 	}
 	/// @todo Accumulation
-	cpSpaceStep(w->space, dt);
+	cpSpaceStep(w->space, dt*0.5);
+	cpSpaceStep(w->space, dt*0.5);
 
 	for (U32 i= 0; i < MAX_RIGIDBODY_COUNT; ++i) {
 		RigidBody *b= &w->bodies[i];
