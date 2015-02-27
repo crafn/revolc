@@ -90,11 +90,14 @@ void upd_world(World *w, F64 dt)
 	U32 node_i= 0;
 	U32 updated_count= 0;
 	U32 batch_count= 0;
+	U32 signal_count= 0;
 	while (node_i < MAX_NODE_COUNT) {
-		if (!w->sort_space[node_i].allocated)
-			break; // At the end
-
 		NodeInfo *node= &w->sort_space[node_i];
+		if (!node->allocated) {
+			++node_i;
+			continue;
+		}
+
 		const U32 batch_begin_i= node_i;
 		const U32 batch_begin_impl_handle= node->impl_handle;
 		const NodeType *batch_begin_type= node->type;
@@ -135,10 +138,12 @@ void upd_world(World *w, F64 dt)
 				U8 *src= (U8*)node_impl(NULL, src_node) + r->src_offset;
 				for (U32 i= 0; i < r->size; ++i)
 					dst[i]= src[i];
+				++signal_count;
 			}
 		}
 	}
 
+	//debug_print("upd signal count: %i", signal_count);
 	//debug_print("upd batch count: %i", batch_count);
 }
 
@@ -295,13 +300,14 @@ void create_nodes(	World *w,
 void free_node(World *w, U32 handle)
 {
 	ensure(handle < MAX_NODE_COUNT);
-	ensure(w->nodes[handle].allocated);
+	NodeInfo *n= &w->nodes[handle];
+	ensure(n->allocated);
 
-	U32 impl_handle= w->nodes[handle].impl_handle;
-	w->nodes[handle].type->free(impl_handle);
+	U32 impl_handle= n->impl_handle;
+	n->type->free(impl_handle);
 
 	--w->node_count;
-	w->nodes[handle]= (NodeInfo) { .allocated= false };
+	*n= (NodeInfo) { .allocated= false };
 }
 
 void free_node_group(World *w, U64 group_id)
