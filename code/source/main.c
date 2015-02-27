@@ -30,6 +30,7 @@ void make_main_blob()
 }
 
 #define WITH_DEREF_SIZEOF(x) x, sizeof(*(x))
+#define WITH_STR_SIZE(x) x, (strlen(x) + 1)
 #define ARRAY_COUNT(x) (sizeof(x)/sizeof(*x))
 #define WITH_ARRAY_COUNT(x) x, (sizeof(x)/sizeof(*x))
 
@@ -45,8 +46,8 @@ void spawn_entity(World *world, ResBlob *blob, V2d pos)
 	V3d p= {pos.x, pos.y};
 	SlotVal init_vals[]= { // Override default values from json
 		{"body",	"pos",			WITH_DEREF_SIZEOF(&p)},
-		{"body",	"def_name",		WITH_DEREF_SIZEOF(prop_name)},
-		{"visual",	"model_name",	WITH_DEREF_SIZEOF(prop_name)},
+		{"body",	"def_name",		WITH_STR_SIZE(prop_name)},
+		{"visual",	"model_name",	WITH_STR_SIZE(prop_name)},
 	};
 	NodeGroupDef *def=
 		(NodeGroupDef*)res_by_name(blob, ResType_NodeGroupDef, "phys_prop");

@@ -232,7 +232,7 @@ void create_nodes(	World *w,
 			U32 size= member_size(node->type_name, val->member_name);
 			U32 offset= member_offset(node->type_name, val->member_name);
 			ensure(val->size <= size);
-			memcpy(default_struct + offset, val->data, size);
+			memcpy(default_struct + offset, val->data, val->size);
 		}
 
 		// Resurrect impl from default value
