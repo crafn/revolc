@@ -33,7 +33,11 @@ bool json_is_array(JsonTok obj)
 { return obj.tok->type == JSMN_ARRAY; }
 
 U32 json_member_count(JsonTok j)
-{ return j.tok->size; }
+{
+	if (json_is_null(j))
+		return 0;
+	return j.tok->size;
+}
 
 JsonTok json_member(JsonTok j, U32 i)
 {

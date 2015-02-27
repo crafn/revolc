@@ -53,15 +53,12 @@ U32 member_index_by_name(const char *struct_name, const char *member_name)
 	if (!names)
 		fail("Couldn't find: %s::%s", struct_name, member_name);
 
-	const char *name= names[0];
-	U32 index= 0;
-	while (name && strcmp(name, member_name)) {
-		++name;
-		++index;
-	}
-	if (!name)
+	U32 i= 0;
+	while (names[i] && strcmp(names[i], member_name))
+		++i;
+	if (!names[i])
 		fail("Couldn't find: %s::%s", struct_name, member_name);
-	return index;
+	return i;
 }
 
 U32 member_size(const char *struct_name, const char *member_name)
