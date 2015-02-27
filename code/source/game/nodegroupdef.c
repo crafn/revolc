@@ -14,7 +14,7 @@ U32 node_i_by_name(NodeGroupDef *def, const char *name)
 	return 0;
 }
 
-// e.g. "asd.fgh" -> { "asd", "fgh" }
+// e.g. "asd .fgh" -> { "asd", "fgh" }
 internal
 void split_str(char **dst, U32 dst_array_size, U32 dst_str_size,
 		const char separator, const char *input)
@@ -32,11 +32,18 @@ void split_str(char **dst, U32 dst_array_size, U32 dst_str_size,
 			end_reached= true;
 		}
 
+		const char *sep_tok= end;
+
+		while (*begin == ' ')
+			++begin;
+		while (end > begin && *(end - 1) == ' ')
+			--end;
+
 		U32 count= end - begin + 1; // Account null-byte
 		if (count > dst_str_size)
 			count= dst_str_size;
 		snprintf(dst[i], count, "%s", begin);
-		begin= end + 1;
+		begin= sep_tok + 1;
 		++i;
 	}
 }
@@ -44,8 +51,11 @@ void split_str(char **dst, U32 dst_array_size, U32 dst_str_size,
 int json_nodegroupdef_to_blob(struct BlobBuf *buf, JsonTok j)
 {
 	JsonTok j_nodes= json_value_by_key(j, "nodes");
+	JsonTok j_cmds= json_value_by_key(j, "cmds");
 	if (json_is_null(j_nodes))
 		RES_ATTRIB_MISSING("nodes");
+	if (json_is_null(j_cmds))
+		RES_ATTRIB_MISSING("cmds");
 
 	NodeGroupDef def= {};
 	for (U32 node_i= 0; node_i < json_member_count(j_nodes); ++node_i) {
@@ -96,48 +106,53 @@ int json_nodegroupdef_to_blob(struct BlobBuf *buf, JsonTok j)
 		++def.node_count;
 	}
 
-	// Outputs in separate pass -- they can refer to arbitrary nodes
-	for (U32 node_i= 0; node_i < def.node_count; ++node_i) {
-		JsonTok j_node= json_member(j_nodes, node_i);
-		NodeGroupDef_Node *node= &def.nodes[node_i];
+	for (U32 cmd_i= 0; cmd_i < json_member_count(j_cmds); ++cmd_i) {
+		JsonTok j_cmd= json_member(j_cmds, cmd_i);
+		const char *cmd_str= json_str(j_cmd);
 
-		// Outputs
-		JsonTok j_outputs= json_value_by_key(j_node, "outputs");
-		for (U32 out_i= 0; out_i < json_member_count(j_outputs); ++out_i) {
-			JsonTok j_out= json_member(j_outputs, out_i);
-			ensure(json_is_object(j_out));
-			NodeGroupDef_Node_Output *out= &node->outputs[out_i];
+		// Split "a.b = c.d"
+		char src_str[RES_NAME_SIZE*2]= {};
+		char dst_str[RES_NAME_SIZE*2]= {};
+		split_str(
+				(char*[]) {src_str, dst_str}, 2, RES_NAME_SIZE*2,
+				'=', cmd_str);
 
-			JsonTok j_src= json_member(j_out, 0);
-			const char *src_member_name= json_str(j_src);
+		// Split "a.b"
+		char src_node_name[RES_NAME_SIZE]= {};
+		char src_member_name[RES_NAME_SIZE]= {};
+		split_str(
+				(char*[]) {src_node_name, src_member_name}, 2, RES_NAME_SIZE,
+				'.', src_str);
 
-			JsonTok j_dst= json_member(j_src, 0);
-			ensure(json_is_string(j_dst));
+		// Split "c.d"
+		char dst_node_name[RES_NAME_SIZE]= {};
+		char dst_member_name[RES_NAME_SIZE]= {};
+		split_str(
+				(char*[]) {dst_node_name, dst_member_name}, 2, RES_NAME_SIZE,
+				'.', dst_str);
 
-			// Read "some_node.some_struct_member"
-			char dst_node_name[RES_NAME_SIZE]= {};
-			char dst_member_name[RES_NAME_SIZE]= {};
-			split_str(
-					(char*[]) {dst_node_name, dst_member_name}, 2, RES_NAME_SIZE,
-					'.',
-					json_str(j_dst));
+		U32 src_node_i= node_i_by_name(&def, src_node_name);
+		U32 dst_node_i= node_i_by_name(&def, dst_node_name);
+		ensure(src_node_i < def.node_count);
+		ensure(dst_node_i < def.node_count);
 
-			U32 dst_node_i= node_i_by_name(&def, dst_node_name);
-			ensure(dst_node_i < def.node_count);
-			const char *dst_type_name= def.nodes[dst_node_i].type_name;
+		const char *src_type_name= def.nodes[src_node_i].type_name;
+		const char *dst_type_name= def.nodes[dst_node_i].type_name;
 
-			*out= (NodeGroupDef_Node_Output) {
-				.src_offset= member_offset(node->type_name, src_member_name),
-				.dst_offset= member_offset(dst_type_name, dst_member_name),
-				.dst_node_i= dst_node_i,
-				.size= member_size(node->type_name, src_member_name),
-			};
+		NodeGroupDef_Node *src_node= &def.nodes[src_node_i];
+		NodeGroupDef_Node_Output *out= &src_node->outputs[src_node->output_count];
 
-			// Src should be the same size as dst
-			ensure(out->size == member_size(dst_type_name, dst_member_name));
+		*out= (NodeGroupDef_Node_Output) {
+			.src_offset= member_offset(src_type_name, src_member_name),
+			.dst_offset= member_offset(dst_type_name, dst_member_name),
+			.dst_node_i= dst_node_i,
+			.size= member_size(src_type_name, src_member_name),
+		};
 
-			++node->output_count;
-		}
+		// Src should be the same size as dst
+		ensure(out->size == member_size(dst_type_name, dst_member_name));
+
+		++src_node->output_count;
 	}
 
 	blob_write(	buf,

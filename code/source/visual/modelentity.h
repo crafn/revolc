@@ -17,8 +17,8 @@ typedef struct ModelEntity {
 	// Cached
 	V3f atlas_uv;
 	V2f scale_to_atlas_uv;
-	const TriMeshVertex* vertices;
-	const MeshIndexType* indices;
+	TriMeshVertex* vertices;
+	MeshIndexType* indices;
 	U32 mesh_v_count;
 	U32 mesh_i_count;
 
