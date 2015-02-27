@@ -60,7 +60,7 @@ int json_nodegroupdef_to_blob(struct BlobBuf *buf, JsonTok j)
 
 			ensure(offset + size < MAX_DEFAULT_STRUCT_SIZE);
 			ensure(strlen(value_str) <= offset);
-			memcpy(node->default_struct, value_str, strlen(value_str));
+			memcpy(node->default_struct + offset, value_str, strlen(value_str));
 		}
 
 		++def.node_count;
@@ -79,7 +79,6 @@ int json_nodegroupdef_to_blob(struct BlobBuf *buf, JsonTok j)
 			NodeGroupDef_Node_Output *out= &node->outputs[out_i];
 
 			JsonTok j_src= json_member(j_out, 0);
-
 			const char *src_slot= json_str(j_src);
 
 			JsonTok j_dst= json_member(j_src, 0);
@@ -93,9 +92,9 @@ int json_nodegroupdef_to_blob(struct BlobBuf *buf, JsonTok j)
 
 			*out= (NodeGroupDef_Node_Output) {
 				.src_offset= member_offset(node->type_name, src_slot),
-				.size= member_size(node->type_name, src_slot),
-				.dst_node_i= dst_node_i,
 				.dst_offset= member_offset(dst_type_name, dst_slot),
+				.dst_node_i= dst_node_i,
+				.size= member_size(node->type_name, src_slot),
 			};
 
 			// Src should be same size as dst

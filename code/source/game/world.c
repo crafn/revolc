@@ -13,6 +13,15 @@ void * node_impl(U32 *size, NodeInfo *node)
 	return (U8*)node->type->storage() + node->type->size*node->impl_handle;
 }
 
+internal
+void resurrect_node_impl(NodeInfo *n, void *dead_impl_bytes)
+{
+	if (n->type->resurrect)
+		n->type->resurrect(n->impl_handle, dead_impl_bytes);
+	else
+		memcpy(node_impl(NULL, n), dead_impl_bytes, n->type->size);
+}
+
 World * create_world()
 {
 	World *w= zero_malloc(sizeof(*w));
@@ -156,11 +165,7 @@ void load_world(World *w, const char *path)
 		// New Node implementation from binary
 		U8 dead_impl_bytes[n->type->size]; /// @todo Alignment!!!
 		fread(dead_impl_bytes, 1, n->type->size, file);
-		U8 *impl= node_impl(NULL, n);
-		if (n->type->resurrect)
-			n->type->resurrect(n->impl_handle, dead_impl_bytes);
-		else
-			memcpy(impl, dead_impl_bytes, n->type->size);
+		resurrect_node_impl(n, dead_impl_bytes);
 	}
 
 	ensure(node_count == w->node_count);
@@ -196,6 +201,38 @@ void save_world(World *w, const char *path)
 	fclose(file);
 }
 
+void create_nodes(World *w, const NodeGroupDef *def, U64 group_id)
+{
+	U32 handles[MAX_NODES_IN_GROUP_DEF]= {};
+
+	// Create nodes
+	for (U32 node_i= 0; node_i < def->node_count; ++node_i) {
+		const NodeGroupDef_Node *node= &def->nodes[node_i];
+		/// @todo Don't query NodeType
+		U32 h= alloc_node(	w,
+							(NodeType*)res_by_name(	g_env.res_blob,
+													ResType_NodeType,
+													node->type_name),
+							group_id);
+		handles[node_i]= h;
+
+		// Resurrect impl from default value
+		resurrect_node_impl(&w->nodes[h], (void*)node->default_struct);
+	}
+
+	// Route slots
+	for (U32 node_i= 0; node_i < def->node_count; ++node_i) {
+		const NodeGroupDef_Node *node= &def->nodes[node_i];
+		for (U32 out_i= 0; out_i < node->output_count; ++out_i) {
+			const NodeGroupDef_Node_Output *out= &node->outputs[out_i];
+			add_routing(	w,
+							handles[node_i],			out->src_offset,
+							handles[out->dst_node_i],	out->dst_offset,
+							out->size);
+		}
+	}
+}
+
 U32 alloc_node(World *w, NodeType* type, U64 group_id)
 {
 	if (w->node_count == MAX_NODE_COUNT)
@@ -206,8 +243,8 @@ U32 alloc_node(World *w, NodeType* type, U64 group_id)
 		.type= type,
 		.group_id= group_id,
 	};
-	info.impl_handle= type->alloc();
 	snprintf(info.type_name, sizeof(info.type_name), "%s", type->res.name);
+	info.impl_handle= type->alloc();
 
 	while (w->nodes[w->next_node].allocated)
 		w->next_node= (w->next_node + 1) % MAX_NODE_COUNT;

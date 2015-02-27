@@ -5,6 +5,7 @@
 #include "core/quaternion.h"
 #include "core/vector.h"
 #include "global/cfg.h"
+#include "nodegroupdef.h"
 #include "nodetype.h"
 #include "visual/modelentity.h"
 
@@ -41,6 +42,7 @@ REVOLC_API void upd_world(World *w, F64 dt);
 REVOLC_API void load_world(World *w, const char *path);
 REVOLC_API void save_world(World *w, const char *path);
 
+REVOLC_API void create_nodes(World *w, const NodeGroupDef *def, U64 group_id);
 REVOLC_API U32 alloc_node(World *w, NodeType *type, U64 group_id);
 REVOLC_API void free_node(World *w, U32 handle);
 REVOLC_API void free_node_group(World *w, U64 group_id);

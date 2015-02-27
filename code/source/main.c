@@ -33,6 +33,22 @@ internal
 void spawn_entity(World *world, ResBlob *blob, V2d pos)
 {
 	local_persist U64 entity_id= 0;
+
+	const char *name= "wbarrel";
+	if (entity_id % 3 == 2)
+		name= "wbox";
+
+	NodeGroupDef *def=
+		(NodeGroupDef*)res_by_name(
+				blob,
+				ResType_NodeGroupDef,
+				name);
+	create_nodes(world, def, entity_id);
+
+	++entity_id;
+	entity_id %= 3;
+
+/*	local_persist U64 entity_id= 0;
 	++entity_id;
 	const char *name= "wbarrel";
 	if (entity_id % 3 == 1)
@@ -75,6 +91,7 @@ void spawn_entity(World *world, ResBlob *blob, V2d pos)
 			b_node_h, offsetof(RigidBody, rot),
 			m_node_h, offsetof(ModelEntity, rot),
 			sizeof(Qd));
+			*/
 }
 
 #define SAVEFILE_PATH "save.bin"

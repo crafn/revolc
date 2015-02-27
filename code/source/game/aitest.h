@@ -5,7 +5,7 @@
 #include "core/vector.h"
 
 typedef struct AiTest {
-	V2d input_pos;
+	V3d input_pos;
 	V2d force;
 	bool allocated;
 } AiTest;

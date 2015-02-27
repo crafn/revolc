@@ -28,7 +28,8 @@ void upd_aitest(	World *w,
 {
 	V2d target= {0.0, 30.0};
 	for (U32 i= 0; i < count; ++i, ++t) {
-		V2d dif= sub_v2d(target, t->input_pos);
+		V2d p= {t->input_pos.x, t->input_pos.y};
+		V2d dif= sub_v2d(target, p);
 		F64 r2= length_sqr_v2d(dif);
 		t->force= scaled_v2d(dif, 1000.0/(r2 + 10.0));
 	}

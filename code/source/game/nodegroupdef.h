@@ -2,6 +2,7 @@
 #define REVOLC_GAME_NODEGROUPDEF_H
 
 #include "build.h"
+#include "resources/resource.h"
 
 #define MAX_NODES_IN_GROUP_DEF 16
 #define MAX_DEFAULT_STRUCT_SIZE 256
@@ -9,10 +10,9 @@
 
 typedef struct NodeGroupDef_Node_Output {
 	U32 src_offset;
-	U32 size;
-
-	U32 dst_node_i; // Index to `nodes in NodeGroupDef`
 	U32 dst_offset;
+	U32 dst_node_i; // Index to `nodes in NodeGroupDef`
+	U32 size;
 } NodeGroupDef_Node_Output;
 
 typedef struct NodeGroupDef_Node {
