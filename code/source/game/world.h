@@ -54,7 +54,6 @@ REVOLC_API void create_nodes(	World *w,
 								const NodeGroupDef *def,
 								const SlotVal *init_vals, U32 init_vals_count,
 								U64 group_id);
-REVOLC_API U32 alloc_node(World *w, NodeType *type, U64 group_id);
 REVOLC_API void free_node(World *w, U32 handle);
 REVOLC_API void free_node_group(World *w, U64 group_id);
 REVOLC_API U32 node_impl_handle(World *w, U32 node_handle);

@@ -179,6 +179,7 @@ void destroy_renderer()
 	free(r);
 }
 
+internal
 U32 alloc_modelentity()
 {
 	Renderer *r= g_env.renderer;
@@ -195,6 +196,24 @@ U32 alloc_modelentity()
 	++r->entity_count;
 	return r->next_entity;
 }
+
+U32 resurrect_modelentity(const ModelEntity *dead)
+{
+	/// @todo	Copy byte-by-byte and then fix what needs to be fixed
+	///			This way new members automatically work
+	U32 h= alloc_modelentity();
+	set_modelentity(
+			h,
+			(Model*)res_by_name(
+				g_env.res_blob,
+				ResType_Model,
+				dead->model_name));
+	ModelEntity *e= &g_env.renderer->entities[h];
+	e->pos= dead->pos;
+	e->rot= dead->rot;
+	return h;
+}
+
 
 void free_modelentity(U32 h)
 {
@@ -225,19 +244,6 @@ void set_modelentity(U32 h, const Model *model)
 	e->indices= (MeshIndexType*)mesh_indices(model_mesh(model));
 	e->mesh_v_count= model_mesh(model)->v_count;
 	e->mesh_i_count= model_mesh(model)->i_count;
-}
-
-void resurrect_modelentity(U32 h, ModelEntity *dead)
-{
-	set_modelentity(
-			h,
-			(Model*)res_by_name(
-				g_env.res_blob,
-				ResType_Model,
-				dead->model_name));
-	ModelEntity *e= &g_env.renderer->entities[h];
-	e->pos= dead->pos;
-	e->rot= dead->rot;
 }
 
 internal

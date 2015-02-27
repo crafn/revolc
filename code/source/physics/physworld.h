@@ -43,11 +43,10 @@ typedef struct PhysWorld {
 REVOLC_API void create_physworld();
 REVOLC_API void destroy_physworld();
 
-REVOLC_API U32 alloc_rigidbody();
+REVOLC_API U32 resurrect_rigidbody(const RigidBody *dead);
 REVOLC_API void free_rigidbody(U32 h);
 REVOLC_API void set_rigidbody(U32 h, V2d p, F64 r, RigidBodyDef *def);
 REVOLC_API void * storage_rigidbody();
-REVOLC_API void resurrect_rigidbody(U32 h, RigidBody *dead);
 
 REVOLC_API void upd_physworld(F32 dt);
 

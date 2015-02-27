@@ -16,10 +16,30 @@ void * node_impl(U32 *size, NodeInfo *node)
 internal
 void resurrect_node_impl(NodeInfo *n, void *dead_impl_bytes)
 {
-	if (n->type->resurrect)
-		n->type->resurrect(n->impl_handle, dead_impl_bytes);
-	else
-		memcpy(node_impl(NULL, n), dead_impl_bytes, n->type->size);
+	n->impl_handle= n->type->resurrect(dead_impl_bytes);
+}
+
+internal
+U32 alloc_node_without_impl(World *w, NodeType *type, U64 group_id)
+{
+	if (w->node_count == MAX_NODE_COUNT)
+		fail("Too many nodes");
+
+	NodeInfo info= {
+		.allocated= true,
+		.type= type,
+		.group_id= group_id,
+	};
+	snprintf(info.type_name, sizeof(info.type_name), "%s", type->res.name);
+
+	while (w->nodes[w->next_node].allocated)
+		w->next_node= (w->next_node + 1) % MAX_NODE_COUNT;
+
+	ensure(w->next_node < MAX_NODE_COUNT);
+	ensure(!w->nodes[w->next_node].allocated);
+	++w->node_count;
+	w->nodes[w->next_node]= info;
+	return w->next_node;
 }
 
 World * create_world()
@@ -147,7 +167,7 @@ void load_world(World *w, const char *path)
 		if (!dead_node.allocated)
 			continue;
 
-		U32 node_h= alloc_node(
+		U32 node_h= alloc_node_without_impl(
 				w,
 				(NodeType*)res_by_name(
 					g_env.res_blob,
@@ -212,7 +232,8 @@ void create_nodes(	World *w,
 	for (U32 node_i= 0; node_i < def->node_count; ++node_i) {
 		const NodeGroupDef_Node *node= &def->nodes[node_i];
 		/// @todo Don't query NodeType
-		U32 h= alloc_node(	w,
+		U32 h= alloc_node_without_impl(
+							w,
 							(NodeType*)res_by_name(	g_env.res_blob,
 													ResType_NodeType,
 													node->type_name),
@@ -250,29 +271,6 @@ void create_nodes(	World *w,
 							out->size);
 		}
 	}
-}
-
-U32 alloc_node(World *w, NodeType* type, U64 group_id)
-{
-	if (w->node_count == MAX_NODE_COUNT)
-		fail("Too many nodes");
-
-	NodeInfo info= {
-		.allocated= true,
-		.type= type,
-		.group_id= group_id,
-	};
-	snprintf(info.type_name, sizeof(info.type_name), "%s", type->res.name);
-	info.impl_handle= type->alloc();
-
-	while (w->nodes[w->next_node].allocated)
-		w->next_node= (w->next_node + 1) % MAX_NODE_COUNT;
-
-	ensure(w->next_node < MAX_NODE_COUNT);
-	ensure(!w->nodes[w->next_node].allocated);
-	++w->node_count;
-	w->nodes[w->next_node]= info;
-	return w->next_node;
 }
 
 void free_node(World *w, U32 handle)

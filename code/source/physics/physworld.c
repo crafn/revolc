@@ -34,6 +34,7 @@ void destroy_physworld()
 	free(w);
 }
 
+internal
 U32 alloc_rigidbody()
 {
 	PhysWorld *w= g_env.phys_world;
@@ -49,6 +50,22 @@ U32 alloc_rigidbody()
 
 	++w->body_count;
 	return w->next_body;
+}
+
+U32 resurrect_rigidbody(const RigidBody *dead)
+{
+	/// @todo	Copy byte-by-byte and then fix what needs to be fixed
+	///			This way new members automatically work
+	U32 h= alloc_rigidbody();
+	set_rigidbody(
+			h,
+			(V2d) {dead->pos.x, dead->pos.y},
+			rot_z_qd(dead->rot),
+			(RigidBodyDef*)res_by_name(
+				g_env.res_blob,
+				ResType_RigidBodyDef,
+				dead->def_name));
+	return h;
 }
 
 void free_rigidbody(U32 h)
@@ -144,18 +161,6 @@ void set_rigidbody(U32 h, V2d p, F64 r, RigidBodyDef *def)
 
 void * storage_rigidbody()
 { return g_env.phys_world->bodies; }
-
-void resurrect_rigidbody(U32 h, RigidBody *dead)
-{
-	set_rigidbody(
-			h,
-			(V2d) {dead->pos.x, dead->pos.y},
-			rot_z_qd(dead->rot),
-			(RigidBodyDef*)res_by_name(
-				g_env.res_blob,
-				ResType_RigidBodyDef,
-				dead->def_name));
-}
 
 internal
 void phys_draw_circle(

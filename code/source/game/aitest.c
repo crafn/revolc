@@ -6,11 +6,13 @@ AiTest temptest_aitest_storage[MAX_NODE_COUNT];
 internal
 U32 next_aitest= 0;
 
-U32 alloc_aitest()
+U32 resurrect_aitest(const AiTest *dead)
 {
 	while (temptest_aitest_storage[next_aitest].allocated)
 		next_aitest= (next_aitest + 1) % MAX_NODE_COUNT;
 	temptest_aitest_storage[next_aitest].allocated= true;
+
+	temptest_aitest_storage[next_aitest]= *dead;
 	return next_aitest;
 }
 
