@@ -29,69 +29,27 @@ void make_main_blob()
 	free(res_paths);
 }
 
+#define WITH_DEREF_SIZEOF(x) x, sizeof(*(x))
+#define ARRAY_COUNT(x) sizeof(x)/sizeof(*x)
+
 internal
 void spawn_entity(World *world, ResBlob *blob, V2d pos)
 {
-	local_persist U64 entity_id= 0;
+	local_persist U64 group_i= 0;
+	group_i= (group_i + 1) % 3;
 
-	const char *name= "wbarrel";
-	if (entity_id % 3 == 2)
-		name= "wbox";
+	const char *node_group_type_name= "wbarrel";
+	if (group_i % 3 == 2)
+		node_group_type_name= "wbox";
 
+	V3d p= {pos.x, pos.y};
+	SlotVal init_vals[]= { // Override default values from json
+		{"body",	"pos",			WITH_DEREF_SIZEOF(&p)},
+		{"visual",	"model_name",	WITH_DEREF_SIZEOF("rollbot")},
+	};
 	NodeGroupDef *def=
-		(NodeGroupDef*)res_by_name(
-				blob,
-				ResType_NodeGroupDef,
-				name);
-	create_nodes(world, def, entity_id);
-
-	++entity_id;
-	entity_id %= 3;
-
-/*	local_persist U64 entity_id= 0;
-	++entity_id;
-	const char *name= "wbarrel";
-	if (entity_id % 3 == 1)
-		name= "rollbot";
-	else if (entity_id % 3 == 2)
-		name= "wbox";
-
-	entity_id %= 3;
-
-	Model *model= (Model*)res_by_name(blob, ResType_Model, name);
-	NodeType *rbody_node= (NodeType*)res_by_name(blob, ResType_NodeType, "RigidBody");
-	NodeType *model_node= (NodeType*)res_by_name(blob, ResType_NodeType, "ModelEntity");
-	NodeType *aitest_node= (NodeType*)res_by_name(blob, ResType_NodeType, "AiTest");
-	U32 b_node_h= alloc_node(world, rbody_node, entity_id);
-	U32 m_node_h= alloc_node(world, model_node, entity_id);
-	U32 a_node_h= alloc_node(world, aitest_node, entity_id);
-
-	U32 modelentity_h= node_impl_handle(world, m_node_h);
-	set_modelentity(modelentity_h, model);
-
-	U32 body_h= node_impl_handle(world, b_node_h);
-	set_rigidbody(body_h,
-			pos, 0.0,
-			(RigidBodyDef*)res_by_name(blob, ResType_RigidBodyDef, name));
-
-	add_routing(world,
-			b_node_h, offsetof(RigidBody, pos),
-			a_node_h, offsetof(AiTest, input_pos),
-			sizeof(V2d));
-	add_routing(world,
-			a_node_h, offsetof(AiTest, force),
-			b_node_h, offsetof(RigidBody, input_force),
-			sizeof(V2d));
-
-	add_routing(world,
-			b_node_h, offsetof(RigidBody, pos),
-			m_node_h, offsetof(ModelEntity, pos),
-			sizeof(V3d));
-	add_routing(world,
-			b_node_h, offsetof(RigidBody, rot),
-			m_node_h, offsetof(ModelEntity, rot),
-			sizeof(Qd));
-			*/
+		(NodeGroupDef*)res_by_name(blob, ResType_NodeGroupDef, node_group_type_name);
+	create_nodes(world, def, init_vals, ARRAY_COUNT(init_vals), group_i);
 }
 
 #define SAVEFILE_PATH "save.bin"

@@ -201,7 +201,10 @@ void save_world(World *w, const char *path)
 	fclose(file);
 }
 
-void create_nodes(World *w, const NodeGroupDef *def, U64 group_id)
+void create_nodes(	World *w,
+					const NodeGroupDef *def,
+					const SlotVal *init_vals, U32 init_vals_count,
+					U64 group_id)
 {
 	U32 handles[MAX_NODES_IN_GROUP_DEF]= {};
 
@@ -216,8 +219,24 @@ void create_nodes(World *w, const NodeGroupDef *def, U64 group_id)
 							group_id);
 		handles[node_i]= h;
 
+		U8 default_struct[sizeof(node->default_struct)];
+		memcpy(default_struct, node->default_struct, sizeof(node->default_struct));
+
+		// Apply init_vals
+		for (U32 i= 0; i < init_vals_count; ++i) {
+			const SlotVal *val= &init_vals[i];
+			if (strcmp(val->node_name, node->name))
+				continue;
+
+			/// @todo Don't do this. Slow. Or make RTTI fast.
+			U32 size= member_size(node->type_name, val->member_name);
+			U32 offset= member_offset(node->type_name, val->member_name);
+			ensure(val->size <= size);
+			memcpy(default_struct + offset, val->data, size);
+		}
+
 		// Resurrect impl from default value
-		resurrect_node_impl(&w->nodes[h], (void*)node->default_struct);
+		resurrect_node_impl(&w->nodes[h], default_struct);
 	}
 
 	// Route slots
