@@ -10,7 +10,35 @@ U32 node_i_by_name(NodeGroupDef *def, const char *name)
 			return i;
 	}
 
-	return (U32)-1;
+	fail("Node not found: %s", name);
+	return 0;
+}
+
+// e.g. "asd.fgh" -> { "asd", "fgh" }
+internal
+void split_str(char **dst, U32 dst_array_size, U32 dst_str_size,
+		const char separator, const char *input)
+{
+	U32 i= 0;
+	const char *begin= input;
+	bool end_reached= false;
+	while (i < dst_array_size) {
+		const char *end= strchr(begin, separator);
+		if (!end && end_reached)
+			break;
+
+		if (!end) {
+			end= begin + strlen(begin);
+			end_reached= true;
+		}
+
+		U32 count= end - begin + 1; // Account null-byte
+		if (count > dst_str_size)
+			count= dst_str_size;
+		snprintf(dst[i], count, "%s", begin);
+		begin= end + 1;
+		++i;
+	}
 }
 
 int json_nodegroupdef_to_blob(struct BlobBuf *buf, JsonTok j)
@@ -79,26 +107,32 @@ int json_nodegroupdef_to_blob(struct BlobBuf *buf, JsonTok j)
 			NodeGroupDef_Node_Output *out= &node->outputs[out_i];
 
 			JsonTok j_src= json_member(j_out, 0);
-			const char *src_slot= json_str(j_src);
+			const char *src_member_name= json_str(j_src);
 
 			JsonTok j_dst= json_member(j_src, 0);
-			ensure(json_is_array(j_dst));
-			ensure(json_member_count(j_dst) == 2); /// @todo Proper errors
+			ensure(json_is_string(j_dst));
 
-			U32 dst_node_i= node_i_by_name(&def, json_str(json_member(j_dst, 0)));
+			// Read "some_node.some_struct_member"
+			char dst_node_name[RES_NAME_SIZE]= {};
+			char dst_member_name[RES_NAME_SIZE]= {};
+			split_str(
+					(char*[]) {dst_node_name, dst_member_name}, 2, RES_NAME_SIZE,
+					'.',
+					json_str(j_dst));
+
+			U32 dst_node_i= node_i_by_name(&def, dst_node_name);
 			ensure(dst_node_i < def.node_count);
 			const char *dst_type_name= def.nodes[dst_node_i].type_name;
-			const char *dst_slot= json_str(json_member(j_dst, 1));
 
 			*out= (NodeGroupDef_Node_Output) {
-				.src_offset= member_offset(node->type_name, src_slot),
-				.dst_offset= member_offset(dst_type_name, dst_slot),
+				.src_offset= member_offset(node->type_name, src_member_name),
+				.dst_offset= member_offset(dst_type_name, dst_member_name),
 				.dst_node_i= dst_node_i,
-				.size= member_size(node->type_name, src_slot),
+				.size= member_size(node->type_name, src_member_name),
 			};
 
-			// Src should be same size as dst
-			ensure(out->size == member_size(dst_type_name, dst_slot));
+			// Src should be the same size as dst
+			ensure(out->size == member_size(dst_type_name, dst_member_name));
 
 			++node->output_count;
 		}
