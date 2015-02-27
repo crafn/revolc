@@ -73,7 +73,15 @@ void spawn_phys_prop(World *world, V2d pos, const char *name, bool is_static)
 
 void generate_world(World *w, U64 seed)
 {
-	spawn_visual_prop(w, (V3d) {0, 0, -100}, (V3d) {150, 300, 1}, "sky_day");
+	spawn_visual_prop(w, (V3d) {0, 0, -500}, (V3d) {600, 1200, 1}, "sky_day");
+	spawn_visual_prop(w, (V3d) {-100, -50, -490}, (V3d) {700, 250, 1}, "bg_mountain");
+
+	spawn_visual_prop(w, (V3d) {20, -120, -100}, (V3d) {220, 90, 1}, "bg_meadow");
+	spawn_visual_prop(w, (V3d) {-70, -60, -200}, (V3d) {220, 90, 1}, "bg_meadow");
+	spawn_visual_prop(w, (V3d) {60, -80, -160}, (V3d) {200, 90, 1}, "bg_meadow");
+	spawn_visual_prop(w, (V3d) {150, -50, -300}, (V3d) {200, 90, 1}, "bg_meadow");
+	spawn_visual_prop(w, (V3d) {400, -70, -350}, (V3d) {200, 110, 1}, "bg_meadow");
+
 	for (int y= -50; y <= 0; ++y) {
 		for (int x= -50; x < 50; ++x) {
 			if (y == 0 && abs(x) % 10 < 5)
