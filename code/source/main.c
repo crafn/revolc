@@ -30,7 +30,8 @@ void make_main_blob()
 }
 
 #define WITH_DEREF_SIZEOF(x) x, sizeof(*(x))
-#define ARRAY_COUNT(x) sizeof(x)/sizeof(*x)
+#define ARRAY_COUNT(x) (sizeof(x)/sizeof(*x))
+#define WITH_ARRAY_COUNT(x) x, (sizeof(x)/sizeof(*x))
 
 internal
 void spawn_entity(World *world, ResBlob *blob, V2d pos)
@@ -38,18 +39,18 @@ void spawn_entity(World *world, ResBlob *blob, V2d pos)
 	local_persist U64 group_i= 0;
 	group_i= (group_i + 1) % 3;
 
-	const char *node_group_type_name= "wbarrel";
-	if (group_i % 3 == 2)
-		node_group_type_name= "wbox";
+	const char* prop_name=
+		(char*[]) {"wbarrel", "wbox", "rollbot"}[group_i];
 
 	V3d p= {pos.x, pos.y};
 	SlotVal init_vals[]= { // Override default values from json
 		{"body",	"pos",			WITH_DEREF_SIZEOF(&p)},
-		{"visual",	"model_name",	WITH_DEREF_SIZEOF("rollbot")},
+		{"body",	"def_name",		WITH_DEREF_SIZEOF(prop_name)},
+		{"visual",	"model_name",	WITH_DEREF_SIZEOF(prop_name)},
 	};
 	NodeGroupDef *def=
-		(NodeGroupDef*)res_by_name(blob, ResType_NodeGroupDef, node_group_type_name);
-	create_nodes(world, def, init_vals, ARRAY_COUNT(init_vals), group_i);
+		(NodeGroupDef*)res_by_name(blob, ResType_NodeGroupDef, "phys_prop");
+	create_nodes(world, def, WITH_ARRAY_COUNT(init_vals), group_i);
 }
 
 #define SAVEFILE_PATH "save.bin"
