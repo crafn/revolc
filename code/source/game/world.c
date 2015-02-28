@@ -64,7 +64,7 @@ int node_cmp(const void * a_, const void * b_)
 	const NodeInfo *a= a_, *b= b_;
 	// Sort for batching
 	// Non-allocated should be at the end
-	/// @todo Prioritize by routing, but still clumping by type
+	/// @todo Prioritize by cmds, but still clumping by type
 	int alloc_cmp= b->allocated - a->allocated;
 	if (alloc_cmp) {
 		return alloc_cmp;
@@ -124,8 +124,22 @@ void upd_world(World *w, F64 dt)
 		// Perform commands stated in NodeGroupDefs
 		for (U32 dst_i= batch_begin_i; dst_i < node_i; ++dst_i) {
 			NodeInfo *dst_node= &w->sort_space[dst_i];
-			for (U32 r_i= 0; r_i < dst_node->routing_count; ++r_i) {
-				SlotCmd *r= &dst_node->routing[r_i];
+			for (U32 r_i= 0; r_i < dst_node->cmd_count; ++r_i) {
+				SlotCmd *r= &dst_node->cmds[r_i];
+				if (r->has_condition) {
+					NodeInfo *c_node= &w->nodes[r->cond_node_h];
+					U8 *cond_bytes= node_impl(NULL, c_node) + r->cond_offset;
+					bool cond_fullfilled= false;
+					for (U32 i= 0; i < r->cond_size; ++i) {
+						if (cond_bytes[i]) {
+							cond_fullfilled= true;
+							break;
+						}
+					}
+
+					if (!cond_fullfilled)
+						continue; // Skip command
+				}
 				/// @todo Batching?
 				switch (r->type) {
 				case CmdType_memcpy: {
@@ -216,13 +230,13 @@ void load_world(World *w, const char *path)
 					ResType_NodeType,
 					dead_node.type_name),
 				dead_node.group_id);
-		ensure(node_h == i); // Must retain handles because of routing
+		ensure(node_h == i); // Must retain handles because of cmds
 		++node_count;
 
 		NodeInfo *n= &w->nodes[node_h];
 		memcpy(n->type_name, dead_node.type_name, sizeof(n->type_name));
-		memcpy(n->routing, dead_node.routing, sizeof(n->routing));
-		n->routing_count= dead_node.routing_count;
+		memcpy(n->cmds, dead_node.cmds, sizeof(n->cmds));
+		n->cmd_count= dead_node.cmd_count;
 		n->group_id= dead_node.group_id;
 
 		// New Node implementation from binary
@@ -251,7 +265,7 @@ void save_world(World *w, const char *path)
 	for (U32 i= 0; i < MAX_NODE_COUNT; ++i) {
 		NodeInfo *node= &w->nodes[i];
 		// Save all, even non-allocated nodes
-		// Easy way to keep routing handles valid
+		// Easy way to keep cmd handles valid
 		fwrite(node, 1, sizeof(*node), file);
 		if (!node->allocated)
 			continue;
@@ -311,7 +325,7 @@ void create_nodes(	World *w,
 		resurrect_node_impl(&w->nodes[h], default_struct);
 	}
 
-	// Route slots
+	// Commands
 	for (U32 cmd_i= 0; cmd_i < def->cmd_count; ++cmd_i) {
 		const NodeGroupDef_Node_Cmd *cmd_def= &def->cmds[cmd_i];
 
@@ -323,17 +337,22 @@ void create_nodes(	World *w,
 				U32 dst_node_h= handles[cmd_def->dst_node_i];
 
 				NodeInfo *dst_node= &w->nodes[dst_node_h];
-				U32 routing_i= dst_node->routing_count++;
-				if (routing_i >= MAX_NODE_ROUTING_COUNT)
-					fail("Too many node routings");
+				U32 cmd_i= dst_node->cmd_count++;
+				if (cmd_i >= MAX_NODE_CMD_COUNT)
+					fail("Too many node cmds");
 
-				dst_node->routing[routing_i]= (SlotCmd) {
+				dst_node->cmds[cmd_i]= (SlotCmd) {
 					.type= CmdType_memcpy,
 					.src_offset= cmd_def->src_offset,
 					.dst_offset= cmd_def->dst_offset,
 					.size= cmd_def->size,
 					.src_node= src_node_h,
 				};
+				SlotCmd *cmd= &dst_node->cmds[cmd_i];
+				cmd->has_condition= cmd_def->has_condition;
+				cmd->cond_node_h= handles[cmd_def->cond_node_i];
+				cmd->cond_offset= cmd_def->cond_offset;
+				cmd->cond_size= cmd_def->cond_size;
 			} break;
 			case CmdType_call: {
 				ensure(cmd_def->p_count > 0);
@@ -343,11 +362,11 @@ void create_nodes(	World *w,
 				const U32 dst_node_h= handles[dst_node_i];
 
 				NodeInfo *dst_node= &w->nodes[dst_node_h];
-				const U32 routing_i= dst_node->routing_count++;
-				if (routing_i >= MAX_NODE_ROUTING_COUNT)
-					fail("Too many node routings");
+				const U32 cmd_i= dst_node->cmd_count++;
+				if (cmd_i >= MAX_NODE_CMD_COUNT)
+					fail("Too many node cmds");
 
-				SlotCmd *slot= &dst_node->routing[routing_i];
+				SlotCmd *slot= &dst_node->cmds[cmd_i];
 				*slot= (SlotCmd) {
 					.type= CmdType_call,
 					.fptr= cmd_def->fptr,
@@ -356,6 +375,11 @@ void create_nodes(	World *w,
 					slot->p_nodes[slot->p_node_count++]=
 						handles[cmd_def->p_node_i[i]];
 				}
+				SlotCmd *cmd= &dst_node->cmds[cmd_i];
+				cmd->has_condition= cmd_def->has_condition;
+				cmd->cond_node_h= handles[cmd_def->cond_node_i];
+				cmd->cond_offset= cmd_def->cond_offset;
+				cmd->cond_size= cmd_def->cond_size;
 			} break;
 			default: fail("Invalid CmdType: %i", cmd_def->type);
 		}

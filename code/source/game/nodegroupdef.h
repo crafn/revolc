@@ -16,6 +16,12 @@ typedef enum {
 
 typedef struct NodeGroupDef_Node_Cmd {
 	CmdType type;
+
+	bool has_condition;
+	U32 cond_node_i;
+	U32 cond_offset;
+	U32 cond_size;
+
 	union {
 		struct { // memcpy
 			U32 src_offset;

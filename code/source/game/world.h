@@ -19,6 +19,12 @@ typedef struct SlotVal {
 
 typedef struct SlotCmd {
 	CmdType type;
+
+	bool has_condition;
+	U32 cond_node_h;
+	U32 cond_offset;
+	U32 cond_size;
+
 	union {
 		struct { // memcpy
 			U16 src_offset;
@@ -41,8 +47,8 @@ typedef struct NodeInfo {
 	NodeType *type;
 	char type_name[RES_NAME_SIZE];
 	U32 impl_handle; // e.g. Handle to ModelEntity
-	SlotCmd routing[MAX_NODE_ROUTING_COUNT];
-	U32 routing_count;
+	SlotCmd cmds[MAX_NODE_CMD_COUNT];
+	U32 cmd_count;
 	U64 group_id; // Entity id
 } NodeInfo;
 
