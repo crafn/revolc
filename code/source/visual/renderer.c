@@ -387,6 +387,7 @@ void render_frame()
 
 		// Debug draw
 		if (r->ddraw_v_count > 0) {
+			// Shapes
 			Vao ddraw_vao=
 				create_vao(MeshType_tri, r->ddraw_v_count, r->ddraw_i_count);
 			bind_vao(&ddraw_vao);
@@ -397,7 +398,54 @@ void render_frame()
 
 			r->ddraw_v_count= 0;
 			r->ddraw_i_count= 0;
+
+			// Grid
+			U32 grid_id;
+			glGenTextures(1, &grid_id);
+			glBindTexture(GL_TEXTURE_2D, grid_id);
+
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8,
+				GRID_WIDTH_IN_CELLS, GRID_WIDTH_IN_CELLS,
+				0, GL_RGBA, GL_UNSIGNED_BYTE,
+				r->grid_ddraw_data);
+
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+			Vao grid_vao= create_vao(MeshType_tri, 4, 6);
+			bind_vao(&grid_vao);
+			add_vertices_to_vao(&grid_vao, (TriMeshVertex[]) {
+				{ .pos= {-GRID_WIDTH/2, -GRID_WIDTH/2}, .uv= {0, 0} },
+				{ .pos= {+GRID_WIDTH/2, -GRID_WIDTH/2}, .uv= {1, 0} },
+				{ .pos= {+GRID_WIDTH/2, +GRID_WIDTH/2}, .uv= {1, 1} },
+				{ .pos= {-GRID_WIDTH/2, +GRID_WIDTH/2}, .uv= {0, 1} },
+			}, 4);
+			add_indices_to_vao(&grid_vao, (MeshIndexType[]) {
+				0, 1, 2,
+				0, 2, 3,
+			}, 6);
+
+			ShaderSource* grid_shd=
+				(ShaderSource*)res_by_name(
+						g_env.res_blob,
+						ResType_ShaderSource,
+						"grid_ddraw");
+			glUseProgram(grid_shd->prog_gl_id);
+			glUniform1i(glGetUniformLocation(grid_shd->prog_gl_id, "u_tex_color"), 0);
+			glUniformMatrix4fv(
+					glGetUniformLocation(grid_shd->prog_gl_id, "u_cam"),
+					1,
+					GL_FALSE,
+					cam_matrix(r).e);
+
+			draw_vao(&grid_vao);
+			destroy_vao(&grid_vao);
+
+			glDeleteTextures(1, &grid_id);
 		}
+
 	}
 }
 

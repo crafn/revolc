@@ -4,6 +4,7 @@
 #include "physworld.h"
 #include "visual/renderer.h" // Debug draw
 
+
 void create_physworld()
 {
 	PhysWorld *w= zero_malloc(sizeof(*w));
@@ -13,6 +14,10 @@ void create_physworld()
 	w->space= cpSpaceNew();
 	cpSpaceSetIterations(w->space, 10);
 	cpSpaceSetGravity(w->space, cpv(0, -20));
+
+	for (U32 i= 0; i < 100; ++i) {
+		w->grid[i].static_portion= 1.0;
+	}
 }
 
 void destroy_physworld()
@@ -255,8 +260,15 @@ void upd_physworld(F64 dt)
 			.flags= CP_SPACE_DEBUG_DRAW_SHAPES,
 		};
 		cpSpaceDebugDraw(w->space, &options);
-	}
 
+		Texel *grid= g_env.renderer->grid_ddraw_data;
+		for (U32 i= 0; i < GRID_CELL_COUNT; ++i) {
+			grid[i].r= MIN(w->grid[i].dynamic_portion*2, 255);
+			grid[i].g= 0;
+			grid[i].b= MIN(w->grid[i].static_portion*2, 255);
+			grid[i].a= MIN(w->grid[i].static_portion*2 + w->grid[i].dynamic_portion*2, 255);
+		}
+	}
 }
 
 void post_upd_physworld()
@@ -267,7 +279,33 @@ void post_upd_physworld()
 		RigidBody *b= &w->bodies[i];
 		if (!b->allocated)
 			continue;
+
+		if (	b->prev_pos.x != b->pos.x ||
+				b->prev_pos.y != b->pos.y) {
+
+			const U32 prev_i= GRID_INDEX(b->prev_pos.x, b->prev_pos.y);
+			if (prev_i < GRID_CELL_COUNT) {
+				GridCell *prev_c= &w->grid[prev_i];
+
+				if (b->is_static)
+					prev_c->static_portion -= 100;
+				else
+					prev_c->dynamic_portion -= 100;
+			}
+
+			const U32 cur_i= GRID_INDEX(b->pos.x, b->pos.y);
+			if (cur_i < GRID_CELL_COUNT) {
+				GridCell *cur_c= &w->grid[cur_i];
+
+				if (b->is_static)
+					cur_c->static_portion += 100;
+				else
+					cur_c->dynamic_portion += 100;
+			}
+		}
+
 		b->shape_changed= false;
+		b->prev_pos= b->pos;
 	}
 	
 }

@@ -37,6 +37,12 @@
 		"fs_file" : "./gen.fs",
 	},
 	{
+		"type" : "ShaderSource",
+		"name" : "grid_ddraw",
+		"vs_file" : "./grid_ddraw.vs",
+		"fs_file" : "./grid_ddraw.fs",
+	},
+	{
 		"type" : "NodeType",
 		"name" : "ModelEntity",
 		"init_func" : "init_modelentity",

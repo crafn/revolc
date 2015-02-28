@@ -19,6 +19,7 @@ typedef struct RigidBody {
 	char def_name[RES_NAME_SIZE]; // in
 
 	V3d pos;
+	V3d prev_pos;
 	Qd rot;
 	bool is_static;
 	bool shape_changed;
@@ -35,11 +36,23 @@ typedef struct RigidBody {
 	cpBody *cp_body;
 } RigidBody;
 
+#define GRID_INDEX(x, y) \
+		((((U32)((x)*GRID_RESO_PER_UNIT + GRID_WIDTH_IN_CELLS/2)) + \
+	   	(U32)((y)*GRID_RESO_PER_UNIT + GRID_WIDTH_IN_CELLS/2)*GRID_WIDTH_IN_CELLS))
+
+typedef struct GridCell {
+	U8 static_portion; // Max == 100
+	U8 dynamic_portion;
+	bool is_static_edge;
+} GridCell;
+
 typedef struct PhysWorld {
 	bool debug_draw;
 
 	RigidBody bodies[MAX_RIGIDBODY_COUNT];
 	U32 next_body, body_count;
+
+	GridCell grid[GRID_CELL_COUNT];
 
 	cpSpace *space;
 } PhysWorld;

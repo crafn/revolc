@@ -8,8 +8,8 @@
 #include "vao.h"
 
 typedef struct Renderer {
-	V3d cam_pos;
-	F32 cam_fov;
+	V3d cam_pos; // Directly written
+	F32 cam_fov; // Directly written
 
 	ModelEntity entities[MAX_MODELENTITY_COUNT];
 	U32 next_entity;
@@ -20,8 +20,9 @@ typedef struct Renderer {
 	U32 ddraw_v_count;
 	U32 ddraw_i_count;
 
-	U32 atlas_gl_id;
+	Texel grid_ddraw_data[GRID_CELL_COUNT]; // Directly written
 
+	U32 atlas_gl_id;
 	Vao vao;
 } Renderer;
 
@@ -36,6 +37,7 @@ REVOLC_API void * storage_modelentity();
 REVOLC_API void render_frame();
 
 REVOLC_API void ddraw_poly(Color c, V2d *poly, U32 count);
+
 REVOLC_API V2d screen_to_world_point(V2d p);
 
 struct ResBlob;
