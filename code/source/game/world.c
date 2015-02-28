@@ -121,12 +121,14 @@ void upd_world(World *w, F64 dt)
 		}
 		++batch_count;
 
-		// Propagate values
+		// Perform commands stated in NodeGroupDefs
 		for (U32 dst_i= batch_begin_i; dst_i < node_i; ++dst_i) {
 			NodeInfo *dst_node= &w->sort_space[dst_i];
 			for (U32 r_i= 0; r_i < dst_node->routing_count; ++r_i) {
 				SlotCmd *r= &dst_node->routing[r_i];
-				if (r->type == CmdType_memcpy) {
+				/// @todo Batching?
+				switch (r->type) {
+				case CmdType_memcpy: {
 					ensure(r->src_node < MAX_NODE_COUNT);
 					NodeInfo *src_node= &w->nodes[r->src_node];
 					ensure(dst_node->allocated && src_node->allocated);
@@ -135,8 +137,32 @@ void upd_world(World *w, F64 dt)
 					U8 *src= (U8*)node_impl(NULL, src_node) + r->src_offset;
 					for (U32 i= 0; i < r->size; ++i)
 						dst[i]= src[i];
-				} else if (r->type == CmdType_call) {
-					((void (*)(void *, U32))r->fptr)(node_impl(NULL, dst_node), 1);
+				} break;
+				case CmdType_call: {
+					// This is ugly. Call function pointer with corresponding node parameters
+					/// @todo Generate this
+					switch (r->p_node_count) {
+					case 0:
+						((void (*)(void *, U32))r->fptr)(
+							node_impl(NULL, dst_node), 1);
+					break;
+					case 1:
+						((void (*)(void *, U32, void *, U32))r->fptr)(
+							node_impl(NULL, dst_node), 1,
+							node_impl(NULL, &w->sort_space[r->p_nodes[0]]), 1
+							);
+					break;
+					case 2:
+						((void (*)(void *, U32, void *, U32, void *, U32))r->fptr)(
+							node_impl(NULL, dst_node), 1,
+							node_impl(NULL, &w->sort_space[r->p_nodes[0]]), 1,
+							node_impl(NULL, &w->sort_space[r->p_nodes[1]]), 1
+							);
+					break;
+					default: fail("Too many node params");
+					}
+				} break;
+				default: fail("Unknown cmd type: %i", r->type);
 				}
 				++signal_count;
 			}
@@ -288,17 +314,18 @@ void create_nodes(	World *w,
 	// Route slots
 	for (U32 cmd_i= 0; cmd_i < def->cmd_count; ++cmd_i) {
 		const NodeGroupDef_Node_Cmd *cmd_def= &def->cmds[cmd_i];
-		U32 dst_node_h= handles[cmd_def->dst_node_i];
-		NodeInfo *dst_node= &w->nodes[dst_node_h];
-
-		U32 routing_i= dst_node->routing_count;
-		if (routing_i >= MAX_NODE_ROUTING_COUNT)
-			fail("Too many node routings");
 
 		switch (cmd_def->type) {
 			case CmdType_memcpy: {
 				U32 src_node_h= handles[cmd_def->src_node_i];
 				ensure(src_node_h < MAX_NODE_COUNT);
+
+				U32 dst_node_h= handles[cmd_def->dst_node_i];
+
+				NodeInfo *dst_node= &w->nodes[dst_node_h];
+				U32 routing_i= dst_node->routing_count++;
+				if (routing_i >= MAX_NODE_ROUTING_COUNT)
+					fail("Too many node routings");
 
 				dst_node->routing[routing_i]= (SlotCmd) {
 					.type= CmdType_memcpy,
@@ -309,14 +336,29 @@ void create_nodes(	World *w,
 				};
 			} break;
 			case CmdType_call: {
-				dst_node->routing[routing_i]= (SlotCmd) {
+				ensure(cmd_def->p_count > 0);
+
+				// Convention: "Destination" node is the first parameter
+				const U32 dst_node_i= cmd_def->p_node_i[0];
+				const U32 dst_node_h= handles[dst_node_i];
+
+				NodeInfo *dst_node= &w->nodes[dst_node_h];
+				const U32 routing_i= dst_node->routing_count++;
+				if (routing_i >= MAX_NODE_ROUTING_COUNT)
+					fail("Too many node routings");
+
+				SlotCmd *slot= &dst_node->routing[routing_i];
+				*slot= (SlotCmd) {
 					.type= CmdType_call,
 					.fptr= cmd_def->fptr,
 				};
+				for (U32 i= 1; i < cmd_def->p_count; ++i) {
+					slot->p_nodes[slot->p_node_count++]=
+						handles[cmd_def->p_node_i[i]];
+				}
 			} break;
 			default: fail("Invalid CmdType: %i", cmd_def->type);
 		}
-		++dst_node->routing_count;
 	}
 }
 

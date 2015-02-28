@@ -14,6 +14,23 @@ U32 node_i_by_name(NodeGroupDef *def, const char *name)
 	return 0;
 }
 
+internal
+void trim_whitespace(char *str_begin)
+{
+	char *str_end= str_begin + strlen(str_begin);
+
+	char *begin= str_begin;
+	while (begin < str_end && *begin == ' ')
+		++begin;
+	char *end= str_end;
+	while (end > str_begin && *(end - 1) == ' ')
+		--end;
+
+	for (U32 i= 0; i < end - begin; ++i)
+		str_begin[i]= begin[i];
+	str_begin[end - begin]= '\0';
+}
+
 // e.g. "asd .fgh" -> { "asd", "fgh" }
 internal
 void split_str(char **dst, U32 dst_array_size, U32 dst_str_size,
@@ -47,6 +64,47 @@ void split_str(char **dst, U32 dst_array_size, U32 dst_str_size,
 		++i;
 	}
 }
+
+internal void split_func_call(
+		char *dst_func_name, char dst_param_strs[][RES_NAME_SIZE],
+		U32 *param_count,
+		U32 dst_func_name_size,
+		U32 dst_array_size, U32 dst_str_size,
+		const char *input)
+{
+	const char *input_end= input + strlen(input);
+	const char *paren_tok= input;
+	while (paren_tok < input_end && *paren_tok != '(')
+		++paren_tok;
+
+	const U32 func_name_size= paren_tok - input + 1; // Remembering null-byte
+	if (func_name_size > dst_func_name_size)
+		fail("Too long function name: %s", input);
+	snprintf(dst_func_name, func_name_size, "%s", input);
+
+	// Params
+	const char *param_begin= paren_tok + 1;
+	while (param_begin < input_end && *param_begin != ')') {
+		// Read next param
+		const char *comma_tok= param_begin;
+		while (	comma_tok < input_end &&
+				*comma_tok != ')' &&
+				*comma_tok != ',')
+			++comma_tok;
+
+		const U32 param_str_size= comma_tok - param_begin + 1;
+		if (param_str_size > dst_str_size)
+			fail("Too long parameter name: %s", input);
+		snprintf(	dst_param_strs[*param_count],
+					param_str_size, "%s",
+					param_begin);
+		trim_whitespace(dst_param_strs[*param_count]);
+
+		param_begin= comma_tok + 1;
+		++*param_count;
+	}
+}
+
 
 internal
 bool has_char(char ch, const char *input)
@@ -150,8 +208,6 @@ int json_nodegroupdef_to_blob(struct BlobBuf *buf, JsonTok j)
 
 			U32 src_node_i= node_i_by_name(&def, src_node_name);
 			U32 dst_node_i= node_i_by_name(&def, dst_node_name);
-			ensure(src_node_i < def.node_count);
-			ensure(dst_node_i < def.node_count);
 
 			const char *src_type_name= def.nodes[src_node_i].type_name;
 			const char *dst_type_name= def.nodes[dst_node_i].type_name;
@@ -167,10 +223,52 @@ int json_nodegroupdef_to_blob(struct BlobBuf *buf, JsonTok j)
 			// Src should be the same size as dst
 			ensure(cmd->size == member_size(dst_type_name, dst_member_name));
 		} else { // Must be a call
+			char func_name[MAX_FUNC_NAME_SIZE]= {};
+			char func_param_strs[MAX_CMD_CALL_PARAMS][RES_NAME_SIZE]= {};
+
+			U32 param_count= 0;
+			split_func_call(func_name, func_param_strs,
+					&param_count,
+					MAX_FUNC_NAME_SIZE, MAX_CMD_CALL_PARAMS, RES_NAME_SIZE,
+					cmd_str);
+
+			debug_print("FUNC: %s", func_name);
+			for (U32 i= 0; i < param_count; ++i) {
+				debug_print("PARAM: %s", func_param_strs[i]);
+			}
+
+			ensure(param_count > 0);
 			*cmd= (NodeGroupDef_Node_Cmd) {
 				.type= CmdType_call,
-				.fptr= func_ptr(cmd_str),
+				.fptr= func_ptr(func_name),
+				.p_count= param_count,
 			};
+
+			/// @todo	Check that there's correct number of params,
+			///			and that they're correct type!!!
+
+			// Params should be format "node_name" (for now)
+			for (U32 i= 0; i < param_count; ++i) {
+				/*
+				char p_node_name[RES_NAME_SIZE]= {};
+				char p_member_name[RES_NAME_SIZE]= {};
+				split_str(
+						(char*[]) {p_node_name, p_member_name}, 2, RES_NAME_SIZE,
+						'.', func_param_strs[i]);
+				U32 p_node_i= node_i_by_name(&def, p_node_name);
+				*/
+
+				U32 p_node_i= node_i_by_name(&def, func_param_strs[i]);
+				//const char *p_node_type_name= def.nodes[p_node_i].type_name;
+
+				cmd->p_node_i[i]= p_node_i;
+				//cmd->p_sizes[i]= struct_size(p_node_type_name);
+				//cmd->p_sizes[i]= member_size(p_node_type_name, p_member_name);
+				//cmd->p_offsets[i]= member_offset(p_node_type_name, p_member_name);
+			}
+
+			if (!cmd->fptr)
+				fail("Func ptr not found: %s", func_name);
 		}
 
 		++def.cmd_count;

@@ -39,7 +39,17 @@ void upd_aitest(	AiTest *t,
 void rotate_modelentity(ModelEntity *e, U32 count)
 {
 	for (U32 i= 0; i < count; ++i, e++) {
-		e->rot.cs= cos(acos(e->rot.cs) + 0.01);
-		e->rot.sn= sin(asin(e->rot.sn) + 0.01);
+		e->scale.y= 2.0;
+		//e->rot.cs= cos(acos(e->rot.cs) + 0.01);
+		//e->rot.sn= sin(asin(e->rot.sn) + 0.01);
+	}
+}
+
+void poly_to_modelentity(	ModelEntity *e, U32 e_count,
+							RigidBody *b, U32 b_count)
+{
+	ensure(e_count == b_count);
+	for (U32 i= 0; i < e_count; ++i, ++e, ++b) {
+		e->pos= b->pos;
 	}
 }

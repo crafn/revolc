@@ -7,6 +7,7 @@
 #define MAX_NODES_IN_GROUP_DEF 16
 #define MAX_DEFAULT_STRUCT_SIZE 512
 #define MAX_CMDS_IN_GROUP_DEF 8
+#define MAX_CMD_CALL_PARAMS 4
 
 typedef enum {
 	CmdType_memcpy,
@@ -25,6 +26,11 @@ typedef struct NodeGroupDef_Node_Cmd {
 		};
 		struct { // call
 			void *fptr;
+
+			U32 p_node_i[MAX_CMD_CALL_PARAMS];
+			//U32 p_offsets[MAX_CMD_CALL_PARAMS];
+			//U32 p_sizes[MAX_CMD_CALL_PARAMS];
+			U32 p_count;
 		};
 	};
 } NodeGroupDef_Node_Cmd;

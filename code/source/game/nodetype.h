@@ -12,8 +12,6 @@ typedef void * (*StorageNodeImpl)();
 typedef void (*UpdNodeImpl)(void *,
 							U32 count);
 
-#define MAX_FUNC_NAME_SIZE 64
-
 typedef struct NodeType {
 	Resource res;
 

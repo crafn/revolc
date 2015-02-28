@@ -2,6 +2,7 @@
 #define REVOLC_PHYSICS_PHYS_WORLD_H
 
 #include "build.h"
+#include "core/quaternion.h"
 #include "core/vector.h"
 #include "rigidbodydef.h"
 #include "shapes.h"

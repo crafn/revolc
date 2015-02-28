@@ -17,4 +17,7 @@
 #define MAX_POLY_VERTEX_COUNT 8
 #define MAX_SHAPES_PER_BODY 2
 
+
+#define MAX_FUNC_NAME_SIZE 64
+
 #endif // REVOLC_GLOBAL_CFG_H

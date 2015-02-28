@@ -5,6 +5,7 @@
 
 #include "build.h"
 #include "core/vector.h"
+#include "physics/physworld.h"
 #include "visual/modelentity.h"
 
 typedef struct AiTest {
@@ -19,6 +20,11 @@ REVOLC_API void * storage_aitest();
 REVOLC_API void upd_aitest(	AiTest *t,
 							U32 count);
 
+REVOLC_API
 void rotate_modelentity(ModelEntity *e, U32 count);
+
+REVOLC_API
+void poly_to_modelentity(	ModelEntity *e, U32 e_count,
+							RigidBody *b, U32 b_count);
 
 #endif // REVOLC_GAME_AITEST_H

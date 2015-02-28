@@ -28,6 +28,9 @@ typedef struct SlotCmd {
 		};
 		struct { // call
 			void *fptr;
+
+			U32 p_nodes[MAX_CMD_CALL_PARAMS];
+			U16 p_node_count;
 		};
 	};
 
