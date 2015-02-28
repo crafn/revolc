@@ -24,8 +24,7 @@ void free_aitest(U32 handle)
 void * storage_aitest()
 { return temptest_aitest_storage; }
 
-void upd_aitest(	World *w,
-					AiTest *t,
+void upd_aitest(	AiTest *t,
 					U32 count)
 {
 	V2d target= {0.0, 30.0};
@@ -37,3 +36,10 @@ void upd_aitest(	World *w,
 	}
 }
 
+void rotate_modelentity(ModelEntity *e, U32 count)
+{
+	for (U32 i= 0; i < count; ++i, e++) {
+		e->rot.cs= cos(acos(e->rot.cs) + 0.01);
+		e->rot.sn= sin(asin(e->rot.sn) + 0.01);
+	}
+}

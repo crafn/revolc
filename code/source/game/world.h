@@ -17,20 +17,29 @@ typedef struct SlotVal {
 	U32 size;
 } SlotVal;
 
-typedef struct SlotRouting {
-	U8 allocated;
-	U8 src_offset;
-	U8 dst_offset;
-	U8 size;
-	U32 dst_node;
-} SlotRouting;
+typedef struct SlotCmd {
+	CmdType type;
+	union {
+		struct { // memcpy
+			U16 src_offset;
+			U16 dst_offset;
+			U16 size;
+			U32 src_node;
+		};
+		struct { // call
+			void *fptr;
+		};
+	};
+
+} SlotCmd;
 
 typedef struct NodeInfo {
 	bool allocated; /// @todo Can be substituted by type (== NULL)
 	NodeType *type;
 	char type_name[RES_NAME_SIZE];
 	U32 impl_handle; // e.g. Handle to ModelEntity
-	SlotRouting routing[MAX_NODE_ROUTING_COUNT];
+	SlotCmd routing[MAX_NODE_ROUTING_COUNT];
+	U32 routing_count;
 	U64 group_id; // Entity id
 } NodeInfo;
 
@@ -57,10 +66,6 @@ REVOLC_API void create_nodes(	World *w,
 REVOLC_API void free_node(World *w, U32 handle);
 REVOLC_API void free_node_group(World *w, U64 group_id);
 REVOLC_API U32 node_impl_handle(World *w, U32 node_handle);
-REVOLC_API void add_routing(World *w,
-							U32 src_node_h, U32 src_offset,
-							U32 dst_node_h, U32 dst_offset,
-							U32 size);
 
 struct ResBlob;
 internal

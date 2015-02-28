@@ -35,6 +35,10 @@ static void examine_namespace(struct symbol *sym)
 	case NS_STRUCT: {
 		if (sym->type == SYM_UNION)
 			break;
+		if (!sym->ident)
+			break;
+		if (!sym->ident->name)
+			break;
 		if (sym->ident->name[0] == '_')
 			break;
 		if (sym->ident->name[0] > 'Z')
@@ -50,7 +54,7 @@ static void examine_namespace(struct symbol *sym)
 			struct symbol *m= NULL;
 			FOR_EACH_PTR(sym->symbol_list, m) {
 				++count;
-				if (m->ident->name[0] == '_') {
+				if (!m->ident || !m->ident->name || m->ident->name[0] == '_') {
 					illegal= 1;
 					break;
 				}

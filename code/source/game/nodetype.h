@@ -9,8 +9,7 @@ typedef void (*InitNodeImpl)(const void *data);
 typedef U32 (*ResurrectNodeImpl)(const void *dead);
 typedef void (*FreeNodeImpl)(U32 handle);
 typedef void * (*StorageNodeImpl)();
-typedef void (*UpdNodeImpl)(struct World *,
-							void *,
+typedef void (*UpdNodeImpl)(void *,
 							U32 count);
 
 #define MAX_FUNC_NAME_SIZE 64

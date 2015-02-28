@@ -48,6 +48,17 @@ void split_str(char **dst, U32 dst_array_size, U32 dst_str_size,
 	}
 }
 
+internal
+bool has_char(char ch, const char *input)
+{
+	U32 len= strlen(input);
+	for (U32 i= 0; i < len; ++i) {
+		if (input[i] == ch)
+			return true;
+	}
+	return false;
+}
+
 int json_nodegroupdef_to_blob(struct BlobBuf *buf, JsonTok j)
 {
 	JsonTok j_nodes= json_value_by_key(j, "nodes");
@@ -57,6 +68,7 @@ int json_nodegroupdef_to_blob(struct BlobBuf *buf, JsonTok j)
 	if (json_is_null(j_cmds))
 		RES_ATTRIB_MISSING("cmds");
 
+	// cmds
 	NodeGroupDef def= {};
 	for (U32 node_i= 0; node_i < json_member_count(j_nodes); ++node_i) {
 		JsonTok j_node= json_member(j_nodes, node_i);
@@ -106,53 +118,62 @@ int json_nodegroupdef_to_blob(struct BlobBuf *buf, JsonTok j)
 		++def.node_count;
 	}
 
+	// cmds
 	for (U32 cmd_i= 0; cmd_i < json_member_count(j_cmds); ++cmd_i) {
 		JsonTok j_cmd= json_member(j_cmds, cmd_i);
 		const char *cmd_str= json_str(j_cmd);
+		NodeGroupDef_Node_Cmd *cmd= &def.cmds[def.cmd_count];
 
-		// Split "a.b = c.d"
-		char src_str[RES_NAME_SIZE*2]= {};
-		char dst_str[RES_NAME_SIZE*2]= {};
-		split_str(
-				(char*[]) {src_str, dst_str}, 2, RES_NAME_SIZE*2,
-				'=', cmd_str);
+		if (has_char('=', cmd_str)) {
+			// This is clearly CmdType_memcpy!
 
-		// Split "a.b"
-		char src_node_name[RES_NAME_SIZE]= {};
-		char src_member_name[RES_NAME_SIZE]= {};
-		split_str(
-				(char*[]) {src_node_name, src_member_name}, 2, RES_NAME_SIZE,
-				'.', src_str);
+			// Split "dst.m = src.m"
+			char dst_str[RES_NAME_SIZE*2]= {};
+			char src_str[RES_NAME_SIZE*2]= {};
+			split_str(
+					(char*[]) {dst_str, src_str}, 2, RES_NAME_SIZE*2,
+					'=', cmd_str);
 
-		// Split "c.d"
-		char dst_node_name[RES_NAME_SIZE]= {};
-		char dst_member_name[RES_NAME_SIZE]= {};
-		split_str(
-				(char*[]) {dst_node_name, dst_member_name}, 2, RES_NAME_SIZE,
-				'.', dst_str);
+			// Split "dst.m"
+			char dst_node_name[RES_NAME_SIZE]= {};
+			char dst_member_name[RES_NAME_SIZE]= {};
+			split_str(
+					(char*[]) {dst_node_name, dst_member_name}, 2, RES_NAME_SIZE,
+					'.', dst_str);
 
-		U32 src_node_i= node_i_by_name(&def, src_node_name);
-		U32 dst_node_i= node_i_by_name(&def, dst_node_name);
-		ensure(src_node_i < def.node_count);
-		ensure(dst_node_i < def.node_count);
+			// Split "src.m"
+			char src_node_name[RES_NAME_SIZE]= {};
+			char src_member_name[RES_NAME_SIZE]= {};
+			split_str(
+					(char*[]) {src_node_name, src_member_name}, 2, RES_NAME_SIZE,
+					'.', src_str);
 
-		const char *src_type_name= def.nodes[src_node_i].type_name;
-		const char *dst_type_name= def.nodes[dst_node_i].type_name;
+			U32 src_node_i= node_i_by_name(&def, src_node_name);
+			U32 dst_node_i= node_i_by_name(&def, dst_node_name);
+			ensure(src_node_i < def.node_count);
+			ensure(dst_node_i < def.node_count);
 
-		NodeGroupDef_Node *src_node= &def.nodes[src_node_i];
-		NodeGroupDef_Node_Output *out= &src_node->outputs[src_node->output_count];
+			const char *src_type_name= def.nodes[src_node_i].type_name;
+			const char *dst_type_name= def.nodes[dst_node_i].type_name;
 
-		*out= (NodeGroupDef_Node_Output) {
-			.src_offset= member_offset(src_type_name, src_member_name),
-			.dst_offset= member_offset(dst_type_name, dst_member_name),
-			.dst_node_i= dst_node_i,
-			.size= member_size(src_type_name, src_member_name),
-		};
+			*cmd= (NodeGroupDef_Node_Cmd) {
+				.type= CmdType_memcpy,
+				.src_offset= member_offset(src_type_name, src_member_name),
+				.dst_offset= member_offset(dst_type_name, dst_member_name),
+				.dst_node_i= dst_node_i,
+				.size= member_size(src_type_name, src_member_name),
+			};
 
-		// Src should be the same size as dst
-		ensure(out->size == member_size(dst_type_name, dst_member_name));
+			// Src should be the same size as dst
+			ensure(cmd->size == member_size(dst_type_name, dst_member_name));
+		} else { // Must be a call
+			*cmd= (NodeGroupDef_Node_Cmd) {
+				.type= CmdType_call,
+				.fptr= func_ptr(cmd_str),
+			};
+		}
 
-		++src_node->output_count;
+		++def.cmd_count;
 	}
 
 	blob_write(	buf,

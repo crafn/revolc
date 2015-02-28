@@ -116,28 +116,28 @@ void upd_world(World *w, F64 dt)
 		updated_count += batch_size; 
 		if (batch_begin_type->upd) {
 			batch_begin_type->upd(
-					w,
 					node_impl(NULL, &w->sort_space[batch_begin_i]),
 					batch_size);
 		}
 		++batch_count;
 
 		// Propagate values
-		for (U32 src_i= batch_begin_i; src_i < node_i; ++src_i) {
-			NodeInfo *src_node= &w->sort_space[src_i];
-			for (U32 r_i= 0; r_i < MAX_NODE_ROUTING_COUNT; ++r_i) {
-				if (!src_node->routing[r_i].allocated)
-					continue;
+		for (U32 dst_i= batch_begin_i; dst_i < node_i; ++dst_i) {
+			NodeInfo *dst_node= &w->sort_space[dst_i];
+			for (U32 r_i= 0; r_i < dst_node->routing_count; ++r_i) {
+				SlotCmd *r= &dst_node->routing[r_i];
+				if (r->type == CmdType_memcpy) {
+					ensure(r->src_node < MAX_NODE_COUNT);
+					NodeInfo *src_node= &w->nodes[r->src_node];
+					ensure(dst_node->allocated && src_node->allocated);
 
-				SlotRouting *r= &src_node->routing[r_i];
-				ensure(r->dst_node < MAX_NODE_COUNT);
-				NodeInfo *dst_node= &w->nodes[r->dst_node];
-				ensure(src_node->allocated && dst_node->allocated);
-
-				U8 *dst= (U8*)node_impl(NULL, dst_node) + r->dst_offset;
-				U8 *src= (U8*)node_impl(NULL, src_node) + r->src_offset;
-				for (U32 i= 0; i < r->size; ++i)
-					dst[i]= src[i];
+					U8 *dst= (U8*)node_impl(NULL, dst_node) + r->dst_offset;
+					U8 *src= (U8*)node_impl(NULL, src_node) + r->src_offset;
+					for (U32 i= 0; i < r->size; ++i)
+						dst[i]= src[i];
+				} else if (r->type == CmdType_call) {
+					((void (*)(void *, U32))r->fptr)(node_impl(NULL, dst_node), 1);
+				}
 				++signal_count;
 			}
 		}
@@ -196,6 +196,7 @@ void load_world(World *w, const char *path)
 		NodeInfo *n= &w->nodes[node_h];
 		memcpy(n->type_name, dead_node.type_name, sizeof(n->type_name));
 		memcpy(n->routing, dead_node.routing, sizeof(n->routing));
+		n->routing_count= dead_node.routing_count;
 		n->group_id= dead_node.group_id;
 
 		// New Node implementation from binary
@@ -285,15 +286,37 @@ void create_nodes(	World *w,
 	}
 
 	// Route slots
-	for (U32 node_i= 0; node_i < def->node_count; ++node_i) {
-		const NodeGroupDef_Node *node= &def->nodes[node_i];
-		for (U32 out_i= 0; out_i < node->output_count; ++out_i) {
-			const NodeGroupDef_Node_Output *out= &node->outputs[out_i];
-			add_routing(	w,
-							handles[node_i],			out->src_offset,
-							handles[out->dst_node_i],	out->dst_offset,
-							out->size);
+	for (U32 cmd_i= 0; cmd_i < def->cmd_count; ++cmd_i) {
+		const NodeGroupDef_Node_Cmd *cmd_def= &def->cmds[cmd_i];
+		U32 dst_node_h= handles[cmd_def->dst_node_i];
+		NodeInfo *dst_node= &w->nodes[dst_node_h];
+
+		U32 routing_i= dst_node->routing_count;
+		if (routing_i >= MAX_NODE_ROUTING_COUNT)
+			fail("Too many node routings");
+
+		switch (cmd_def->type) {
+			case CmdType_memcpy: {
+				U32 src_node_h= handles[cmd_def->src_node_i];
+				ensure(src_node_h < MAX_NODE_COUNT);
+
+				dst_node->routing[routing_i]= (SlotCmd) {
+					.type= CmdType_memcpy,
+					.src_offset= cmd_def->src_offset,
+					.dst_offset= cmd_def->dst_offset,
+					.size= cmd_def->size,
+					.src_node= src_node_h,
+				};
+			} break;
+			case CmdType_call: {
+				dst_node->routing[routing_i]= (SlotCmd) {
+					.type= CmdType_call,
+					.fptr= cmd_def->fptr,
+				};
+			} break;
+			default: fail("Invalid CmdType: %i", cmd_def->type);
 		}
+		++dst_node->routing_count;
 	}
 }
 
@@ -326,30 +349,6 @@ U32 node_impl_handle(World *w, U32 node_handle)
 {
 	ensure(node_handle < MAX_NODE_COUNT);
 	return w->nodes[node_handle].impl_handle;
-}
-
-void add_routing(	World *w,
-					U32 src_node_h, U32 src_offset,
-					U32 dst_node_h, U32 dst_offset,
-					U32 size)
-{
-	ensure(src_node_h < MAX_NODE_COUNT);
-	NodeInfo *src_node= &w->nodes[src_node_h];
-
-	U32 routing_i= 0;
-	while (	src_node->routing[routing_i].allocated &&
-			routing_i < MAX_NODE_ROUTING_COUNT)
-		++routing_i;
-	if (routing_i >= MAX_NODE_ROUTING_COUNT)
-		fail("Too many node routings");
-
-	src_node->routing[routing_i]= (SlotRouting) {
-		.allocated= true,
-		.src_offset= src_offset,
-		.dst_offset= dst_offset,
-		.size= size,
-		.dst_node= dst_node_h
-	};
 }
 
 void world_on_res_reload(struct ResBlob* blob)
