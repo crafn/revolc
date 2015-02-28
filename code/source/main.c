@@ -159,6 +159,7 @@ int main(int argc, const char **argv)
 
 		upd_physworld(d->dt);
 		upd_world(world, d->dt);
+		post_upd_physworld();
 		render_frame();
 
 		gl_check_errors("loop");

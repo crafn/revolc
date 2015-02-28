@@ -1,6 +1,9 @@
 #include "worldgen.h"
 #include "physics/shapes.h"
 
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+
 #define U32_MAX 4294967295
 
 // Thanks R.. http://stackoverflow.com/questions/19083566/what-are-the-better-pseudo-random-number-generator-than-the-lcg-for-lottery-sc
@@ -55,9 +58,9 @@ void try_spawn_ground(World *world, V2d pos)
 {
 	F64 l_g_y= ground_surf_y(pos.x - 0.5);
 	F64 r_g_y= ground_surf_y(pos.x + 0.5);
-	if (pos.y - 0.5 > l_g_y ||
+	if (pos.y - 0.5 > l_g_y &&
 		pos.y - 0.5 > r_g_y)
-		return; // Too high
+		return; // Both lower corners over ground
 
 	U8 poly_count= 1;
 	Poly poly= {};
@@ -66,15 +69,45 @@ void try_spawn_ground(World *world, V2d pos)
 	poly.v[2]= (V2d) {+0.5, +0.5};
 	poly.v[3]= (V2d) {-0.5, +0.5};
 	poly.v_count= 4;
+	
+	F64 k= r_g_y - l_g_y;
 
-	if (pos.y + 0.5 < l_g_y &&
-		pos.y + 0.5 < r_g_y) {
-		// Under surface
+	if (pos.y + 0.5 <= l_g_y &&
+		pos.y + 0.5 <= r_g_y) {
+		// Both upper corners under ground
 		// Nop
-	} else {
-		// Near surface, extend block
-		poly.v[3].y= l_g_y - pos.y;
+	} else if (	pos.y + 0.5 > l_g_y &&
+				pos.y + 0.5 > r_g_y) {
+		// Neither upper corner under ground
 		poly.v[2].y= r_g_y - pos.y;
+		poly.v[3].y= l_g_y - pos.y;
+
+		if (poly.v[2].y < -0.5) {
+			// Right lower corner over ground
+			poly.v[2].x= poly.v[1].x= 0.5 - (r_g_y - pos.y + 0.5)/k;
+
+			poly.v[2].y= -0.5;
+			poly.v[1].y= -0.5;
+		}
+
+		if (poly.v[3].y < -0.5) {
+			// Left lower ground over ground
+			poly.v[3].x= poly.v[0].x= -0.5 - (l_g_y - pos.y + 0.5)/k;
+
+			poly.v[3].y= -0.5;
+			poly.v[0].y= -0.5;
+		}
+	} else {
+		// Other upper corner under ground
+		poly.v[2].y= MIN(r_g_y - pos.y, 0.5);
+		poly.v[3].y= MIN(l_g_y - pos.y, 0.5);
+
+		// New vertex
+		poly.v_count += 1;
+		poly.v[4]= poly.v[3];
+
+		// New vertex to intersection point
+		poly.v[3]= (V2d) { -0.5 - (l_g_y - pos.y - 0.5)/k, 0.5 };
 	}
 
 	bool true_var= true;
@@ -88,7 +121,7 @@ void try_spawn_ground(World *world, V2d pos)
 		{"visual",	"model_name",		WITH_STR_SIZE("block_dirt")},
 	};
 	NodeGroupDef *def=
-		(NodeGroupDef*)res_by_name(g_env.res_blob, ResType_NodeGroupDef, "phys_prop");
+		(NodeGroupDef*)res_by_name(g_env.res_blob, ResType_NodeGroupDef, "block");
 	create_nodes(world, def, WITH_ARRAY_COUNT(init_vals), 0);
 }
 
@@ -139,7 +172,7 @@ void generate_world(World *w, U64 seed)
 			try_spawn_ground(w, pos);
 		}
 	}
-	for (int i= 0; i < 30; ++i) {
+	for (int i= 0; i < 20; ++i) {
 			V2d pos= {
 				random_f64(-30.0, 30.0, &seed),
 				random_f64(0.0, 40.0, &seed),

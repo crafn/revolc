@@ -48,6 +48,7 @@ void set_rigidbody(U32 h, RigidBodyDef *def)
 	ensure(h < MAX_RIGIDBODY_COUNT && w->bodies[h].cp_body == NULL);
 	RigidBody *b= &w->bodies[h];
 	strncpy(b->def_name, def->res.name, sizeof(b->def_name));
+	b->shape_changed= true;
 
 	/// @todo Mass & moment could be precalculated to ResBlob
 	F64 total_mass= 0;
@@ -211,7 +212,7 @@ void phys_draw_poly(
 			count);
 }
 
-void upd_physworld(F32 dt)
+void upd_physworld(F64 dt)
 {
 	PhysWorld *w= g_env.phys_world;
 
@@ -246,7 +247,7 @@ void upd_physworld(F32 dt)
 		b->rot.cs= r.x;
 		b->rot.sn= r.y;
 	}
-	
+
 	if (w->debug_draw) {
 		cpSpaceDebugDrawOptions options= {
 			.drawCircle= phys_draw_circle,
@@ -256,4 +257,17 @@ void upd_physworld(F32 dt)
 		cpSpaceDebugDraw(w->space, &options);
 	}
 
+}
+
+void post_upd_physworld()
+{
+	PhysWorld *w= g_env.phys_world;
+
+	for (U32 i= 0; i < MAX_RIGIDBODY_COUNT; ++i) {
+		RigidBody *b= &w->bodies[i];
+		if (!b->allocated)
+			continue;
+		b->shape_changed= false;
+	}
+	
 }

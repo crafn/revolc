@@ -3,6 +3,7 @@
 #include "core/malloc.h"
 #include "core/matrix.h"
 #include "core/vector.h"
+#include "model.h"
 #include "renderer.h"
 #include "resources/resblob.h"
 #include "vao.h"
@@ -224,6 +225,7 @@ U32 resurrect_modelentity(const ModelEntity *dead)
 	r->entities[h].allocated= true;
 	r->entities[h].vertices= NULL;
 	r->entities[h].indices= NULL;
+	r->entities[h].has_own_mesh= false;
 
 	set_modelentity(
 			h,
@@ -240,7 +242,13 @@ void free_modelentity(U32 h)
 	Renderer *r= g_env.renderer;
 
 	ensure(h < MAX_MODELENTITY_COUNT);
-	r->entities[h]= (ModelEntity) { .allocated= false };
+	ModelEntity *e= &r->entities[h];
+	if (e->has_own_mesh) {
+		free(e->vertices);
+		free(e->indices);
+	}
+
+	*e= (ModelEntity) { .allocated= false };
 	--r->entity_count;
 }
 

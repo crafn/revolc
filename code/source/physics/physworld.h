@@ -21,6 +21,7 @@ typedef struct RigidBody {
 	V3d pos;
 	Qd rot;
 	bool is_static;
+	bool shape_changed;
 	bool has_own_shape; // Ignores shape of def_name
 
 	/// @todo These should be set even when has_own_shape isn't true
@@ -51,6 +52,7 @@ REVOLC_API U32 resurrect_rigidbody(const RigidBody *dead);
 REVOLC_API void free_rigidbody(U32 h);
 REVOLC_API void * storage_rigidbody();
 
-REVOLC_API void upd_physworld(F32 dt);
+REVOLC_API void upd_physworld(F64 dt);
+REVOLC_API void post_upd_physworld();
 
 #endif // REVOLC_PHYSICS_PHYS_WORLD_H

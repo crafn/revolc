@@ -13,6 +13,7 @@ typedef struct ModelEntity {
 	Qd rot;
 	V3d scale;
 	char model_name[RES_NAME_SIZE];
+	bool has_own_mesh; // If true, vertices and indices are free'd along this
 
 	// Cached
 	V3f atlas_uv;

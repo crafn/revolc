@@ -1,4 +1,7 @@
 #include "aitest.h"
+#include "global/env.h"
+#include "resources/resblob.h"
+#include "visual/renderer.h"
 #include "world.h"
 
 internal
@@ -44,11 +47,55 @@ void rotate_modelentity(ModelEntity *e, U32 count)
 	}
 }
 
+
 void poly_to_modelentity(	ModelEntity *e, U32 e_count,
 							RigidBody *b, U32 b_count)
 {
+	//debug_print("POLY_TO_MODELENTITY, %i", b->shape_changed);
 	ensure(e_count == b_count);
+
 	for (U32 i= 0; i < e_count; ++i, ++e, ++b) {
-		e->pos= b->pos;
+		V2d *poly= b->polys[0].v;
+
+		U32 v_count= b->polys[0].v_count;
+		U32 i_count= (v_count - 2)*3;
+
+		ensure(v_count > 2);
+		TriMeshVertex *vert= malloc(sizeof(*vert)*v_count);
+		MeshIndexType *ind= malloc(sizeof(*ind)*i_count);
+
+		{ // Calc mesh
+			for (U32 i= 0; i < v_count; ++i) {
+				TriMeshVertex v= {
+					.pos= { .x= poly[i].x, .y= poly[i].y },
+					.uv= {poly[i].x*0.99 + 0.5, poly[i].y*0.99 + 0.5},
+					.color= { 1.0, 0.0, 0.0, 0.5 },
+				};
+				vert[i]= v;
+			}
+
+			U32 index= 0;
+			for (U32 i= 0; i < v_count - 2; ++i) {
+				ind[index++]= 0;
+				ind[index++]= i + 1;
+				ind[index++]= i + 2;
+			}
+			ensure(index == i_count);
+		}
+
+		{ // Switch mesh
+			// Free old mesh
+			if (e->has_own_mesh) {
+				free(e->vertices);
+				free(e->indices);
+			}
+
+			e->has_own_mesh= true;
+			// Ownership transfer
+			e->vertices= vert;
+			e->indices= ind;
+			e->mesh_v_count= v_count;
+			e->mesh_i_count= i_count;
+		}
 	}
 }
