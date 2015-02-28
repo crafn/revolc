@@ -6,7 +6,6 @@
 #include "model.h"
 #include "renderer.h"
 #include "resources/resblob.h"
-#include "vao.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -165,6 +164,8 @@ void create_renderer()
 	r->cam_pos.z= 10.0;
 	r->cam_fov= 3.141/2.0;
 
+	r->vao= create_vao(MeshType_tri, MAX_DRAW_VERTEX_COUNT, MAX_DRAW_INDEX_COUNT);
+
 	recreate_texture_atlas(r, g_env.res_blob);
 
 	ensure(!g_env.renderer);
@@ -176,6 +177,7 @@ void destroy_renderer()
 	Renderer *r= g_env.renderer;
 	g_env.renderer= NULL;
 
+	destroy_vao(&r->vao);
 	glDeleteTextures(1, &r->atlas_gl_id);
 	free(r);
 }
@@ -256,12 +258,13 @@ void * storage_modelentity()
 { return g_env.renderer->entities; }
 
 internal
+inline
 int entity_cmp(const void *e1, const void *e2)
 {
-	F32 a= ((ModelEntity*)e1)->pos.z;
-	F32 b= ((ModelEntity*)e2)->pos.z;
 	// Smallest Z first (furthest away from camera)
-	return (a > b) - (a < b);
+	// Uglier but faster than using temp vars with -O0
+	return	( ((ModelEntity*)e1)->pos.z > ((ModelEntity*)e2)->pos.z ) -
+			( ((ModelEntity*)e1)->pos.z < ((ModelEntity*)e2)->pos.z );
 }
 
 void render_frame()
@@ -279,8 +282,16 @@ void render_frame()
 		total_i_count += e->mesh_i_count;
 	}
 
-	Vao vao= create_vao(MeshType_tri, total_v_count, total_i_count);
-	bind_vao(&vao);
+	if (total_v_count > MAX_DRAW_VERTEX_COUNT)
+		fail(	"Too many vertices to draw: %i > %i",
+				total_i_count, MAX_DRAW_VERTEX_COUNT);
+
+	if (total_i_count > MAX_DRAW_INDEX_COUNT) 
+		fail(	"Too many indices to draw: %i > %i",
+				total_i_count, MAX_DRAW_INDEX_COUNT);
+
+	bind_vao(&r->vao);
+	reset_vao_mesh(&r->vao);
 
 	{ // Meshes to Vao
 		ModelEntity *entities= malloc(sizeof(*r->entities)*MAX_MODELENTITY_COUNT);	
@@ -338,8 +349,8 @@ void render_frame()
 			}
 		}
 		free(entities);
-		add_vertices_to_vao(&vao, total_verts, total_v_count);
-		add_indices_to_vao(&vao, total_inds, total_i_count);
+		add_vertices_to_vao(&r->vao, total_verts, total_v_count);
+		add_indices_to_vao(&r->vao, total_inds, total_i_count);
 		free(total_verts);
 		free(total_inds);
 	}
@@ -371,7 +382,8 @@ void render_frame()
 				g_env.device->win_size[1]);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		draw_vao(&vao);
+		draw_vao(&r->vao);
+
 
 		// Debug draw
 		if (r->ddraw_v_count > 0) {
@@ -387,9 +399,6 @@ void render_frame()
 			r->ddraw_i_count= 0;
 		}
 	}
-
-
-	destroy_vao(&vao);
 }
 
 void ddraw_poly(Color c, V2d *poly, U32 count)

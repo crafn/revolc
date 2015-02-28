@@ -5,6 +5,7 @@
 #include "modelentity.h"
 #include "global/cfg.h"
 #include "mesh.h"
+#include "vao.h"
 
 typedef struct Renderer {
 	V3d cam_pos;
@@ -21,7 +22,7 @@ typedef struct Renderer {
 
 	U32 atlas_gl_id;
 
-	ModelEntity sort_space[MAX_MODELENTITY_COUNT];
+	Vao vao;
 } Renderer;
 
 // Sets g_env.renderer

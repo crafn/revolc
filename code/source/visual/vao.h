@@ -25,6 +25,7 @@ REVOLC_API void unbind_vao();
 REVOLC_API void add_mesh_to_vao(Vao *vao, const Mesh *mesh);
 REVOLC_API void add_vertices_to_vao(Vao *vao, void *vertices, U32 count);
 REVOLC_API void add_indices_to_vao(Vao *vao, MeshIndexType *indices, U32 count);
+REVOLC_API void reset_vao_mesh(Vao *vao);
 REVOLC_API void draw_vao(const Vao *vao);
 
 #endif // REVOLC_VISUAL_VAO_H

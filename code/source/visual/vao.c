@@ -127,6 +127,9 @@ void add_indices_to_vao(Vao *vao, MeshIndexType *indices, U32 count)
 	vao->i_count += count;
 }
 
+void reset_vao_mesh(Vao *vao)
+{ vao->v_count= vao->i_count= 0; }
+
 void draw_vao(const Vao *vao)
 {
 	if (vao->ibo_id) {

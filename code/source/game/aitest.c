@@ -61,6 +61,7 @@ void poly_to_modelentity(	ModelEntity *e, U32 e_count,
 		U32 i_count= (v_count - 2)*3;
 
 		ensure(v_count > 2);
+		/// @todo Don't malloc in game logic!!!
 		TriMeshVertex *vert= malloc(sizeof(*vert)*v_count);
 		MeshIndexType *ind= malloc(sizeof(*ind)*i_count);
 
