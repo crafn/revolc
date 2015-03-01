@@ -298,7 +298,7 @@ void render_frame()
 		memcpy(entities, r->entities, sizeof(*r->entities)*MAX_MODELENTITY_COUNT);
 
 		// Z-sort
-		//qsort(entities, MAX_MODELENTITY_COUNT, sizeof(*entities), entity_cmp);
+		qsort(entities, MAX_MODELENTITY_COUNT, sizeof(*entities), entity_cmp);
 
 		TriMeshVertex *total_verts= malloc(sizeof(*total_verts)*total_v_count);
 		MeshIndexType *total_inds= malloc(sizeof(*total_inds)*total_i_count);
@@ -416,11 +416,12 @@ void render_frame()
 
 			Vao grid_vao= create_vao(MeshType_tri, 4, 6);
 			bind_vao(&grid_vao);
+			const F32 hp= 0.5/GRID_RESO_PER_UNIT;
 			add_vertices_to_vao(&grid_vao, (TriMeshVertex[]) {
-				{ .pos= {-GRID_WIDTH/2, -GRID_WIDTH/2}, .uv= {0, 0} },
-				{ .pos= {+GRID_WIDTH/2, -GRID_WIDTH/2}, .uv= {1, 0} },
-				{ .pos= {+GRID_WIDTH/2, +GRID_WIDTH/2}, .uv= {1, 1} },
-				{ .pos= {-GRID_WIDTH/2, +GRID_WIDTH/2}, .uv= {0, 1} },
+				{ .pos= {-GRID_WIDTH/2 - hp, -GRID_WIDTH/2 - hp}, .uv= {0, 0} },
+				{ .pos= {+GRID_WIDTH/2 - hp, -GRID_WIDTH/2 - hp}, .uv= {1, 0} },
+				{ .pos= {+GRID_WIDTH/2 - hp, +GRID_WIDTH/2 - hp}, .uv= {1, 1} },
+				{ .pos= {-GRID_WIDTH/2 - hp, +GRID_WIDTH/2 - hp}, .uv= {0, 1} },
 			}, 4);
 			add_indices_to_vao(&grid_vao, (MeshIndexType[]) {
 				0, 1, 2,

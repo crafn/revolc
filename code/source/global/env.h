@@ -15,8 +15,18 @@ typedef struct Env {
 	struct Renderer* renderer;
 	struct ResBlob* res_blob;
 	struct World* world;
+
+	U8 *frame_mem_begin;
+	U8 *frame_mem_end;
+	U8 *frame_mem;
 } Env;
 
 extern REVOLC_API Env g_env;
+
+// Allocates zeroed memory valid only for the current frame
+REVOLC_API void * frame_alloc(U32 size);
+
+REVOLC_API void init_frame_alloc(U32 size);
+REVOLC_API void reset_frame_alloc();
 
 #endif // REVOLC_GLOBAL_ENV_H

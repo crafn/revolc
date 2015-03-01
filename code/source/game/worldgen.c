@@ -1,11 +1,6 @@
 #include "worldgen.h"
 #include "physics/shapes.h"
 
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
-
-#define U32_MAX 4294967295
-
 // Thanks R.. http://stackoverflow.com/questions/19083566/what-are-the-better-pseudo-random-number-generator-than-the-lcg-for-lottery-sc
 internal
 U32 temper(U32 x)

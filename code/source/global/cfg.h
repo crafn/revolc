@@ -2,6 +2,7 @@
 #define REVOLC_GLOBAL_CFG_H
 
 // These options largely determine the memory usage of the engine
+#define FRAME_MEM_SIZE (1024*1024*20)
 
 #define MAX_MODELENTITY_COUNT (1024*50)
 #define MAX_DRAW_VERTEX_COUNT (1024*100)

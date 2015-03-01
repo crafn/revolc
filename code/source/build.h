@@ -22,6 +22,12 @@
 #define ARRAY_COUNT(x) (sizeof(x)/sizeof(*x))
 #define WITH_ARRAY_COUNT(x) x, (sizeof(x)/sizeof(*x))
 
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define U32_MAX 4294967295
+#define S32_MAX 2147483647
+#define S32_MIN (-2147483648)
+
 typedef unsigned char U8;
 typedef unsigned short U16;
 typedef unsigned int U32;

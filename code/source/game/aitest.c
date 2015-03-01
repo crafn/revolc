@@ -53,6 +53,7 @@ void poly_to_modelentity(	ModelEntity *e, U32 e_count,
 {
 	//debug_print("POLY_TO_MODELENTITY, %i", b->shape_changed);
 	ensure(e_count == b_count);
+	ensure(b->poly_count == 1 && b->circle_count == 0 && "@todo");
 
 	for (U32 i= 0; i < e_count; ++i, ++e, ++b) {
 		V2d *poly= b->polys[0].v;

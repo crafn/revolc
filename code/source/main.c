@@ -57,6 +57,8 @@ int main(int argc, const char **argv)
 {
 	ensure(sizeof(bool) == 1 && "Codegen relies on this");
 
+	init_frame_alloc(FRAME_MEM_SIZE);
+
 	Device *d= plat_init("Revolc engine", 800, 600);
 
 	if (!file_exists(DEFAULT_BLOB_PATH))
@@ -77,6 +79,8 @@ int main(int argc, const char **argv)
 	F64 time_accum= 0.0; // For fps
 	U32 frame= 0;
 	while (!d->quit_requested) {
+		reset_frame_alloc();
+
 		plat_update(d);
 		time_accum += d->dt;
 		if (frame++ == 60) {
@@ -174,6 +178,8 @@ int main(int argc, const char **argv)
 
 	unload_blob(blob);
 	g_env.res_blob= NULL;
+
+	free(g_env.frame_mem_begin);
 
 	plat_quit(d);
 

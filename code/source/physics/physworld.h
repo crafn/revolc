@@ -21,11 +21,11 @@ typedef struct RigidBody {
 	V3d pos;
 	V3d prev_pos;
 	Qd rot;
+	Qd prev_rot;
 	bool is_static;
 	bool shape_changed;
 	bool has_own_shape; // Ignores shape of def_name
 
-	/// @todo These should be set even when has_own_shape isn't true
 	Poly polys[MAX_SHAPES_PER_BODY];
 	Circle circles[MAX_SHAPES_PER_BODY];
 	U8 poly_count;
@@ -37,8 +37,8 @@ typedef struct RigidBody {
 } RigidBody;
 
 #define GRID_INDEX(x, y) \
-		((((U32)((x)*GRID_RESO_PER_UNIT + GRID_WIDTH_IN_CELLS/2)) + \
-	   	(U32)((y)*GRID_RESO_PER_UNIT + GRID_WIDTH_IN_CELLS/2)*GRID_WIDTH_IN_CELLS))
+		((((U32)((floor(x + 0.5))*GRID_RESO_PER_UNIT + GRID_WIDTH_IN_CELLS/2)) + \
+	   	(U32)((floor(y + 0.5))*GRID_RESO_PER_UNIT + GRID_WIDTH_IN_CELLS/2)*GRID_WIDTH_IN_CELLS))
 
 typedef struct GridCell {
 	U8 static_portion; // Max == 100
