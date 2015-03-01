@@ -298,7 +298,7 @@ void render_frame()
 		memcpy(entities, r->entities, sizeof(*r->entities)*MAX_MODELENTITY_COUNT);
 
 		// Z-sort
-		qsort(entities, MAX_MODELENTITY_COUNT, sizeof(*entities), entity_cmp);
+		//qsort(entities, MAX_MODELENTITY_COUNT, sizeof(*entities), entity_cmp);
 
 		TriMeshVertex *total_verts= malloc(sizeof(*total_verts)*total_v_count);
 		MeshIndexType *total_inds= malloc(sizeof(*total_inds)*total_i_count);

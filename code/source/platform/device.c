@@ -108,7 +108,7 @@ Device * plat_init(const char* title, int width, int height)
 			exit(1);
 		}
 
-		// Pick the FB config/visual with the most samples per pixel
+		// Pick the FB config/visual with the lowest samples per pixel
 		int best_fbc = -1, worst_fbc = -1, best_num_samp = -1, worst_num_samp = 999;
 
 		int i;
@@ -121,9 +121,9 @@ Device * plat_init(const char* title, int width, int height)
 				glXGetFBConfigAttrib( display, fbc[i], GLX_SAMPLE_BUFFERS, &samp_buf );
 				glXGetFBConfigAttrib( display, fbc[i], GLX_SAMPLES       , &samples  );
 
-				if ( best_fbc < 0 || (samp_buf && samples > best_num_samp) )
+				if ( best_fbc < 0 || (samp_buf && samples < best_num_samp) )
 					best_fbc = i, best_num_samp = samples;
-				if ( worst_fbc < 0 || !samp_buf || samples < worst_num_samp )
+				if ( worst_fbc < 0 || !samp_buf || samples > worst_num_samp )
 					worst_fbc = i, worst_num_samp = samples;
 			}
 			XFree( vi );

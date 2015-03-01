@@ -14,10 +14,6 @@ void create_physworld()
 	w->space= cpSpaceNew();
 	cpSpaceSetIterations(w->space, 10);
 	cpSpaceSetGravity(w->space, cpv(0, -20));
-
-	for (U32 i= 0; i < 100; ++i) {
-		w->grid[i].static_portion= 1.0;
-	}
 }
 
 void destroy_physworld()
