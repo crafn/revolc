@@ -105,6 +105,7 @@ void try_spawn_ground(World *world, V2d pos)
 		poly.v[3]= (V2d) { -0.5 - (l_g_y - pos.y - 0.5)/k, 0.5 };
 	}
 
+	pos= add_v2d(pos, (V2d) {0.5, 0.5});
 	bool true_var= true;
 	SlotVal init_vals[]= {
 		{"body",	"pos",				WITH_DEREF_SIZEOF(&pos)},

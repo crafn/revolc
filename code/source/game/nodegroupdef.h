@@ -14,7 +14,7 @@ typedef enum {
 	CmdType_call,
 } CmdType;
 
-typedef struct NodeGroupDef_Node_Cmd {
+typedef struct NodeGroupDef_Cmd {
 	CmdType type;
 
 	bool has_condition;
@@ -31,7 +31,8 @@ typedef struct NodeGroupDef_Node_Cmd {
 			U32 size;
 		};
 		struct { // call
-			void *fptr;
+			char func_name[MAX_FUNC_NAME_SIZE];
+			void *fptr; // Cached
 
 			U32 p_node_i[MAX_CMD_CALL_PARAMS];
 			//U32 p_offsets[MAX_CMD_CALL_PARAMS];
@@ -39,7 +40,7 @@ typedef struct NodeGroupDef_Node_Cmd {
 			U32 p_count;
 		};
 	};
-} NodeGroupDef_Node_Cmd;
+} NodeGroupDef_Cmd;
 
 typedef struct NodeGroupDef_Node {
 	char type_name[RES_NAME_SIZE];
@@ -61,9 +62,11 @@ typedef struct NodeGroupDef {
 
 	// Cmds of different types are in the same array, as the order of
 	// performing cmds matter. Consider e.g. "a= b", "copy(b, a)"
-	NodeGroupDef_Node_Cmd cmds[MAX_CMDS_IN_GROUP_DEF];
+	NodeGroupDef_Cmd cmds[MAX_CMDS_IN_GROUP_DEF];
 	U32 cmd_count;
 } NodeGroupDef;
+
+REVOLC_API void init_nodegroupdef(NodeGroupDef *def);
 
 REVOLC_API WARN_UNUSED
 int json_nodegroupdef_to_blob(struct BlobBuf *buf, JsonTok j);

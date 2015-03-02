@@ -18,4 +18,8 @@ static
 V2d rot_v2d_qd(V2d p, Qd r)
 { return (V2d) {r.cs*p.x - r.sn*p.y, r.sn*p.x + r.cs*p.y}; }
 
+static
+bool equals_qd(Qd a, Qd b)
+{ return a.cs == b.cs && a.sn == b.sn; }
+
 #endif // REVOLC_CORE_QUATERNION_H

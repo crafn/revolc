@@ -173,7 +173,7 @@ U32 node_i_by_name(const NodeGroupDef *def, const char *name)
 }
 
 internal
-void parse_cmd(NodeGroupDef_Node_Cmd *cmd, const Token *toks, U32 tok_count, const NodeGroupDef *def)
+void parse_cmd(NodeGroupDef_Cmd *cmd, const Token *toks, U32 tok_count, const NodeGroupDef *def)
 {
 	ensure(tok_count >= 3);
 	if (toks[0].type == TokType_kw_if) {
@@ -232,9 +232,8 @@ void parse_cmd(NodeGroupDef_Node_Cmd *cmd, const Token *toks, U32 tok_count, con
 		ensure(toks[0].type == TokType_name);
 
 		const char *func_name= toks[0].str;
-
 		cmd->type= CmdType_call;
-		cmd->fptr= func_ptr(func_name);
+		snprintf(cmd->func_name, sizeof(cmd->func_name), "%s", func_name);
 
 		/// @todo	Check that there's correct number of params,
 		///			and that they're correct type!!!
@@ -253,9 +252,16 @@ void parse_cmd(NodeGroupDef_Node_Cmd *cmd, const Token *toks, U32 tok_count, con
 			cmd->p_node_i[cmd->p_count]= p_node_i;
 			++cmd->p_count;
 		}
+	}
+}
 
-		if (!cmd->fptr)
-			fail("Func ptr not found: %s", func_name);
+void init_nodegroupdef(NodeGroupDef *def)
+{
+	for (U32 cmd_i= 0; cmd_i < def->cmd_count; ++cmd_i) {
+		NodeGroupDef_Cmd *cmd= &def->cmds[cmd_i];
+		if (cmd->type == CmdType_call) {
+			cmd->fptr= func_ptr(cmd->func_name);
+		}
 	}
 }
 
@@ -322,7 +328,7 @@ int json_nodegroupdef_to_blob(struct BlobBuf *buf, JsonTok j)
 	for (U32 cmd_i= 0; cmd_i < json_member_count(j_cmds); ++cmd_i) {
 		JsonTok j_cmd= json_member(j_cmds, cmd_i);
 		const char *cmd_str= json_str(j_cmd);
-		NodeGroupDef_Node_Cmd *cmd= &def.cmds[def.cmd_count];
+		NodeGroupDef_Cmd *cmd= &def.cmds[def.cmd_count];
 
 		const U32 max_tokens= 64;
 		Token toks[max_tokens];

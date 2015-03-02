@@ -266,10 +266,10 @@ void upd_physworld(F64 dt)
 
 		Texel *grid= g_env.renderer->grid_ddraw_data;
 		for (U32 i= 0; i < GRID_CELL_COUNT; ++i) {
-			grid[i].r= MIN(w->grid[i].dynamic_portion*2, 255);
+			grid[i].r= MIN(w->grid[i].dynamic_portion*3, 255);
 			grid[i].g= 0;
-			grid[i].b= MIN(w->grid[i].static_portion*2, 255);
-			grid[i].a= MIN(w->grid[i].static_portion*2 + w->grid[i].dynamic_portion*2, 255);
+			grid[i].b= MIN(w->grid[i].static_portion*3, 255);
+			grid[i].a= MIN(w->grid[i].static_portion*3 + w->grid[i].dynamic_portion*3, 255);
 		}
 	}
 }
@@ -283,7 +283,7 @@ U32 rasterized_line(
 {
 	V2d dif= sub_v2d(b, a);
 	F64 length= length_v2d(dif);
-	F64 step_length= 1.0/GRID_RESO_PER_UNIT*0.1; // Arbitrary
+	F64 step_length= 1.0/GRID_RESO_PER_UNIT*0.5; // Arbitrary
 	V2d step= scaled_v2d(normalized_v2d(dif), step_length);
 	U32 steps= length/step_length;
 	U32 added= 0;
@@ -303,11 +303,11 @@ typedef struct PolyCell {
 	U8 is_edge;
 } PolyCell;
 
-PolyCell* rasterized(V2i *rect_ll, V2i *rect_size, const Poly *poly)
+PolyCell* rasterized_poly(V2i *rect_ll, V2i *rect_size, const Poly *poly)
 {
 	U32 v_count= poly->v_count;
 	if (v_count < 3)
-		fail("Poly should have more >= 3 verts");
+		fail("Poly should have more than 2 verts");
 
 	// Bounding box
 	V2i ll= {S32_MAX, S32_MAX};
@@ -356,38 +356,110 @@ PolyCell* rasterized(V2i *rect_ll, V2i *rect_size, const Poly *poly)
 		V2i c_p= sub_v2i(edge_p, *rect_ll);
 		U32 c_i= c_p.x + c_p.y*rect_size->x;
 		ensure(c_i < cell_count);
-		cells[c_i].fill= 100;
+		cells[c_i].fill= 64;
 		cells[c_i].is_edge= true;
 	}
 
-	/*for (U32 y= 0; y < rect_size->y; ++y) {
-	for (U32 x= 0; x < rect_size->x; ++x) {
-		const U32 i= x + y*rect_size->x;
-		cells[i].fill= 
+	// Fill the polygon
+	for (U32 y= 0; y < rect_size->y; ++y) {
+		bool edge_countered= false;
+
+		// Sweep left-to-right
+		for (U32 x= 0; x < rect_size->x; ++x) {
+			const U32 i= x + y*rect_size->x;
+			if (cells[i].is_edge)
+				edge_countered= true;
+
+			if (!cells[i].is_edge && edge_countered)
+				cells[i].fill= 64;
+		}
+
+		// Right-to-left
+		for (U32 x_= rect_size->x; x_ > 0; --x_) {
+			const U32 x= x_ - 1;
+			const U32 i= x + y*rect_size->x;
+			if (cells[i].is_edge)
+				break;
+
+			cells[i].fill= 0;
+		}
+
 	}
-	}*/
 
 	return cells;
 }
 
-void modify_grid(int add_mul, Poly poly, V2d pos, Qd rot)
+PolyCell* rasterized_circle(V2i *rect_ll, V2i *rect_size, const Circle *circle)
+{
+	V2i ll= round_v2d_to_v2i(
+			sub_v2d(circle->pos, (V2d) {circle->rad, circle->rad}));
+	V2i tr= round_v2d_to_v2i(
+			add_v2d(circle->pos, (V2d) {circle->rad, circle->rad}));
+	tr= add_v2i(tr, (V2i) {1, 1});
+	V2i size= sub_v2i(tr, ll);
+
+	*rect_ll= ll;
+	*rect_size= size;
+
+	const U32 cell_count= rect_size->x*rect_size->y;
+	PolyCell *cells= frame_alloc(sizeof(*cells)*cell_count);
+	for (S32 y= 0; y < size.y; ++y) {
+		for (S32 x= 0; x < size.x; ++x) {
+			V2d test_p= {x + ll.x, y + ll.y};
+
+			if (distance_sqr_v2d(test_p, circle->pos) >= circle->rad*circle->rad)
+				continue;
+
+			U32 i= x + y*size.x;
+			ensure(i < cell_count);
+			cells[i].fill= 64;
+			/// @todo Mark edges
+		}
+	}
+	return cells;
+}
+
+typedef enum {
+	ShapeType_poly,
+	ShapeType_circle
+} ShapeType;
+
+void modify_grid(int add_mul, void *shp, ShapeType shp_type, V2d pos, Qd rot)
 {
 	GridCell *grid= g_env.phys_world->grid;
 
-	// Scale poly so that 1 unit == 1 cell
-	for (U32 i= 0; i < poly.v_count; ++i) {
-		V2d p= poly.v[i];
+	// Rasterize
+	V2i rect_ll, rect_size;
+	PolyCell *poly_cells;
+	if (shp_type == ShapeType_poly) {
+		Poly poly= *(Poly*)shp;
+		// Scale poly so that 1 unit == 1 cell
+		for (U32 i= 0; i < poly.v_count; ++i) {
+			V2d p= poly.v[i];
+			p= rot_v2d_qd(p, rot);
+			p= add_v2d(p, pos);
+			p= scaled_v2d(p, GRID_RESO_PER_UNIT);
+			p= sub_v2d(p, (V2d) {0.5, 0.5});
+			poly.v[i]= p;
+		}
+		poly_cells= rasterized_poly(&rect_ll, &rect_size, &poly);
+	} else if (shp_type == ShapeType_circle) {
+		Circle circle= *(Circle*)shp;
+
+		// Scale circle so that 1 unit == 1 cell
+		V2d p= circle.pos;
 		p= rot_v2d_qd(p, rot);
 		p= add_v2d(p, pos);
 		p= scaled_v2d(p, GRID_RESO_PER_UNIT);
-		poly.v[i]= p;
+		p= sub_v2d(p, (V2d) {0.5, 0.5});
+		circle.pos= p;
+		circle.rad *= GRID_RESO_PER_UNIT;
+		poly_cells= rasterized_circle(&rect_ll, &rect_size, &circle);
+	} else { 
+		fail("Unknown shape");
 	}
 
-	// Bounding box in scaled world coordinates
-	V2i rect_ll, rect_size;
-	PolyCell *poly_cells=
-		rasterized(&rect_ll, &rect_size, &poly);
-
+	// Blit to grid
 	const V2i grid_ll= {-GRID_WIDTH_IN_CELLS/2, -GRID_WIDTH_IN_CELLS/2};
 	for (S32 y= 0; y < rect_size.y; ++y) {
 	for (S32 x= 0; x < rect_size.x; ++x) {
@@ -416,17 +488,20 @@ void post_upd_physworld()
 		if (!b->allocated)
 			continue;
 
-		if (!equals_v3d(b->prev_pos, b->pos) && b->circle_count == 0) {
-			ensure(b->poly_count == 1 && "@todo");
-
-			const U32 prev_i= GRID_INDEX(b->prev_pos.x, b->prev_pos.y);
-			if (prev_i < GRID_CELL_COUNT) {
-				modify_grid(-1, b->polys[0], v3d_to_v2d(b->prev_pos), b->prev_rot);
+		bool t_changed= !equals_v3d(b->prev_pos, b->pos) ||
+						!equals_qd(b->prev_rot, b->rot);
+		if (t_changed) {
+			for (U32 poly_i= 0; poly_i < b->poly_count; ++poly_i) {
+				modify_grid(-1, &b->polys[0], ShapeType_poly,
+							v3d_to_v2d(b->prev_pos), b->prev_rot);
+				modify_grid(1, &b->polys[0], ShapeType_poly,
+							v3d_to_v2d(b->pos), b->rot);
 			}
-
-			const U32 cur_i= GRID_INDEX(b->pos.x, b->pos.y);
-			if (cur_i < GRID_CELL_COUNT) {
-				modify_grid(1, b->polys[0], v3d_to_v2d(b->pos), b->rot);
+			for (U32 circle_i= 0; circle_i < b->circle_count; ++circle_i) {
+				modify_grid(-1, &b->circles[0], ShapeType_circle,
+							v3d_to_v2d(b->prev_pos), b->prev_rot);
+				modify_grid(1, &b->circles[0], ShapeType_circle,
+							v3d_to_v2d(b->pos), b->rot);
 			}
 		}
 

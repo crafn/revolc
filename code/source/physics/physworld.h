@@ -12,8 +12,6 @@
 #define HANDLE_NULL ((U8)-1)
 
 typedef struct RigidBody {
-	bool allocated;
-
 	/// @todo Mechanism for separating input variables
 	V2d input_force; // in
 	char def_name[RES_NAME_SIZE]; // in
@@ -22,6 +20,9 @@ typedef struct RigidBody {
 	V3d prev_pos;
 	Qd rot;
 	Qd prev_rot;
+	/// @todo Group booleans to bit fields
+	bool allocated;
+	bool in_grid;
 	bool is_static;
 	bool shape_changed;
 	bool has_own_shape; // Ignores shape of def_name
@@ -41,7 +42,7 @@ typedef struct RigidBody {
 	   	(U32)((floor(y + 0.5))*GRID_RESO_PER_UNIT + GRID_WIDTH_IN_CELLS/2)*GRID_WIDTH_IN_CELLS))
 
 typedef struct GridCell {
-	U8 static_portion; // Max == 100
+	U8 static_portion; // Max == 64
 	U8 dynamic_portion;
 	bool is_static_edge;
 } GridCell;

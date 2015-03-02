@@ -327,7 +327,7 @@ void create_nodes(	World *w,
 
 	// Commands
 	for (U32 cmd_i= 0; cmd_i < def->cmd_count; ++cmd_i) {
-		const NodeGroupDef_Node_Cmd *cmd_def= &def->cmds[cmd_i];
+		const NodeGroupDef_Cmd *cmd_def= &def->cmds[cmd_i];
 
 		switch (cmd_def->type) {
 			case CmdType_memcpy: {
