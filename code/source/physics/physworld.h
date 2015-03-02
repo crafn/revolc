@@ -22,7 +22,7 @@ typedef struct RigidBody {
 	Qd prev_rot;
 	/// @todo Group booleans to bit fields
 	bool allocated;
-	bool in_grid;
+	bool is_in_grid;
 	bool is_static;
 	bool shape_changed;
 	bool has_own_shape; // Ignores shape of def_name

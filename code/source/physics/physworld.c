@@ -145,6 +145,7 @@ U32 resurrect_rigidbody(const RigidBody *dead)
 	w->bodies[h].allocated= true;
 	w->bodies[h].cp_body= NULL;
 	w->bodies[h].cp_shape_count= 0;
+	w->bodies[h].is_in_grid= false;
 
 	set_rigidbody(
 			h,
@@ -274,34 +275,11 @@ void upd_physworld(F64 dt)
 	}
 }
 
-/// Cheap and inaccurate line rasterization
-U32 rasterized_line(
-		V2i *cells,
-		U32 max_cells,
-		V2d a,
-		V2d b)
-{
-	V2d dif= sub_v2d(b, a);
-	F64 length= length_v2d(dif);
-	F64 step_length= 1.0/GRID_RESO_PER_UNIT*0.5; // Arbitrary
-	V2d step= scaled_v2d(normalized_v2d(dif), step_length);
-	U32 steps= length/step_length;
-	U32 added= 0;
-	for (U32 i= 0; i < steps; ++i) {
-		V2i cell_p= round_v2d_to_v2i(a);
-		if (i == 0 || !equals_v2i(cells[added - 1], cell_p)) {
-			ensure(added < max_cells);
-			cells[added++]= cell_p;
-		}
-		a= add_v2d(a, step);
-	}
-	return added;
-}
-
 typedef struct PolyCell {
 	U8 fill; // true/false
-	U8 is_edge;
 } PolyCell;
+#define EPSILOND 0.000000000001
+#define SWAP(type, x, y) do { type temp= x; x= y; y= temp; } while(0)
 
 PolyCell* rasterized_poly(V2i *rect_ll, V2i *rect_size, const Poly *poly)
 {
@@ -330,60 +308,72 @@ PolyCell* rasterized_poly(V2i *rect_ll, V2i *rect_size, const Poly *poly)
 	*rect_ll= ll;
 	*rect_size= sub_v2i(tr, ll);
 
-	// Get all edge cells
-	const U32 max_edge_cell_count= rect_size->x*rect_size->y*2 + 2; // *2+2 just in case
-	V2i *edge_cells= frame_alloc(sizeof(*edge_cells)*max_edge_cell_count);
-	U32 edge_cell_count= 0;
+	typedef struct RowBounding {
+		S32 min, max;
+		bool set;
+	} RowBounding;
+
+	const U32 row_count= rect_size->y;
+	RowBounding *bounds= frame_alloc(sizeof(*bounds)*row_count);
+	for (U32 i= 0; i < row_count; ++i) {
+		bounds[i].min= 0;
+		bounds[i].max= rect_size->x;
+	}
+
+	// Adjust bounds
 	for (U32 i= 0; i < v_count; ++i) {
-		edge_cell_count += rasterized_line(
-				edge_cells + edge_cell_count,
-				max_edge_cell_count - edge_cell_count,
-				poly->v[i], poly->v[ (i + 1)%v_count ]);
-	}
-	ensure(edge_cell_count <= max_edge_cell_count);
+		V2d cur_p= poly->v[i];
+		V2d next_p= poly->v[(i + 1) % v_count];
+		F64 inv_slope= (next_p.x - cur_p.x)/(next_p.y - cur_p.y);
 
-	for (U32 i= 0; i < edge_cell_count; ++i) {
-		ensure(edge_cells[i].x >= ll.x && edge_cells[i].y >= ll.y);
-		ensure(edge_cells[i].x < tr.x && edge_cells[i].y < tr.y);
+		// At which side are we
+		bool is_left_side= cur_p.y > next_p.y;
+		bool is_horizontal_segment= abs(cur_p.y - next_p.y) < EPSILOND;
+
+		S32 low_y= floor(cur_p.y + 0.5);
+		S32 high_y= floor(next_p.y + 0.5);
+		if (high_y < low_y)
+			SWAP(S32, low_y, high_y);
+
+		for (S32 y= low_y; y < high_y; ++y) {
+			/// @todo Fix problems with horizontal segments
+			// x = (y - y0)/k + x0
+			F64 x_at_middle_y= (y - (cur_p.y + 0.5))*inv_slope + (cur_p.x + 0.5);
+			S32 x= floor(x_at_middle_y + 0.5);
+			S32 column_x= x - ll.x;
+
+			U32 row_i= y - ll.y;
+			ensure(row_i < row_count);
+			RowBounding *row= &bounds[row_i];
+			row->set= true;
+			if (is_horizontal_segment) {
+				S32 left_column= floor(cur_p.x + 0.5) - ll.x;
+				S32 right_column= floor(next_p.x + 0.5) - ll.x;
+				if (left_column > right_column)
+					SWAP(S32, left_column, right_column);
+				row->min= MAX(row->min, left_column);
+				row->max= MIN(row->max, right_column);
+			} else if (is_left_side) {
+				row->min= MAX(row->min, column_x);
+			} else if (!is_left_side) {
+				row->max= MIN(row->max, column_x);
+			}
+		}
 	}
 
-	// Write all edge cells
 	const U32 cell_count= rect_size->x*rect_size->y;
 	PolyCell *cells= frame_alloc(sizeof(*cells)*cell_count);
 
-	for (U32 edge_i= 0; edge_i < edge_cell_count; ++edge_i) {
-		V2i edge_p= edge_cells[edge_i];
-		V2i c_p= sub_v2i(edge_p, *rect_ll);
-		U32 c_i= c_p.x + c_p.y*rect_size->x;
-		ensure(c_i < cell_count);
-		cells[c_i].fill= 64;
-		cells[c_i].is_edge= true;
-	}
-
-	// Fill the polygon
-	for (U32 y= 0; y < rect_size->y; ++y) {
-		bool edge_countered= false;
-
-		// Sweep left-to-right
-		for (U32 x= 0; x < rect_size->x; ++x) {
-			const U32 i= x + y*rect_size->x;
-			if (cells[i].is_edge)
-				edge_countered= true;
-
-			if (!cells[i].is_edge && edge_countered)
-				cells[i].fill= 64;
+	// Draw according to bounds
+	for (U32 y= 0; y < row_count; ++y) {
+		RowBounding *row= &bounds[y];
+		if (!row->set)
+			continue;
+		for (S32 x= row->min; x < row->max; ++x) {
+			const U32 cell_i= x + y*rect_size->x;
+			ensure(cell_i < cell_count);
+			cells[cell_i].fill= 64;
 		}
-
-		// Right-to-left
-		for (U32 x_= rect_size->x; x_ > 0; --x_) {
-			const U32 x= x_ - 1;
-			const U32 i= x + y*rect_size->x;
-			if (cells[i].is_edge)
-				break;
-
-			cells[i].fill= 0;
-		}
-
 	}
 
 	return cells;
@@ -413,7 +403,6 @@ PolyCell* rasterized_circle(V2i *rect_ll, V2i *rect_size, const Circle *circle)
 			U32 i= x + y*size.x;
 			ensure(i < cell_count);
 			cells[i].fill= 64;
-			/// @todo Mark edges
 		}
 	}
 	return cells;
@@ -445,7 +434,6 @@ void modify_grid(int add_mul, void *shp, ShapeType shp_type, V2d pos, Qd rot)
 		poly_cells= rasterized_poly(&rect_ll, &rect_size, &poly);
 	} else if (shp_type == ShapeType_circle) {
 		Circle circle= *(Circle*)shp;
-
 		// Scale circle so that 1 unit == 1 cell
 		V2d p= circle.pos;
 		p= rot_v2d_qd(p, rot);
@@ -488,23 +476,27 @@ void post_upd_physworld()
 		if (!b->allocated)
 			continue;
 
+		// Update changes to grid
 		bool t_changed= !equals_v3d(b->prev_pos, b->pos) ||
 						!equals_qd(b->prev_rot, b->rot);
-		if (t_changed) {
+		if (t_changed || !b->is_in_grid) {
 			for (U32 poly_i= 0; poly_i < b->poly_count; ++poly_i) {
-				modify_grid(-1, &b->polys[0], ShapeType_poly,
-							v3d_to_v2d(b->prev_pos), b->prev_rot);
+				if (b->is_in_grid)
+					modify_grid(-1, &b->polys[0], ShapeType_poly,
+								v3d_to_v2d(b->prev_pos), b->prev_rot);
 				modify_grid(1, &b->polys[0], ShapeType_poly,
 							v3d_to_v2d(b->pos), b->rot);
 			}
 			for (U32 circle_i= 0; circle_i < b->circle_count; ++circle_i) {
-				modify_grid(-1, &b->circles[0], ShapeType_circle,
-							v3d_to_v2d(b->prev_pos), b->prev_rot);
+				if (b->is_in_grid)
+					modify_grid(-1, &b->circles[0], ShapeType_circle,
+								v3d_to_v2d(b->prev_pos), b->prev_rot);
 				modify_grid(1, &b->circles[0], ShapeType_circle,
 							v3d_to_v2d(b->pos), b->rot);
 			}
 		}
 
+		b->is_in_grid= true;
 		b->shape_changed= false;
 		b->prev_pos= b->pos;
 		b->prev_rot= b->rot;
