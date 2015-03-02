@@ -294,11 +294,12 @@ void render_frame()
 	reset_vao_mesh(&r->vao);
 
 	{ // Meshes to Vao
-		ModelEntity *entities= malloc(sizeof(*r->entities)*MAX_MODELENTITY_COUNT);	
-		memcpy(entities, r->entities, sizeof(*r->entities)*MAX_MODELENTITY_COUNT);
+		ModelEntity *sorted_entities= malloc(sizeof(*r->entities)*MAX_MODELENTITY_COUNT);	
+		memcpy(sorted_entities, r->entities, sizeof(*r->entities)*MAX_MODELENTITY_COUNT);
 
 		// Z-sort
-		qsort(entities, MAX_MODELENTITY_COUNT, sizeof(*entities), entity_cmp);
+		qsort(sorted_entities, MAX_MODELENTITY_COUNT, sizeof(*sorted_entities), entity_cmp);
+		ModelEntity *entities= sorted_entities;
 
 		TriMeshVertex *total_verts= malloc(sizeof(*total_verts)*total_v_count);
 		MeshIndexType *total_inds= malloc(sizeof(*total_inds)*total_i_count);
@@ -348,7 +349,7 @@ void render_frame()
 				++cur_v;
 			}
 		}
-		free(entities);
+		free(sorted_entities);
 		add_vertices_to_vao(&r->vao, total_verts, total_v_count);
 		add_indices_to_vao(&r->vao, total_inds, total_i_count);
 		free(total_verts);

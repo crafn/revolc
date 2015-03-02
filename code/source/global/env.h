@@ -23,7 +23,7 @@ typedef struct Env {
 
 extern REVOLC_API Env g_env;
 
-// Allocates zeroed memory valid only for the current frame
+// Allocates memory valid only for the current frame
 REVOLC_API void * frame_alloc(U32 size);
 
 REVOLC_API void init_frame_alloc(U32 size);

@@ -48,6 +48,7 @@ PolyCell* rasterized_poly(V2i *rect_ll, V2i *rect_size, const Poly *poly)
 	for (U32 i= 0; i < row_count; ++i) {
 		bounds[i].min= 0;
 		bounds[i].max= rect_size->x;
+		bounds[i].set= false;
 	}
 
 	// Adjust bounds
@@ -93,6 +94,7 @@ PolyCell* rasterized_poly(V2i *rect_ll, V2i *rect_size, const Poly *poly)
 
 	const U32 cell_count= rect_size->x*rect_size->y;
 	PolyCell *cells= frame_alloc(sizeof(*cells)*cell_count);
+	memset(cells, 0, sizeof(*cells)*cell_count);
 
 	// Draw according to bounds
 	for (U32 y= 0; y < row_count; ++y) {
@@ -127,13 +129,14 @@ PolyCell* rasterized_circle(V2i *rect_ll, V2i *rect_size, const Circle *circle)
 	for (S32 y= 0; y < size.y; ++y) {
 		for (S32 x= 0; x < size.x; ++x) {
 			V2d test_p= {x + ll.x, y + ll.y};
-
-			if (distance_sqr_v2d(test_p, circle->pos) >= circle->rad*circle->rad)
-				continue;
-
 			U32 i= x + y*size.x;
 			ensure(i < cell_count);
-			cells[i].fill= 64;
+
+			if (distance_sqr_v2d(test_p, circle->pos) >= circle->rad*circle->rad) {
+				cells[i].fill= 0;
+			} else {
+				cells[i].fill= 64;
+			}
 		}
 	}
 	return cells;
@@ -365,7 +368,6 @@ U32 resurrect_rigidbody(const RigidBody *dead)
 				dead->def_name));
 	return h;
 }
-
 
 void free_rigidbody(U32 h)
 {

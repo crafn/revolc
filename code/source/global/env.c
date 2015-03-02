@@ -24,7 +24,4 @@ void init_frame_alloc(U32 size)
 void reset_frame_alloc()
 {
 	g_env.frame_mem= g_env.frame_mem_begin;
-	memset(	g_env.frame_mem_begin,
-			0,
-			g_env.frame_mem_end - g_env.frame_mem_begin);
 }
