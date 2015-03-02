@@ -276,7 +276,7 @@ void upd_physworld(F64 dt)
 }
 
 typedef struct PolyCell {
-	U8 fill; // true/false
+	U8 fill;
 } PolyCell;
 #define EPSILOND 0.000000000001
 #define SWAP(type, x, y) do { type temp= x; x= y; y= temp; } while(0)

@@ -147,7 +147,7 @@ void recreate_texture_atlas(Renderer *r, ResBlob *blob)
 			z
 		};
 
-		x += tex->reso.x;
+		x += tex->reso.x + 1; // Prevent bleeding due to floating point errors
 		if (tex->reso.y > last_row_height)
 			last_row_height= tex->reso.y;
 	}

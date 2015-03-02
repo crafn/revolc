@@ -169,14 +169,21 @@ void generate_world(World *w, U64 seed)
 		}
 	}
 	for (int i= 0; i < 20; ++i) {
-			V2d pos= {
-				random_f64(-30.0, 30.0, &seed),
-				random_f64(0.0, 40.0, &seed),
-			};
-			if (pos.y < ground_surf_y(pos.x))
-				continue;
-			spawn_phys_prop(w, pos, "wbarrel", false);
-			spawn_phys_prop(w, pos, "rollbot", false);
-			spawn_phys_prop(w, pos, "wbox", false);
+		V2d pos= {
+			random_f64(-30.0, 30.0, &seed),
+			random_f64(0.0, 40.0, &seed),
+		};
+		if (pos.y < ground_surf_y(pos.x))
+			continue;
+		spawn_phys_prop(w, pos, "wbarrel", false);
+		spawn_phys_prop(w, pos, "rollbot", false);
+		spawn_phys_prop(w, pos, "wbox", false);
+	}
+	for (int i= -50; i < 50; ++i) {
+		V3d p_front= {i, ground_surf_y(i) + 0.5, 0.1};
+		spawn_visual_prop(w, p_front, (V3d) {0.8, 1, 1}, "grassclump_f");
+
+		V3d p_back= {i, ground_surf_y(i) + 0.55, -0.1};
+		spawn_visual_prop(w, p_back, (V3d) {0.9, 1, 1}, "grassclump_b");
 	}
 }
