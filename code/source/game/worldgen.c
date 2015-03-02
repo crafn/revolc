@@ -181,9 +181,9 @@ void generate_world(World *w, U64 seed)
 	}
 	for (int i= -50; i < 50; ++i) {
 		V3d p_front= {i, ground_surf_y(i) + 0.5, 0.1};
-		spawn_visual_prop(w, p_front, (V3d) {0.8, 1, 1}, "grassclump_f");
+		spawn_visual_prop(w, p_front, (V3d) {1.2, 1, 1}, "grassclump_f");
 
 		V3d p_back= {i, ground_surf_y(i) + 0.55, -0.1};
-		spawn_visual_prop(w, p_back, (V3d) {0.9, 1, 1}, "grassclump_b");
+		spawn_visual_prop(w, p_back, (V3d) {1.1, 1, 1}, "grassclump_b");
 	}
 }
