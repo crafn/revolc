@@ -512,6 +512,8 @@ void renderer_on_res_reload(ResBlob *new_blob)
 		ModelEntity *e= &r->entities[e_i];
 		if (!e->allocated)
 			continue;
+		if (e->has_own_mesh)
+			continue;
 
 		const Model *m=
 			(Model*)res_by_name(
