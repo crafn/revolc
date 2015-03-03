@@ -8,6 +8,7 @@ cd ./source
 clang -std=gnu99 -Wall -O0 -march=native -mtune=native -ffast-math -rdynamic -g -I. \
 	-Wno-unused-function \
 	-I ../deps/common -I ../deps/common/chipmunk/include \
+	-I ../deps/common/vorbis/include -I ../deps/common/ogg/include \
 	./unity.c \
 	../temp/deps.o \
 	-lX11 -lGL -lm -ldl -lpthread -lportaudio \

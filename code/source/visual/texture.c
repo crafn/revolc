@@ -2,6 +2,7 @@
 #include "core/ensure.h"
 #include "core/string.h"
 #include "platform/gl.h"
+#include "resources/resblob.h"
 #include "texture.h"
 
 #include <lodepng/lodepng.h>
@@ -15,7 +16,7 @@ int json_texture_to_blob(struct BlobBuf *buf, JsonTok j)
 
 	JsonTok j_file= json_value_by_key(j, "file");
 	if (json_is_null(j_file)) {
-		critical_print("Attrib 'file' missing");
+		RES_ATTRIB_MISSING("file");
 		goto error;
 	}
 

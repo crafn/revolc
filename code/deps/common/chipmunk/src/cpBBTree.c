@@ -847,6 +847,11 @@ cpBBTreeOptimize(cpSpatialIndex *index)
 	cpfree(nodes);
 }
 
+#undef A
+#undef B
+#undef STAMP
+#undef PAIRS
+
 //MARK: Debug Draw
 
 //#define CP_BBTREE_DEBUG_DRAW
@@ -893,4 +898,5 @@ cpBBTreeRenderDebug(cpSpatialIndex *index){
 	cpBBTree *tree = (cpBBTree *)index;
 	if(tree->root) NodeRender(tree->root, 0);
 }
+
 #endif

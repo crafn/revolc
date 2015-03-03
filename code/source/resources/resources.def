@@ -1,5 +1,6 @@
 #ifdef HEADERS
 
+#include "audio/sound.h"
 #include "game/nodegroupdef.h"
 #include "game/nodetype.h"
 #include "physics/rigidbodydef.h"
@@ -17,5 +18,6 @@ RESOURCE(ShaderSource, init_shadersource, deinit_shadersource, json_shadersource
 RESOURCE(RigidBodyDef, NULL, NULL, json_rigidbodydef_to_blob)
 RESOURCE(NodeType, init_nodetype, NULL, json_nodetype_to_blob)
 RESOURCE(NodeGroupDef, init_nodegroupdef, NULL, json_nodegroupdef_to_blob)
+RESOURCE(Sound, NULL, NULL, json_sound_to_blob)
 
 #endif

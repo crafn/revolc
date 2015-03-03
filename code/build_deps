@@ -4,6 +4,6 @@ cd ./deps/common
 clang -std=gnu99 -O2 -Wall -march=native -ffast-math -g -I . -c \
 	-Wno-compare-distinct-pointer-types \
 	-Wno-incompatible-pointer-types \
-	-I ./chipmunk/include -I ./chipmunk/src \
+	-I ./chipmunk/include -I ./chipmunk/src -I ./vorbis/lib \
 	./unity.c \
 	-o ../../temp/deps.o
