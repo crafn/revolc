@@ -58,7 +58,7 @@ typedef struct PhysWorld {
 	cpSpace *space;
 } PhysWorld;
 
-/// @note Sets g_env.phys_world
+/// @note Sets g_env.physworld
 REVOLC_API void create_physworld();
 REVOLC_API void destroy_physworld();
 

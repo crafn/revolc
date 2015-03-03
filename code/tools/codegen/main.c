@@ -46,8 +46,12 @@ static void examine_namespace(struct symbol *sym)
 		if (	sym->ident->name[0] == 'L' &&
 				sym->ident->name[1] == 'o' &&
 				sym->ident->name[2] == 'd' &&
-				sym->ident->name[3] == 'e')
+				sym->ident->name[3] == 'e') // Lode png lib
 			break;
+		if (	sym->ident->name[0] == 'P' &&
+				sym->ident->name[1] == 'a') // PortAudio
+			break;
+
 		{
 			int illegal= 0;
 			int count= 0;

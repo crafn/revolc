@@ -226,7 +226,7 @@ void load_world(World *w, const char *path)
 		U32 node_h= alloc_node_without_impl(
 				w,
 				(NodeType*)res_by_name(
-					g_env.res_blob,
+					g_env.resblob,
 					ResType_NodeType,
 					dead_node.type_name),
 				dead_node.group_id);
@@ -291,7 +291,7 @@ void create_nodes(	World *w,
 		/// @todo Don't query NodeType
 		U32 h= alloc_node_without_impl(
 							w,
-							(NodeType*)res_by_name(	g_env.res_blob,
+							(NodeType*)res_by_name(	g_env.resblob,
 													ResType_NodeType,
 													node_def->type_name),
 							group_id);

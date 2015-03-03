@@ -150,7 +150,7 @@ typedef enum {
 internal
 void modify_grid(int add_mul, const void *shp, ShapeType shp_type, V2d pos, Qd rot)
 {
-	GridCell *grid= g_env.phys_world->grid;
+	GridCell *grid= g_env.physworld->grid;
 
 	// Rasterize
 	V2i rect_ll, rect_size;
@@ -221,8 +221,8 @@ void modify_grid_with_shapes(
 void create_physworld()
 {
 	PhysWorld *w= zero_malloc(sizeof(*w));
-	ensure(!g_env.phys_world);
-	g_env.phys_world= w;
+	ensure(!g_env.physworld);
+	g_env.physworld= w;
 
 	w->space= cpSpaceNew();
 	cpSpaceSetIterations(w->space, 10);
@@ -231,9 +231,9 @@ void create_physworld()
 
 void destroy_physworld()
 {
-	PhysWorld *w= g_env.phys_world;
+	PhysWorld *w= g_env.physworld;
 	ensure(w);
-	g_env.phys_world= NULL;
+	g_env.physworld= NULL;
 	cpSpaceFree(w->space);
 
 	free(w);
@@ -242,7 +242,7 @@ void destroy_physworld()
 internal
 U32 alloc_rigidbody_noinit()
 {
-	PhysWorld *w= g_env.phys_world;
+	PhysWorld *w= g_env.physworld;
 
 	if (w->body_count >= MAX_RIGIDBODY_COUNT)
 		fail("Too many rigid bodies");
@@ -257,7 +257,7 @@ U32 alloc_rigidbody_noinit()
 internal
 void set_rigidbody(U32 h, RigidBodyDef *def)
 {
-	PhysWorld *w= g_env.phys_world;
+	PhysWorld *w= g_env.physworld;
 
 	ensure(h < MAX_RIGIDBODY_COUNT && w->bodies[h].cp_body == NULL);
 	RigidBody *b= &w->bodies[h];
@@ -351,7 +351,7 @@ void set_rigidbody(U32 h, RigidBodyDef *def)
 
 U32 resurrect_rigidbody(const RigidBody *dead)
 {
-	PhysWorld *w= g_env.phys_world;
+	PhysWorld *w= g_env.physworld;
 
 	U32 h= alloc_rigidbody_noinit();
 	w->bodies[h]= *dead;
@@ -363,7 +363,7 @@ U32 resurrect_rigidbody(const RigidBody *dead)
 	set_rigidbody(
 			h,
 			(RigidBodyDef*)res_by_name(
-				g_env.res_blob,
+				g_env.resblob,
 				ResType_RigidBodyDef,
 				dead->def_name));
 	return h;
@@ -371,7 +371,7 @@ U32 resurrect_rigidbody(const RigidBody *dead)
 
 void free_rigidbody(U32 h)
 {
-	PhysWorld *w= g_env.phys_world;
+	PhysWorld *w= g_env.physworld;
 
 	ensure(h < MAX_RIGIDBODY_COUNT);
 
@@ -395,7 +395,7 @@ void free_rigidbody(U32 h)
 }
 
 void * storage_rigidbody()
-{ return g_env.phys_world->bodies; }
+{ return g_env.physworld->bodies; }
 
 internal
 void phys_draw_circle(
@@ -442,7 +442,7 @@ void phys_draw_poly(
 
 void upd_physworld(F64 dt)
 {
-	PhysWorld *w= g_env.phys_world;
+	PhysWorld *w= g_env.physworld;
 
 	dt= 1.0/60.0;
 
@@ -495,7 +495,7 @@ void upd_physworld(F64 dt)
 }
 void post_upd_physworld()
 {
-	PhysWorld *w= g_env.phys_world;
+	PhysWorld *w= g_env.physworld;
 
 	for (U32 i= 0; i < MAX_RIGIDBODY_COUNT; ++i) {
 		RigidBody *b= &w->bodies[i];

@@ -64,9 +64,10 @@ int main(int argc, const char **argv)
 	if (!file_exists(DEFAULT_BLOB_PATH))
 		make_main_blob();
 
-	ResBlob *blob= g_env.res_blob= load_blob(DEFAULT_BLOB_PATH);
+	ResBlob *blob= g_env.resblob= load_blob(DEFAULT_BLOB_PATH);
 	print_blob(blob);
 
+	create_audiosystem();
 	create_renderer();
 	create_physworld();
 	World *world= g_env.world= create_world();
@@ -84,6 +85,10 @@ int main(int argc, const char **argv)
 		plat_update(d);
 		time_accum += d->dt;
 		if (frame++ == 60) {
+			debug_print("---");
+			debug_print("model entities: %i", g_env.renderer->entity_count);
+			debug_print("bodies: %i", g_env.physworld->body_count);
+			debug_print("nodes: %i", g_env.world->node_count);
 			debug_print("fps: %f", frame/time_accum);
 			frame= 0;
 			time_accum= 0;
@@ -124,11 +129,11 @@ int main(int argc, const char **argv)
 				free_node_group(world, 2);
 			
 			if (d->key_pressed['q'])
-				g_env.phys_world->debug_draw= !g_env.phys_world->debug_draw;
+				g_env.physworld->debug_draw= !g_env.physworld->debug_draw;
 
 			if (d->key_pressed[KEY_F12]) {
 				make_main_blob();
-				blob= g_env.res_blob= reload_blob(blob, DEFAULT_BLOB_PATH);
+				blob= g_env.resblob= reload_blob(blob, DEFAULT_BLOB_PATH);
 			}
 
 			if (d->key_pressed[KEY_F5])
@@ -144,7 +149,7 @@ int main(int argc, const char **argv)
 				cpVect p= {cursor_on_world.x, cursor_on_world.y};
 				cpShape *shape=
 					cpSpacePointQueryNearest(
-							g_env.phys_world->space,
+							g_env.physworld->space,
 							p, 0.1,
 							CP_SHAPE_FILTER_ALL, NULL);
 
@@ -175,9 +180,10 @@ int main(int argc, const char **argv)
 
 	destroy_physworld();
 	destroy_renderer();
+	destroy_audiosystem();
 
 	unload_blob(blob);
-	g_env.res_blob= NULL;
+	g_env.resblob= NULL;
 
 	free(g_env.frame_mem_begin);
 

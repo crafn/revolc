@@ -3,6 +3,7 @@
 
 #include "build.h"
 
+struct AudioSystem;
 struct Device;
 struct PhysWorld;
 struct ResBlob;
@@ -10,10 +11,11 @@ struct Renderer;
 struct World;
 
 typedef struct Env {
+	struct AudioSystem* audiosystem;
 	struct Device* device;
-	struct PhysWorld* phys_world;
+	struct PhysWorld* physworld;
 	struct Renderer* renderer;
-	struct ResBlob* res_blob;
+	struct ResBlob* resblob;
 	struct World* world;
 
 	U8 *frame_mem_begin;

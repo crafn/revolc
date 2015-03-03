@@ -166,7 +166,7 @@ void create_renderer()
 
 	r->vao= create_vao(MeshType_tri, MAX_DRAW_VERTEX_COUNT, MAX_DRAW_INDEX_COUNT);
 
-	recreate_texture_atlas(r, g_env.res_blob);
+	recreate_texture_atlas(r, g_env.resblob);
 
 	ensure(!g_env.renderer);
 	g_env.renderer= r;
@@ -232,7 +232,7 @@ U32 resurrect_modelentity(const ModelEntity *dead)
 	set_modelentity(
 			h,
 			(Model*)res_by_name(
-				g_env.res_blob,
+				g_env.resblob,
 				ResType_Model,
 				dead->model_name));
 	return h;
@@ -367,7 +367,7 @@ void render_frame()
 
 		ShaderSource* shd=
 			(ShaderSource*)res_by_name(
-					g_env.res_blob,
+					g_env.resblob,
 					ResType_ShaderSource,
 					"gen");
 		glUseProgram(shd->prog_gl_id);
@@ -430,7 +430,7 @@ void render_frame()
 
 			ShaderSource* grid_shd=
 				(ShaderSource*)res_by_name(
-						g_env.res_blob,
+						g_env.resblob,
 						ResType_ShaderSource,
 						"grid_ddraw");
 			glUseProgram(grid_shd->prog_gl_id);
@@ -461,7 +461,7 @@ void ddraw_poly(Color c, V2d *poly, U32 count)
 
 	Texture *white=
 		(Texture*)res_by_name(
-			g_env.res_blob,
+			g_env.resblob,
 			ResType_Texture,
 			"white");
 	V3f atlas_uv= white->atlas_uv;

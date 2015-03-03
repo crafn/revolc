@@ -1,3 +1,4 @@
+#include "audio/audiosystem.c"
 #include "core/array.c"
 #include "core/debug_print.c"
 #include "core/ensure.c"

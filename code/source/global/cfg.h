@@ -1,8 +1,11 @@
 #ifndef REVOLC_GLOBAL_CFG_H
 #define REVOLC_GLOBAL_CFG_H
 
-// These options largely determine the memory usage of the engine
+// These options largely determine the memory usage and performance of the engine
 #define FRAME_MEM_SIZE (1024*1024*10)
+
+#define AUDIO_SAMPLE_RATE 44100
+#define AUDIO_BUFFER_SIZE 2048
 
 #define MAX_MODELENTITY_COUNT (1024*15)
 #define MAX_DRAW_VERTEX_COUNT (1024*100)

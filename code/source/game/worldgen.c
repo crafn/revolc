@@ -117,7 +117,7 @@ void try_spawn_ground(World *world, V2d pos)
 		{"visual",	"model_name",		WITH_STR_SIZE("block_dirt")},
 	};
 	NodeGroupDef *def=
-		(NodeGroupDef*)res_by_name(g_env.res_blob, ResType_NodeGroupDef, "block");
+		(NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, "block");
 	create_nodes(world, def, WITH_ARRAY_COUNT(init_vals), 0);
 }
 
@@ -130,7 +130,7 @@ void spawn_visual_prop(World *world, V3d pos, V3d scale, const char *name)
 		{"visual",	"model_name",	WITH_STR_SIZE(name)},
 	};
 	NodeGroupDef *def=
-		(NodeGroupDef*)res_by_name(g_env.res_blob, ResType_NodeGroupDef, "visual_prop");
+		(NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, "visual_prop");
 	create_nodes(world, def, WITH_ARRAY_COUNT(init_vals), 0);
 }
 
@@ -147,7 +147,7 @@ void spawn_phys_prop(World *world, V2d pos, const char *name, bool is_static)
 		{"visual",	"model_name",	WITH_STR_SIZE(name)},
 	};
 	NodeGroupDef *def=
-		(NodeGroupDef*)res_by_name(g_env.res_blob, ResType_NodeGroupDef, "phys_prop");
+		(NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, "phys_prop");
 	create_nodes(world, def, WITH_ARRAY_COUNT(init_vals), group_i);
 }
 
