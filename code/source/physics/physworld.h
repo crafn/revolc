@@ -9,8 +9,6 @@
 
 #include <chipmunk/chipmunk.h>
 
-#define HANDLE_NULL ((U8)-1)
-
 typedef struct RigidBody {
 	/// @todo Mechanism for separating input variables
 	V2d input_force; // in

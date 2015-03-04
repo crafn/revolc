@@ -27,6 +27,7 @@
 #define U32_MAX 4294967295
 #define S32_MAX 2147483647
 #define S32_MIN (-2147483648)
+#define NULL_HANDLE ((U32)-1)
 
 typedef unsigned char U8;
 typedef unsigned short U16;

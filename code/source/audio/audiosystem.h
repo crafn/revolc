@@ -37,6 +37,6 @@ typedef struct AudioSystem {
 REVOLC_API void create_audiosystem();
 REVOLC_API void destroy_audiosystem();
 
-REVOLC_API void play_sound(const char *name);
+REVOLC_API U32 play_sound(const char *name, F32 vol, F32 pan);
 
 #endif // REVOLC_AUDIO_AUDIOSYSTEM_H

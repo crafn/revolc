@@ -5,11 +5,22 @@
 #include "global/cfg.h"
 #include "global/env.h"
 #include "platform/memory.h"
+#include "resources/resblob.h"
 #include "sound.h"
 
-#include "resources/resblob.h" // test
-
 #include <string.h>
+
+internal inline
+void upd_smoothed(F32 *var, F32 target)
+{
+	const F32 delta= 0.005;
+	if (abs(*var - target) <= delta)
+		*var= target;
+	else if (*var < target)
+		*var += delta;
+	else if (*var > target)
+		*var -= delta;
+}
 
 internal
 int audio_callback(	const void* input_data, void* output_data,
@@ -41,18 +52,23 @@ int audio_callback(	const void* input_data, void* output_data,
 
 		U32 frame_offset= ch->cur_frame;
 		for (U32 f_i= 0; f_i < frame_count; ++f_i) {
+			upd_smoothed(&ch->out_pan, ch->in_pan);
+			upd_smoothed(&ch->out_vol, ch->in_vol);
+
 			U32 l_i= (frame_offset + f_i)*2;
 			U32 r_i= (frame_offset + f_i)*2 + 1;
 
-			out[f_i*2] += ch->samples[l_i];
-			out[f_i*2 + 1] += ch->samples[r_i];
+			F32 l_mul= ch->out_vol*MIN(1.0 - ch->out_pan, 1.0);
+			F32 r_mul= ch->out_vol*MIN(1.0 + ch->out_pan, 1.0);
+
+			out[f_i*2] += ch->samples[l_i]*l_mul;
+			out[f_i*2 + 1] += ch->samples[r_i]*r_mul;
+
 			++ch->cur_frame;
 		}
 
 		if (going_to_finish) {
 			ch->samples= NULL;
-			ch->ch_count= 0;
-			ch->frame_count= 0;
 
 			/// @todo Full barrier not necessary 
 			PLAT_FULL_MEMORY_BARRIER();
@@ -181,7 +197,7 @@ void destroy_audiosystem()
 	g_env.audiosystem= NULL;
 }
 
-void play_sound(const char *name)
+U32 play_sound(const char *name, F32 vol, F32 pan)
 {
 	AudioSystem *a= g_env.audiosystem;
 	Sound *s= (Sound*)res_by_name(g_env.resblob, ResType_Sound, name);
@@ -193,7 +209,7 @@ void play_sound(const char *name)
 
 	if (free_i == MAX_AUDIO_CHANNELS) {
 		debug_print("play_sounds: too many sounds");
-		return;
+		return NULL_HANDLE;
 	}
 
 	{ // Start playing
@@ -203,10 +219,16 @@ void play_sound(const char *name)
 			.samples= s->samples,
 			.frame_count= s->frame_count,
 			.ch_count= s->ch_count,
+			.in_vol= vol,
+			.out_vol= vol,
+			.in_pan= pan,
+			.out_pan= pan,
 		};
 
 		/// @todo Full barrier not necessary 
 		PLAT_FULL_MEMORY_BARRIER();
 		ch->state= AC_play;
 	}
+
+	return free_i;
 }
