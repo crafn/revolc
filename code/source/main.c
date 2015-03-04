@@ -131,6 +131,13 @@ int main(int argc, const char **argv)
 			if (d->key_pressed['q'])
 				g_env.physworld->debug_draw= !g_env.physworld->debug_draw;
 
+			if (d->key_pressed['k'])
+				play_sound("dev_beep0");
+			if (d->key_pressed['l'])
+				play_sound("dev_beep1");
+			if (d->key_pressed['p'])
+				play_sound("ambient");
+
 			if (d->key_pressed[KEY_F12]) {
 				make_main_blob();
 				blob= g_env.resblob= reload_blob(blob, DEFAULT_BLOB_PATH);

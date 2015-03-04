@@ -9,12 +9,10 @@
 typedef enum {
 	AC_free,  // No audio is assigned for this channel
 	AC_play,  // Audio callback is pushing samples to be played
-	AC_play_finished, // Audio callback has finished
 } AudioChannel_State;
 
 typedef struct AudioChannel {
 	AudioChannel_State state;
-	U32 sound_id;
 	F32 *samples; // Interleaved samples
 	U32 ch_count;
 	U32 frame_count; // sample_count/ch_count
@@ -38,5 +36,7 @@ typedef struct AudioSystem {
 /// @note Sets g_env.audiosystem
 REVOLC_API void create_audiosystem();
 REVOLC_API void destroy_audiosystem();
+
+REVOLC_API void play_sound(const char *name);
 
 #endif // REVOLC_AUDIO_AUDIOSYSTEM_H

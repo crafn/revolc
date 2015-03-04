@@ -4,6 +4,7 @@
 #include "core/malloc.h"
 #include "global/cfg.h"
 #include "global/env.h"
+#include "platform/memory.h"
 #include "sound.h"
 
 #include "resources/resblob.h" // test
@@ -24,22 +25,12 @@ int audio_callback(	const void* input_data, void* output_data,
 		out[2*i + 1]= 0.0;
 	}
 
-	// TEST
-	local_persist int beep_i= 0;
-	Sound *s= (Sound*)res_by_name(g_env.resblob, ResType_Sound, "dev_beep0");
-	ensure(s->ch_count == 2);
-	for (int i= 0; i < out_frame_count; ++i) {
-		out[2*i]= s->samples[beep_i*2];
-		out[2*i + 1]= s->samples[beep_i*2 + 1];
-		beep_i= (beep_i + 1) % s->frame_count;
-	}
-
 	for (U32 ch_i= 0; ch_i < MAX_AUDIO_CHANNELS; ++ch_i) {
 		AudioChannel *ch= &chs[ch_i];
 		if (ch->state != AC_play)
 			continue;
 
-		ensure(ch->ch_count == 2 && "@todo mono");
+		ensure(ch->ch_count == 2 && "@todo mono sounds");
 
 		bool going_to_finish= false;
 		U32 frame_count= out_frame_count;
@@ -48,18 +39,24 @@ int audio_callback(	const void* input_data, void* output_data,
 			going_to_finish= true;
 		}
 
-		for (U32 f_i= 0; f_i < out_frame_count; ++f_i) {
-			U32 l_i= f_i*2;
-			U32 r_i= f_i*2 + 1;
+		U32 frame_offset= ch->cur_frame;
+		for (U32 f_i= 0; f_i < frame_count; ++f_i) {
+			U32 l_i= (frame_offset + f_i)*2;
+			U32 r_i= (frame_offset + f_i)*2 + 1;
 
-			out[l_i] += ch->samples[l_i];
-			out[r_i] += ch->samples[r_i];
+			out[f_i*2] += ch->samples[l_i];
+			out[f_i*2 + 1] += ch->samples[r_i];
 			++ch->cur_frame;
 		}
 
 		if (going_to_finish) {
-			/// @todo MEMORY FENCE
-			ch->state= AC_play_finished;
+			ch->samples= NULL;
+			ch->ch_count= 0;
+			ch->frame_count= 0;
+
+			/// @todo Full barrier not necessary 
+			PLAT_FULL_MEMORY_BARRIER();
+			ch->state= AC_free;
 		}
 	}
 	return paContinue;
@@ -182,4 +179,34 @@ void destroy_audiosystem()
 
 	free(g_env.audiosystem);
 	g_env.audiosystem= NULL;
+}
+
+void play_sound(const char *name)
+{
+	AudioSystem *a= g_env.audiosystem;
+	Sound *s= (Sound*)res_by_name(g_env.resblob, ResType_Sound, name);
+
+	U32 free_i= 0;
+	while (	free_i < MAX_AUDIO_CHANNELS &&
+			a->channels[free_i].state != AC_free)
+		++free_i;
+
+	if (free_i == MAX_AUDIO_CHANNELS) {
+		debug_print("play_sounds: too many sounds");
+		return;
+	}
+
+	{ // Start playing
+		AudioChannel *ch= &a->channels[free_i];
+		*ch= (AudioChannel) {
+			.state= AC_free,
+			.samples= s->samples,
+			.frame_count= s->frame_count,
+			.ch_count= s->ch_count,
+		};
+
+		/// @todo Full barrier not necessary 
+		PLAT_FULL_MEMORY_BARRIER();
+		ch->state= AC_play;
+	}
 }
