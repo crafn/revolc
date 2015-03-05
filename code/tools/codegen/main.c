@@ -102,7 +102,7 @@ static inline void examine_symbol_list(const char *file, struct symbol_list *lis
 	} END_FOR_EACH_PTR(sym);
 }
 
-int main(int argc, char **argv)
+static void write_rtti()
 {
 	/// @todo Don't hard-code
 	char *sparse_argv[]= {
@@ -185,6 +185,146 @@ int main(int argc, char **argv)
 
 	fclose(h);
 	fclose(c);
+}
+
+static void write_math()
+{
+	FILE *f= fopen("./source/core/vector.h", "wb");
+	assert(f);
+
+	typedef struct VecType {
+		const char *name;
+		const char *lc_name;
+		const char *comp_type_name;
+		int comp_count;
+		int round_to;
+	} VecType;
+
+	VecType vecs[]= {
+		{"V2d", "v2d", "F64", 2, 2},
+		{"V2f", "v2f", "F32", 2, 2},
+		{"V2i", "v2i", "S32", 2, -1},
+		{"V3d", "v3d", "F64", 3, -1},
+		{"V3f", "v3f", "F32", 3, -1},
+	};
+	const int vec_count= sizeof(vecs)/sizeof(*vecs);
+
+	const char *comp_names[4]= {"x", "y", "z", "w"};
+
+	fprintf(f, "#ifndef REVOLC_CORE_VECTOR_H\n");
+	fprintf(f, "#define REVOLC_CORE_VECTOR_H\n");
+	fprintf(f, "\n// This is a generated file (codegen)\n\n");
+	fprintf(f, "#include <math.h>\n\n");
+
+	for (int i= 0; i < vec_count; ++i) {
+		VecType v= vecs[i];
+		fprintf(f, "typedef struct %s {\n", v.name);
+		for (int k= 0; k < v.comp_count; ++k) {
+			fprintf(f, "	%s %s;\n", v.comp_type_name, comp_names[k]);
+		}
+		fprintf(f, "} %s;\n\n", v.name);
+	}
+
+	for (int i= 0; i < vec_count; ++i) {
+		VecType v= vecs[i];
+
+		fprintf(f, "static\n");
+		fprintf(f, "bool equals_%s(%s a, %s b)\n", v.lc_name, v.name, v.name);
+		fprintf(f, "{ return ");
+		for (int k= 0; k < v.comp_count; ++k)
+			fprintf(f, "a.%s == b.%s && ", comp_names[k], comp_names[k]);
+		fprintf(f, "1; }\n");
+
+		fprintf(f, "static\n");
+		fprintf(f, "%s add_%s(%s a, %s b)\n", v.name, v.lc_name, v.name, v.name);
+		fprintf(f, "{ return (%s) {", v.name);
+		for (int k= 0; k < v.comp_count; ++k) {
+			fprintf(f, "a.%s + b.%s, ", comp_names[k], comp_names[k]);
+		}
+		fprintf(f, "}; }\n");
+
+		fprintf(f, "static\n");
+		fprintf(f, "%s sub_%s(%s a, %s b)\n", v.name, v.lc_name, v.name, v.name);
+		fprintf(f, "{ return (%s) {", v.name);
+		for (int k= 0; k < v.comp_count; ++k) {
+			fprintf(f, "a.%s - b.%s, ", comp_names[k], comp_names[k]);
+		}
+		fprintf(f, "}; }\n");
+
+		fprintf(f, "static\n");
+		fprintf(f, "%s mul_%s(%s a, %s b)\n", v.name, v.lc_name, v.name, v.name);
+		fprintf(f, "{ return (%s) {", v.name);
+		for (int k= 0; k < v.comp_count; ++k) {
+			fprintf(f, "a.%s * b.%s, ", comp_names[k], comp_names[k]);
+		}
+		fprintf(f, "}; }\n");
+
+		fprintf(f, "static\n");
+		fprintf(f, "%s scaled_%s(%s s, %s v)\n", v.name, v.lc_name, v.comp_type_name, v.name);
+		fprintf(f, "{ return (%s) {", v.name);
+		for (int k= 0; k < v.comp_count; ++k) {
+			fprintf(f, "s*v.%s, ", comp_names[k]);
+		}
+		fprintf(f, "}; }\n");
+
+		fprintf(f, "static\n");
+		fprintf(f, "%s length_sqr_%s(%s v)\n", v.comp_type_name, v.lc_name, v.name);
+		fprintf(f, "{ return ");
+		for (int k= 0; k < v.comp_count; ++k)
+			fprintf(f, "v.%s*v.%s + ", comp_names[k], comp_names[k]);
+		fprintf(f, "0; }\n");
+
+		fprintf(f, "static\n");
+		fprintf(f, "F64 length_%s(%s v)\n", v.lc_name, v.name);
+		fprintf(f, "{ return sqrt(length_sqr_%s(v)); }\n", v.lc_name);
+
+		fprintf(f, "static\n");
+		fprintf(f, "%s dist_sqr_%s(%s a, %s b)\n", v.comp_type_name, v.lc_name, v.name, v.name);
+		fprintf(f, "{ return ");
+		for (int k= 0; k < v.comp_count; ++k)
+			fprintf(f, "(a.%s - b.%s)*(a.%s - b.%s) + ", comp_names[k], comp_names[k], comp_names[k], comp_names[k]);
+		fprintf(f, "0; }\n");
+
+		fprintf(f, "static\n");
+		fprintf(f, "F64 dist_%s(%s a, %s b)\n", v.lc_name, v.name, v.name);
+		fprintf(f, "{ return sqrt(dist_sqr_%s(a, b)); }\n", v.lc_name);
+
+		fprintf(f, "static\n");
+		fprintf(f, "%s normalized_%s(%s v)\n", v.name, v.lc_name, v.name);
+		fprintf(f, "{ return scaled_%s(1.0/length_%s(v), v); }\n", v.lc_name, v.lc_name);
+
+		if (v.comp_count == 2) {
+			fprintf(f, "static\n");
+			fprintf(f, "%s rot_%s(F64 f, %s v)\n", v.name, v.lc_name, v.name);
+			fprintf(f, "{ return (%s) {v.x*cos(f) - v.y*sin(f), v.x*sin(f) + v.y*cos(f)}; }\n", v.name);
+		}
+
+		if (v.round_to != -1) {
+			VecType r= vecs[v.round_to];
+			fprintf(f, "static\n");
+			fprintf(f, "%s round_%s_to_%s(%s v)\n", r.name, v.lc_name, r.lc_name, v.name);
+			fprintf(f, "{ return (%s) {", r.name);
+			for (int k= 0; k < v.comp_count; ++k) {
+				fprintf(f, "floor(v.%s + 0.5), ", comp_names[k]); 
+			}
+			fprintf(f, "}; }\n");
+		}
+	}
+
+	fprintf(f,
+		"static\n"
+		"V2d v3d_to_v2d(V3d v)\n"
+		"{ return (V2d) {v.x, v.y}; }\n");
+	fprintf(f, "\n#endif\n");
+
+	fclose(f);
+}
+
+int main(int argc, char **argv)
+{
+	write_math();
+
+	write_rtti();
 	return 0;
 }
 

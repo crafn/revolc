@@ -1,3 +1,5 @@
+#include "animation/armature.h"
+#include "animation/joint.h"
 #include "build.h"
 #include "core/ensure.h"
 #include "core/file.h"

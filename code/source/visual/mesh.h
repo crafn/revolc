@@ -2,6 +2,7 @@
 #define REVOLC_VISUAL_MESH_H
 
 #include "build.h"
+#include "core/color.h"
 #include "core/vector.h"
 #include "core/json.h"
 #include "resources/resource.h"

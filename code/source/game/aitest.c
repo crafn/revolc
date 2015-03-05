@@ -35,7 +35,7 @@ void upd_aitest(	AiTest *t,
 		V2d p= {t->input_pos.x, t->input_pos.y};
 		V2d dif= sub_v2d(target, p);
 		F64 r2= length_sqr_v2d(dif);
-		t->force= scaled_v2d(dif, 1000.0/(r2 + 10.0));
+		t->force= scaled_v2d(1000.0/(r2 + 10.0), dif);
 	}
 }
 

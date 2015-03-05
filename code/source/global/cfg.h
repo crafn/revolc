@@ -4,6 +4,8 @@
 // These options largely determine the memory usage and performance of the engine
 #define FRAME_MEM_SIZE (1024*1024*10)
 
+#define MAX_ARMATURE_JOINT_COUNT 16
+
 #define AUDIO_SAMPLE_RATE 44100
 #define AUDIO_BUFFER_SIZE 512
 #define MAX_AUDIO_CHANNELS 64

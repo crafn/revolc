@@ -1,6 +1,7 @@
-#include "global/env.h"
 #include "chipmunk_util.h"
+#include "core/color.h"
 #include "core/malloc.h"
+#include "global/env.h"
 #include "physworld.h"
 #include "visual/renderer.h" // Debug draw
 
@@ -132,7 +133,7 @@ PolyCell* rasterized_circle(V2i *rect_ll, V2i *rect_size, const Circle *circle)
 			U32 i= x + y*size.x;
 			ensure(i < cell_count);
 
-			if (distance_sqr_v2d(test_p, circle->pos) >= circle->rad*circle->rad) {
+			if (dist_sqr_v2d(test_p, circle->pos) >= circle->rad*circle->rad) {
 				cells[i].fill= 0;
 			} else {
 				cells[i].fill= 64;
@@ -160,9 +161,9 @@ void modify_grid(int add_mul, const void *shp, ShapeType shp_type, V2d pos, Qd r
 		// Scale poly so that 1 unit == 1 cell
 		for (U32 i= 0; i < poly.v_count; ++i) {
 			V2d p= poly.v[i];
-			p= rot_v2d_qd(p, rot);
+			p= rot_v2d_by_qd(rot, p);
 			p= add_v2d(p, pos);
-			p= scaled_v2d(p, GRID_RESO_PER_UNIT);
+			p= scaled_v2d(GRID_RESO_PER_UNIT, p);
 			p= sub_v2d(p, (V2d) {0.5, 0.5});
 			poly.v[i]= p;
 		}
@@ -171,9 +172,9 @@ void modify_grid(int add_mul, const void *shp, ShapeType shp_type, V2d pos, Qd r
 		Circle circle= *(Circle*)shp;
 		// Scale circle so that 1 unit == 1 cell
 		V2d p= circle.pos;
-		p= rot_v2d_qd(p, rot);
+		p= rot_v2d_by_qd(rot, p);
 		p= add_v2d(p, pos);
-		p= scaled_v2d(p, GRID_RESO_PER_UNIT);
+		p= scaled_v2d(GRID_RESO_PER_UNIT, p);
 		p= sub_v2d(p, (V2d) {0.5, 0.5});
 		circle.pos= p;
 		circle.rad *= GRID_RESO_PER_UNIT;

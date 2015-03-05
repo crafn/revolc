@@ -24,6 +24,7 @@
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define U8_MAX 255
 #define U32_MAX 4294967295
 #define S32_MAX 2147483647
 #define S32_MIN (-2147483648)
