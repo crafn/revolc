@@ -358,6 +358,8 @@ static void write_math()
 		fprintf(f, "#include \"math_constants.h\"\n");
 		fprintf(f, "#include \"vector.h\"\n\n");
 
+		fprintf(f, "\n#include <stdlib.h> // abs\"\n\n");
+
 		for (int i= 0; i < quat_count; ++i) {
 			QuatInfo q= quats[i];
 

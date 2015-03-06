@@ -6,6 +6,9 @@
 #include "math_constants.h"
 #include "vector.h"
 
+
+#include <stdlib.h> // abs"
+
 typedef struct Qf {
 	F32 x;
 	F32 y;

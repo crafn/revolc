@@ -1,5 +1,7 @@
 #ifdef HEADERS
 
+#include "animation/armature.h"
+#include "animation/clip.h"
 #include "audio/sound.h"
 #include "game/nodegroupdef.h"
 #include "game/nodetype.h"
@@ -19,5 +21,7 @@ RESOURCE(RigidBodyDef, NULL, NULL, json_rigidbodydef_to_blob)
 RESOURCE(NodeType, init_nodetype, NULL, json_nodetype_to_blob)
 RESOURCE(NodeGroupDef, init_nodegroupdef, NULL, json_nodegroupdef_to_blob)
 RESOURCE(Sound, NULL, NULL, json_sound_to_blob)
+RESOURCE(Armature, NULL, NULL, json_armature_to_blob)
+RESOURCE(Clip, NULL, NULL, json_clip_to_blob)
 
 #endif
