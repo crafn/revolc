@@ -315,26 +315,23 @@ void render_frame()
 				++cur_i;
 			}
 
-			F64 cs= e->rot.cs;
-			F64 sn= e->rot.sn;
-
 			for (U32 k= 0; k < e->mesh_v_count; ++k) {
 				TriMeshVertex v= e->vertices[k];
-
+				V3d p= {v.pos.x, v.pos.y, v.pos.z};
 				// Scale
-				v.pos.x *= e->scale.x;
-				v.pos.y *= e->scale.y;
-				v.pos.z *= e->scale.z;
+				p.x *= e->scale.x;
+				p.y *= e->scale.y;
+				p.z *= e->scale.z;
 
 				// Rotate
-				V2d p= {v.pos.x, v.pos.y};
-				v.pos.x = cs*p.x - sn*p.y;
-				v.pos.y = sn*p.x + cs*p.y;
+				p= rot_v3d(e->rot, p);
 
 				// Translate
-				v.pos.x += e->pos.x;
-				v.pos.y += e->pos.y;
-				v.pos.z += e->pos.z;
+				p.x += e->pos.x;
+				p.y += e->pos.y;
+				p.z += e->pos.z;
+
+				v.pos= (V3f) {p.x, p.y, p.z};
 
 				v.uv.x *= e->scale_to_atlas_uv.x;
 				v.uv.y *= e->scale_to_atlas_uv.y;

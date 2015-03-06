@@ -5,7 +5,7 @@
 #include "resources/resource.h"
 
 #define MAX_NODES_IN_GROUP_DEF 16
-#define MAX_DEFAULT_STRUCT_SIZE 512
+#define MAX_DEFAULT_STRUCT_SIZE 1024
 #define MAX_CMDS_IN_GROUP_DEF 8
 #define MAX_CMD_CALL_PARAMS 4
 

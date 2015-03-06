@@ -161,7 +161,7 @@ void modify_grid(int add_mul, const void *shp, ShapeType shp_type, V2d pos, Qd r
 		// Scale poly so that 1 unit == 1 cell
 		for (U32 i= 0; i < poly.v_count; ++i) {
 			V2d p= poly.v[i];
-			p= rot_v2d_by_qd(rot, p);
+			p= rot_v2d(rotation_z_qd(rot), p);
 			p= add_v2d(p, pos);
 			p= scaled_v2d(GRID_RESO_PER_UNIT, p);
 			p= sub_v2d(p, (V2d) {0.5, 0.5});
@@ -172,7 +172,7 @@ void modify_grid(int add_mul, const void *shp, ShapeType shp_type, V2d pos, Qd r
 		Circle circle= *(Circle*)shp;
 		// Scale circle so that 1 unit == 1 cell
 		V2d p= circle.pos;
-		p= rot_v2d_by_qd(rot, p);
+		p= rot_v2d(rotation_z_qd(rot), p);
 		p= add_v2d(p, pos);
 		p= scaled_v2d(GRID_RESO_PER_UNIT, p);
 		p= sub_v2d(p, (V2d) {0.5, 0.5});
@@ -473,8 +473,7 @@ void upd_physworld(F64 dt)
 		cpVect r= cpBodyGetRotation(b->cp_body);
 		b->pos.x= p.x;
 		b->pos.y= p.y;
-		b->rot.cs= r.x;
-		b->rot.sn= r.y;
+		b->rot= qd_by_xy_rot_matrix(r.x, r.y);
 	}
 
 	if (w->debug_draw) {
