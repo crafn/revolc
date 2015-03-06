@@ -98,3 +98,31 @@ V2d json_v2(JsonTok j)
 	};
 }
 
+V3d json_v3(JsonTok j)
+{
+	return (V3d) {
+		json_real(json_member(j, 0)),
+		json_real(json_member(j, 1)),
+		json_real(json_member(j, 2))
+	};
+}
+
+Qd json_qd(JsonTok j)
+{
+	V3d axis= {
+		json_real(json_member(j, 0)),
+		json_real(json_member(j, 1)),
+		json_real(json_member(j, 2))
+	};
+	F64 angle= json_real(json_member(j, 3));
+	return qd_by_axis(axis, angle);
+}
+
+T3d json_t3(JsonTok j)
+{
+	return (T3d) {
+		json_v3(json_value_by_key(j, "scale")),
+		json_qd(json_value_by_key(j, "rot")),
+		json_v3(json_value_by_key(j, "pos"))
+	};
+}

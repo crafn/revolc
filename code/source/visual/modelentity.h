@@ -2,15 +2,13 @@
 #define REVOLC_VISUAL_ENTITY_MODEL_H
 
 #include "build.h"
-#include "core/quaternion.h"
+#include "core/transform.h"
 #include "core/vector.h"
 #include "model.h"
 #include "mesh.h"
 
 typedef struct ModelEntity {
-	V3d pos;
-	Qd rot;
-	V3d scale;
+	T3d tf;
 	char model_name[RES_NAME_SIZE];
 	bool allocated;
 	bool has_own_mesh; // If true, vertices and indices are free'd along this

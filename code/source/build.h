@@ -36,9 +36,9 @@ typedef unsigned int U32;
 typedef unsigned long long U64;
 
 typedef signed char S8;
-typedef short S16;
-typedef	int S32;
-typedef	long long S64;
+typedef signed short S16;
+typedef	signed int S32;
+typedef	signed long long S64;
 
 typedef float F32;
 typedef double F64;

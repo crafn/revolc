@@ -44,6 +44,19 @@ U32 member_offset_by_index(const char *struct_name, U32 member_i)
 }
 
 internal
+const char * member_type_name_by_index(const char *struct_name, U32 member_i)
+{
+	char postfix[]= "_member_type_names";
+	char size_sym[strlen(struct_name) + strlen(postfix) + 1];
+	snprintf(size_sym, sizeof(size_sym), "%s%s", struct_name, postfix);
+	const char **type_names= (const char**)query_dll_sym(main_program_dll, size_sym);
+	if (!type_names)
+		fail("member_type_name_by_index: Couldn't find member offsets: %s",
+				struct_name);
+	return type_names[member_i];
+}
+
+internal
 U32 member_index_by_name(const char *struct_name, const char *member_name)
 {
 	char postfix[]= "_member_names";
@@ -75,3 +88,9 @@ U32 member_offset(const char *struct_name, const char *member_name)
 				member_index_by_name(struct_name, member_name));
 }
 
+const char * member_type_name(const char *struct_name, const char *member_name)
+{
+	return member_type_name_by_index(
+				struct_name,
+				member_index_by_name(struct_name, member_name));
+}

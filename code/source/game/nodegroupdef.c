@@ -158,6 +158,8 @@ void tokenize(Token *dst_tokens, U32 *next_tok, U32 max_toks, const char* conten
 		}
 		++cur;
 	}
+	ensure(*next_tok < max_toks);
+	dst_tokens[*(next_tok++)]= (Token) { .type= TokType_eof };
 }
 
 internal
@@ -170,6 +172,39 @@ U32 node_i_by_name(const NodeGroupDef *def, const char *name)
 
 	fail("Node not found: %s", name);
 	return 0;
+}
+
+// Finds offset and size of the sub-member in "foo.bar.asdfg.hsdg"
+internal
+void find_member_storage(U32 *offset, U32 *size, const char *type_name, const Token *tok)
+{
+	*offset= 0;
+	*size= 0;
+
+	// Skip over "struct_var_name." as we already have `type_name`
+	ensure(tok->type == TokType_name);
+	++tok;
+	ensure(tok->type == TokType_dot);
+	++tok;
+
+	while (tok->type != TokType_eof) {
+		ensure(tok->type == TokType_name);
+
+		const char *member_name= tok->str;
+		*offset += member_offset(type_name, member_name);
+		const char *next_type_name= member_type_name(type_name, member_name);
+
+		++tok;
+
+		if (tok->type == TokType_dot) {
+			++tok;
+		} else {
+			// That was the last name in the chain of "foo.bar.asdfg.hsdg"
+			*size= member_size(type_name, member_name);
+			break;
+		}
+		type_name= next_type_name;
+	}
 }
 
 internal
@@ -201,19 +236,20 @@ void parse_cmd(NodeGroupDef_Cmd *cmd, const Token *toks, U32 tok_count, const No
 		parse_cmd(cmd, toks + 6, tok_count - 6, def);
 	} else if (toks[1].type == TokType_dot) {
 		// Assignment
-		ensure(tok_count == 7);
-		ensure(toks[0].type == TokType_name);
-		ensure(toks[1].type == TokType_dot);
-		ensure(toks[2].type == TokType_name);
-		ensure(toks[3].type == TokType_assign);
-		ensure(toks[4].type == TokType_name);
-		ensure(toks[5].type == TokType_dot);
-		ensure(toks[6].type == TokType_name);
 
+		// Dst node token is always first
+		ensure(toks[0].type == TokType_name);
 		const char *dst_node_name= toks[0].str;
-		const char *dst_member_name= toks[2].str;
-		const char *src_node_name= toks[4].str;
-		const char *src_member_name= toks[6].str;
+
+		// Find src node token after ==
+		U32 src_node_tok_i= 1;
+		while (	src_node_tok_i < tok_count &&
+				toks[src_node_tok_i].type != TokType_assign)
+			++src_node_tok_i;
+		++src_node_tok_i;
+		ensure(src_node_tok_i < tok_count);
+		ensure(toks[src_node_tok_i].type == TokType_name);
+		const char *src_node_name= toks[src_node_tok_i].str;
 
 		U32 src_node_i= node_i_by_name(def, src_node_name);
 		U32 dst_node_i= node_i_by_name(def, dst_node_name);
@@ -222,10 +258,13 @@ void parse_cmd(NodeGroupDef_Cmd *cmd, const Token *toks, U32 tok_count, const No
 		const char *dst_type_name= def->nodes[dst_node_i].type_name;
 
 		cmd->type= CmdType_memcpy;
-		cmd->src_offset= member_offset(src_type_name, src_member_name);
-		cmd->dst_offset= member_offset(dst_type_name, dst_member_name);
 		cmd->dst_node_i= dst_node_i;
-		cmd->size= member_size(src_type_name, src_member_name);
+		U32 dst_size;
+		U32 src_size;
+		find_member_storage(&cmd->dst_offset, &dst_size, dst_type_name, &toks[0]);
+		find_member_storage(&cmd->src_offset, &src_size, src_type_name, &toks[src_node_tok_i]);
+		ensure(dst_size == src_size);
+		cmd->size= src_size;
 	} else if (toks[1].type == TokType_open_paren) {
 		// Call
 		ensure(tok_count >= 4);
@@ -343,4 +382,7 @@ int json_nodegroupdef_to_blob(struct BlobBuf *buf, JsonTok j)
 				(U8*)&def + sizeof(Resource),
 				sizeof(def) - sizeof(Resource));
 	return 0;
+
+error:
+	return 1;
 }

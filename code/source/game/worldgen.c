@@ -124,9 +124,9 @@ void try_spawn_ground(World *world, V2d pos)
 internal
 void spawn_visual_prop(World *world, V3d pos, V3d scale, const char *name)
 {
+	T3d tf= {scale, identity_qd(), pos};
 	SlotVal init_vals[]= {
-		{"visual",	"pos",			WITH_DEREF_SIZEOF(&pos)},
-		{"visual",	"scale",		WITH_DEREF_SIZEOF(&scale)},
+		{"visual",	"tf",			WITH_DEREF_SIZEOF(&tf)},
 		{"visual",	"model_name",	WITH_STR_SIZE(name)},
 	};
 	NodeGroupDef *def=

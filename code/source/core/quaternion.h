@@ -6,8 +6,7 @@
 #include "math_constants.h"
 #include "vector.h"
 
-
-#include <stdlib.h> // abs"
+#include <stdlib.h> // abs
 
 typedef struct Qf {
 	F32 x;
@@ -71,6 +70,15 @@ Qf identity_qf()
 { return (Qf) {0, 0, 0, 1}; }
 
 static
+Qf qf_by_axis(V3f axis, F32 angle)
+{
+	axis= normalized_v3f(axis);
+	F32 half= 0.5*angle;
+	F32 s= sin(half);
+	return (Qf) {axis.x*s, axis.y*s, axis.z*s, cos(half)};
+}
+
+static
 Qf qf_by_xy_rot_matrix(F32 cs, F32 sn)
 {
 	/// @todo There must be a faster way
@@ -126,6 +134,15 @@ Qd identity_qd()
 { return (Qd) {0, 0, 0, 1}; }
 
 static
+Qd qd_by_axis(V3d axis, F64 angle)
+{
+	axis= normalized_v3d(axis);
+	F64 half= 0.5*angle;
+	F64 s= sin(half);
+	return (Qd) {axis.x*s, axis.y*s, axis.z*s, cos(half)};
+}
+
+static
 Qd qd_by_xy_rot_matrix(F64 cs, F64 sn)
 {
 	/// @todo There must be a faster way
@@ -133,4 +150,7 @@ Qd qd_by_xy_rot_matrix(F64 cs, F64 sn)
 	return (Qd) {0, 0, sin(rot/2.0), cos(rot/2.0) };
 }
 
+static
+Qf qd_to_qf(Qd q)
+{ return (Qf) {q.x, q.y, q.z, q.w}; }
 #endif

@@ -160,6 +160,39 @@ static void write_rtti()
 		}
 		fprintf(c, "	NULL\n};\n");
 
+		// Member type names
+		fprintf(h, "extern const char *%s_member_type_names[];\n", s->sym->ident->name);
+		fprintf(c, "const char *%s_member_type_names[]= {\n", s->sym->ident->name);
+		for (int k= 0; k < s->member_count; ++k) {
+			const struct symbol *type_sym= s->member_syms[k]->ctype.base_type;
+			if (type_sym->ident) {
+				fprintf(c, "	\"%s\",\n", type_sym->ident->name);
+			} else {
+				const char *type_str= "<NOIDENT>";
+				if (type_sym == &float_ctype)
+					type_str= "F32";
+				else if (type_sym == &double_ctype)
+					type_str= "F64";
+				else if (type_sym == &ushort_ctype)
+					type_str= "U16";
+				else if (type_sym == &sshort_ctype)
+					type_str= "S16";
+				else if (type_sym == &uint_ctype)
+					type_str= "U32";
+				else if (type_sym == &sint_ctype)
+					type_str= "S32";
+				else if (type_sym == &ullong_ctype)
+					type_str= "U64";
+				else if (type_sym == &sllong_ctype)
+					type_str= "S64";
+				else if (type_sym == &bool_ctype)
+					type_str= "bool";
+				/// @todo Rest
+				fprintf(c, "	\"%s\",\n", type_str);
+			}
+		}
+		fprintf(c, "	NULL\n};\n");
+
 		// Member sizes
 		fprintf(h, "extern const U32 %s_member_sizes[];\n", s->sym->ident->name);
 		fprintf(c, "const U32 %s_member_sizes[]= {", s->sym->ident->name);
@@ -201,14 +234,15 @@ static void write_math()
 			const char *comp_type_name;
 			int comp_count;
 			int round_to;
+			int direct_cast_to;
 		} VecType;
 
 		VecType vecs[]= {
-			{"V2d", "v2d", "F64", 2, 2},
-			{"V2f", "v2f", "F32", 2, 2},
-			{"V2i", "v2i", "S32", 2, -1},
-			{"V3d", "v3d", "F64", 3, -1},
-			{"V3f", "v3f", "F32", 3, -1},
+			{"V2d", "v2d", "F64", 2, 2, 1},
+			{"V2f", "v2f", "F32", 2, 2, 0},
+			{"V2i", "v2i", "S32", 2,-1,-1},
+			{"V3d", "v3d", "F64", 3,-1, 4},
+			{"V3f", "v3f", "F32", 3,-1, 3},
 		};
 		const int vec_count= sizeof(vecs)/sizeof(*vecs);
 
@@ -315,9 +349,18 @@ static void write_math()
 				fprintf(f, "static\n");
 				fprintf(f, "%s round_%s_to_%s(%s v)\n", r.name, v.lc_name, r.lc_name, v.name);
 				fprintf(f, "{ return (%s) {", r.name);
-				for (int k= 0; k < v.comp_count; ++k) {
+				for (int k= 0; k < v.comp_count; ++k)
 					fprintf(f, "floor(v.%s + 0.5), ", comp_names[k]); 
-				}
+				fprintf(f, "}; }\n\n");
+			}
+
+			if (v.direct_cast_to != -1) {
+				VecType c= vecs[v.direct_cast_to];
+				fprintf(f, "static\n");
+				fprintf(f, "%s %s_to_%s(%s v)\n", c.name, v.lc_name, c.lc_name, v.name);
+				fprintf(f, "{ return (%s) {", c.name);
+				for (int k= 0; k < v.comp_count; ++k)
+					fprintf(f, "v.%s, ", comp_names[k]); 
 				fprintf(f, "}; }\n\n");
 			}
 		}
@@ -358,7 +401,7 @@ static void write_math()
 		fprintf(f, "#include \"math_constants.h\"\n");
 		fprintf(f, "#include \"vector.h\"\n\n");
 
-		fprintf(f, "\n#include <stdlib.h> // abs\"\n\n");
+		fprintf(f, "#include <stdlib.h> // abs\n\n");
 
 		for (int i= 0; i < quat_count; ++i) {
 			QuatInfo q= quats[i];
@@ -423,6 +466,15 @@ static void write_math()
 			fprintf(f, "{ return (%s) {0, 0, 0, 1}; }\n\n", q.name);
 
 			fprintf(f, "static\n");
+			fprintf(f, "%s %s_by_axis(%s axis, %s angle)\n", q.name, q.lc_name, q.axis_type_name, q.comp_type_name);
+			fprintf(f, "{\n"
+						"	axis= normalized_%s(axis);\n"
+						"	%s half= 0.5*angle;\n"
+						"	%s s= sin(half);\n"
+						"	return (%s) {axis.x*s, axis.y*s, axis.z*s, cos(half)};\n}\n\n",
+						q.axis_lc_name, q.comp_type_name, q.comp_type_name, q.name);
+
+			fprintf(f, "static\n");
 			fprintf(f, "%s %s_by_xy_rot_matrix(%s cs, %s sn)\n", q.name, q.lc_name, q.comp_type_name, q.comp_type_name);
 			fprintf(f, "{\n"
 						"	/// @todo There must be a faster way\n"
@@ -430,6 +482,11 @@ static void write_math()
 						"	return (%s) {0, 0, sin(rot/2.0), cos(rot/2.0) };\n"
 						"}\n\n", q.name);
 		}
+		fprintf(f,
+			"static\n"
+			"Qf qd_to_qf(Qd q)\n"
+			"{ return (Qf) {q.x, q.y, q.z, q.w}; }\n");
+
 		fprintf(f, "#endif\n");
 
 		fclose(f);

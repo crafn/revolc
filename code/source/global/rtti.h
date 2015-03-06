@@ -16,4 +16,7 @@ U32 member_size(const char *struct_name, const char *member_name);
 REVOLC_API
 U32 member_offset(const char *struct_name, const char *member_name);
 
+REVOLC_API
+const char * member_type_name(const char *struct_name, const char *member_name);
+
 #endif // REVOLC_GLOBAL_RTTI_H

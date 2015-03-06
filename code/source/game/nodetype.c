@@ -71,4 +71,7 @@ int json_nodetype_to_blob(struct BlobBuf *buf, JsonTok j)
 				(U8*)&n + sizeof(Resource),
 				sizeof(n) - sizeof(Resource));
 	return 0;
+
+error:
+	return 1;
 }

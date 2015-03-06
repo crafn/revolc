@@ -15,10 +15,8 @@ int json_texture_to_blob(struct BlobBuf *buf, JsonTok j)
 	char *total_path= NULL;
 
 	JsonTok j_file= json_value_by_key(j, "file");
-	if (json_is_null(j_file)) {
+	if (json_is_null(j_file))
 		RES_ATTRIB_MISSING("file");
-		goto error;
-	}
 
 	total_path= malloc_joined_path(j.json_path, json_str(j_file));
 

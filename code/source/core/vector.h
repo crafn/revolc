@@ -85,6 +85,10 @@ V2i round_v2d_to_v2i(V2d v)
 { return (V2i) {floor(v.x + 0.5), floor(v.y + 0.5), }; }
 
 static
+V2f v2d_to_v2f(V2d v)
+{ return (V2f) {v.x, v.y, }; }
+
+static
 bool equals_v2f(V2f a, V2f b)
 { return a.x == b.x && a.y == b.y && 1; }
 
@@ -135,6 +139,10 @@ V2f rot_v2f(F64 f, V2f v)
 static
 V2i round_v2f_to_v2i(V2f v)
 { return (V2i) {floor(v.x + 0.5), floor(v.y + 0.5), }; }
+
+static
+V2d v2f_to_v2d(V2f v)
+{ return (V2d) {v.x, v.y, }; }
 
 static
 bool equals_v2i(V2i a, V2i b)
@@ -233,6 +241,10 @@ V3d cross_v3d(V3d a, V3d b)
 { return (V3d) {a.y*b.z - b.y*a.z, b.x*a.z - a.x*b.z, a.x*b.y - b.x*a.y}; }
 
 static
+V3f v3d_to_v3f(V3d v)
+{ return (V3f) {v.x, v.y, v.z, }; }
+
+static
 bool equals_v3f(V3f a, V3f b)
 { return a.x == b.x && a.y == b.y && a.z == b.z && 1; }
 
@@ -279,6 +291,10 @@ V3f normalized_v3f(V3f v)
 static
 V3f cross_v3f(V3f a, V3f b)
 { return (V3f) {a.y*b.z - b.y*a.z, b.x*a.z - a.x*b.z, a.x*b.y - b.x*a.y}; }
+
+static
+V3d v3f_to_v3d(V3f v)
+{ return (V3d) {v.x, v.y, v.z, }; }
 
 static
 V2d v3d_to_v2d(V3d v)

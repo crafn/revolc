@@ -263,8 +263,8 @@ int entity_cmp(const void *e1, const void *e2)
 {
 	// Smallest Z first (furthest away from camera)
 	// Uglier but faster than using temp vars with -O0
-	return	( ((ModelEntity*)e1)->pos.z > ((ModelEntity*)e2)->pos.z ) -
-			( ((ModelEntity*)e1)->pos.z < ((ModelEntity*)e2)->pos.z );
+	return	( ((ModelEntity*)e1)->tf.pos.z > ((ModelEntity*)e2)->tf.pos.z ) -
+			( ((ModelEntity*)e1)->tf.pos.z < ((ModelEntity*)e2)->tf.pos.z );
 }
 
 void render_frame()
@@ -318,18 +318,9 @@ void render_frame()
 			for (U32 k= 0; k < e->mesh_v_count; ++k) {
 				TriMeshVertex v= e->vertices[k];
 				V3d p= {v.pos.x, v.pos.y, v.pos.z};
-				// Scale
-				p.x *= e->scale.x;
-				p.y *= e->scale.y;
-				p.z *= e->scale.z;
-
-				// Rotate
-				p= rot_v3d(e->rot, p);
-
-				// Translate
-				p.x += e->pos.x;
-				p.y += e->pos.y;
-				p.z += e->pos.z;
+				p= mul_v3d(e->tf.scale, p);
+				p= rot_v3d(e->tf.rot, p);
+				p= add_v3d(e->tf.pos, p);
 
 				v.pos= (V3f) {p.x, p.y, p.z};
 
