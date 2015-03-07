@@ -294,7 +294,7 @@ void set_rigidbody(U32 h, RigidBodyDef *def)
 	else
 		b->cp_body= cpBodyNewStatic();
 	cpSpaceAddBody(w->space, b->cp_body);
-	cpBodySetPosition(b->cp_body, to_cpv((V2d) {b->pos.x, b->pos.y}));
+	cpBodySetPosition(b->cp_body, to_cpv((V2d) {b->tf.pos.x, b->tf.pos.y}));
 
 	U32 circle_count= def->circle_count;
 	U32 poly_count= def->poly_count;
@@ -381,7 +381,7 @@ void free_rigidbody(U32 h)
 		modify_grid_with_shapes(-1,
 				b->polys, b->poly_count,
 				b->circles, b->circle_count,
-				v3d_to_v2d(b->prev_pos), b->prev_rot);
+				v3d_to_v2d(b->prev_tf.pos), b->prev_tf.rot);
 	}
 
 	for (U32 i= 0; i < b->cp_shape_count; ++i) {
@@ -456,7 +456,7 @@ void upd_physworld(F64 dt)
 			cpBodyApplyForceAtWorldPoint(
 					b->cp_body,
 					to_cpv(b->input_force),
-					cpv(b->pos.x, b->pos.y));
+					cpv(b->tf.pos.x, b->tf.pos.y));
 			b->input_force= (V2d) {};
 		}
 	}
@@ -471,9 +471,9 @@ void upd_physworld(F64 dt)
 
 		cpVect p= cpBodyGetPosition(b->cp_body);
 		cpVect r= cpBodyGetRotation(b->cp_body);
-		b->pos.x= p.x;
-		b->pos.y= p.y;
-		b->rot= qd_by_xy_rot_matrix(r.x, r.y);
+		b->tf.pos.x= p.x;
+		b->tf.pos.y= p.y;
+		b->tf.rot= qd_by_xy_rot_matrix(r.x, r.y);
 	}
 
 	if (w->debug_draw) {
@@ -503,25 +503,24 @@ void post_upd_physworld()
 			continue;
 
 		// Update changes to grid
-		bool t_changed= !equals_v3d(b->prev_pos, b->pos) ||
-						!equals_qd(b->prev_rot, b->rot);
+		bool t_changed= !equals_v3d(b->prev_tf.pos, b->tf.pos) ||
+						!equals_qd(b->prev_tf.rot, b->tf.rot);
 		if (t_changed || !b->is_in_grid) {
 			if (b->is_in_grid) {
 				modify_grid_with_shapes(-1,
 						b->polys, b->poly_count,
 						b->circles, b->circle_count,
-						v3d_to_v2d(b->prev_pos), b->prev_rot);
+						v3d_to_v2d(b->prev_tf.pos), b->prev_tf.rot);
 			}
 			modify_grid_with_shapes(1,
 					b->polys, b->poly_count,
 					b->circles, b->circle_count,
-					v3d_to_v2d(b->pos), b->rot);
+					v3d_to_v2d(b->tf.pos), b->tf.rot);
 		}
 
 		b->is_in_grid= true;
 		b->shape_changed= false;
-		b->prev_pos= b->pos;
-		b->prev_rot= b->rot;
+		b->prev_tf= b->tf;
 	}
 	
 }

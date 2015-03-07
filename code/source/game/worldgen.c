@@ -105,10 +105,10 @@ void try_spawn_ground(World *world, V2d pos)
 		poly.v[3]= (V2d) { -0.5 - (l_g_y - pos.y - 0.5)/k, 0.5 };
 	}
 
-	pos= add_v2d(pos, (V2d) {0.5, 0.5});
+	T3d tf= {{1, 1, 1}, identity_qd(), (V3d) {pos.x + 0.5, pos.y + 0.5, 0.0}};
 	bool true_var= true;
 	SlotVal init_vals[]= {
-		{"body",	"pos",				WITH_DEREF_SIZEOF(&pos)},
+		{"body",	"tf",				WITH_DEREF_SIZEOF(&tf)},
 		{"body",	"is_static",		WITH_DEREF_SIZEOF(&true_var)},
 		{"body",	"has_own_shape",	WITH_DEREF_SIZEOF(&true_var)},
 		{"body",	"def_name",			WITH_STR_SIZE("block_dirt")},
@@ -140,8 +140,9 @@ void spawn_phys_prop(World *world, V2d pos, const char *name, bool is_static)
 	local_persist U64 group_i= 0;
 	group_i= (group_i + 1) % 3;
 
+	T3d tf= {{1, 1, 1}, identity_qd(), (V3d) {pos.x, pos.y, 0}};
 	SlotVal init_vals[]= {
-		{"body",	"pos",			WITH_DEREF_SIZEOF(&pos)},
+		{"body",	"tf",			WITH_DEREF_SIZEOF(&tf)},
 		{"body",	"is_static",	WITH_DEREF_SIZEOF(&is_static)},
 		{"body",	"def_name",		WITH_STR_SIZE(name)},
 		{"visual",	"model_name",	WITH_STR_SIZE(name)},

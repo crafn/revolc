@@ -42,8 +42,9 @@ void spawn_entity(World *world, ResBlob *blob, V2d pos)
 	const char* prop_name=
 		(char*[]) {"wbarrel", "wbox", "rollbot"}[group_i];
 
+	T3d tf= {{1, 1, 1}, identity_qd(), {pos.x, pos.y, 0}};
 	SlotVal init_vals[]= { // Override default values from json
-		{"body",	"pos",			WITH_DEREF_SIZEOF(&pos)},
+		{"body",	"tf",			WITH_DEREF_SIZEOF(&tf)},
 		{"body",	"def_name",		WITH_STR_SIZE(prop_name)},
 		{"visual",	"model_name",	WITH_STR_SIZE(prop_name)},
 	};

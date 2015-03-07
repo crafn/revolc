@@ -14,10 +14,8 @@ typedef struct RigidBody {
 	V2d input_force; // in
 	char def_name[RES_NAME_SIZE]; // in
 
-	V3d pos;
-	V3d prev_pos;
-	Qd rot;
-	Qd prev_rot;
+	T3d tf;
+	T3d prev_tf;
 	/// @todo Bit fields
 	bool allocated;
 	bool is_in_grid;
