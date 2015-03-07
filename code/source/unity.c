@@ -25,6 +25,7 @@
 #include "platform/gl.c"
 #include "resources/resblob.c"
 #include "resources/resource.c"
+#include "visual/compoundentity.c"
 #include "visual/mesh.c"
 #include "visual/model.c"
 #include "visual/modelentity.c"

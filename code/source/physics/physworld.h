@@ -18,7 +18,7 @@ typedef struct RigidBody {
 	V3d prev_pos;
 	Qd rot;
 	Qd prev_rot;
-	/// @todo Group booleans to bit fields
+	/// @todo Bit fields
 	bool allocated;
 	bool is_in_grid;
 	bool is_static;

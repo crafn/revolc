@@ -186,4 +186,15 @@ void generate_world(World *w, U64 seed)
 		V3d p_back= {i, ground_surf_y(i) + 0.55, -0.1};
 		spawn_visual_prop(w, p_back, (V3d) {1.1, 1, 1}, "grassclump_b");
 	}
+
+
+	{ // Compound test
+		T3d tf= {(V3d) {1, 1, 1}, identity_qd(), {0, 15, 0}};
+		SlotVal init_vals[]= {
+			{"visual", "tf", WITH_DEREF_SIZEOF(&tf)},
+		};
+		NodeGroupDef *def=
+			(NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, "test_comp");
+		create_nodes(w, def, WITH_ARRAY_COUNT(init_vals), 0);
+	}
 }

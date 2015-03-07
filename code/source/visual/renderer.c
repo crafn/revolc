@@ -183,29 +183,11 @@ void destroy_renderer()
 }
 
 internal
-U32 alloc_modelentity_noinit()
-{
-	Renderer *r= g_env.renderer;
-
-	if (r->entity_count >= MAX_MODELENTITY_COUNT)
-		fail("Too many modelentities");
-
-	while (r->entities[r->next_entity].allocated)
-		r->next_entity= (r->next_entity + 1) % MAX_MODELENTITY_COUNT;
-
-	ModelEntity *e= &r->entities[r->next_entity];
-	*e= (ModelEntity) { .allocated= true };
-
-	++r->entity_count;
-	return r->next_entity;
-}
-
-internal
 void set_modelentity(U32 h, const Model *model)
 {
 	Renderer *r= g_env.renderer;
 
-	ModelEntity *e= &r->entities[h];
+	ModelEntity *e= &r->m_entities[h];
 	Texture *tex= model_texture(model, 0);
 	strncpy(e->model_name, model->res.name, sizeof(e->model_name));
 	e->atlas_uv= tex->atlas_uv;
@@ -222,12 +204,24 @@ void set_modelentity(U32 h, const Model *model)
 U32 resurrect_modelentity(const ModelEntity *dead)
 {
 	Renderer *r= g_env.renderer;
-	U32 h= alloc_modelentity_noinit();
-	r->entities[h]= *dead;
-	r->entities[h].allocated= true;
-	r->entities[h].vertices= NULL;
-	r->entities[h].indices= NULL;
-	r->entities[h].has_own_mesh= false;
+
+	if (r->m_entity_count >= MAX_MODELENTITY_COUNT)
+		fail("Too many ModelEntities");
+
+	while (r->m_entities[r->next_m_entity].allocated)
+		r->next_m_entity= (r->next_m_entity + 1) % MAX_MODELENTITY_COUNT;
+
+	ModelEntity *e= &r->m_entities[r->next_m_entity];
+	*e= (ModelEntity) { .allocated= true };
+
+	++r->m_entity_count;
+	const U32 h= r->next_m_entity;
+
+	r->m_entities[h]= *dead;
+	r->m_entities[h].allocated= true;
+	r->m_entities[h].vertices= NULL;
+	r->m_entities[h].indices= NULL;
+	r->m_entities[h].has_own_mesh= false;
 
 	set_modelentity(
 			h,
@@ -238,24 +232,57 @@ U32 resurrect_modelentity(const ModelEntity *dead)
 	return h;
 }
 
-
 void free_modelentity(U32 h)
 {
 	Renderer *r= g_env.renderer;
 
 	ensure(h < MAX_MODELENTITY_COUNT);
-	ModelEntity *e= &r->entities[h];
+	ModelEntity *e= &r->m_entities[h];
 	if (e->has_own_mesh) {
 		free(e->vertices);
 		free(e->indices);
 	}
 
 	*e= (ModelEntity) { .allocated= false };
-	--r->entity_count;
+	--r->m_entity_count;
 }
 
 void * storage_modelentity()
-{ return g_env.renderer->entities; }
+{ return g_env.renderer->m_entities; }
+
+U32 resurrect_compoundentity(const CompoundEntity *dead)
+{
+	Renderer *r= g_env.renderer;
+
+	if (r->c_entity_count >= MAX_COMPOUNDENTITY_COUNT)
+		fail("Too many CompoundEntities");
+
+	while (r->c_entities[r->next_c_entity].allocated)
+		r->next_c_entity= (r->next_c_entity + 1) % MAX_COMPOUNDENTITY_COUNT;
+	++r->c_entity_count;
+
+	const U32 h= r->next_c_entity;
+	CompoundEntity *e= &r->c_entities[h];
+	*e= *dead;
+	e->allocated= true;
+	e->armature= (Armature*)res_by_name(	g_env.resblob,
+											ResType_Armature,
+											e->armature_name);
+	return h;
+}
+
+void free_compoundentity(U32 h)
+{
+	Renderer *r= g_env.renderer;
+
+	ensure(h < MAX_COMPOUNDENTITY_COUNT);
+	CompoundEntity *e= &r->c_entities[h];
+	*e= (CompoundEntity) { .allocated= false };
+	--r->c_entity_count;
+}
+
+void * storage_compoundentity()
+{ return g_env.renderer->c_entities; }
 
 internal
 inline
@@ -271,10 +298,55 @@ void render_frame()
 {
 	Renderer *r= g_env.renderer;
 
+	{ // Test draw for CompoundEntities
+		for (U32 e_i= 0; e_i < MAX_COMPOUNDENTITY_COUNT; ++e_i) {
+			CompoundEntity *e= &r->c_entities[e_i];
+			if (!e->allocated)
+				continue;
+
+			V2d p= v3d_to_v2d(e->tf.pos);
+			V2d poly[4]= {
+				add_v2d(p, (V2d) {-0.2, -0.2}),
+				add_v2d(p, (V2d) {+0.2, -0.2}),
+				add_v2d(p, (V2d) {+0.2, +0.2}),
+				add_v2d(p, (V2d) {-0.2, +0.2}),
+			};
+
+			ddraw_poly((Color) {1.0, 0.0, 0.0, 0.7}, poly, 4);
+
+			ensure(e->armature);
+
+			T3d global_pose[MAX_ARMATURE_JOINT_COUNT];
+			const Joint *joints= e->armature->joints;
+			for (U32 j_i= 0; j_i < e->armature->joint_count; ++j_i) {
+				T3f joint_pose=
+					mul_t3f(e->joint_offsets.tf[j_i],
+							joints[j_i].bind_pose);
+
+				JointId super_id= joints[j_i].super_id;
+				if (super_id != NULL_JOINT_ID) {
+					joint_pose=
+						mul_t3f(joints[super_id].bind_pose, joint_pose);
+				}
+
+				global_pose[j_i]= mul_t3d(e->tf, t3f_to_t3d(joint_pose));
+
+				V2d p= v3d_to_v2d(global_pose[j_i].pos);
+				V2d poly[4]= {
+					add_v2d(p, (V2d) {-0.1, -0.1}),
+					add_v2d(p, (V2d) {+0.1, -0.1}),
+					add_v2d(p, (V2d) {+0.1, +0.1}),
+					add_v2d(p, (V2d) {-0.1, +0.1}),
+				};
+				ddraw_poly((Color) {0.0, 0.3, 0.0, 0.7}, poly, 4);
+			}
+		}
+	}
+
 	U32 total_v_count= 0;
 	U32 total_i_count= 0;
 	for (U32 i= 0; i < MAX_MODELENTITY_COUNT; ++i) {
-		ModelEntity *e= &r->entities[i];
+		ModelEntity *e= &r->m_entities[i];
 		if (!e->model_name[0])
 			continue;
 
@@ -294,12 +366,14 @@ void render_frame()
 	reset_vao_mesh(&r->vao);
 
 	{ // Meshes to Vao
-		ModelEntity *sorted_entities= malloc(sizeof(*r->entities)*MAX_MODELENTITY_COUNT);	
-		memcpy(sorted_entities, r->entities, sizeof(*r->entities)*MAX_MODELENTITY_COUNT);
+		memcpy(	r->m_entities_sort_space,
+				r->m_entities,
+				sizeof(*r->m_entities)*MAX_MODELENTITY_COUNT);
 
 		// Z-sort
-		qsort(sorted_entities, MAX_MODELENTITY_COUNT, sizeof(*sorted_entities), entity_cmp);
-		ModelEntity *entities= sorted_entities;
+		qsort(	r->m_entities_sort_space, MAX_MODELENTITY_COUNT,
+				sizeof(*r->m_entities_sort_space), entity_cmp);
+		ModelEntity *entities= r->m_entities_sort_space;
 
 		TriMeshVertex *total_verts= malloc(sizeof(*total_verts)*total_v_count);
 		MeshIndexType *total_inds= malloc(sizeof(*total_inds)*total_i_count);
@@ -337,7 +411,6 @@ void render_frame()
 				++cur_v;
 			}
 		}
-		free(sorted_entities);
 		add_vertices_to_vao(&r->vao, total_verts, total_v_count);
 		add_indices_to_vao(&r->vao, total_inds, total_i_count);
 		free(total_verts);
@@ -498,7 +571,7 @@ void renderer_on_res_reload(ResBlob *new_blob)
 	recreate_texture_atlas(r, new_blob);
 
 	for (U32 e_i= 0; e_i < MAX_MODELENTITY_COUNT; ++e_i) {
-		ModelEntity *e= &r->entities[e_i];
+		ModelEntity *e= &r->m_entities[e_i];
 		if (!e->allocated)
 			continue;
 		if (e->has_own_mesh)
@@ -510,5 +583,18 @@ void renderer_on_res_reload(ResBlob *new_blob)
 					ResType_Model,
 					e->model_name);
 		set_modelentity(e_i, m);
+	}
+
+	for (U32 e_i= 0; e_i < MAX_COMPOUNDENTITY_COUNT; ++e_i) {
+		CompoundEntity *e= &r->c_entities[e_i];
+		if (!e->allocated)
+			continue;
+
+		const Armature *a=
+			(Armature*)res_by_name(
+					new_blob,
+					ResType_Armature,
+					e->armature_name);
+		e->armature= a;
 	}
 }

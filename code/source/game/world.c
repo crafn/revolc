@@ -317,6 +317,10 @@ void create_nodes(	World *w,
 			/// @todo Don't do this. Slow. Or make RTTI fast.
 			U32 size= member_size(node_def->type_name, val->member_name);
 			U32 offset= member_offset(node_def->type_name, val->member_name);
+			if (val->size > size) {
+				fail("Node init value is larger than member (%s.%s): %i > %i",
+						val->node_name, val->member_name, val->size, size);
+			}
 			ensure(val->size <= size);
 			memcpy(default_struct + offset, val->data, val->size);
 		}

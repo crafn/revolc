@@ -88,7 +88,8 @@ int main(int argc, const char **argv)
 		time_accum += d->dt;
 		if (frame++ == 60) {
 			debug_print("---");
-			debug_print("model entities: %i", g_env.renderer->entity_count);
+			debug_print("model entities: %i", g_env.renderer->m_entity_count);
+			debug_print("comp entities: %i", g_env.renderer->c_entity_count);
 			debug_print("bodies: %i", g_env.physworld->body_count);
 			debug_print("nodes: %i", g_env.world->node_count);
 			debug_print("fps: %f", frame/time_accum);

@@ -487,6 +487,11 @@ static void write_math()
 			"Qf qd_to_qf(Qd q)\n"
 			"{ return (Qf) {q.x, q.y, q.z, q.w}; }\n");
 
+		fprintf(f,
+			"static\n"
+			"Qd qf_to_qd(Qf q)\n"
+			"{ return (Qd) {q.x, q.y, q.z, q.w}; }\n");
+
 		fprintf(f, "#endif\n");
 
 		fclose(f);

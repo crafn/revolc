@@ -32,7 +32,7 @@ typedef struct Clip {
 	F32 fps;
 	U32 joint_count;
 	U32 frame_count;
-	JointPose local_samples[]; // joint_count*frame_count elements
+	T3f local_samples[]; // joint_count*frame_count elements
 } Clip;
 
 REVOLC_API WARN_UNUSED

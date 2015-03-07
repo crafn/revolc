@@ -153,4 +153,7 @@ Qd qd_by_xy_rot_matrix(F64 cs, F64 sn)
 static
 Qf qd_to_qf(Qd q)
 { return (Qf) {q.x, q.y, q.z, q.w}; }
+static
+Qd qf_to_qd(Qf q)
+{ return (Qd) {q.x, q.y, q.z, q.w}; }
 #endif

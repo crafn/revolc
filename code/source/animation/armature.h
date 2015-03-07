@@ -7,18 +7,10 @@
 #include "joint.h"
 #include "resources/resource.h"
 
-struct Armature;
-typedef struct ArmaturePose {
-	const struct Armature* armature;
-	JointPose local_in_bind_pose[MAX_ARMATURE_JOINT_COUNT];
-} ArmaturePose;
-
 typedef struct Armature {
 	Resource res;
-	char joint_names[MAX_ARMATURE_JOINT_COUNT][RES_NAME_SIZE];
 	Joint joints[MAX_ARMATURE_JOINT_COUNT];
 	U32 joint_count;
-	ArmaturePose bind_pose;
 } Armature;
 
 REVOLC_API WARN_UNUSED

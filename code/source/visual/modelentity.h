@@ -8,8 +8,8 @@
 #include "mesh.h"
 
 typedef struct ModelEntity {
-	T3d tf;
 	char model_name[RES_NAME_SIZE];
+	T3d tf;
 	bool allocated;
 	bool has_own_mesh; // If true, vertices and indices are free'd along this
 

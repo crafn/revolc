@@ -53,6 +53,15 @@
 	},
 	{
 		"type" : "NodeType",
+		"name" : "CompoundEntity",
+		"init_func" : "init_compoundentity",
+		"resurrect_func" : "resurrect_compoundentity",
+		"free_func" : "free_compoundentity",
+		"upd_func" : "",
+		"storage_func" : "storage_compoundentity",
+	},
+	{
+		"type" : "NodeType",
 		"name" : "RigidBody",
 		"init_func" : "",
 		"resurrect_func" : "resurrect_rigidbody",
