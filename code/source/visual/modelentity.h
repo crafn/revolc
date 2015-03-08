@@ -2,6 +2,7 @@
 #define REVOLC_VISUAL_ENTITY_MODEL_H
 
 #include "build.h"
+#include "core/json.h"
 #include "core/transform.h"
 #include "core/vector.h"
 #include "model.h"

@@ -183,13 +183,14 @@ void destroy_renderer()
 }
 
 internal
-void set_modelentity(U32 h, const Model *model)
+void recache_modelentity(ModelEntity *e)
 {
-	Renderer *r= g_env.renderer;
-
-	ModelEntity *e= &r->m_entities[h];
+	const Model *model=
+		(Model*)res_by_name(
+					g_env.resblob,
+					ResType_Model,
+					e->model_name);
 	Texture *tex= model_texture(model, 0);
-	strncpy(e->model_name, model->res.name, sizeof(e->model_name));
 	e->atlas_uv= tex->atlas_uv;
 	e->scale_to_atlas_uv= (V2f) {
 		(F32)tex->reso.x/TEXTURE_ATLAS_WIDTH,
@@ -223,12 +224,7 @@ U32 resurrect_modelentity(const ModelEntity *dead)
 	r->m_entities[h].indices= NULL;
 	r->m_entities[h].has_own_mesh= false;
 
-	set_modelentity(
-			h,
-			(Model*)res_by_name(
-				g_env.resblob,
-				ResType_Model,
-				dead->model_name));
+	recache_modelentity(&r->m_entities[h]);
 	return h;
 }
 
@@ -250,38 +246,59 @@ void free_modelentity(U32 h)
 void * storage_modelentity()
 { return g_env.renderer->m_entities; }
 
-U32 resurrect_compoundentity(const CompoundEntity *dead)
+internal
+void recache_compentity(CompEntity *e)
+{
+	for (U32 i= 0; i < e->sub_count; ++i)
+		destroy_subentity(e->subs[i]);
+	e->sub_count= 0;
+
+	const CompDef *def= (CompDef*)res_by_name(	g_env.resblob,
+												ResType_CompDef,
+												e->def_name);
+	e->armature= (Armature*)res_by_name(g_env.resblob,
+										ResType_Armature,
+										def->armature_name);
+
+	for (U32 i= 0; i < def->sub_count; ++i) {
+		e->subs[i]= create_subentity(e->armature, def->subs[i]);
+		++e->sub_count;
+	}
+}
+
+U32 resurrect_compentity(const CompEntity *dead)
 {
 	Renderer *r= g_env.renderer;
 
-	if (r->c_entity_count >= MAX_COMPOUNDENTITY_COUNT)
-		fail("Too many CompoundEntities");
+	if (r->c_entity_count >= MAX_COMPENTITY_COUNT)
+		fail("Too many CompEntities");
 
 	while (r->c_entities[r->next_c_entity].allocated)
-		r->next_c_entity= (r->next_c_entity + 1) % MAX_COMPOUNDENTITY_COUNT;
+		r->next_c_entity= (r->next_c_entity + 1) % MAX_COMPENTITY_COUNT;
 	++r->c_entity_count;
 
 	const U32 h= r->next_c_entity;
-	CompoundEntity *e= &r->c_entities[h];
+	CompEntity *e= &r->c_entities[h];
 	*e= *dead;
 	e->allocated= true;
-	e->armature= (Armature*)res_by_name(	g_env.resblob,
-											ResType_Armature,
-											e->armature_name);
+	e->sub_count= 0;
+	recache_compentity(e);
 	return h;
 }
 
-void free_compoundentity(U32 h)
+void free_compentity(U32 h)
 {
 	Renderer *r= g_env.renderer;
 
-	ensure(h < MAX_COMPOUNDENTITY_COUNT);
-	CompoundEntity *e= &r->c_entities[h];
-	*e= (CompoundEntity) { .allocated= false };
+	ensure(h < MAX_COMPENTITY_COUNT);
+	CompEntity *e= &r->c_entities[h];
+	for (U32 i= 0; i < e->sub_count; ++i)
+		destroy_subentity(e->subs[i]);
+	*e= (CompEntity) { .allocated= false };
 	--r->c_entity_count;
 }
 
-void * storage_compoundentity()
+void * storage_compentity()
 { return g_env.renderer->c_entities; }
 
 internal
@@ -298,12 +315,12 @@ void render_frame()
 {
 	Renderer *r= g_env.renderer;
 
-	{ // Test draw for CompoundEntities
-		for (U32 e_i= 0; e_i < MAX_COMPOUNDENTITY_COUNT; ++e_i) {
-			CompoundEntity *e= &r->c_entities[e_i];
+	{ // Test draw for CompEntities
+		for (U32 e_i= 0; e_i < MAX_COMPENTITY_COUNT; ++e_i) {
+			CompEntity *e= &r->c_entities[e_i];
 			if (!e->allocated)
 				continue;
-
+/*
 			V2d p= v3d_to_v2d(e->tf.pos);
 			V2d poly[4]= {
 				add_v2d(p, (V2d) {-0.2, -0.2}),
@@ -313,9 +330,10 @@ void render_frame()
 			};
 
 			ddraw_poly((Color) {1.0, 0.0, 0.0, 0.7}, poly, 4);
-
+*/
 			ensure(e->armature);
 
+			// Calculate global armature pose
 			T3d global_pose[MAX_ARMATURE_JOINT_COUNT];
 			const Joint *joints= e->armature->joints;
 			for (U32 j_i= 0; j_i < e->armature->joint_count; ++j_i) {
@@ -339,6 +357,23 @@ void render_frame()
 					add_v2d(p, (V2d) {-0.1, +0.1}),
 				};
 				ddraw_poly((Color) {0.0, 0.3, 0.0, 0.7}, poly, 4);
+			}
+
+			// Position subentities by global_pose
+			for (U32 s_i= 0; s_i < e->sub_count; ++s_i) {
+				const SubEntity *sub= &e->subs[s_i];
+				ensure(sub->joint_id < e->armature->joint_count);
+				T3d tf= mul_t3d(global_pose[sub->joint_id],
+								t3f_to_t3d(sub->offset));
+				switch (sub->type) {
+					case VEntityType_model:
+						r->m_entities[sub->handle].tf= tf;
+					break;
+					case VEntityType_comp:
+						r->c_entities[sub->handle].tf= tf;
+					break;
+					default: fail("Unhandled VEntityType: %s", sub->type);
+				}
 			}
 		}
 	}
@@ -564,11 +599,11 @@ V2d screen_to_world_point(V2d p)
 	return result;
 }
 
-void renderer_on_res_reload(ResBlob *new_blob)
+void renderer_on_res_reload()
 {
 	Renderer *r= g_env.renderer;
 
-	recreate_texture_atlas(r, new_blob);
+	recreate_texture_atlas(r, g_env.resblob);
 
 	for (U32 e_i= 0; e_i < MAX_MODELENTITY_COUNT; ++e_i) {
 		ModelEntity *e= &r->m_entities[e_i];
@@ -577,24 +612,14 @@ void renderer_on_res_reload(ResBlob *new_blob)
 		if (e->has_own_mesh)
 			continue;
 
-		const Model *m=
-			(Model*)res_by_name(
-					new_blob,
-					ResType_Model,
-					e->model_name);
-		set_modelentity(e_i, m);
+		recache_modelentity(e);
 	}
 
-	for (U32 e_i= 0; e_i < MAX_COMPOUNDENTITY_COUNT; ++e_i) {
-		CompoundEntity *e= &r->c_entities[e_i];
+	for (U32 e_i= 0; e_i < MAX_COMPENTITY_COUNT; ++e_i) {
+		CompEntity *e= &r->c_entities[e_i];
 		if (!e->allocated)
 			continue;
 
-		const Armature *a=
-			(Armature*)res_by_name(
-					new_blob,
-					ResType_Armature,
-					e->armature_name);
-		e->armature= a;
+		recache_compentity(e);
 	}
 }

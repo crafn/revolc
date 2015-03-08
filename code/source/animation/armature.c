@@ -3,6 +3,7 @@
 #include "core/ensure.h"
 #include "resources/resblob.h"
 
+#include <stdio.h>
 #include <string.h>
 
 typedef struct JointDef {
@@ -63,6 +64,8 @@ int json_armature_to_blob(struct BlobBuf *buf, JsonTok j)
 		Joint *joint= &a.joints[i];
 		JointDef *def= &defs[i];
 
+		snprintf(	a.joint_names[i], sizeof(a.joint_names[i]), "%s",
+					def->name);
 		joint->id= i;
 		joint->super_id= NULL_JOINT_ID;
 		joint->bind_pose= def->offset;
@@ -88,4 +91,13 @@ int json_armature_to_blob(struct BlobBuf *buf, JsonTok j)
 
 error:
 	return 1;
+}
+
+JointId joint_id_by_name(const Armature *a, const char *name)
+{
+	for (JointId i= 0; i < a->joint_count; ++i) {
+		if (!strcmp(a->joint_names[i], name))
+			return i;
+	}
+	return NULL_JOINT_ID;
 }

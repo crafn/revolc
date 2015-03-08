@@ -421,13 +421,13 @@ U32 node_impl_handle(World *w, U32 node_handle)
 	return w->nodes[node_handle].impl_handle;
 }
 
-void world_on_res_reload(struct ResBlob* blob)
+void world_on_res_reload()
 {
 	for (U32 i= 0; i < MAX_NODE_COUNT; ++i) {
 		NodeInfo *n= &g_env.world->nodes[i];
 		if (!n->allocated)
 			continue;
 
-		n->type= (NodeType*)res_by_name(blob, ResType_NodeType, n->type_name);
+		n->type= (NodeType*)res_by_name(g_env.resblob, ResType_NodeType, n->type_name);
 	}
 }

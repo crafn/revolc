@@ -115,6 +115,10 @@ Qd json_qd(JsonTok j)
 		json_real(json_member(j, 2))
 	};
 	F64 angle= json_real(json_member(j, 3));
+	ensure(	isfinite(axis.x) &&
+			isfinite(axis.y) &&
+			isfinite(axis.z) &&
+			isfinite(angle));
 	return qd_by_axis(axis, angle);
 }
 

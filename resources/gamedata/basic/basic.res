@@ -53,12 +53,12 @@
 	},
 	{
 		"type" : "NodeType",
-		"name" : "CompoundEntity",
-		"init_func" : "init_compoundentity",
-		"resurrect_func" : "resurrect_compoundentity",
-		"free_func" : "free_compoundentity",
+		"name" : "CompEntity",
+		"init_func" : "init_compentity",
+		"resurrect_func" : "resurrect_compentity",
+		"free_func" : "free_compentity",
 		"upd_func" : "",
-		"storage_func" : "storage_compoundentity",
+		"storage_func" : "storage_compentity",
 	},
 	{
 		"type" : "NodeType",

@@ -7,19 +7,9 @@
 #include "texture.h"
 #include "mesh.h"
 
-typedef struct BlendFunc {
-	/// @todo
-} BlendFunc;
-
-#define MODEL_TEX_COUNT 3
+#define MODEL_TEX_COUNT 1
 typedef struct Model {
 	Resource res;
-	//F32 color[4];
-	//BlendFunc blend_func;
-	//bool dynamic_lighting;
-	//bool casts_shadow;
-	//bool billboard;
-	//bool snap_to_pixels;
 	char textures[MODEL_TEX_COUNT][RES_NAME_SIZE];
 	char mesh[RES_NAME_SIZE];
 } PACKED Model;

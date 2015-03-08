@@ -144,7 +144,8 @@ int main(int argc, const char **argv)
 
 			if (d->key_pressed[KEY_F12]) {
 				make_main_blob();
-				blob= g_env.resblob= reload_blob(blob, DEFAULT_BLOB_PATH);
+				reload_blob(&g_env.resblob, blob, DEFAULT_BLOB_PATH);
+				blob= g_env.resblob;
 			}
 
 			if (d->key_pressed[KEY_F5])

@@ -180,11 +180,11 @@ void unload_blob(ResBlob *blob)
 	free(blob);
 }
 
-ResBlob* reload_blob(ResBlob *old_blob, const char *path)
+void reload_blob(ResBlob **new_blob, ResBlob *old_blob, const char *path)
 {
 	debug_print("reload_blob: %s", path);
 
-	ResBlob *new_blob= load_blob(path);
+	*new_blob= load_blob(path);
 
 	// This might not be needed, as missing resources are handled
 	// in res_by_name
@@ -193,24 +193,23 @@ ResBlob* reload_blob(ResBlob *old_blob, const char *path)
 		for (U32 i= 0; i < old_blob->res_count; ++i) {
 			Resource *old= res_by_index(old_blob, i);
 
-			if (!find_res_by_name(new_blob, old->type, old->name)) {
+			if (!find_res_by_name(*new_blob, old->type, old->name)) {
 				critical_print(
 						"Can't reload blob: new blob missing resource: %s, %s",
 						old->name, restype_to_str(old->type));
 
-				unload_blob(new_blob);
-				return old_blob;
+				unload_blob(*new_blob);
+				*new_blob= old_blob;
 			}
 		}
 	}
 
 	{ // Update old res pointers to new blob
-		renderer_on_res_reload(new_blob);
-		world_on_res_reload(new_blob);
+		renderer_on_res_reload();
+		world_on_res_reload();
 	}
 
 	unload_blob(old_blob);
-	return new_blob;
 }
 
 Resource * res_by_index(const ResBlob *blob, U32 index)
@@ -293,6 +292,9 @@ Resource * res_by_name(ResBlob *blob, ResType type, const char *name)
 		return new_res->res;
 	}
 }
+
+bool res_exists(const ResBlob *blob, ResType t, const char *n)
+{ return find_res_by_name(blob, t, n) != NULL; }
 
 Resource * find_res_by_name(const ResBlob *b, ResType t, const char *n)
 {

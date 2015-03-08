@@ -2,7 +2,7 @@
 #define REVOLC_VISUAL_RENDERER_H
 
 #include "build.h"
-#include "compoundentity.h"
+#include "compentity.h"
 #include "modelentity.h"
 #include "global/cfg.h"
 #include "mesh.h"
@@ -17,7 +17,7 @@ typedef struct Renderer {
 	U32 next_m_entity;
 	U32 m_entity_count;
 
-	CompoundEntity c_entities[MAX_COMPOUNDENTITY_COUNT];
+	CompEntity c_entities[MAX_COMPENTITY_COUNT];
 	U32 next_c_entity;
 	U32 c_entity_count;
 
@@ -40,9 +40,9 @@ REVOLC_API U32 resurrect_modelentity(const ModelEntity *dead);
 REVOLC_API void free_modelentity(U32 h);
 REVOLC_API void * storage_modelentity();
 
-REVOLC_API U32 resurrect_compoundentity(const CompoundEntity *dead);
-REVOLC_API void free_compoundentity(U32 h);
-REVOLC_API void * storage_compoundentity();
+REVOLC_API U32 resurrect_compentity(const CompEntity *dead);
+REVOLC_API void free_compentity(U32 h);
+REVOLC_API void * storage_compentity();
 
 REVOLC_API void render_frame();
 
@@ -50,7 +50,6 @@ REVOLC_API void ddraw_poly(Color c, V2d *poly, U32 count);
 
 REVOLC_API V2d screen_to_world_point(V2d p);
 
-struct ResBlob;
-internal void renderer_on_res_reload(struct ResBlob *new_blob);
+internal void renderer_on_res_reload();
 
 #endif // REVOLC_VISUAL_RENDERER_H
