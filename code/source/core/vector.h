@@ -77,6 +77,10 @@ V2d normalized_v2d(V2d v)
 { return scaled_v2d(1.0/length_v2d(v), v); }
 
 static
+V2d lerp_v2d(V2d a, V2d b, F64 t)
+{ return (V2d) {a.x*(1 - t) + b.x*t, a.y*(1 - t) + b.y*t, }; }
+
+static
 V2d rot_v2d(F64 f, V2d v)
 { return (V2d) {v.x*cos(f) - v.y*sin(f), v.x*sin(f) + v.y*cos(f)}; }
 
@@ -131,6 +135,10 @@ F64 dist_v2f(V2f a, V2f b)
 static
 V2f normalized_v2f(V2f v)
 { return scaled_v2f(1.0/length_v2f(v), v); }
+
+static
+V2f lerp_v2f(V2f a, V2f b, F32 t)
+{ return (V2f) {a.x*(1 - t) + b.x*t, a.y*(1 - t) + b.y*t, }; }
 
 static
 V2f rot_v2f(F64 f, V2f v)
@@ -189,6 +197,10 @@ V2i normalized_v2i(V2i v)
 { return scaled_v2i(1.0/length_v2i(v), v); }
 
 static
+V2i lerp_v2i(V2i a, V2i b, S32 t)
+{ return (V2i) {a.x*(1 - t) + b.x*t, a.y*(1 - t) + b.y*t, }; }
+
+static
 V2i rot_v2i(F64 f, V2i v)
 { return (V2i) {v.x*cos(f) - v.y*sin(f), v.x*sin(f) + v.y*cos(f)}; }
 
@@ -235,6 +247,10 @@ F64 dist_v3d(V3d a, V3d b)
 static
 V3d normalized_v3d(V3d v)
 { return scaled_v3d(1.0/length_v3d(v), v); }
+
+static
+V3d lerp_v3d(V3d a, V3d b, F64 t)
+{ return (V3d) {a.x*(1 - t) + b.x*t, a.y*(1 - t) + b.y*t, a.z*(1 - t) + b.z*t, }; }
 
 static
 V3d cross_v3d(V3d a, V3d b)
@@ -287,6 +303,10 @@ F64 dist_v3f(V3f a, V3f b)
 static
 V3f normalized_v3f(V3f v)
 { return scaled_v3f(1.0/length_v3f(v), v); }
+
+static
+V3f lerp_v3f(V3f a, V3f b, F32 t)
+{ return (V3f) {a.x*(1 - t) + b.x*t, a.y*(1 - t) + b.y*t, a.z*(1 - t) + b.z*t, }; }
 
 static
 V3f cross_v3f(V3f a, V3f b)

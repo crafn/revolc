@@ -47,6 +47,8 @@ void blob_write(BlobBuf *buf, const void *data, U32 byte_count);
 // Gives ptr to resource created earlier during blob making
 // e.g. a Clip has to get the corresponding Armature by only a name
 REVOLC_API
-Resource * find_res_by_name_from_blobbuf(const BlobBuf *buf, const char *name);
+Resource * find_res_by_name_from_blobbuf(	const BlobBuf *buf,
+											ResType t,
+											const char *n);
 
 #endif // REVOLC_RESOURCES_RESBLOB_H

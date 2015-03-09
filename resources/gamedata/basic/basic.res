@@ -45,6 +45,8 @@
 	{
 		"type" : "NodeType",
 		"name" : "ModelEntity",
+		"inst_mgmt" : "manual",
+
 		"init_func" : "init_modelentity",
 		"resurrect_func" : "resurrect_modelentity",
 		"free_func" : "free_modelentity",
@@ -54,6 +56,8 @@
 	{
 		"type" : "NodeType",
 		"name" : "CompEntity",
+		"inst_mgmt" : "manual",
+
 		"init_func" : "init_compentity",
 		"resurrect_func" : "resurrect_compentity",
 		"free_func" : "free_compentity",
@@ -63,10 +67,22 @@
 	{
 		"type" : "NodeType",
 		"name" : "RigidBody",
+		"inst_mgmt" : "manual",
+
 		"init_func" : "",
 		"resurrect_func" : "resurrect_rigidbody",
 		"free_func" : "free_rigidbody",
 		"upd_func" : "",
 		"storage_func" : "storage_rigidbody",
+	},
+	{
+		"type" : "NodeType",
+		"name" : "ClipInst",
+		"inst_mgmt" : "auto",
+		"default_max_count" : 128,
+
+		"init_func" : "",
+		"resurrect_func" : "resurrect_clipinst",
+		"upd_func" : "",
 	},
 ]

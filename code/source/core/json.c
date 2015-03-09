@@ -107,7 +107,7 @@ V3d json_v3(JsonTok j)
 	};
 }
 
-Qd json_qd(JsonTok j)
+Qd json_q(JsonTok j)
 {
 	V3d axis= {
 		json_real(json_member(j, 0)),
@@ -126,7 +126,7 @@ T3d json_t3(JsonTok j)
 {
 	return (T3d) {
 		json_v3(json_value_by_key(j, "scale")),
-		json_qd(json_value_by_key(j, "rot")),
+		json_q(json_value_by_key(j, "rot")),
 		json_v3(json_value_by_key(j, "pos"))
 	};
 }

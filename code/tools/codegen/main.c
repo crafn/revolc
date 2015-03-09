@@ -332,6 +332,13 @@ static void write_math()
 			fprintf(f, "%s normalized_%s(%s v)\n", v.name, v.lc_name, v.name);
 			fprintf(f, "{ return scaled_%s(1.0/length_%s(v), v); }\n\n", v.lc_name, v.lc_name);
 
+			fprintf(f, "static\n");
+			fprintf(f, "%s lerp_%s(%s a, %s b, %s t)\n", v.name, v.lc_name, v.name, v.name, v.comp_type_name);
+			fprintf(f, "{ return (%s) {", v.name);
+			for (int k= 0; k < v.comp_count; ++k)
+				fprintf(f, "a.%s*(1 - t) + b.%s*t, ", comp_names[k], comp_names[k]);
+			fprintf(f, "}; }\n\n");
+
 			if (v.comp_count == 2) {
 				fprintf(f, "static\n");
 				fprintf(f, "%s rot_%s(F64 f, %s v)\n", v.name, v.lc_name, v.name);
@@ -481,6 +488,13 @@ static void write_math()
 						"	F64 rot= atan2(sn, cs);\n"
 						"	return (%s) {0, 0, sin(rot/2.0), cos(rot/2.0) };\n"
 						"}\n\n", q.name);
+
+			fprintf(f, "static\n");
+			fprintf(f, "%s lerp_%s(%s a, %s b, %s t)\n", q.name, q.lc_name, q.name, q.name, q.comp_type_name);
+			fprintf(f, "{ return (%s) {", q.name);
+			for (int k= 0; k < 4; ++k)
+				fprintf(f, "a.%s*(1 - t) + b.%s*t, ", comp_names[k], comp_names[k]);
+			fprintf(f, "}; }\n\n");
 		}
 		fprintf(f,
 			"static\n"

@@ -333,22 +333,11 @@ void render_frame()
 {
 	Renderer *r= g_env.renderer;
 
-	{ // Test draw for CompEntities
+	{ // Update CompEntities
 		for (U32 e_i= 0; e_i < MAX_COMPENTITY_COUNT; ++e_i) {
 			CompEntity *e= &r->c_entities[e_i];
 			if (!e->allocated)
 				continue;
-/*
-			V2d p= v3d_to_v2d(e->tf.pos);
-			V2d poly[4]= {
-				add_v2d(p, (V2d) {-0.2, -0.2}),
-				add_v2d(p, (V2d) {+0.2, -0.2}),
-				add_v2d(p, (V2d) {+0.2, +0.2}),
-				add_v2d(p, (V2d) {-0.2, +0.2}),
-			};
-
-			ddraw_poly((Color) {1.0, 0.0, 0.0, 0.7}, poly, 4);
-*/
 			ensure(e->armature);
 
 			// Calculate global armature pose
@@ -366,17 +355,6 @@ void render_frame()
 				}
 
 				global_pose[j_i]= mul_t3d(e->tf, t3f_to_t3d(joint_pose));
-
-				/*
-				V2d p= v3d_to_v2d(global_pose[j_i].pos);
-				V2d poly[4]= {
-					add_v2d(p, (V2d) {-0.1, -0.1}),
-					add_v2d(p, (V2d) {+0.1, -0.1}),
-					add_v2d(p, (V2d) {+0.1, +0.1}),
-					add_v2d(p, (V2d) {-0.1, +0.1}),
-				};
-				ddraw_poly((Color) {0.0, 0.3, 0.0, 0.7}, poly, 4);
-*/
 			}
 
 			// Position subentities by global_pose

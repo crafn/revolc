@@ -26,7 +26,6 @@ JointId super_id_from_defs(	const JointDef *defs,
 
 int json_armature_to_blob(struct BlobBuf *buf, JsonTok j)
 {
-
 	JsonTok j_joints= json_value_by_key(j, "joints");
 	if (json_is_null(j_joints))
 		RES_ATTRIB_MISSING("joints");

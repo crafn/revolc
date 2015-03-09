@@ -303,7 +303,20 @@ Resource * find_res_by_name(const ResBlob *b, ResType t, const char *n)
 		if (res->type == t && !strcmp(n, res->name))
 			return res;
 	}
-	return NULL;	
+	return NULL;
+}
+
+Resource * find_res_by_name_from_blobbuf(	const BlobBuf *buf,
+											ResType t,
+											const char *n)
+{
+	/// @todo Binary search from organized blob
+	for (U32 i= 0; i < buf->res_count; ++i) {
+		Resource* res= (Resource*)((U8*)buf->data + buf->res_offsets[i]);
+		if (res->type == t && !strcmp(n, res->name))
+			return res;
+	}
+	return NULL;
 }
 
 void all_res_by_type(	U32 *start_index, U32 *count,

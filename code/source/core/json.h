@@ -29,7 +29,7 @@ REVOLC_API F64 json_real(JsonTok j);
 REVOLC_API S64 json_integer(JsonTok j);
 REVOLC_API V2d json_v2(JsonTok j);
 REVOLC_API V3d json_v3(JsonTok j);
-REVOLC_API Qd json_qd(JsonTok j);
+REVOLC_API Qd json_q(JsonTok j);
 REVOLC_API T3d json_t3(JsonTok j);
 
 #endif // REVOLC_CORE_JSON_H

@@ -87,6 +87,10 @@ Qf qf_by_xy_rot_matrix(F32 cs, F32 sn)
 }
 
 static
+Qf lerp_qf(Qf a, Qf b, F32 t)
+{ return (Qf) {a.x*(1 - t) + b.x*t, a.y*(1 - t) + b.y*t, a.z*(1 - t) + b.z*t, a.w*(1 - t) + b.w*t, }; }
+
+static
 bool equals_qd(Qd a, Qd b)
 { return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w && 1; }
 
@@ -149,6 +153,10 @@ Qd qd_by_xy_rot_matrix(F64 cs, F64 sn)
 	F64 rot= atan2(sn, cs);
 	return (Qd) {0, 0, sin(rot/2.0), cos(rot/2.0) };
 }
+
+static
+Qd lerp_qd(Qd a, Qd b, F64 t)
+{ return (Qd) {a.x*(1 - t) + b.x*t, a.y*(1 - t) + b.y*t, a.z*(1 - t) + b.z*t, a.w*(1 - t) + b.w*t, }; }
 
 static
 Qf qd_to_qf(Qd q)
