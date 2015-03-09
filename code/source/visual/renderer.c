@@ -10,6 +10,24 @@
 #include <stdlib.h>
 #include <string.h>
 
+// Separated to function, because this switch in a loop
+// caused odd regression with -O0; fps was halved for some reason
+// even though the code was run only once per frame
+internal
+void set_ventity_tf(U32 h, VEntityType t, T3d tf)
+{
+	Renderer *r= g_env.renderer;
+	switch (t) {
+		case VEntityType_model:
+			r->m_entities[h].tf= tf;
+		break;
+		case VEntityType_comp:
+			r->c_entities[h].tf= tf;
+		break;
+		default: fail("Unhandled VEntityType: %s", t);
+	}
+}
+
 internal
 M44f view_matrix(const Renderer *r)
 {
@@ -349,6 +367,7 @@ void render_frame()
 
 				global_pose[j_i]= mul_t3d(e->tf, t3f_to_t3d(joint_pose));
 
+				/*
 				V2d p= v3d_to_v2d(global_pose[j_i].pos);
 				V2d poly[4]= {
 					add_v2d(p, (V2d) {-0.1, -0.1}),
@@ -357,23 +376,15 @@ void render_frame()
 					add_v2d(p, (V2d) {-0.1, +0.1}),
 				};
 				ddraw_poly((Color) {0.0, 0.3, 0.0, 0.7}, poly, 4);
+*/
 			}
 
 			// Position subentities by global_pose
 			for (U32 s_i= 0; s_i < e->sub_count; ++s_i) {
 				const SubEntity *sub= &e->subs[s_i];
-				ensure(sub->joint_id < e->armature->joint_count);
 				T3d tf= mul_t3d(global_pose[sub->joint_id],
 								t3f_to_t3d(sub->offset));
-				switch (sub->type) {
-					case VEntityType_model:
-						r->m_entities[sub->handle].tf= tf;
-					break;
-					case VEntityType_comp:
-						r->c_entities[sub->handle].tf= tf;
-					break;
-					default: fail("Unhandled VEntityType: %s", sub->type);
-				}
+				set_ventity_tf(sub->handle, sub->type, tf);
 			}
 		}
 	}
