@@ -250,12 +250,12 @@ Resource * res_by_name(ResBlob *blob, ResType type, const char *name)
 		res_header.is_missing_res= true;
 
 		MissingResource *new_res= zero_malloc(sizeof(*new_res));
-		const U32 missing_res_max_size= 1024;
+		const U32 missing_res_max_size= 1024*4;
 		new_res->res= zero_malloc(missing_res_max_size);
 
 		BlobBuf buf= {
 			.data= new_res->res,
-			.is_file= false
+			.max_size= missing_res_max_size,
 		};
 
 		blob_write(&buf, &res_header, sizeof(res_header));
@@ -274,7 +274,6 @@ Resource * res_by_name(ResBlob *blob, ResType type, const char *name)
 		int err= json_res_to_blob(&buf, j_res, type);
 		if (err)
 			fail("Creating MissingResource failed (wtf, where's your resources?)");
-		ensure(buf.offset <= missing_res_max_size);
 
 		free_parsed_json_file(parsed_json);
 		init_res(new_res->res);
@@ -363,13 +362,8 @@ void print_blob(const ResBlob *blob)
 
 void blob_write(BlobBuf *buf, const void *data, U32 byte_count)
 {
-	if (buf->is_file) {
-		U32 ret= fwrite(data, 1, byte_count, buf->data);
-		if (ret != byte_count)
-			fail("blob_write failed: %i != %i", ret, byte_count);
-	} else {
-		memcpy(buf->data + buf->offset, data, byte_count);
-	}
+	ensure(buf->offset + byte_count <= buf->max_size);
+	memcpy(buf->data + buf->offset, data, byte_count);
 	buf->offset += byte_count;
 }
 
@@ -387,8 +381,8 @@ int resinfo_cmp(const void *a_, const void *b_)
 	const ResInfo *a= (ResInfo*)a_;
 	const ResInfo *b= (ResInfo*)b_;
 	int type_dif= a->header.type - b->header.type;
-	/// @note	Resources of the same type should be contiguous.
-	///			all_res_by_type relies on this order.
+	// Resources of the same type should be contiguous.
+	// all_res_by_type relies on this order.
 	if (type_dif != 0)
 		return type_dif;
 	else
@@ -399,6 +393,7 @@ void make_blob(const char *dst_file_path, char **res_file_paths)
 {
 	// Resources-to-be-allocated
 	char *data= NULL;
+	BlobBuf buf= {};
 	FILE *blob_file= NULL;
 	ResInfo *res_infos= NULL;
 	BlobOffset *res_offsets= NULL;
@@ -470,14 +465,10 @@ void make_blob(const char *dst_file_path, char **res_file_paths)
 	}
 
 	{ // Output file
-		blob_file= fopen(dst_file_path, "wb"); 
-		if (!blob_file) {
-			critical_print("Opening for write failed: %s", dst_file_path);
-			goto error;
-		}
-		BlobBuf buf= {};
-		buf.data= blob_file;
-		buf.is_file= true;
+		buf= (BlobBuf) {
+			.data= malloc(MAX_BLOB_SIZE),
+			.max_size= MAX_BLOB_SIZE,
+		};
 
 		ResBlob header= {
 			.version= 1,
@@ -490,6 +481,9 @@ void make_blob(const char *dst_file_path, char **res_file_paths)
 		// Write zeros as offsets and fix them afterwards, as they aren't yet known
 		res_offsets= zero_malloc(sizeof(*res_offsets)*header.res_count);
 		blob_write(&buf, &res_offsets[0], sizeof(*res_offsets)*header.res_count);
+
+		buf.res_offsets= res_offsets;
+		buf.res_count= header.res_count;
 
 		for (U32 res_i= 0; res_i < res_info_count; ++res_i) {
 			ResInfo *res= &res_infos[res_i];
@@ -504,10 +498,24 @@ void make_blob(const char *dst_file_path, char **res_file_paths)
 				goto error;
 			}
 		}
+		const U32 blob_size= buf.offset;
 
 		// Write offsets to the header
-		fseek(buf.data, offset_of_offset_table, SEEK_SET);
+		buf.offset= offset_of_offset_table;
 		blob_write(&buf, &res_offsets[0], sizeof(*res_offsets)*header.res_count);
+
+		{ // Write blob from memory to file
+			blob_file= fopen(dst_file_path, "wb"); 
+			if (!blob_file) {
+				critical_print("Opening for write failed: %s", dst_file_path);
+				goto error;
+			}
+			U32 written= fwrite(buf.data, 1, blob_size, blob_file);
+			if (written != blob_size) {
+				critical_print("Writing blob failed: %i != %i", written, blob_size);
+				goto error;
+			}
+		}
 	}
 
 exit:
@@ -519,6 +527,7 @@ exit:
 	free(res_offsets);
 	if (blob_file)
 		fclose(blob_file);
+	free(buf.data);
 	free(res_infos);
 	free(data);
 

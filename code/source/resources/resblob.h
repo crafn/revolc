@@ -9,7 +9,7 @@ typedef struct ResBlob {
 	U32 res_count;
 	MissingResource *first_missing_res;
 	BlobOffset res_offsets[];
-} ResBlob;
+} PACKED ResBlob;
 
 REVOLC_API ResBlob * load_blob(const char *path);
 REVOLC_API void unload_blob(ResBlob *blob);
@@ -26,18 +26,27 @@ REVOLC_API void * blob_ptr(const Resource *who_asks, BlobOffset offset);
 
 REVOLC_API void print_blob(const ResBlob *blob);
 
-/// Gathers human-readable resources from `res_file_paths` and
-/// makes binary blob out of them to `dst_file
-/// @param res_file_paths Null-terminated array of null-terminated strings
+// Gathers human-readable resources from `res_file_paths` and
+// makes binary blob out of them to `dst_file
+// `res_file_paths` is a null-terminated array of null-terminated strings
 REVOLC_API void make_blob(const char *dst_file, char **res_file_paths);
 
 typedef struct BlobBuf {
 	void *data;
 	U32 offset;
-	bool is_file;
+	U32 max_size;
+
+	// Carried along to allow querying for resources during blob making
+	BlobOffset *res_offsets;
+	U32 res_count;
 } BlobBuf;
 
 REVOLC_API
 void blob_write(BlobBuf *buf, const void *data, U32 byte_count);
+
+// Gives ptr to resource created earlier during blob making
+// e.g. a Clip has to get the corresponding Armature by only a name
+REVOLC_API
+Resource * find_res_by_name_from_blobbuf(const BlobBuf *buf, const char *name);
 
 #endif // REVOLC_RESOURCES_RESBLOB_H
