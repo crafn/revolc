@@ -206,7 +206,7 @@ void reload_blob(ResBlob **new_blob, ResBlob *old_blob, const char *path)
 
 	{ // Update old res pointers to new blob
 		renderer_on_res_reload();
-		world_on_res_reload();
+		world_on_res_reload(old_blob);
 	}
 
 	unload_blob(old_blob);
@@ -322,6 +322,10 @@ Resource * find_res_by_name_from_blobbuf(	const BlobBuf *buf,
 void all_res_by_type(	U32 *start_index, U32 *count,
 						const ResBlob *blob, ResType t)
 {
+	U32 placeholder_start_index;
+	if (!start_index)
+		start_index= &placeholder_start_index;
+
 	*start_index= 0;
 	*count= 0;
 	while (	*start_index < blob->res_count &&

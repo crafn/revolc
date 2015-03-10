@@ -506,15 +506,43 @@ U32 node_impl_handle(World *w, U32 node_handle)
 	return w->nodes[node_handle].impl_handle;
 }
 
-void world_on_res_reload()
+void world_on_res_reload(ResBlob *old)
 {
+	World *w= g_env.world;
+
 	for (U32 i= 0; i < MAX_NODE_COUNT; ++i) {
-		NodeInfo *n= &g_env.world->nodes[i];
+		NodeInfo *n= &w->nodes[i];
 		if (!n->allocated)
 			continue;
 
 		n->type= (NodeType*)res_by_name(g_env.resblob, ResType_NodeType, n->type_name);
 	}
 
-	fail("@todo Automatic node storage on res reload");
+	U32 old_ntypes_count;
+	all_res_by_type(NULL, &old_ntypes_count,
+					g_env.resblob, ResType_NodeType);
+	U32 ntypes_count;
+	all_res_by_type(NULL, &ntypes_count,
+					g_env.resblob, ResType_NodeType);
+	// Not a rigorous solution, but probably catches 99% of bad cases
+	// For a new NodeTypes during runtime one would need to
+	// resize w->auto_storages, possibly reordering some handles
+	if (ntypes_count != old_ntypes_count)
+		fail("@todo Resource reloading for NodeTypes");
+
+	// Reinitialize every auto storage node so that cached pointers are updated
+	// It's probably simplest just to free and resurrect them
+	for (U32 i= 0; i < MAX_NODE_COUNT; ++i) {
+		NodeInfo *node= &w->nodes[i];
+		if (!node->allocated)
+			continue;
+		if (!node->type->auto_impl_mgmt)
+			continue; // Manually managed have manual logic for res reload
+
+		if (node->type->free)
+			fail("@todo Call free_func (not yet done thinking about this)");
+
+		U32 ret= node->type->resurrect(node_impl(w, NULL, node));
+		ensure(ret == NULL_HANDLE);
+	}
 }
