@@ -28,10 +28,10 @@ int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 		goto error;
 	}
 
-	const U32 fps= 30.0;
+	const U32 fps= 15.0;
 	const U32 joint_count= a->joint_count;
 	const F32 duration= json_real(j_duration);
-	const U32 frame_count= floor(duration*fps + 0.5);
+	const U32 frame_count= floor(duration*fps + 0.5) + 1; // +1 for end lerp target
 
 	const U32 sample_count= joint_count*frame_count;
 	samples= malloc(sizeof(*samples)*sample_count);
@@ -84,7 +84,7 @@ int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 		} key_value, next_key_value;
 		bool first= true;
 		for (U32 frame_i= 0; frame_i < frame_count; ++frame_i) {
-			const F32 frame_t= frame_i*duration/frame_count;
+			const F32 frame_t= frame_i*duration/(frame_count - 1);
 
 			// Update cur/next keys
 			if (first || frame_t > next_key_t) {
@@ -152,7 +152,6 @@ int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 	}
 
 	blob_write(buf, &duration, sizeof(duration));
-	blob_write(buf, &fps, sizeof(fps));
 	blob_write(buf, &joint_count, sizeof(joint_count));
 	blob_write(buf, &frame_count, sizeof(frame_count));
 	blob_write(buf, samples, sizeof(*samples)*sample_count);

@@ -57,4 +57,14 @@ static
 T3d identity_t3d()
 { return (T3d) {{1, 1, 1}, identity_qd(), {0, 0, 0}}; }
 
+static
+T3f lerp_t3f(T3f a, T3f b, F32 t)
+{
+	return (T3f) {
+		lerp_v3f(a.scale, b.scale, t),
+		lerp_qf(a.rot, b.rot, t),
+		lerp_v3f(a.pos, b.pos, t)
+	};
+}
+
 #endif // REVOLC_CORE_TRANSFORM_H

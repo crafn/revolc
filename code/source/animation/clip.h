@@ -7,10 +7,9 @@
 
 typedef struct Clip {
 	Resource res;
-	F32 duration;
-	U32 fps;
+	F32 duration; // A the beginning of the last frame
 	U32 joint_count;
-	U32 frame_count;
+	U32 frame_count; // Last frame is only interpolation target
 	T3f local_samples[]; // joint_count*frame_count elements
 } PACKED Clip;
 
