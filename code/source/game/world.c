@@ -6,17 +6,48 @@
 #include <math.h>
 
 internal
-void * node_impl(U32 *size, NodeInfo *node)
+void * node_impl(World *w, U32 *size, NodeInfo *node)
 {
 	if (size)
 		*size= node->type->size;
-	return (U8*)node->type->storage() + node->type->size*node->impl_handle;
+
+	U32 offset= node->type->size*node->impl_handle;
+	if (node->type->auto_impl_mgmt) {
+		U8 *storage= w->auto_storages[node->type->auto_storage_handle].storage;
+		return storage + offset;
+	} else {
+		return (U8*)node->type->storage() + offset;
+	}
 }
 
 internal
-void resurrect_node_impl(NodeInfo *n, void *dead_impl_bytes)
+void resurrect_node_impl(World *w, NodeInfo *n, void *dead_impl_bytes)
 {
-	n->impl_handle= n->type->resurrect(dead_impl_bytes);
+	if (n->type->auto_impl_mgmt) {
+		// Automatically manage impl memory
+		ensure(n->type->auto_storage_handle < w->auto_storage_count);
+		AutoNodeImplStorage *st= &w->auto_storages[n->type->auto_storage_handle];
+
+		if (st->count >= st->max_count)
+			fail("Too many %s", n->type->res.name);
+
+		while (st->allocated[st->next])
+			st->next= (st->next + 1) % st->max_count;
+		++st->count;
+
+		const U32 h= st->next;
+		void *e= (U8*)st->storage + h*st->size;
+		memcpy(e, dead_impl_bytes, st->size);
+		st->allocated[h]= true;
+
+		// In-place resurrection
+		U32 ret= n->type->resurrect(e);
+		ensure(ret == NULL_HANDLE);
+		n->impl_handle= h;
+	} else {
+		// Manual memory management
+		n->impl_handle= n->type->resurrect(dead_impl_bytes);
+	}
 }
 
 internal
@@ -45,6 +76,47 @@ U32 alloc_node_without_impl(World *w, NodeType *type, U64 group_id)
 World * create_world()
 {
 	World *w= zero_malloc(sizeof(*w));
+
+	// Initialize storage for automatically allocated node impls
+
+	U32 ntypes_begin;
+	U32 ntypes_count;
+	all_res_by_type(&ntypes_begin, &ntypes_count,
+					g_env.resblob, ResType_NodeType);
+
+	U32 ntype_count_with_auto_mgmt= 0;
+	for (	U32 i= ntypes_begin;
+			i < ntypes_begin + ntypes_count;
+			++i) {
+		const NodeType *type= (NodeType*)res_by_index(g_env.resblob, i);
+		if (type->auto_impl_mgmt)
+			++ntype_count_with_auto_mgmt;
+	}
+
+	w->auto_storages=
+		zero_malloc(sizeof(*w->auto_storages)*ntype_count_with_auto_mgmt);
+	w->auto_storage_count= ntype_count_with_auto_mgmt;
+
+	U32 st_i= 0;
+	for (	U32 ntype_i= ntypes_begin;
+			ntype_i < ntypes_begin + ntypes_count;
+			++ntype_i) {
+		NodeType *type=
+			(NodeType*)res_by_index(g_env.resblob, ntype_i);
+		if (!type->auto_impl_mgmt)
+			continue;
+
+		AutoNodeImplStorage *st= &w->auto_storages[st_i];
+		st->storage= zero_malloc(type->size*type->auto_impl_max_count);
+		st->allocated=
+			zero_malloc(sizeof(*st->allocated)*type->auto_impl_max_count);
+		st->size= type->size;
+		st->max_count= type->auto_impl_max_count;
+
+		// Cache handle to storage in NodeType itself for fastness
+		type->auto_storage_handle= st_i++;
+	}
+
 	return w;
 }
 
@@ -55,6 +127,11 @@ void destroy_world(World *w)
 		if (w->nodes[i].allocated)
 			free_node(w, i);
 	}
+	for (U32 i= 0; i < w->auto_storage_count; ++i) {
+		free(w->auto_storages[i].storage);
+		free(w->auto_storages[i].allocated);
+	}
+	free(w->auto_storages);
 	free(w);
 }
 
@@ -80,6 +157,8 @@ int node_cmp(const void * a_, const void * b_)
  
 void upd_world(World *w, F64 dt)
 {
+	w->dt= dt;
+
 	memcpy(w->sort_space, w->nodes, sizeof(w->nodes));
 	/// @todo	Optimize sorting -- this qsort causes a major fps drop.
 	///			Maybe don't sort everything again every frame?
@@ -116,7 +195,7 @@ void upd_world(World *w, F64 dt)
 		updated_count += batch_size; 
 		if (batch_begin_type->upd) {
 			batch_begin_type->upd(
-					node_impl(NULL, &w->sort_space[batch_begin_i]),
+					node_impl(w, NULL, &w->sort_space[batch_begin_i]),
 					batch_size);
 		}
 		++batch_count;
@@ -128,7 +207,7 @@ void upd_world(World *w, F64 dt)
 				SlotCmd *r= &dst_node->cmds[r_i];
 				if (r->has_condition) {
 					NodeInfo *c_node= &w->nodes[r->cond_node_h];
-					U8 *cond_bytes= node_impl(NULL, c_node) + r->cond_offset;
+					U8 *cond_bytes= node_impl(w, NULL, c_node) + r->cond_offset;
 					bool cond_fullfilled= false;
 					for (U32 i= 0; i < r->cond_size; ++i) {
 						if (cond_bytes[i]) {
@@ -147,8 +226,8 @@ void upd_world(World *w, F64 dt)
 					NodeInfo *src_node= &w->nodes[r->src_node];
 					ensure(dst_node->allocated && src_node->allocated);
 
-					U8 *dst= (U8*)node_impl(NULL, dst_node) + r->dst_offset;
-					U8 *src= (U8*)node_impl(NULL, src_node) + r->src_offset;
+					U8 *dst= (U8*)node_impl(w, NULL, dst_node) + r->dst_offset;
+					U8 *src= (U8*)node_impl(w, NULL, src_node) + r->src_offset;
 					for (U32 i= 0; i < r->size; ++i)
 						dst[i]= src[i];
 				} break;
@@ -158,19 +237,19 @@ void upd_world(World *w, F64 dt)
 					switch (r->p_node_count) {
 					case 0:
 						((void (*)(void *, U32))r->fptr)(
-							node_impl(NULL, dst_node), 1);
+							node_impl(w, NULL, dst_node), 1);
 					break;
 					case 1:
 						((void (*)(void *, U32, void *, U32))r->fptr)(
-							node_impl(NULL, dst_node), 1,
-							node_impl(NULL, &w->sort_space[r->p_nodes[0]]), 1
+							node_impl(w, NULL, dst_node), 1,
+							node_impl(w, NULL, &w->sort_space[r->p_nodes[0]]), 1
 							);
 					break;
 					case 2:
 						((void (*)(void *, U32, void *, U32, void *, U32))r->fptr)(
-							node_impl(NULL, dst_node), 1,
-							node_impl(NULL, &w->sort_space[r->p_nodes[0]]), 1,
-							node_impl(NULL, &w->sort_space[r->p_nodes[1]]), 1
+							node_impl(w, NULL, dst_node), 1,
+							node_impl(w, NULL, &w->sort_space[r->p_nodes[0]]), 1,
+							node_impl(w, NULL, &w->sort_space[r->p_nodes[1]]), 1
 							);
 					break;
 					default: fail("Too many node params");
@@ -242,7 +321,7 @@ void load_world(World *w, const char *path)
 		// New Node implementation from binary
 		U8 dead_impl_bytes[n->type->size]; /// @todo Alignment!!!
 		fread(dead_impl_bytes, 1, n->type->size, file);
-		resurrect_node_impl(n, dead_impl_bytes);
+		resurrect_node_impl(w, n, dead_impl_bytes);
 	}
 
 	ensure(node_count == w->node_count);
@@ -271,7 +350,7 @@ void save_world(World *w, const char *path)
 			continue;
 
 		U32 impl_size;
-		void *impl= node_impl(&impl_size, node);
+		void *impl= node_impl(w, &impl_size, node);
 		fwrite(impl, 1, impl_size, file);
 	}
 
@@ -302,7 +381,7 @@ void create_nodes(	World *w,
 		if (node->type->init)
 			node->type->init(default_struct);
 
-		// Default values in NodeGroupDef override struct init value
+		// Default values in NodeGroupDef override struct init values
 		for (U32 i= 0; i < node_def->default_struct_size; ++i) {
 			if (node_def->default_struct_set_bytes[i])
 				default_struct[i]= node_def->default_struct[i];
@@ -326,7 +405,7 @@ void create_nodes(	World *w,
 		}
 
 		// Resurrect impl from constructed value
-		resurrect_node_impl(&w->nodes[h], default_struct);
+		resurrect_node_impl(w, &w->nodes[h], default_struct);
 	}
 
 	// Commands
@@ -397,7 +476,13 @@ void free_node(World *w, U32 handle)
 	ensure(n->allocated);
 
 	U32 impl_handle= n->impl_handle;
-	n->type->free(impl_handle);
+	if (n->type->auto_impl_mgmt) {
+		AutoNodeImplStorage *st= &w->auto_storages[n->type->auto_storage_handle];
+		ensure(impl_handle < st->max_count);
+		st->allocated[impl_handle]= false;
+	} else {
+		n->type->free(impl_handle);
+	}
 
 	--w->node_count;
 	*n= (NodeInfo) { .allocated= false };
@@ -430,4 +515,6 @@ void world_on_res_reload()
 
 		n->type= (NodeType*)res_by_name(g_env.resblob, ResType_NodeType, n->type_name);
 	}
+
+	fail("@todo Automatic node storage on res reload");
 }

@@ -64,7 +64,7 @@ typedef struct NodeGroupDef {
 	// performing cmds matter. Consider e.g. "a= b", "copy(b, a)"
 	NodeGroupDef_Cmd cmds[MAX_CMDS_IN_GROUP_DEF];
 	U32 cmd_count;
-} NodeGroupDef;
+} PACKED NodeGroupDef;
 
 REVOLC_API void init_nodegroupdef(NodeGroupDef *def);
 

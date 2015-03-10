@@ -43,19 +43,34 @@ typedef struct SlotCmd {
 } SlotCmd;
 
 typedef struct NodeInfo {
-	bool allocated; /// @todo Can be substituted by type (== NULL)
-	NodeType *type;
-	char type_name[RES_NAME_SIZE];
-	U32 impl_handle; // e.g. Handle to ModelEntity
 	SlotCmd cmds[MAX_NODE_CMD_COUNT];
-	U32 cmd_count;
+	char type_name[RES_NAME_SIZE];
+	NodeType *type;
 	U64 group_id; // Entity id
+	U32 impl_handle; // e.g. Handle to ModelEntity
+	U32 cmd_count;
+	bool allocated; /// @todo Can be substituted by type (== NULL)
 } NodeInfo;
 
+typedef struct AutoNodeImplStorage {
+	void *storage;
+	bool *allocated;
+	U32 count;
+	U32 next;
+	U32 max_count;
+	U32 size;
+} AutoNodeImplStorage;
+
 typedef struct World {
+	F64 dt;
+
 	NodeInfo nodes[MAX_NODE_COUNT];
 	U32 next_node;
 	U32 node_count;
+
+	// Storages for node types specified with auto_impl_mgmt
+	AutoNodeImplStorage *auto_storages;
+	U32 auto_storage_count;
 
 	NodeInfo sort_space[MAX_NODE_COUNT];
 } World;

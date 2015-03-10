@@ -26,7 +26,7 @@ typedef struct CompEntity {
 	T3d tf;
 	bool allocated;
 
-	JointPoseArray joint_offsets; // Relative to bind offsets
+	JointPoseArray pose; // Relative to bind offsets
 
 	// Cached
 	const Armature *armature;

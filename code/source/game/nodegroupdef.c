@@ -241,7 +241,7 @@ void parse_cmd(NodeGroupDef_Cmd *cmd, const Token *toks, U32 tok_count, const No
 		ensure(toks[0].type == TokType_name);
 		const char *dst_node_name= toks[0].str;
 
-		// Find src node token after ==
+		// Find src node token after =
 		U32 src_node_tok_i= 1;
 		while (	src_node_tok_i < tok_count &&
 				toks[src_node_tok_i].type != TokType_assign)
@@ -258,6 +258,7 @@ void parse_cmd(NodeGroupDef_Cmd *cmd, const Token *toks, U32 tok_count, const No
 		const char *dst_type_name= def->nodes[dst_node_i].type_name;
 
 		cmd->type= CmdType_memcpy;
+		cmd->src_node_i= src_node_i;
 		cmd->dst_node_i= dst_node_i;
 		U32 dst_size;
 		U32 src_size;

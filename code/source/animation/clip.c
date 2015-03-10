@@ -32,8 +32,11 @@ int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 	const U32 joint_count= a->joint_count;
 	const F32 duration= json_real(j_duration);
 	const U32 frame_count= floor(duration*fps + 0.5);
+
 	const U32 sample_count= joint_count*frame_count;
-	samples= zero_malloc(sizeof(*samples)*sample_count);
+	samples= malloc(sizeof(*samples)*sample_count);
+	for (U32 i= 0; i < sample_count; ++i)
+		samples[i]= identity_t3f();
 
 	for (U32 ch_i= 0; ch_i < json_member_count(j_channels); ++ch_i) {
 		JsonTok j_ch= json_member(j_channels, ch_i);
@@ -134,8 +137,10 @@ int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 						lerp_v3f(key_value.pos, next_key_value.pos, lerp);
 				break;
 				case ChType_rot:
+					/// @todo qlerp?
 					samples[s_i].rot=
-						lerp_qf(key_value.rot, next_key_value.rot, lerp);
+						normalized_qf(
+								lerp_qf(key_value.rot, next_key_value.rot, lerp));
 				break;
 				case ChType_scale:
 					samples[s_i].scale=
@@ -147,6 +152,7 @@ int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 	}
 
 	blob_write(buf, &duration, sizeof(duration));
+	blob_write(buf, &fps, sizeof(fps));
 	blob_write(buf, &joint_count, sizeof(joint_count));
 	blob_write(buf, &frame_count, sizeof(frame_count));
 	blob_write(buf, samples, sizeof(*samples)*sample_count);

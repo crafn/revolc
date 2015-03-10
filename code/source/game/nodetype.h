@@ -22,10 +22,11 @@ typedef struct NodeType {
 	char free_func_name[MAX_FUNC_NAME_SIZE];
 	char storage_func_name[MAX_FUNC_NAME_SIZE];
 
-	// If true, handles & instances are managed by the node system.
+	// If true, handles & impls are managed by the node system.
 	// Also, free and storage funcs are NULL, and resurrect
 	// works in-place, returning NULL_HANDLE.
-	bool auto_inst_mgmt;
+	bool auto_impl_mgmt;
+	U32 auto_impl_max_count;
 
 	// Cached
 	InitNodeImpl init;
@@ -34,6 +35,7 @@ typedef struct NodeType {
 	FreeNodeImpl free;
 	StorageNodeImpl storage;
 	U32 size;
+	U32 auto_storage_handle; // Handle to AutoNodeImplStorage
 } NodeType;
 
 REVOLC_API void init_nodetype(NodeType *node);

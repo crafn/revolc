@@ -70,6 +70,12 @@ Qf identity_qf()
 { return (Qf) {0, 0, 0, 1}; }
 
 static
+Qf normalized_qf(Qf q)
+{
+	F32 a = q.x*q.x + q.y*q.y + q.z*q.z + q.w*q.w;	if (a == 1)		return q;	else if (a == 0)		return identity_qf();	a= sqrt(a);	return (Qf) {q.x/a, q.y/a, q.z/a, q.w/a};
+}
+
+static
 Qf qf_by_axis(V3f axis, F32 angle)
 {
 	axis= normalized_v3f(axis);
@@ -136,6 +142,12 @@ F64 rotation_z_qd(Qd q)
 static
 Qd identity_qd()
 { return (Qd) {0, 0, 0, 1}; }
+
+static
+Qd normalized_qd(Qd q)
+{
+	F64 a = q.x*q.x + q.y*q.y + q.z*q.z + q.w*q.w;	if (a == 1)		return q;	else if (a == 0)		return identity_qd();	a= sqrt(a);	return (Qd) {q.x/a, q.y/a, q.z/a, q.w/a};
+}
 
 static
 Qd qd_by_axis(V3d axis, F64 angle)

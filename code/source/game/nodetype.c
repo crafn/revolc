@@ -21,7 +21,7 @@ void init_nodetype(NodeType *node)
 			fail("Func not found: %s", node->upd_func_name);
 	}
 
-	if (node->auto_inst_mgmt == false) {
+	if (node->auto_impl_mgmt == false) {
 		node->free=
 			(FreeNodeImpl)func_ptr(node->free_func_name);
 		node->storage=
@@ -45,15 +45,16 @@ void init_nodetype(NodeType *node)
 
 int json_nodetype_to_blob(struct BlobBuf *buf, JsonTok j)
 {
-	JsonTok j_inst_mgmt= json_value_by_key(j, "inst_mgmt");
+	JsonTok j_impl_mgmt= json_value_by_key(j, "impl_mgmt");
+	JsonTok j_max_count= json_value_by_key(j, "max_count");
 	JsonTok j_init= json_value_by_key(j, "init_func");
 	JsonTok j_resurrect= json_value_by_key(j, "resurrect_func");
 	JsonTok j_free= json_value_by_key(j, "free_func");
 	JsonTok j_upd= json_value_by_key(j, "upd_func");
 	JsonTok j_storage= json_value_by_key(j, "storage_func");
 
-	if (json_is_null(j_inst_mgmt))
-		RES_ATTRIB_MISSING("inst_mgmt");
+	if (json_is_null(j_impl_mgmt))
+		RES_ATTRIB_MISSING("impl_mgmt");
 	if (json_is_null(j_init))
 		RES_ATTRIB_MISSING("init_func");
 	if (json_is_null(j_resurrect))
@@ -61,25 +62,31 @@ int json_nodetype_to_blob(struct BlobBuf *buf, JsonTok j)
 	if (json_is_null(j_upd))
 		RES_ATTRIB_MISSING("upd_func");
 
-	bool auto_inst_mgmt= !strcmp(json_str(j_inst_mgmt), "auto");
-	if (auto_inst_mgmt == false) {
+	bool auto_impl_mgmt= !strcmp(json_str(j_impl_mgmt), "auto");
+	U32 auto_impl_max_count= 0;
+	if (auto_impl_mgmt == false) {
 		if (json_is_null(j_free))
 			RES_ATTRIB_MISSING("free_func");
 		if (json_is_null(j_storage))
 			RES_ATTRIB_MISSING("storage");
 	} else {
+		if (json_is_null(j_max_count))
+			RES_ATTRIB_MISSING("max_count");
 		if (!json_is_null(j_free)) {
-			critical_print("Shouldn't have 'free_func', inst_mgmt is 'auto'");
+			critical_print("Shouldn't have 'free_func', impl_mgmt is 'auto'");
 			goto error;
 		}
 		if (!json_is_null(j_storage)) {
-			critical_print("Shouldn't have 'storage_func', inst_mgmt is 'auto'");
+			critical_print("Shouldn't have 'storage_func', impl_mgmt is 'auto'");
 			goto error;
 		}
+
+		auto_impl_max_count= json_integer(j_max_count);
 	}
 
 	NodeType n= {
-		.auto_inst_mgmt= auto_inst_mgmt,
+		.auto_impl_mgmt= auto_impl_mgmt,
+		.auto_impl_max_count= auto_impl_max_count,
 	};
 	snprintf(
 		n.init_func_name, sizeof(n.init_func_name), "%s", json_str(j_init));
@@ -88,7 +95,7 @@ int json_nodetype_to_blob(struct BlobBuf *buf, JsonTok j)
 	snprintf(
 		n.upd_func_name, sizeof(n.upd_func_name), "%s", json_str(j_upd));
 
-	if (n.auto_inst_mgmt == false) {
+	if (n.auto_impl_mgmt == false) {
 		snprintf(
 			n.free_func_name, sizeof(n.free_func_name), "%s", json_str(j_free));
 		snprintf(

@@ -8,6 +8,7 @@
 typedef struct Clip {
 	Resource res;
 	F32 duration;
+	U32 fps;
 	U32 joint_count;
 	U32 frame_count;
 	T3f local_samples[]; // joint_count*frame_count elements
