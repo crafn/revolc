@@ -5,6 +5,7 @@
 #include "audio/sound.h"
 #include "game/nodegroupdef.h"
 #include "game/nodetype.h"
+#include "global/module.h"
 #include "physics/rigidbodydef.h"
 #include "visual/texture.h"
 #include "visual/mesh.h"
@@ -14,6 +15,7 @@
 
 #else
 
+RESOURCE(Module, init_module, deinit_module, json_module_to_blob)
 RESOURCE(Texture, NULL, NULL, json_texture_to_blob)
 RESOURCE(Mesh, NULL, NULL, json_mesh_to_blob)
 RESOURCE(Model, NULL, NULL, json_model_to_blob)

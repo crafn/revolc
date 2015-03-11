@@ -4,7 +4,7 @@
 #include "build.h"
 
 typedef void * DllHandle;
-const DllHandle main_program_dll= NULL;
+const DllHandle g_main_program_dll= NULL;
 
 DllHandle load_dll(const char *path);
 void unload_dll(DllHandle dll);

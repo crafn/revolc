@@ -5,7 +5,7 @@
 #define MAX_TOKEN_STR_SIZE 64
 
 bool whitespace(char ch)
-{ return ch == ' ' || ch == '\t' || ch == '\n'; }
+{ return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\0'; }
 
 typedef enum {
 	TokType_eof,
@@ -158,6 +158,7 @@ void tokenize(Token *dst_tokens, U32 *next_tok, U32 max_toks, const char* conten
 		}
 		++cur;
 	}
+	ensure(*cur == '\0');
 	ensure(*next_tok < max_toks);
 	dst_tokens[*(next_tok++)]= (Token) { .type= TokType_eof };
 }
@@ -191,8 +192,8 @@ void find_member_storage(U32 *offset, U32 *size, const char *type_name, const To
 		ensure(tok->type == TokType_name);
 
 		const char *member_name= tok->str;
-		*offset += member_offset(type_name, member_name);
-		const char *next_type_name= member_type_name(type_name, member_name);
+		*offset += rtti_member_offset(type_name, member_name);
+		const char *next_type_name= rtti_member_type_name(type_name, member_name);
 
 		++tok;
 
@@ -200,7 +201,7 @@ void find_member_storage(U32 *offset, U32 *size, const char *type_name, const To
 			++tok;
 		} else {
 			// That was the last name in the chain of "foo.bar.asdfg.hsdg"
-			*size= member_size(type_name, member_name);
+			*size= rtti_member_size(type_name, member_name);
 			break;
 		}
 		type_name= next_type_name;
@@ -229,8 +230,8 @@ void parse_cmd(NodeGroupDef_Cmd *cmd, const Token *toks, U32 tok_count, const No
 
 		cmd->has_condition= true;
 		cmd->cond_node_i= cond_node_i;
-		cmd->cond_offset= member_offset(cond_node_type_name, cond_member_name);
-		cmd->cond_size= member_size(cond_node_type_name, cond_member_name);
+		cmd->cond_offset= rtti_member_offset(cond_node_type_name, cond_member_name);
+		cmd->cond_size= rtti_member_size(cond_node_type_name, cond_member_name);
 
 		// Parse command
 		parse_cmd(cmd, toks + 6, tok_count - 6, def);
@@ -297,11 +298,43 @@ void parse_cmd(NodeGroupDef_Cmd *cmd, const Token *toks, U32 tok_count, const No
 
 void init_nodegroupdef(NodeGroupDef *def)
 {
+	for (U32 i= 0; i < def->node_count; ++i) {
+		NodeGroupDef_Node *node= &def->nodes[i];
+
+		node->default_struct_size= rtti_struct_size(node->type_name);
+		ensure(node->default_struct_size < MAX_DEFAULT_STRUCT_SIZE);
+	}
+
+	for (U32 node_i= 0; node_i < def->node_count; ++node_i) {
+		NodeGroupDef_Node *node= &def->nodes[node_i];
+
+		for (U32 i= 0; i < node->defaults_count; ++i) {
+			const char *field_str= node->defaults[i].dst;
+			const char *value_str= node->defaults[i].src;
+
+			U32 size= rtti_member_size(node->type_name, field_str);
+			U32 offset= rtti_member_offset(node->type_name, field_str);
+
+			const U32 value_size= strlen(value_str) + 1;
+			ensure(offset + size < MAX_DEFAULT_STRUCT_SIZE);
+			ensure(value_size <= size);
+			memcpy(node->default_struct + offset, value_str, value_size);
+			memset(node->default_struct_set_bytes + offset, 1, value_size);
+		}
+	}
+
+	// cmds
 	for (U32 cmd_i= 0; cmd_i < def->cmd_count; ++cmd_i) {
 		NodeGroupDef_Cmd *cmd= &def->cmds[cmd_i];
-		if (cmd->type == CmdType_call) {
-			cmd->fptr= func_ptr(cmd->func_name);
-		}
+
+		const U32 max_tokens= 64;
+		Token toks[max_tokens];
+		U32 tok_count;
+		tokenize(toks, &tok_count, max_tokens, cmd->str);
+
+		parse_cmd(cmd, toks, tok_count, def);
+		if (cmd->type == CmdType_call)
+			cmd->fptr= rtti_func_ptr(cmd->func_name);
 	}
 }
 
@@ -335,9 +368,6 @@ int json_nodegroupdef_to_blob(struct BlobBuf *buf, JsonTok j)
 					sizeof(def.nodes[node_i].name),
 					"%s", json_str(j_name));
 
-		node->default_struct_size= struct_size(node->type_name);
-		ensure(node->default_struct_size < MAX_DEFAULT_STRUCT_SIZE);
-
 		JsonTok j_defaults= json_value_by_key(j_node, "defaults");
 		for (U32 i= 0; i < json_member_count(j_defaults); ++i) {
 			JsonTok j_d_obj= json_member(j_defaults, i);
@@ -351,14 +381,10 @@ int json_nodegroupdef_to_blob(struct BlobBuf *buf, JsonTok j)
 			const char *field_str= json_str(j_default_field);
 			const char *value_str= json_str(j_default_value);
 
-			U32 size= member_size(node->type_name, field_str);
-			U32 offset= member_offset(node->type_name, field_str);
-
-			const U32 value_size= strlen(value_str) + 1;
-			ensure(offset + size < MAX_DEFAULT_STRUCT_SIZE);
-			ensure(value_size <= size);
-			memcpy(node->default_struct + offset, value_str, value_size);
-			memset(node->default_struct_set_bytes + offset, 1, value_size);
+			NodeGroupDef_Node_Defaults *defaults=
+				&node->defaults[node->defaults_count++];
+			snprintf(defaults->dst, sizeof(defaults->dst), "%s", field_str);
+			snprintf(defaults->src, sizeof(defaults->src), "%s", value_str);
 		}
 
 		++def.node_count;
@@ -369,13 +395,7 @@ int json_nodegroupdef_to_blob(struct BlobBuf *buf, JsonTok j)
 		JsonTok j_cmd= json_member(j_cmds, cmd_i);
 		const char *cmd_str= json_str(j_cmd);
 		NodeGroupDef_Cmd *cmd= &def.cmds[def.cmd_count];
-
-		const U32 max_tokens= 64;
-		Token toks[max_tokens];
-		U32 tok_count;
-		tokenize(toks, &tok_count, max_tokens, cmd_str);
-
-		parse_cmd(cmd, toks, tok_count, &def);
+		snprintf(cmd->str, sizeof(cmd->str), "%s", cmd_str);
 		++def.cmd_count;
 	}
 

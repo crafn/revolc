@@ -1,29 +1,42 @@
 #include "rtti.h"
 #include "platform/dll.h"
 
-/// @todo Search all loaded dll's
-
-U32 struct_size(const char *struct_name)
+void * query_sym_concat(const char* a, const char *b)
 {
-	char postfix[]= "_size";
-	char size_sym[strlen(struct_name) + strlen(postfix) + 1];
-	snprintf(size_sym, sizeof(size_sym), "%s%s", struct_name, postfix);
-	U32 *size_ptr= (U32*)query_dll_sym(main_program_dll, size_sym);
+	ensure(g_env.resblob && "Can't use RTTI before resources are loaded");
+
+	U32 mod_start_i;
+	U32 mod_count;
+	all_res_by_type(&mod_start_i, &mod_count,
+					g_env.resblob, ResType_Module);
+
+	for (U32 i= mod_start_i; i < mod_start_i + mod_count; ++i) {
+		const Module *mod= (Module*)res_by_index(g_env.resblob, i);
+		DllHandle h= mod->dll;
+		char name[strlen(a) + strlen(b) + 1];
+		snprintf(name, sizeof(name), "%s%s", a, b);
+		void *sym= query_dll_sym(h, name);
+		if (sym)
+			return sym;
+	}
+	return NULL;
+}
+
+U32 rtti_struct_size(const char *struct_name)
+{
+	U32 *size_ptr= query_sym_concat(struct_name, "_size");
 	if (!size_ptr)
 		fail("struct_size: Couldn't find struct: %s", struct_name);
 	return *size_ptr;
 }
 
-void * func_ptr(const char *func_name)
-{ return query_dll_sym(main_program_dll, func_name); }
+void * rtti_func_ptr(const char *func_name)
+{ return query_sym_concat(func_name, ""); }
 
 internal
 U32 member_size_by_index(const char *struct_name, U32 member_i)
 {
-	char postfix[]= "_member_sizes";
-	char size_sym[strlen(struct_name) + strlen(postfix) + 1];
-	snprintf(size_sym, sizeof(size_sym), "%s%s", struct_name, postfix);
-	U32 *sizes= (U32*)query_dll_sym(main_program_dll, size_sym);
+	U32 *sizes= query_sym_concat(struct_name, "_member_sizes");
 	if (!sizes)
 		fail("member_size_by_index: Couldn't find member sizes: %s",
 				struct_name);
@@ -33,10 +46,7 @@ U32 member_size_by_index(const char *struct_name, U32 member_i)
 internal
 U32 member_offset_by_index(const char *struct_name, U32 member_i)
 {
-	char postfix[]= "_member_offsets";
-	char size_sym[strlen(struct_name) + strlen(postfix) + 1];
-	snprintf(size_sym, sizeof(size_sym), "%s%s", struct_name, postfix);
-	U32 *offsets= (U32*)query_dll_sym(main_program_dll, size_sym);
+	U32 *offsets= query_sym_concat(struct_name, "_member_offsets");
 	if (!offsets)
 		fail("member_offset_by_index: Couldn't find member offsets: %s",
 				struct_name);
@@ -46,10 +56,7 @@ U32 member_offset_by_index(const char *struct_name, U32 member_i)
 internal
 const char * member_type_name_by_index(const char *struct_name, U32 member_i)
 {
-	char postfix[]= "_member_type_names";
-	char size_sym[strlen(struct_name) + strlen(postfix) + 1];
-	snprintf(size_sym, sizeof(size_sym), "%s%s", struct_name, postfix);
-	const char **type_names= (const char**)query_dll_sym(main_program_dll, size_sym);
+	const char **type_names= query_sym_concat(struct_name, "_member_type_names");
 	if (!type_names)
 		fail("member_type_name_by_index: Couldn't find member offsets: %s",
 				struct_name);
@@ -59,10 +66,7 @@ const char * member_type_name_by_index(const char *struct_name, U32 member_i)
 internal
 U32 member_index_by_name(const char *struct_name, const char *member_name)
 {
-	char postfix[]= "_member_names";
-	char size_sym[strlen(struct_name) + strlen(postfix) + 1];
-	snprintf(size_sym, sizeof(size_sym), "%s%s", struct_name, postfix);
-	const char **names= (const char**)query_dll_sym(main_program_dll, size_sym);
+	const char **names= query_sym_concat(struct_name, "_member_names");
 	if (!names)
 		fail("Couldn't find: %s::%s", struct_name, member_name);
 
@@ -74,21 +78,21 @@ U32 member_index_by_name(const char *struct_name, const char *member_name)
 	return i;
 }
 
-U32 member_size(const char *struct_name, const char *member_name)
+U32 rtti_member_size(const char *struct_name, const char *member_name)
 {
 	return member_size_by_index(
 				struct_name,
 				member_index_by_name(struct_name, member_name));
 }
 
-U32 member_offset(const char *struct_name, const char *member_name)
+U32 rtti_member_offset(const char *struct_name, const char *member_name)
 {
 	return member_offset_by_index(
 				struct_name,
 				member_index_by_name(struct_name, member_name));
 }
 
-const char * member_type_name(const char *struct_name, const char *member_name)
+const char * rtti_member_type_name(const char *struct_name, const char *member_name)
 {
 	return member_type_name_by_index(
 				struct_name,

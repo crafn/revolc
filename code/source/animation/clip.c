@@ -28,7 +28,7 @@ int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 		goto error;
 	}
 
-	const U32 fps= 15.0;
+	const U32 fps= 30.0;
 	const U32 joint_count= a->joint_count;
 	const F32 duration= json_real(j_duration);
 	const U32 frame_count= floor(duration*fps + 0.5) + 1; // +1 for end lerp target

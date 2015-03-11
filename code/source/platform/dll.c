@@ -11,3 +11,5 @@ void unload_dll(DllHandle dll)
 void* query_dll_sym(DllHandle dll, const char *sym)
 { return dlsym(dll, sym); }
 
+const char* dll_error()
+{ return dlerror(); }

@@ -8,6 +8,8 @@
 #define MAX_DEFAULT_STRUCT_SIZE (1024*2)
 #define MAX_CMDS_IN_GROUP_DEF 8
 #define MAX_CMD_CALL_PARAMS 4
+#define MAX_CMD_STR_SIZE 128
+#define MAX_NODE_DEFAULTS 4
 
 typedef enum {
 	CmdType_memcpy,
@@ -15,6 +17,8 @@ typedef enum {
 } CmdType;
 
 typedef struct NodeGroupDef_Cmd {
+	char str[MAX_CMD_STR_SIZE];
+
 	CmdType type;
 
 	bool has_condition;
@@ -42,9 +46,17 @@ typedef struct NodeGroupDef_Cmd {
 	};
 } NodeGroupDef_Cmd;
 
+typedef struct NodeGroupDef_Node_Defaults {
+	char dst[RES_NAME_SIZE];
+	char src[RES_NAME_SIZE];
+} NodeGroupDef_Node_Defaults;
+
 typedef struct NodeGroupDef_Node {
 	char type_name[RES_NAME_SIZE];
 	char name[RES_NAME_SIZE];
+
+	NodeGroupDef_Node_Defaults defaults[MAX_NODE_DEFAULTS];
+	U32 defaults_count;
 
 	// Bytes of default node struct, which can be resurrected
 	U8 default_struct[MAX_DEFAULT_STRUCT_SIZE];

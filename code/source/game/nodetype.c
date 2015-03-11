@@ -1,3 +1,5 @@
+#include "global/env.h"
+#include "global/module.h"
 #include "global/rtti.h"
 #include "nodetype.h"
 #include "resources/resblob.h"
@@ -9,23 +11,23 @@ void init_nodetype(NodeType *node)
 
 	if (has_init) {
 		node->init=
-			(InitNodeImpl)func_ptr(node->init_func_name);
+			(InitNodeImpl)rtti_func_ptr(node->init_func_name);
 		if (!node->init)
 			fail("Func not found: %s", node->init_func_name);
 	}
 
 	if (has_upd) {
 		node->upd=
-			(UpdNodeImpl)func_ptr(node->upd_func_name);
+			(UpdNodeImpl)rtti_func_ptr(node->upd_func_name);
 		if (!node->upd)
 			fail("Func not found: %s", node->upd_func_name);
 	}
 
 	if (node->auto_impl_mgmt == false) {
 		node->free=
-			(FreeNodeImpl)func_ptr(node->free_func_name);
+			(FreeNodeImpl)rtti_func_ptr(node->free_func_name);
 		node->storage=
-			(StorageNodeImpl)func_ptr(node->storage_func_name);
+			(StorageNodeImpl)rtti_func_ptr(node->storage_func_name);
 		if (!node->free)
 			fail("Func not found: %s", node->free_func_name);
 		if (!node->storage)
@@ -33,11 +35,11 @@ void init_nodetype(NodeType *node)
 	}
 
 	node->resurrect=
-		(ResurrectNodeImpl)func_ptr(node->resurrect_func_name);
+		(ResurrectNodeImpl)rtti_func_ptr(node->resurrect_func_name);
 	if (!node->resurrect)
 		fail("Func not found: %s", node->resurrect_func_name);
 
-	node->size= struct_size(node->res.name);
+	node->size= rtti_struct_size(node->res.name);
 	if (!node->size)
 		fail("Couldn't find struct %s size. Has codegen run?",
 				node->res.name);
@@ -45,6 +47,7 @@ void init_nodetype(NodeType *node)
 
 int json_nodetype_to_blob(struct BlobBuf *buf, JsonTok j)
 {
+	JsonTok j_module= json_value_by_key(j, "module");
 	JsonTok j_impl_mgmt= json_value_by_key(j, "impl_mgmt");
 	JsonTok j_max_count= json_value_by_key(j, "max_count");
 	JsonTok j_init= json_value_by_key(j, "init_func");
@@ -53,6 +56,8 @@ int json_nodetype_to_blob(struct BlobBuf *buf, JsonTok j)
 	JsonTok j_upd= json_value_by_key(j, "upd_func");
 	JsonTok j_storage= json_value_by_key(j, "storage_func");
 
+	if (json_is_null(j_module))
+		RES_ATTRIB_MISSING("module");
 	if (json_is_null(j_impl_mgmt))
 		RES_ATTRIB_MISSING("impl_mgmt");
 	if (json_is_null(j_init))

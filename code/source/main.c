@@ -67,8 +67,8 @@ int main(int argc, const char **argv)
 	if (!file_exists(DEFAULT_BLOB_PATH))
 		make_main_blob();
 
-	ResBlob *blob= g_env.resblob= load_blob(DEFAULT_BLOB_PATH);
-	print_blob(blob);
+	load_blob(&g_env.resblob, DEFAULT_BLOB_PATH);
+	print_blob(g_env.resblob);
 
 	create_audiosystem();
 	create_renderer();
@@ -123,7 +123,7 @@ int main(int argc, const char **argv)
 				g_env.renderer->cam_pos.z += spd*dt;
 
 			if (d->key_down['e'])
-				spawn_entity(world, blob, cursor_on_world);
+				spawn_entity(world, g_env.resblob, cursor_on_world);
 
 			if (d->key_pressed['r'])
 				free_node_group(world, 0);
@@ -144,8 +144,7 @@ int main(int argc, const char **argv)
 
 			if (d->key_pressed[KEY_F12]) {
 				make_main_blob();
-				reload_blob(&g_env.resblob, blob, DEFAULT_BLOB_PATH);
-				blob= g_env.resblob;
+				reload_blob(&g_env.resblob, g_env.resblob, DEFAULT_BLOB_PATH);
 			}
 
 			if (d->key_pressed[KEY_F5])
@@ -194,7 +193,7 @@ int main(int argc, const char **argv)
 	destroy_renderer();
 	destroy_audiosystem();
 
-	unload_blob(blob);
+	unload_blob(g_env.resblob);
 	g_env.resblob= NULL;
 
 	free(g_env.frame_mem_begin);

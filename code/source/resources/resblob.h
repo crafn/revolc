@@ -11,7 +11,7 @@ typedef struct ResBlob {
 	BlobOffset res_offsets[];
 } PACKED ResBlob;
 
-REVOLC_API ResBlob * load_blob(const char *path);
+REVOLC_API void load_blob(ResBlob **blob, const char *path);
 REVOLC_API void unload_blob(ResBlob *blob);
 REVOLC_API void reload_blob(ResBlob **new, ResBlob *old, const char *path);
 

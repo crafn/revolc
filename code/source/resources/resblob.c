@@ -113,28 +113,26 @@ void init_res(Resource *res)
 #undef RESOURCE
 }
 
-ResBlob * load_blob(const char *path)
+void load_blob(ResBlob **blob, const char *path)
 {
-	ResBlob *blob= NULL;
+	*blob= NULL;
 	{ // Load from file
 		U32 blob_size;
-		blob= (ResBlob*)malloc_file(path, &blob_size);
+		*blob= (ResBlob*)malloc_file(path, &blob_size);
 		debug_print("load_blob: %s, %iM", path, (int)blob_size/(1024*1024));
 	}
 
 	{ // Initialize resources
 		for (ResType t= 0; t < ResType_last; ++t) {
-			for (U32 i= 0; i < blob->res_count; ++i) {
-				Resource *res= res_by_index(blob, i);
-				res->blob= blob;
+			for (U32 i= 0; i < (*blob)->res_count; ++i) {
+				Resource *res= res_by_index(*blob, i);
+				res->blob= *blob;
 				if (res->type != t)
 					continue;
 				init_res(res);
 			}
 		}
 	}
-
-	return blob;
 }
 
 internal
@@ -184,7 +182,7 @@ void reload_blob(ResBlob **new_blob, ResBlob *old_blob, const char *path)
 {
 	debug_print("reload_blob: %s", path);
 
-	*new_blob= load_blob(path);
+	load_blob(new_blob, path);
 
 	// This might not be needed, as missing resources are handled
 	// in res_by_name

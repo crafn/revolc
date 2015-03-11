@@ -17,6 +17,7 @@
 #include "game/world.c"
 #include "game/worldgen.c"
 #include "global/env.c"
+#include "global/module.c"
 #include "global/rtti.c"
 #include "main.c"
 #include "physics/physworld.c"

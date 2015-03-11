@@ -394,8 +394,8 @@ void create_nodes(	World *w,
 				continue;
 
 			/// @todo Don't do this. Slow. Or make RTTI fast.
-			U32 size= member_size(node_def->type_name, val->member_name);
-			U32 offset= member_offset(node_def->type_name, val->member_name);
+			U32 size= rtti_member_size(node_def->type_name, val->member_name);
+			U32 offset= rtti_member_offset(node_def->type_name, val->member_name);
 			if (val->size > size) {
 				fail("Node init value is larger than member (%s.%s): %i > %i",
 						val->node_name, val->member_name, val->size, size);
@@ -528,7 +528,7 @@ void world_on_res_reload(ResBlob *old)
 	// For a new NodeTypes during runtime one would need to
 	// resize w->auto_storages, possibly reordering some handles
 	if (ntypes_count != old_ntypes_count)
-		fail("@todo Resource reloading for NodeTypes");
+		fail("@todo Runtime load/unload for NodeTypes");
 
 	// Reinitialize every auto storage node so that cached pointers are updated
 	// It's probably simplest just to free and resurrect them

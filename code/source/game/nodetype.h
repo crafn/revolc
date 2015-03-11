@@ -5,6 +5,7 @@
 #include "resources/resource.h"
 
 struct World;
+struct Module;
 typedef void (*InitNodeImpl)(void *data);
 typedef U32 (*ResurrectNodeImpl)(void *dead);
 typedef void (*FreeNodeImpl)(U32 handle);
@@ -29,6 +30,7 @@ typedef struct NodeType {
 	U32 auto_impl_max_count;
 
 	// Cached
+	const struct Module *module;
 	InitNodeImpl init;
 	ResurrectNodeImpl resurrect;
 	UpdNodeImpl upd;
