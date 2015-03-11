@@ -10,6 +10,7 @@
 
 typedef struct JsonTok {
 	const char *json_path;
+	const char *json_dir;
 	const char *json; // Strings and primitives are null-terminated
 	jsmntok_t *tok;
 } JsonTok;

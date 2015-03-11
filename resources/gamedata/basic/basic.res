@@ -45,7 +45,6 @@
 	{
 		"type" : "NodeType",
 		"name" : "ModelEntity",
-		"module" : "",
 		"impl_mgmt" : "manual",
 
 		"init_func" : "init_modelentity",
@@ -57,7 +56,6 @@
 	{
 		"type" : "NodeType",
 		"name" : "CompEntity",
-		"module" : "",
 		"impl_mgmt" : "manual",
 
 		"init_func" : "init_compentity",
@@ -69,7 +67,6 @@
 	{
 		"type" : "NodeType",
 		"name" : "RigidBody",
-		"module" : "",
 		"impl_mgmt" : "manual",
 
 		"init_func" : "",
@@ -81,7 +78,6 @@
 	{
 		"type" : "NodeType",
 		"name" : "ClipInst",
-		"module" : "",
 		"impl_mgmt" : "auto",
 		"max_count" : 128,
 

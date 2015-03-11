@@ -10,6 +10,8 @@
 ///			to json file easily.
 REVOLC_API char * malloc_joined_path(const char *a, const char *b);
 
+REVOLC_API char * malloc_path_to_dir(const char *path_to_file);
+
 REVOLC_API bool is_str_end(const char *str, const char *end);
 
 #endif // REVOLC_CORE_STRING_H

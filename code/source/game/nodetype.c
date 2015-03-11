@@ -47,7 +47,6 @@ void init_nodetype(NodeType *node)
 
 int json_nodetype_to_blob(struct BlobBuf *buf, JsonTok j)
 {
-	JsonTok j_module= json_value_by_key(j, "module");
 	JsonTok j_impl_mgmt= json_value_by_key(j, "impl_mgmt");
 	JsonTok j_max_count= json_value_by_key(j, "max_count");
 	JsonTok j_init= json_value_by_key(j, "init_func");
@@ -56,8 +55,6 @@ int json_nodetype_to_blob(struct BlobBuf *buf, JsonTok j)
 	JsonTok j_upd= json_value_by_key(j, "upd_func");
 	JsonTok j_storage= json_value_by_key(j, "storage_func");
 
-	if (json_is_null(j_module))
-		RES_ATTRIB_MISSING("module");
 	if (json_is_null(j_impl_mgmt))
 		RES_ATTRIB_MISSING("impl_mgmt");
 	if (json_is_null(j_init))

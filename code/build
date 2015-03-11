@@ -1,15 +1,26 @@
 #!/bin/sh
+cd "$(dirname "$0")"
+common_flags="-std=gnu99 -Wall -O0 -march=native -mtune=native -ffast-math -rdynamic -g -I.
+ -Wno-unused-function -I ../deps/common -I ../deps/common/chipmunk/include
+  -I ../deps/common/vorbis/include -I ../deps/common/ogg/include"
+
 mkdir -p ../builds/linux64
 if [ ! -f ./codegen ]; then
+	echo "Building codegen"
 	./build_codegen
 fi
-./codegen > /dev/null 2>&1
+
+./codegen ./source/unity.c ./source/global/gen_rtti.c > /dev/null 2>&1
+
 cd ./source
-clang -std=gnu99 -Wall -O0 -march=native -mtune=native -ffast-math -rdynamic -g -I. \
-	-Wno-unused-function \
-	-I ../deps/common -I ../deps/common/chipmunk/include \
-	-I ../deps/common/vorbis/include -I ../deps/common/ogg/include \
+
+echo "Building engine"
+clang $common_flags \
 	./unity.c \
 	../temp/deps.o \
 	-lX11 -lGL -lm -ldl -lpthread -lportaudio \
 	-o ../../builds/linux64/clover
+
+cd ..
+
+./build_mod

@@ -13,6 +13,7 @@ void * node_impl(World *w, U32 *size, NodeInfo *node)
 
 	U32 offset= node->type->size*node->impl_handle;
 	if (node->type->auto_impl_mgmt) {
+		ensure(node->type->auto_storage_handle < w->auto_storage_count);
 		U8 *storage= w->auto_storages[node->type->auto_storage_handle].storage;
 		return storage + offset;
 	} else {
@@ -393,7 +394,7 @@ void create_nodes(	World *w,
 			if (strcmp(val->node_name, node_def->name))
 				continue;
 
-			/// @todo Don't do this. Slow. Or make RTTI fast.
+			/// @todo Don't do this! Slow. Or make RTTI fast.
 			U32 size= rtti_member_size(node_def->type_name, val->member_name);
 			U32 offset= rtti_member_offset(node_def->type_name, val->member_name);
 			if (val->size > size) {
@@ -477,6 +478,7 @@ void free_node(World *w, U32 handle)
 
 	U32 impl_handle= n->impl_handle;
 	if (n->type->auto_impl_mgmt) {
+		ensure(n->type->auto_storage_handle < w->auto_storage_count);
 		AutoNodeImplStorage *st= &w->auto_storages[n->type->auto_storage_handle];
 		ensure(impl_handle < st->max_count);
 		st->allocated[impl_handle]= false;
@@ -518,17 +520,28 @@ void world_on_res_reload(ResBlob *old)
 		n->type= (NodeType*)res_by_name(g_env.resblob, ResType_NodeType, n->type_name);
 	}
 
+
 	U32 old_ntypes_count;
 	all_res_by_type(NULL, &old_ntypes_count,
 					g_env.resblob, ResType_NodeType);
+	U32 ntypes_begin;
 	U32 ntypes_count;
-	all_res_by_type(NULL, &ntypes_count,
+	all_res_by_type(&ntypes_begin, &ntypes_count,
 					g_env.resblob, ResType_NodeType);
 	// Not a rigorous solution, but probably catches 99% of bad cases
 	// For a new NodeTypes during runtime one would need to
 	// resize w->auto_storages, possibly reordering some handles
 	if (ntypes_count != old_ntypes_count)
 		fail("@todo Runtime load/unload for NodeTypes");
+
+	U32 next_auto_storage_handle= 0;
+	for (U32 i= ntypes_begin; i < ntypes_begin + ntypes_count; ++i) {
+		NodeType *ntype= (NodeType*)res_by_index(g_env.resblob, i);
+		if (!ntype->auto_impl_mgmt)
+			continue;
+		// This is gonna break horribly some day.
+		ntype->auto_storage_handle= next_auto_storage_handle++;
+	}
 
 	// Reinitialize every auto storage node so that cached pointers are updated
 	// It's probably simplest just to free and resurrect them

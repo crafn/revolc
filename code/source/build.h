@@ -4,10 +4,20 @@
 #include <stdbool.h>
 
 /// @todo Other operating systems
+/// @todo Other compilers
+
 #define PLATFORM_LINUX 1
 #define PLATFORM PLATFORM_LINUX
-/// @todo Other compilers
-#define REVOLC_API __attribute__ ((visibility ("default")))
+
+#define DLL_EXPORT __attribute__((visibility ("default")))
+#define DLL_IMPORT __attribute__((visibility ("default")))
+
+#ifdef MOD_DLL_BUILD
+#	define REVOLC_API DLL_IMPORT
+#	define MOD_API DLL_EXPORT
+#else
+#	define REVOLC_API DLL_EXPORT
+#endif
 
 #define internal static
 #define local_persist static

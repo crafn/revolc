@@ -1,0 +1,15 @@
+#!/bin/sh
+cd "$(dirname "$0")"
+common_flags="-std=gnu99 -Wall -O0 -march=native -mtune=native -ffast-math -rdynamic -g -I.
+ -Wno-unused-function -I ../deps/common -I ../deps/common/chipmunk/include
+  -I ../deps/common/vorbis/include -I ../deps/common/ogg/include"
+
+./codegen ./source/mod/unity.c ./source/mod/gen_rtti.c rtti_only
+
+cd ./source
+
+echo "Building mod"
+clang $common_flags \
+	./mod/unity.c \
+	-shared -fPIC \
+	-o ../../resources/gamedata/mod.so

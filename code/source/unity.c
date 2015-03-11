@@ -24,6 +24,7 @@
 #include "physics/rigidbodydef.c"
 #include "platform/device.c"
 #include "platform/dll.c"
+#include "platform/file.c"
 #include "platform/gl.c"
 #include "resources/resblob.c"
 #include "resources/resource.c"
@@ -38,5 +39,5 @@
 #include "visual/vao.c"
 
 #ifndef CODEGEN
-#	include "global/generated_rtti.c"
+#	include "global/gen_rtti.c"
 #endif

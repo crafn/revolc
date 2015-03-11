@@ -37,6 +37,8 @@ typedef struct NodeType {
 	FreeNodeImpl free;
 	StorageNodeImpl storage;
 	U32 size;
+
+	// Set by node system!
 	U32 auto_storage_handle; // Handle to AutoNodeImplStorage
 } NodeType;
 

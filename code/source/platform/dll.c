@@ -3,7 +3,11 @@
 #include <dlfcn.h>
 
 DllHandle load_dll(const char *path)
-{ return dlopen(path, RTLD_LAZY | RTLD_GLOBAL); }
+{
+	if (dlopen(path, RTLD_NOLOAD))
+		fail("DLL already opened: %s", path);
+	return dlopen(path, RTLD_NOW);
+}
 
 void unload_dll(DllHandle dll)
 { dlclose(dll); }

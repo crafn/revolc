@@ -33,6 +33,14 @@ typedef struct ParsedJsonFile {
 } ParsedJsonFile;
 
 internal
+void free_parsed_json_file(ParsedJsonFile json)
+{
+	free(json.json);
+	free(json.tokens);
+	free((char*)json.root.json_dir);
+}
+
+internal
 ParsedJsonFile malloc_parsed_json_file(const char *file)
 {
 	ParsedJsonFile ret= {};
@@ -71,6 +79,7 @@ ParsedJsonFile malloc_parsed_json_file(const char *file)
 		}
 
 		ret.root.json_path= file;
+		ret.root.json_dir= malloc_path_to_dir(file);
 		ret.root.json= ret.json;
 		ret.root.tok= ret.tokens;
 
@@ -86,18 +95,10 @@ ParsedJsonFile malloc_parsed_json_file(const char *file)
 	return ret;
 
 error:
-	free(ret.json);
-	free(ret.tokens);
+	free_parsed_json_file(ret);
 
 	ParsedJsonFile null= {};
 	return null;
-}
-
-internal
-void free_parsed_json_file(ParsedJsonFile json)
-{
-	free(json.json);
-	free(json.tokens);
 }
 
 internal
@@ -148,66 +149,57 @@ void deinit_res(Resource *res)
 #undef RESOURCE
 }
 
+// Part of unloading (1/2)
+internal
+void deinit_blob_res(ResBlob *blob)
+{
+	for (ResType t_= ResType_last; t_ > 0; --t_) {
+		for (U32 i_= blob->res_count; i_ > 0; --i_) {
+			ResType t= t_ - 1;
+			U32 i= i_ - 1;
+			Resource* res= res_by_index(blob, i);
+			if (res->type != t)
+				continue;
+			deinit_res(res);
+		}
+	}
+}
+
+// Part of unloading (2/2)
+internal
+void free_blob(ResBlob *blob)
+{ // Free MissingResources
+	MissingResource *res= blob->first_missing_res;
+	/// @note Proper order would be reverse
+	while (res) {
+		MissingResource *next= res->next;
+		deinit_res(res->res);
+		free(res->res);
+		free(res);
+		res= next;
+	}
+	free(blob);
+}
+
 void unload_blob(ResBlob *blob)
 {
-	{ // Deinitialize resources
-		for (ResType t_= ResType_last; t_ > 0; --t_) {
-			for (U32 i_= blob->res_count; i_ > 0; --i_) {
-				ResType t= t_ - 1;
-				U32 i= i_ - 1;
-				Resource* res= res_by_index(blob, i);
-				if (res->type != t)
-	 				continue;
-				deinit_res(res);
-			}
-		}
-	}
-
-	{ // Free MissingResources
-		MissingResource *res= blob->first_missing_res;
-		/// @note Proper order would be reverse
-		while (res) {
-			MissingResource *next= res->next;
-			deinit_res(res->res);
-			free(res->res);
-			free(res);
-			res= next;
-		}
-	}
-
-	free(blob);
+	deinit_blob_res(blob);
+	free_blob(blob);
 }
 
 void reload_blob(ResBlob **new_blob, ResBlob *old_blob, const char *path)
 {
 	debug_print("reload_blob: %s", path);
+	deinit_blob_res(old_blob);
 
 	load_blob(new_blob, path);
-
-	// This might not be needed, as missing resources are handled
-	// in res_by_name
-	if (0) { // Check that all resources can be found
-		/// @todo Can be done in O(n)
-		for (U32 i= 0; i < old_blob->res_count; ++i) {
-			Resource *old= res_by_index(old_blob, i);
-
-			if (!find_res_by_name(*new_blob, old->type, old->name)) {
-				critical_print(
-						"Can't reload blob: new blob missing resource: %s, %s",
-						old->name, restype_to_str(old->type));
-
-				unload_blob(*new_blob);
-				*new_blob= old_blob;
-			}
-		}
-	}
 
 	{ // Update old res pointers to new blob
 		renderer_on_res_reload();
 		world_on_res_reload(old_blob);
 	}
 
-	unload_blob(old_blob);
+	free_blob(old_blob);
 }
 
 Resource * res_by_index(const ResBlob *blob, U32 index)

@@ -11,7 +11,8 @@ JsonTok json_value_by_key(JsonTok obj, const char *key)
 			continue;
 
 		if (!strcmp(key, obj.json + m->start)) {
-			JsonTok ret= {obj.json_path, obj.json, m + 1};
+			JsonTok ret= obj;
+			ret.tok= m + 1;
 			return ret;
 		}
 	}
@@ -42,7 +43,8 @@ U32 json_member_count(JsonTok j)
 JsonTok json_member(JsonTok j, U32 i)
 {
 	ensure(i < j.tok->size);
-	JsonTok ret= {j.json_path, j.json, j.tok + 1};
+	JsonTok ret= j;
+	ret.tok += 1;
 	for (U32 k= 0; k < i; ++k)
 		ret.tok += ret.tok->deep_size + 1;
 	return ret;

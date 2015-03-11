@@ -396,7 +396,10 @@ void listdir(char **path_table, U32 *path_count, const char *name, int level, co
 								"too many found files (@todo Fix engine)");
 				U32 path_size= strlen(name) + 1 + strlen(entry->d_name) + 1;
 				char *path= malloc(path_size);
-				snprintf(path, path_size, "%s/%s", name, entry->d_name);
+				if (name[strlen(name) - 1] == '/')
+					snprintf(path, path_size, "%s%s", name, entry->d_name);
+				else
+					snprintf(path, path_size, "%s/%s", name, entry->d_name);
 				path_table[*path_count]= path;
 				++*path_count;
 			}

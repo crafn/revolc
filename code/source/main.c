@@ -143,7 +143,14 @@ int main(int argc, const char **argv)
 				play_sound("ambient", 1.0, 0.0);
 
 			if (d->key_pressed[KEY_F12]) {
+				system("../../code/build_mod");
 				make_main_blob();
+				reload_blob(&g_env.resblob, g_env.resblob, DEFAULT_BLOB_PATH);
+			}
+
+			if (d->key_pressed[KEY_F11]) {
+				system("../../code/build_mod");
+				/// @todo Reload only modules
 				reload_blob(&g_env.resblob, g_env.resblob, DEFAULT_BLOB_PATH);
 			}
 
