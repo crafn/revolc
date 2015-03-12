@@ -122,9 +122,9 @@ void try_spawn_ground(World *world, V2d pos)
 }
 
 internal
-void spawn_visual_prop(World *world, V3d pos, V3d scale, const char *name)
+void spawn_visual_prop(World *world, V3d pos, F64 rot, V3d scale, const char *name)
 {
-	T3d tf= {scale, identity_qd(), pos};
+	T3d tf= {scale, qd_by_axis((V3d){0, 0, 1}, rot), pos};
 	SlotVal init_vals[]= {
 		{"visual",	"tf",			WITH_DEREF_SIZEOF(&tf)},
 		{"visual",	"model_name",	WITH_STR_SIZE(name)},
@@ -154,14 +154,14 @@ void spawn_phys_prop(World *world, V2d pos, const char *name, bool is_static)
 
 void generate_world(World *w, U64 seed)
 {
-	spawn_visual_prop(w, (V3d) {0, 0, -500}, (V3d) {600, 1200, 1}, "sky_day");
-	spawn_visual_prop(w, (V3d) {-100, -50, -490}, (V3d) {700, 250, 1}, "bg_mountain");
+	spawn_visual_prop(w, (V3d) {0, 0, -500}, 0, (V3d) {600, 1200, 1}, "sky_day");
+	spawn_visual_prop(w, (V3d) {-100, -50, -490}, 0, (V3d) {700, 250, 1}, "bg_mountain");
 
-	spawn_visual_prop(w, (V3d) {20, -120, -100}, (V3d) {220, 90, 1}, "bg_meadow");
-	spawn_visual_prop(w, (V3d) {-70, -60, -200}, (V3d) {220, 90, 1}, "bg_meadow");
-	spawn_visual_prop(w, (V3d) {60, -80, -160}, (V3d) {200, 90, 1}, "bg_meadow");
-	spawn_visual_prop(w, (V3d) {150, -50, -300}, (V3d) {200, 90, 1}, "bg_meadow");
-	spawn_visual_prop(w, (V3d) {400, -70, -350}, (V3d) {200, 110, 1}, "bg_meadow");
+	spawn_visual_prop(w, (V3d) {20, -120, -100}, 0, (V3d) {220, 90, 1}, "bg_meadow");
+	spawn_visual_prop(w, (V3d) {-70, -60, -200}, 0, (V3d) {220, 90, 1}, "bg_meadow");
+	spawn_visual_prop(w, (V3d) {60, -80, -160}, 0, (V3d) {200, 90, 1}, "bg_meadow");
+	spawn_visual_prop(w, (V3d) {150, -50, -300}, 0, (V3d) {200, 90, 1}, "bg_meadow");
+	spawn_visual_prop(w, (V3d) {400, -70, -350}, 0, (V3d) {200, 110, 1}, "bg_meadow");
 
 	for (int y= -50; y <= 50; ++y) {
 		for (int x= -50; x < 50; ++x) {
@@ -181,11 +181,18 @@ void generate_world(World *w, U64 seed)
 		spawn_phys_prop(w, pos, "wbox", false);
 	}
 	for (int i= -50; i < 50; ++i) {
-		V3d p_front= {i, ground_surf_y(i) + 0.5, 0.1};
-		spawn_visual_prop(w, p_front, (V3d) {1.2, 1, 1}, "grassclump_f");
-
+		V3d p_front= {i, ground_surf_y(i) + 0.5, 0.01};
 		V3d p_back= {i, ground_surf_y(i) + 0.55, -0.1};
-		spawn_visual_prop(w, p_back, (V3d) {1.1, 1, 1}, "grassclump_b");
+
+		V2d a= {i - 0.2, ground_surf_y(i - 0.2)};
+		V2d b= {i + 0.2, ground_surf_y(i + 0.2)};
+		V2d tangent= sub_v2d(b, a);
+		F64 rot= atan2(tangent.y, tangent.x) + random_f64(-0.1, 0.1, &seed);
+
+		F64 scale= random_f64(0.9, 1.3, &seed);
+
+		spawn_visual_prop(w, p_front, rot, scaled_v3d(scale, (V3d) {1.2, 1, 1}), "grassclump_f");
+		spawn_visual_prop(w, p_back, rot, scaled_v3d(scale, (V3d) {1.1, 1, 1}), "grassclump_b");
 	}
 
 	{ // Compound test

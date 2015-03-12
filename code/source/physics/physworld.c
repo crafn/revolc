@@ -474,6 +474,10 @@ void upd_physworld(F64 dt)
 		b->tf.pos.x= p.x;
 		b->tf.pos.y= p.y;
 		b->tf.rot= qd_by_xy_rot_matrix(r.x, r.y);
+
+
+		b->tf_changed= !equals_v3d(b->prev_tf.pos, b->tf.pos) ||
+						!equals_qd(b->prev_tf.rot, b->tf.rot);
 	}
 
 	if (w->debug_draw) {
@@ -503,9 +507,12 @@ void post_upd_physworld()
 			continue;
 
 		// Update changes to grid
-		bool t_changed= !equals_v3d(b->prev_tf.pos, b->tf.pos) ||
-						!equals_qd(b->prev_tf.rot, b->tf.rot);
-		if (t_changed || !b->is_in_grid) {
+		if (b->tf_changed || !b->is_in_grid) {
+			if (cpBodyGetType(b->cp_body) == CP_BODY_TYPE_STATIC) {
+				// Notify physics about static body repositioning
+				cpSpaceReindexShapesForBody(w->space, b->cp_body);
+			}
+
 			if (b->is_in_grid) {
 				modify_grid_with_shapes(-1,
 						b->polys, b->poly_count,
@@ -520,6 +527,7 @@ void post_upd_physworld()
 
 		b->is_in_grid= true;
 		b->shape_changed= false;
+		b->tf_changed= false;
 		b->prev_tf= b->tf;
 	}
 	

@@ -21,6 +21,7 @@ typedef struct RigidBody {
 	bool is_in_grid;
 	bool is_static;
 	bool shape_changed;
+	bool tf_changed;
 	bool has_own_shape; // Ignores shape of def_name
 
 	Poly polys[MAX_SHAPES_PER_BODY];
