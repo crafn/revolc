@@ -84,6 +84,7 @@
 		"init_func" : "init_clipinst",
 		"resurrect_func" : "resurrect_clipinst",
 		"upd_func" : "upd_clipinst",
+		"free_func" : "",
 	},
 	{
 		"type" : "Module",

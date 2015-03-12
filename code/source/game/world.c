@@ -42,8 +42,10 @@ void resurrect_node_impl(World *w, NodeInfo *n, void *dead_impl_bytes)
 		st->allocated[h]= true;
 
 		// In-place resurrection
-		U32 ret= n->type->resurrect(e);
-		ensure(ret == NULL_HANDLE);
+		if (n->type->resurrect) {
+			U32 ret= n->type->resurrect(e);
+			ensure(ret == NULL_HANDLE);
+		}
 		n->impl_handle= h;
 	} else {
 		// Manual memory management

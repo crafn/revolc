@@ -2,15 +2,11 @@
 #include "core/debug_print.h"
 #include "core/vector.h"
 
+// Character
 typedef struct TestNode {
+	V2d in_dir;
 	V3d pos;
 } TestNode;
-
-// In-place
-MOD_API U32 resurrect_testnode(TestNode *dead)
-{
-	return NULL_HANDLE;
-}
 
 MOD_API void upd_testnode(TestNode *t, TestNode *e)
 {
