@@ -28,10 +28,10 @@ void * storage_aitest()
 { return temptest_aitest_storage; }
 
 void upd_aitest(	AiTest *t,
-					U32 count)
+					AiTest *e)
 {
 	V2d target= {0.0, 30.0};
-	for (U32 i= 0; i < count; ++i, ++t) {
+	for (;t != e; ++t) {
 		V2d p= {t->input_pos.x, t->input_pos.y};
 		V2d dif= sub_v2d(target, p);
 		F64 r2= length_sqr_v2d(dif);

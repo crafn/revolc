@@ -10,8 +10,8 @@ typedef void (*InitNodeImpl)(void *data);
 typedef U32 (*ResurrectNodeImpl)(void *dead);
 typedef void (*FreeNodeImpl)(U32 handle);
 typedef void * (*StorageNodeImpl)();
-typedef void (*UpdNodeImpl)(void *,
-							U32 count);
+typedef void (*UpdNodeImpl)(void *begin,
+							void *end);
 
 typedef struct NodeType {
 	Resource res;

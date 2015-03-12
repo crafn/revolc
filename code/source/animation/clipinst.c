@@ -16,13 +16,13 @@ U32 resurrect_clipinst(ClipInst *dead)
 	return NULL_HANDLE;
 }
 
-void upd_clipinst(ClipInst *inst, U32 count)
+void upd_clipinst(ClipInst *inst, ClipInst *e)
 {
 	F32 dt= g_env.world->dt;
 
 	// -1's are in the calculations because last frame
 	// is only for interpolation target.
-	for (U32 inst_i= 0; inst_i < count; ++inst_i, ++inst) {
+	for (; inst != e; ++inst) {
 		const Clip *c= inst->clip;
 
 		inst->t += dt;

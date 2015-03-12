@@ -18,6 +18,7 @@ void init_module(Module *mod)
 		++tmp_ext_i;
 		if (tmp_ext_i > sizeof(tmp_exts)/sizeof(*tmp_exts))
 			fail("Too many temp files present (%s)", mod->tmp_file);
+		delete_file(mod->tmp_file);
 	} while (file_exists(mod->tmp_file));
 	copy_file(mod->tmp_file, mod->file);
 

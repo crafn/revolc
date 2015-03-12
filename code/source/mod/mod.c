@@ -12,9 +12,9 @@ MOD_API U32 resurrect_testnode(TestNode *dead)
 	return NULL_HANDLE;
 }
 
-MOD_API void upd_testnode(TestNode *t, U32 count)
+MOD_API void upd_testnode(TestNode *t, TestNode *e)
 {
-	for (U32 i= 0; i < count; ++i, ++t) {
-		t->pos= (V3d) {-3.0, 15.0, 0.0};
+	for (; t != e; ++t) {
+		t->pos= (V3d) {-3.0, 10.0, 0.0};
 	}
 }

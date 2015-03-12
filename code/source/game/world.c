@@ -195,9 +195,10 @@ void upd_world(World *w, F64 dt)
 		const U32 batch_size= node_i - batch_begin_i;
 		updated_count += batch_size; 
 		if (batch_begin_type->upd) {
+			U8 *begin= node_impl(w, NULL, &w->sort_space[batch_begin_i]);
 			batch_begin_type->upd(
-					node_impl(w, NULL, &w->sort_space[batch_begin_i]),
-					batch_size);
+					begin,
+					begin + batch_size*batch_begin_type->size);
 		}
 		++batch_count;
 
