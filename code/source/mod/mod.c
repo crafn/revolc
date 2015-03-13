@@ -12,11 +12,13 @@ typedef struct PlayerChar {
 
 	// Cached
 	RigidBody *body;
+	Constraint *motor;
 } PlayerChar;
 
 MOD_API U32 resurrect_playerchar(PlayerChar *data)
 {
 	data->body= NULL;
+	data->motor= NULL;
 	return NULL_HANDLE;
 }
 
@@ -41,7 +43,11 @@ MOD_API void upd_playerchar(PlayerChar *t, PlayerChar *e)
 		if (!t->body)
 			continue;
 
-		apply_torque(t->body, -dir*60);
+		if (!t->motor)
+			t->motor= add_simplemotor(t->body);
+
+		set_simplemotor_rate(t->motor, -dir*20);
+
 		t->pos= t->body->tf.pos;
 	}
 }

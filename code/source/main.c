@@ -167,7 +167,7 @@ int main(int argc, const char **argv)
 				cpVect p= {cursor_on_world.x, cursor_on_world.y};
 				cpShape *shape=
 					cpSpacePointQueryNearest(
-							g_env.physworld->space,
+							g_env.physworld->cp_space,
 							p, 0.1,
 							CP_SHAPE_FILTER_ALL, NULL);
 

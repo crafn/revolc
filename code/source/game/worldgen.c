@@ -176,7 +176,7 @@ void generate_world(World *w, U64 seed)
 		};
 		if (pos.y < ground_surf_y(pos.x))
 			continue;
-		spawn_phys_prop(w, pos, "wbarrel", false);
+		//spawn_phys_prop(w, pos, "wbarrel", false);
 		spawn_phys_prop(w, pos, "rollbot", false);
 		spawn_phys_prop(w, pos, "wbox", false);
 	}

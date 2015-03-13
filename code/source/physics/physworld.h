@@ -25,7 +25,7 @@ typedef struct PhysWorld {
 
 	GridCell grid[GRID_CELL_COUNT];
 
-	cpSpace *space;
+	cpSpace *cp_space;
 } PhysWorld;
 
 /// @note Sets g_env.physworld

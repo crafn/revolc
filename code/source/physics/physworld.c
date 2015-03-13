@@ -225,9 +225,9 @@ void create_physworld()
 	ensure(!g_env.physworld);
 	g_env.physworld= w;
 
-	w->space= cpSpaceNew();
-	cpSpaceSetIterations(w->space, 10);
-	cpSpaceSetGravity(w->space, cpv(0, -20));
+	w->cp_space= cpSpaceNew();
+	cpSpaceSetIterations(w->cp_space, 10);
+	cpSpaceSetGravity(w->cp_space, cpv(0, -20));
 }
 
 void destroy_physworld()
@@ -235,7 +235,7 @@ void destroy_physworld()
 	PhysWorld *w= g_env.physworld;
 	ensure(w);
 	g_env.physworld= NULL;
-	cpSpaceFree(w->space);
+	cpSpaceFree(w->cp_space);
 
 	free(w);
 }
@@ -295,7 +295,7 @@ void set_rigidbody(U32 h, RigidBodyDef *def)
 		b->cp_body= cpBodyNew(total_mass, total_moment);
 	else
 		b->cp_body= cpBodyNewStatic();
-	cpSpaceAddBody(w->space, b->cp_body);
+	cpSpaceAddBody(w->cp_space, b->cp_body);
 	cpBodySetPosition(b->cp_body, to_cpv((V2d) {b->tf.pos.x, b->tf.pos.y}));
 
 	U32 circle_count= def->circle_count;
@@ -320,7 +320,7 @@ void set_rigidbody(U32 h, RigidBodyDef *def)
 		for (U32 i= 0; i < circle_count; ++i) {
 			b->cp_shapes[b->cp_shape_count++]=
 				cpSpaceAddShape(
-						w->space,
+						w->cp_space,
 						cpCircleShapeNew(	b->cp_body,
 											circles[i].rad,
 											to_cpv(circles[i].pos)));
@@ -338,7 +338,7 @@ void set_rigidbody(U32 h, RigidBodyDef *def)
 			total_moment +=
 				cpMomentForPoly(mass, poly->v_count, cp_verts, cpvzero, 0.0);
 			b->cp_shapes[b->cp_shape_count++]=
-				cpSpaceAddShape(w->space,
+				cpSpaceAddShape(w->cp_space,
 						cpPolyShapeNew(	b->cp_body,
 										poly->v_count,
 										cp_verts,
@@ -348,8 +348,8 @@ void set_rigidbody(U32 h, RigidBodyDef *def)
 
 		for (U32 i= 0; i < b->cp_shape_count; ++i) {
 			cpShape *shape= b->cp_shapes[i];
-			cpShapeSetFriction(shape, 1.5);
-			cpShapeSetElasticity(shape, 0.7);
+			cpShapeSetFriction(shape, 2.5);
+			cpShapeSetElasticity(shape, 0.5);
 		}
 	}
 }
@@ -374,6 +374,10 @@ U32 resurrect_rigidbody(const RigidBody *dead)
 	return h;
 }
 
+internal
+void cp_remove_constraint(cpBody *b, cpConstraint *c, void *data)
+{ remove_constraint(c); }
+
 void free_rigidbody(U32 h)
 {
 	PhysWorld *w= g_env.physworld;
@@ -389,10 +393,13 @@ void free_rigidbody(U32 h)
 	}
 
 	for (U32 i= 0; i < b->cp_shape_count; ++i) {
-		cpSpaceRemoveShape(w->space, b->cp_shapes[i]);
+		cpSpaceRemoveShape(w->cp_space, b->cp_shapes[i]);
 		cpShapeFree(b->cp_shapes[i]);
 	}
-	cpSpaceRemoveBody(w->space, b->cp_body);
+
+	cpBodyEachConstraint(b->cp_body, cp_remove_constraint, NULL);
+
+	cpSpaceRemoveBody(w->cp_space, b->cp_body);
 	cpBodyFree(b->cp_body);
 
 	*b= (RigidBody) { .allocated= false };
@@ -466,8 +473,8 @@ void upd_physworld(F64 dt)
 	}
 	/// @todo Accumulation
 	/// @todo Reset torques etc. only after all timesteps are done
-	cpSpaceStep(w->space, dt*0.5);
-	cpSpaceStep(w->space, dt*0.5);
+	cpSpaceStep(w->cp_space, dt*0.5);
+	cpSpaceStep(w->cp_space, dt*0.5);
 
 	for (U32 i= 0; i < MAX_RIGIDBODY_COUNT; ++i) {
 		RigidBody *b= &w->bodies[i];
@@ -491,7 +498,7 @@ void upd_physworld(F64 dt)
 			.drawPolygon= phys_draw_poly,
 			.flags= CP_SPACE_DEBUG_DRAW_SHAPES,
 		};
-		cpSpaceDebugDraw(w->space, &options);
+		cpSpaceDebugDraw(w->cp_space, &options);
 
 		Texel *grid= g_env.renderer->grid_ddraw_data;
 		for (U32 i= 0; i < GRID_CELL_COUNT; ++i) {
@@ -515,7 +522,7 @@ void post_upd_physworld()
 		if (b->tf_changed || !b->is_in_grid) {
 			if (cpBodyGetType(b->cp_body) == CP_BODY_TYPE_STATIC) {
 				// Notify physics about static body repositioning
-				cpSpaceReindexShapesForBody(w->space, b->cp_body);
+				cpSpaceReindexShapesForBody(w->cp_space, b->cp_body);
 			}
 
 			if (b->is_in_grid) {
