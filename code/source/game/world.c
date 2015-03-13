@@ -595,6 +595,9 @@ void world_on_res_reload(ResBlob *old)
 
 	// Reinitialize every auto storage node so that cached pointers are updated
 	// It's probably simplest just to free and resurrect them
+	/// @todo No! Single nodes can make assumptions about other nodes in
+	///       the group, and then resurrecting messes everything up.
+	///       Maybe there should be an optional "on_recompile" func.
 	for (U32 i= 0; i < MAX_NODE_COUNT; ++i) {
 		NodeInfo *node= &w->nodes[i];
 		if (!node->allocated)

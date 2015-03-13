@@ -6,10 +6,9 @@
 
 #include <chipmunk/chipmunk.h>
 
-/*static
+static
 V2d from_cpv(cpVect v)
 { return (V2d) {v.x, v.y}; }
-*/
 
 static
 cpVect to_cpv(V2d v)

@@ -38,9 +38,13 @@ typedef struct RigidBody {
 #define Constraint cpConstraint
 
 REVOLC_API void apply_torque(RigidBody *b, F64 torque);
+REVOLC_API void apply_impulse_local(RigidBody *b, V2d i, V2d p);
+REVOLC_API void apply_impulse_world(RigidBody *b, V2d i, V2d p);
 
 REVOLC_API Constraint * add_simplemotor(RigidBody *b);
 REVOLC_API void set_simplemotor_rate(Constraint *c, F64 rate);
+
+REVOLC_API void set_constraint_max_force(Constraint *c, F64 force);
 
 // Constraints are removed along bodies
 REVOLC_API void remove_constraint(Constraint *c);

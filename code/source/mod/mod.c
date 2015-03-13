@@ -38,15 +38,23 @@ MOD_API void upd_playerchar(PlayerChar *p, PlayerChar *e)
 		dir -= 1;
 	if (g_env.device->key_down['b'])
 		dir += 1;
+	bool jump= g_env.device->key_pressed['v'];
 
 	for (; p != e; ++p) {
 		if (!p->body)
 			continue;
 
-		if (!p->motor)
+		if (!p->motor) {
 			p->motor= add_simplemotor(p->body);
-
+			set_constraint_max_force(p->motor, 100.0);
+		}
 		set_simplemotor_rate(p->motor, -dir*20);
+
+		if (jump) {
+			apply_impulse_world(	p->body,
+									(V2d) {0, 15},
+									(V2d) {p->body->tf.pos.x, p->body->tf.pos.y});
+		}
 
 		p->pos= p->body->tf.pos;
 	}

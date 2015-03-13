@@ -227,7 +227,7 @@ void create_physworld()
 
 	w->cp_space= cpSpaceNew();
 	cpSpaceSetIterations(w->cp_space, 10);
-	cpSpaceSetGravity(w->cp_space, cpv(0, -20));
+	cpSpaceSetGravity(w->cp_space, cpv(0, -25));
 }
 
 void destroy_physworld()
@@ -275,21 +275,21 @@ void set_rigidbody(U32 h, RigidBodyDef *def)
 	F64 total_moment= 0;
 	{
 		for (U32 i= 0; i < def->circle_count; ++i) {
-			F32 mass= 1.0; /// @todo Mass from density	
+			const Circle *circle= &def->circles[i];
+			F32 mass= mat->density*cpAreaForCircle(0.0, circle->rad);
 			total_mass += mass;
 			total_moment +=
-				cpMomentForCircle(mass, 0,
-					def->circles[i].rad, to_cpv(def->circles[i].pos));
+				cpMomentForCircle(mass, 0, circle->rad, to_cpv(circle->pos));
 		}
 
 		for (U32 i= 0; i < def->poly_count; ++i) {
 			Poly *poly= &def->polys[i];
-			F32 mass= 1.0;
 
 			cpVect cp_verts[poly->v_count];
 			for (U32 v_i= 0; v_i < poly->v_count; ++v_i)
 				cp_verts[v_i]= to_cpv(poly->v[v_i]);
 
+			F32 mass= mat->density*cpAreaForPoly(poly->v_count, cp_verts, 0.0);
 			total_mass += mass;
 			total_moment +=
 				cpMomentForPoly(mass, poly->v_count, cp_verts, cpvzero, 0.0);
