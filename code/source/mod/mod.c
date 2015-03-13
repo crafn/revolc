@@ -31,7 +31,7 @@ MOD_API void supply_playerchar(	PlayerChar *p, PlayerChar *p_end,
 		p->body= b;
 }
 
-MOD_API void upd_playerchar(PlayerChar *t, PlayerChar *e)
+MOD_API void upd_playerchar(PlayerChar *p, PlayerChar *e)
 {
 	int dir= 0;
 	if (g_env.device->key_down['c'])
@@ -39,15 +39,20 @@ MOD_API void upd_playerchar(PlayerChar *t, PlayerChar *e)
 	if (g_env.device->key_down['b'])
 		dir += 1;
 
-	for (; t != e; ++t) {
-		if (!t->body)
+	for (; p != e; ++p) {
+		if (!p->body)
 			continue;
 
-		if (!t->motor)
-			t->motor= add_simplemotor(t->body);
+		if (!p->motor)
+			p->motor= add_simplemotor(p->body);
 
-		set_simplemotor_rate(t->motor, -dir*20);
+		set_simplemotor_rate(p->motor, -dir*20);
 
-		t->pos= t->body->tf.pos;
+		p->pos= p->body->tf.pos;
 	}
+}
+
+MOD_API void free_playerchar(PlayerChar *p)
+{
+	// No need to free p->motor -- destroyed along body
 }

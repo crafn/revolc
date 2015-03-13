@@ -1,35 +1,6 @@
 #include "rtti.h"
 #include "platform/dll.h"
 
-void * rtti_relocate_sym(void *possibly_invalidated_ptr)
-{
-	const SymbolTable *tbl= g_env.used_rtti_symbols;
-	for (U32 i= 0; i < tbl->symbol_count; ++i) {
-		const Symbol *sym= &tbl->symbols[i];
-		if (sym->old_addr == possibly_invalidated_ptr) {
-			debug_print("Relocated: %s", sym->name);
-			return sym->addr;
-		}
-	}
-
-	fail("rtti_relocate_sym: Symbol not found: %p", possibly_invalidated_ptr);
-}
-
-void rtti_requery_syms()
-{
-	SymbolTable *tbl= g_env.used_rtti_symbols;
-	for (U32 i= 0; i < tbl->symbol_count; ++i) {
-		Symbol *sym= &tbl->symbols[i];
-
-		sym->old_addr= sym->addr;
-		const Module *mod= (Module*)res_by_name(	g_env.resblob,
-													ResType_Module,
-													sym->module_name);
-		sym->addr= query_dll_sym(mod->dll, sym->name);
-		ensure(sym->addr);
-	}
-}
-
 void * query_sym_concat(const char* a, const char *b)
 {
 	ensure(g_env.resblob && "Can't use RTTI before resources are loaded");
@@ -37,6 +8,7 @@ void * query_sym_concat(const char* a, const char *b)
 	snprintf(name, sizeof(name), "%s%s", a, b);
 
 	// Check first if symbol is already in use
+	/// @todo O(1) search
 	SymbolTable *tbl= g_env.used_rtti_symbols;
 	for (U32 i= 0; i < tbl->symbol_count; ++i) {
 		Symbol *sym= &tbl->symbols[i];
@@ -148,3 +120,45 @@ const char * rtti_member_type_name(const char *struct_name, const char *member_n
 				struct_name,
 				member_index_by_name(struct_name, member_name));
 }
+
+const char * rtti_sym_name(void *ptr)
+{
+	const SymbolTable *tbl= g_env.used_rtti_symbols;
+	/// @todo O(1) search
+	for (U32 i= 0; i < tbl->symbol_count; ++i) {
+		const Symbol *sym= &tbl->symbols[i];
+		if (sym->addr == ptr)
+			return sym->name;
+	}
+	fail("rtti_sym_name: Symbol not found: %p", ptr);
+}
+
+void * rtti_relocate_sym(void *possibly_invalidated_ptr)
+{
+	const SymbolTable *tbl= g_env.used_rtti_symbols;
+	/// @todo O(1) search
+	for (U32 i= 0; i < tbl->symbol_count; ++i) {
+		const Symbol *sym= &tbl->symbols[i];
+		if (sym->old_addr == possibly_invalidated_ptr) {
+			return sym->addr;
+		}
+	}
+
+	fail("rtti_relocate_sym: Symbol not found: %p", possibly_invalidated_ptr);
+}
+
+void rtti_requery_syms()
+{
+	SymbolTable *tbl= g_env.used_rtti_symbols;
+	for (U32 i= 0; i < tbl->symbol_count; ++i) {
+		Symbol *sym= &tbl->symbols[i];
+
+		sym->old_addr= sym->addr;
+		const Module *mod= (Module*)res_by_name(	g_env.resblob,
+													ResType_Module,
+													sym->module_name);
+		sym->addr= query_dll_sym(mod->dll, sym->name);
+		ensure(sym->addr);
+	}
+}
+

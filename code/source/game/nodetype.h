@@ -8,7 +8,7 @@ struct World;
 struct Module;
 typedef void (*InitNodeImpl)(void *data);
 typedef U32 (*ResurrectNodeImpl)(void *dead);
-typedef void (*FreeNodeImpl)(U32 handle);
+typedef void (*FreeNodeImpl)(void *data);
 typedef void * (*StorageNodeImpl)();
 typedef void (*UpdNodeImpl)(void *begin,
 							void *end);

@@ -3,8 +3,28 @@
 
 #include "build.h"
 
-/// @warning These can be slow as they search the symbol table!
 // Lookup is done from all loaded Modules
+// These are currently quite slow, but that can be easily fixed
+
+REVOLC_API
+U32 rtti_struct_size(const char *struct_name);
+
+REVOLC_API
+void * rtti_func_ptr(const char *func_name);
+
+REVOLC_API
+U32 rtti_member_size(const char *struct_name, const char *member_name);
+
+REVOLC_API
+U32 rtti_member_offset(const char *struct_name, const char *member_name);
+
+REVOLC_API
+const char * rtti_member_type_name(const char *struct_name, const char *member_name);
+
+// e.g. rtti_sym_name(rtti_func_ptr("foo")) == "foo"
+REVOLC_API
+const char * rtti_sym_name(void *ptr);
+
 
 // Give a valid pointer corresponding to a pointer invalidated by dll reload
 // This is prohibited: rtti_relocate(rtti_relocate(ptr)), as symbols can
@@ -30,20 +50,5 @@ void * rtti_relocate_sym(void *possibly_invalidated_ptr);
 //   sym= rtti_relocate_sym(sym); // Probably fails
 REVOLC_API
 void rtti_requery_syms();
-
-REVOLC_API
-U32 rtti_struct_size(const char *struct_name);
-
-REVOLC_API
-void * rtti_func_ptr(const char *func_name);
-
-REVOLC_API
-U32 rtti_member_size(const char *struct_name, const char *member_name);
-
-REVOLC_API
-U32 rtti_member_offset(const char *struct_name, const char *member_name);
-
-REVOLC_API
-const char * rtti_member_type_name(const char *struct_name, const char *member_name);
 
 #endif // REVOLC_GLOBAL_RTTI_H

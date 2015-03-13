@@ -286,6 +286,15 @@ typedef struct SaveHeader {
 	U32 node_count;
 } PACKED SaveHeader;
 
+typedef struct SaveCmd {
+	char func_name[MAX_FUNC_NAME_SIZE];
+} PACKED SaveCmd;
+typedef struct SaveNode {
+	NodeInfo info;
+	SaveCmd cmds[MAX_NODE_CMD_COUNT];
+	U32 cmd_count;
+} PACKED SaveNode;
+
 void load_world(World *w, const char *path)
 {
 	debug_print("load_world: %s", path);
@@ -308,13 +317,13 @@ void load_world(World *w, const char *path)
 		fail("load_world: Read error");
 
 	U32 node_count= 0;
-	for (U32 i= 0; i < header.node_count;
-			++i, w->next_node= (w->next_node + 1) % MAX_NODE_COUNT) {
-		ensure(w->next_node == i);
+	for (U32 node_i= 0; node_i < header.node_count;
+			++node_i, w->next_node= (w->next_node + 1) % MAX_NODE_COUNT) {
+		ensure(w->next_node == node_i);
 		// New NodeInfo from binary
-		NodeInfo dead_node;
+		SaveNode dead_node;
 		fread(&dead_node, 1, sizeof(dead_node), file);
-		if (!dead_node.allocated)
+		if (!dead_node.info.allocated)
 			continue;
 
 		U32 node_h= alloc_node_without_impl(
@@ -322,16 +331,24 @@ void load_world(World *w, const char *path)
 				(NodeType*)res_by_name(
 					g_env.resblob,
 					ResType_NodeType,
-					dead_node.type_name),
-				dead_node.group_id);
-		ensure(node_h == i); // Must retain handles because of cmds
+					dead_node.info.type_name),
+				dead_node.info.group_id);
+		ensure(node_h == node_i); // Must retain handles because of cmds
 		++node_count;
 
 		NodeInfo *n= &w->nodes[node_h];
-		memcpy(n->type_name, dead_node.type_name, sizeof(n->type_name));
-		memcpy(n->cmds, dead_node.cmds, sizeof(n->cmds));
-		n->cmd_count= dead_node.cmd_count;
-		n->group_id= dead_node.group_id;
+		memcpy(n->type_name, dead_node.info.type_name, sizeof(n->type_name));
+		memcpy(n->cmds, dead_node.info.cmds, sizeof(n->cmds));
+		n->cmd_count= dead_node.info.cmd_count;
+		n->group_id= dead_node.info.group_id;
+
+		// Set func pointers
+		for (U32 i= 0; i < n->cmd_count; ++i) {
+			if (n->cmds[i].type == CmdType_call) {
+				n->cmds[i].fptr=
+					rtti_func_ptr(dead_node.cmds[i].func_name);
+			}
+		}
 
 		// New Node implementation from binary
 		U8 dead_impl_bytes[n->type->size]; /// @todo Alignment!!!
@@ -356,11 +373,25 @@ void save_world(World *w, const char *path)
 	};
 
 	fwrite(&header, 1, sizeof(header), file);
-	for (U32 i= 0; i < MAX_NODE_COUNT; ++i) {
-		NodeInfo *node= &w->nodes[i];
+	for (U32 node_i= 0; node_i < MAX_NODE_COUNT; ++node_i) {
+		NodeInfo *node= &w->nodes[node_i];
+		SaveNode savenode= {.info= *node};
+
+		// Must use names of func ptrs
+		if (node->allocated) {
+			for (U32 i= 0; i < node->cmd_count; ++i) {
+				SlotCmd *cmd= &node->cmds[i];
+				if (cmd->type != CmdType_call)
+					continue;
+				snprintf(savenode.cmds[i].func_name,
+						sizeof(savenode.cmds[i].func_name),
+						"%s", rtti_sym_name(cmd->fptr));
+			}
+		}
+
 		// Save all, even non-allocated nodes
 		// Easy way to keep cmd handles valid
-		fwrite(node, 1, sizeof(*node), file);
+		fwrite(&savenode, 1, sizeof(savenode), file);
 		if (!node->allocated)
 			continue;
 
@@ -492,12 +523,15 @@ void free_node(World *w, U32 handle)
 
 	U32 impl_handle= n->impl_handle;
 	if (n->type->auto_impl_mgmt) {
+		if (n->type->free)
+			n->type->free(node_impl(w, NULL, n));
+
 		ensure(n->type->auto_storage_handle < w->auto_storage_count);
 		AutoNodeImplStorage *st= &w->auto_storages[n->type->auto_storage_handle];
 		ensure(impl_handle < st->max_count);
 		st->allocated[impl_handle]= false;
 	} else {
-		n->type->free(impl_handle);
+		n->type->free(node_impl(w, NULL, n));
 	}
 
 	--w->node_count;
@@ -574,9 +608,9 @@ void world_on_res_reload(ResBlob *old)
 				cmd->fptr= rtti_relocate_sym(cmd->fptr);
 		}
 
-		if (node->type->free)
-			fail("@todo Call free_func (not yet done thinking about this)");
-
+		if (node->type->free) {
+			node->type->free(node_impl(w, NULL, node));
+		}
 		if (node->type->resurrect) {
 			U32 ret= node->type->resurrect(node_impl(w, NULL, node));
 			ensure(ret == NULL_HANDLE);

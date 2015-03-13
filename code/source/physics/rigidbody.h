@@ -40,6 +40,7 @@ REVOLC_API void apply_torque(RigidBody *b, F64 torque);
 REVOLC_API Constraint * add_simplemotor(RigidBody *b);
 REVOLC_API void set_simplemotor_rate(Constraint *c, F64 rate);
 
+// Constraints are removed along bodies
 REVOLC_API void remove_constraint(Constraint *c);
 
 #endif // REVOLC_PHYSICS_RIGIDBODY_H

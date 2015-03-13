@@ -378,13 +378,13 @@ internal
 void cp_remove_constraint(cpBody *b, cpConstraint *c, void *data)
 { remove_constraint(c); }
 
-void free_rigidbody(U32 h)
+void free_rigidbody(RigidBody *b)
 {
 	PhysWorld *w= g_env.physworld;
 
+	const U32 h= b - w->bodies;
 	ensure(h < MAX_RIGIDBODY_COUNT);
 
-	RigidBody *b= &w->bodies[h];
 	if (b->is_in_grid) {
 		modify_grid_with_shapes(-1,
 				b->polys, b->poly_count,

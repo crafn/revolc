@@ -52,10 +52,10 @@ void destroy_subentity(SubEntity e)
 {
 	switch (e.type) {
 		case VEntityType_model:
-			free_modelentity(e.handle);
+			free_modelentity(&g_env.renderer->m_entities[e.handle]);
 		break;
 		case VEntityType_comp:
-			free_compentity(e.handle);
+			free_compentity(&g_env.renderer->c_entities[e.handle]);
 		break;
 		default: fail("Unhandled VEntityType: %i", e.type);
 	}

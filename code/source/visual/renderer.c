@@ -246,12 +246,12 @@ U32 resurrect_modelentity(const ModelEntity *dead)
 	return h;
 }
 
-void free_modelentity(U32 h)
+void free_modelentity(ModelEntity *e)
 {
 	Renderer *r= g_env.renderer;
 
+	const U32 h= e - r->m_entities;
 	ensure(h < MAX_MODELENTITY_COUNT);
-	ModelEntity *e= &r->m_entities[h];
 	if (e->has_own_mesh) {
 		free(e->vertices);
 		free(e->indices);
@@ -304,12 +304,12 @@ U32 resurrect_compentity(const CompEntity *dead)
 	return h;
 }
 
-void free_compentity(U32 h)
+void free_compentity(CompEntity *e)
 {
 	Renderer *r= g_env.renderer;
 
+	const U32 h= e - r->c_entities;
 	ensure(h < MAX_COMPENTITY_COUNT);
-	CompEntity *e= &r->c_entities[h];
 	for (U32 i= 0; i < e->sub_count; ++i)
 		destroy_subentity(e->subs[i]);
 	*e= (CompEntity) { .allocated= false };
