@@ -1,9 +1,50 @@
 #include "rtti.h"
 #include "platform/dll.h"
 
+void * rtti_relocate_sym(void *possibly_invalidated_ptr)
+{
+	const SymbolTable *tbl= g_env.used_rtti_symbols;
+	for (U32 i= 0; i < tbl->symbol_count; ++i) {
+		const Symbol *sym= &tbl->symbols[i];
+		if (sym->old_addr == possibly_invalidated_ptr) {
+			debug_print("Relocated: %s", sym->name);
+			return sym->addr;
+		}
+	}
+
+	fail("rtti_relocate_sym: Symbol not found: %p", possibly_invalidated_ptr);
+}
+
+void rtti_requery_syms()
+{
+	SymbolTable *tbl= g_env.used_rtti_symbols;
+	for (U32 i= 0; i < tbl->symbol_count; ++i) {
+		Symbol *sym= &tbl->symbols[i];
+
+		sym->old_addr= sym->addr;
+		const Module *mod= (Module*)res_by_name(	g_env.resblob,
+													ResType_Module,
+													sym->module_name);
+		sym->addr= query_dll_sym(mod->dll, sym->name);
+		ensure(sym->addr);
+	}
+}
+
 void * query_sym_concat(const char* a, const char *b)
 {
 	ensure(g_env.resblob && "Can't use RTTI before resources are loaded");
+	char name[strlen(a) + strlen(b) + 1];
+	snprintf(name, sizeof(name), "%s%s", a, b);
+
+	// Check first if symbol is already in use
+	SymbolTable *tbl= g_env.used_rtti_symbols;
+	for (U32 i= 0; i < tbl->symbol_count; ++i) {
+		Symbol *sym= &tbl->symbols[i];
+		if (!strcmp(name, sym->name)) {
+			ensure(sym->addr);
+			return sym->addr;
+		}
+	}
 
 	U32 mod_start_i;
 	U32 mod_count;
@@ -13,11 +54,20 @@ void * query_sym_concat(const char* a, const char *b)
 	for (U32 i= mod_start_i; i < mod_start_i + mod_count; ++i) {
 		const Module *mod= (Module*)res_by_index(g_env.resblob, i);
 		DllHandle h= mod->dll;
-		char name[strlen(a) + strlen(b) + 1];
-		snprintf(name, sizeof(name), "%s%s", a, b);
-		void *sym= query_dll_sym(h, name);
-		if (sym)
-			return sym;
+		void *addr= query_dll_sym(h, name);
+		if (addr) {
+			// Add symbol to table
+			ensure(tbl->symbol_count < MAX_SYM_COUNT);
+			Symbol sym= {};
+			snprintf(	sym.module_name, sizeof(sym.module_name), "%s",
+						mod->res.name);
+			snprintf(	sym.name, sizeof(sym.name), "%s",
+						name);
+			sym.addr= addr;
+			tbl->symbols[tbl->symbol_count++]= sym;
+
+			return addr;
+		}
 	}
 	return NULL;
 }

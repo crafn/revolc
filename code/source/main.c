@@ -60,7 +60,7 @@ int main(int argc, const char **argv)
 {
 	ensure(sizeof(bool) == 1 && "Codegen relies on this");
 
-	init_frame_alloc(FRAME_MEM_SIZE);
+	init_env();
 
 	Device *d= plat_init("Revolc engine", 800, 600);
 
@@ -203,9 +203,9 @@ int main(int argc, const char **argv)
 	unload_blob(g_env.resblob);
 	g_env.resblob= NULL;
 
-	free(g_env.frame_mem_begin);
-
 	plat_quit(d);
+
+	deinit_env();
 
 	return 0;
 }

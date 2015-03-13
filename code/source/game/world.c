@@ -238,24 +238,35 @@ void upd_world(World *w, F64 dt)
 				case CmdType_call: {
 					// This is ugly. Call function pointer with corresponding node parameters
 					/// @todo Generate this
+					void *dst_impl= node_impl(w, NULL, dst_node);
 					switch (r->p_node_count) {
 					case 0:
-						((void (*)(void *, U32))r->fptr)(
-							node_impl(w, NULL, dst_node), 1);
+						((void (*)(void *, void *))r->fptr)(
+							dst_impl, dst_impl + dst_node->type->size);
 					break;
-					case 1:
-						((void (*)(void *, U32, void *, U32))r->fptr)(
-							node_impl(w, NULL, dst_node), 1,
-							node_impl(w, NULL, &w->sort_space[r->p_nodes[0]]), 1
-							);
-					break;
-					case 2:
-						((void (*)(void *, U32, void *, U32, void *, U32))r->fptr)(
-							node_impl(w, NULL, dst_node), 1,
-							node_impl(w, NULL, &w->sort_space[r->p_nodes[0]]), 1,
-							node_impl(w, NULL, &w->sort_space[r->p_nodes[1]]), 1
-							);
-					break;
+					case 1: {
+						void * p1_impl=
+							node_impl(w, NULL, &w->sort_space[r->p_nodes[0]]);
+						U32 p1_size= w->sort_space[r->p_nodes[0]].type->size;
+						((void (*)(void *, void *,
+								   void *, void *))r->fptr)(
+							dst_impl, dst_impl + dst_node->type->size,
+							p1_impl, p1_impl + p1_size);
+					} break;
+					case 2: {
+						void * p1_impl=
+							node_impl(w, NULL, &w->sort_space[r->p_nodes[0]]);
+						U32 p1_size= w->sort_space[r->p_nodes[0]].type->size;
+						void * p2_impl=
+							node_impl(w, NULL, &w->sort_space[r->p_nodes[1]]);
+						U32 p2_size= w->sort_space[r->p_nodes[1]].type->size;
+						((void (*)(void *, void *,
+								   void *, void *,
+								   void *, void *))r->fptr)(
+							dst_impl, dst_impl + dst_node->type->size,
+							p1_impl, p1_impl + p1_size,
+							p2_impl, p2_impl + p2_size);
+					} break;
 					default: fail("Too many node params");
 					}
 				} break;
@@ -520,7 +531,9 @@ void world_on_res_reload(ResBlob *old)
 		if (!n->allocated)
 			continue;
 
-		n->type= (NodeType*)res_by_name(g_env.resblob, ResType_NodeType, n->type_name);
+		n->type= (NodeType*)res_by_name(	g_env.resblob,
+											ResType_NodeType,
+											n->type_name);
 	}
 
 
@@ -555,10 +568,18 @@ void world_on_res_reload(ResBlob *old)
 		if (!node->type->auto_impl_mgmt)
 			continue; // Manually managed have manual logic for res reload
 
+		for (U32 slot_i= 0; slot_i < node->cmd_count; ++slot_i) {
+			SlotCmd *cmd= &node->cmds[slot_i];
+			if (cmd->type == CmdType_call)
+				cmd->fptr= rtti_relocate_sym(cmd->fptr);
+		}
+
 		if (node->type->free)
 			fail("@todo Call free_func (not yet done thinking about this)");
 
-		U32 ret= node->type->resurrect(node_impl(w, NULL, node));
-		ensure(ret == NULL_HANDLE);
+		if (node->type->resurrect) {
+			U32 ret= node->type->resurrect(node_impl(w, NULL, node));
+			ensure(ret == NULL_HANDLE);
+		}
 	}
 }

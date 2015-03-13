@@ -4,7 +4,7 @@ common_flags="-std=gnu99 -Wall -O0 -march=native -mtune=native -ffast-math -rdyn
  -Wno-unused-function -I ../deps/common -I ../deps/common/chipmunk/include
   -I ../deps/common/vorbis/include -I ../deps/common/ogg/include"
 
-./codegen ./source/mod/unity.c ./source/mod/gen_rtti.c rtti_only
+./codegen ./source/mod/unity.c ./source/mod/gen_rtti.c rtti_only > /dev/null 2>&1
 
 cd ./source
 

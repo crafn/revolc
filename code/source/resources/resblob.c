@@ -132,6 +132,11 @@ void load_blob(ResBlob **blob, const char *path)
 					continue;
 				init_res(res);
 			}
+			// Update symbol table after loading all dll's
+			// This allows calling rtti_relocate_sym once per invalidated symbol
+			if (t == ResType_Module) {
+				rtti_requery_syms();
+			}
 		}
 	}
 }

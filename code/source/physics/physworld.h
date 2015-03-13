@@ -2,37 +2,10 @@
 #define REVOLC_PHYSICS_PHYS_WORLD_H
 
 #include "build.h"
-#include "core/quaternion.h"
-#include "core/vector.h"
+#include "rigidbody.h"
 #include "rigidbodydef.h"
-#include "shapes.h"
 
 #include <chipmunk/chipmunk.h>
-
-typedef struct RigidBody {
-	/// @todo Mechanism for separating input variables
-	V2d input_force; // in
-	char def_name[RES_NAME_SIZE]; // in
-
-	T3d tf;
-	T3d prev_tf;
-	/// @todo Bit fields
-	bool allocated;
-	bool is_in_grid;
-	bool is_static;
-	bool shape_changed;
-	bool tf_changed;
-	bool has_own_shape; // Ignores shape of def_name
-
-	Poly polys[MAX_SHAPES_PER_BODY];
-	Circle circles[MAX_SHAPES_PER_BODY];
-	U8 poly_count;
-	U8 circle_count;
-
-	cpShape *cp_shapes[MAX_SHAPES_PER_BODY];
-	U8 cp_shape_count;
-	cpBody *cp_body;
-} RigidBody;
 
 #define GRID_INDEX(x, y) \
 		((((U32)((floor(x + 0.5))*GRID_RESO_PER_UNIT + GRID_WIDTH_IN_CELLS/2)) + \

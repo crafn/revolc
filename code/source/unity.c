@@ -21,6 +21,7 @@
 #include "global/rtti.c"
 #include "main.c"
 #include "physics/physworld.c"
+#include "physics/rigidbody.c"
 #include "physics/rigidbodydef.c"
 #include "platform/device.c"
 #include "platform/dll.c"

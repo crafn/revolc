@@ -8,7 +8,7 @@
 /// @todo ensure
 #define ensure assert
 
-REVOLC_API
+REVOLC_API NORETURN
 void fail(const char *format, ...);
 
 #endif // REVOLC_CORE_ENSURE_H

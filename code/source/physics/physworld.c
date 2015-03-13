@@ -268,25 +268,27 @@ void set_rigidbody(U32 h, RigidBodyDef *def)
 	/// @todo Mass & moment could be precalculated to ResBlob
 	F64 total_mass= 0;
 	F64 total_moment= 0;
-	for (U32 i= 0; i < def->circle_count; ++i) {
-		F32 mass= 1.0; /// @todo Mass from density	
-		total_mass += mass;
-		total_moment +=
-			cpMomentForCircle(mass, 0,
-				def->circles[i].rad, to_cpv(def->circles[i].pos));
-	}
+	{
+		for (U32 i= 0; i < def->circle_count; ++i) {
+			F32 mass= 1.0; /// @todo Mass from density	
+			total_mass += mass;
+			total_moment +=
+				cpMomentForCircle(mass, 0,
+					def->circles[i].rad, to_cpv(def->circles[i].pos));
+		}
 
-	for (U32 i= 0; i < def->poly_count; ++i) {
-		Poly *poly= &def->polys[i];
-		F32 mass= 1.0;
+		for (U32 i= 0; i < def->poly_count; ++i) {
+			Poly *poly= &def->polys[i];
+			F32 mass= 1.0;
 
-		cpVect cp_verts[poly->v_count];
-		for (U32 v_i= 0; v_i < poly->v_count; ++v_i)
-			cp_verts[v_i]= to_cpv(poly->v[v_i]);
+			cpVect cp_verts[poly->v_count];
+			for (U32 v_i= 0; v_i < poly->v_count; ++v_i)
+				cp_verts[v_i]= to_cpv(poly->v[v_i]);
 
-		total_mass += mass;
-		total_moment +=
-			cpMomentForPoly(mass, poly->v_count, cp_verts, cpvzero, 0.0);
+			total_mass += mass;
+			total_moment +=
+				cpMomentForPoly(mass, poly->v_count, cp_verts, cpvzero, 0.0);
+		}
 	}
 
 	if (!b->is_static)
@@ -314,39 +316,41 @@ void set_rigidbody(U32 h, RigidBodyDef *def)
 		memcpy(b->polys, polys, sizeof(*polys)*poly_count);
 	}
 
-	for (U32 i= 0; i < circle_count; ++i) {
-		b->cp_shapes[b->cp_shape_count++]=
-			cpSpaceAddShape(
-					w->space,
-					cpCircleShapeNew(	b->cp_body,
-										circles[i].rad,
-										to_cpv(circles[i].pos)));
-	}
+	{ // Create physics shapes
+		for (U32 i= 0; i < circle_count; ++i) {
+			b->cp_shapes[b->cp_shape_count++]=
+				cpSpaceAddShape(
+						w->space,
+						cpCircleShapeNew(	b->cp_body,
+											circles[i].rad,
+											to_cpv(circles[i].pos)));
+		}
 
-	for (U32 i= 0; i < poly_count; ++i) {
-		Poly *poly= &polys[i];
-		F32 mass= 1.0;
+		for (U32 i= 0; i < poly_count; ++i) {
+			Poly *poly= &polys[i];
+			F32 mass= 1.0;
 
-		cpVect cp_verts[poly->v_count];
-		for (U32 v_i= 0; v_i < poly->v_count; ++v_i)
-			cp_verts[v_i]= to_cpv(poly->v[v_i]);
+			cpVect cp_verts[poly->v_count];
+			for (U32 v_i= 0; v_i < poly->v_count; ++v_i)
+				cp_verts[v_i]= to_cpv(poly->v[v_i]);
 
-		total_mass += mass;
-		total_moment +=
-			cpMomentForPoly(mass, poly->v_count, cp_verts, cpvzero, 0.0);
-		b->cp_shapes[b->cp_shape_count++]=
-			cpSpaceAddShape(w->space,
-					cpPolyShapeNew(	b->cp_body,
-									poly->v_count,
-									cp_verts,
-									cpTransformIdentity,
-									0.0));
-	}
+			total_mass += mass;
+			total_moment +=
+				cpMomentForPoly(mass, poly->v_count, cp_verts, cpvzero, 0.0);
+			b->cp_shapes[b->cp_shape_count++]=
+				cpSpaceAddShape(w->space,
+						cpPolyShapeNew(	b->cp_body,
+										poly->v_count,
+										cp_verts,
+										cpTransformIdentity,
+										0.0));
+		}
 
-	for (U32 i= 0; i < b->cp_shape_count; ++i) {
-		cpShape *shape= b->cp_shapes[i];
-		cpShapeSetFriction(shape, 0.7);
-		cpShapeSetElasticity(shape, 0.7);
+		for (U32 i= 0; i < b->cp_shape_count; ++i) {
+			cpShape *shape= b->cp_shapes[i];
+			cpShapeSetFriction(shape, 1.5);
+			cpShapeSetElasticity(shape, 0.7);
+		}
 	}
 }
 
@@ -461,6 +465,7 @@ void upd_physworld(F64 dt)
 		}
 	}
 	/// @todo Accumulation
+	/// @todo Reset torques etc. only after all timesteps are done
 	cpSpaceStep(w->space, dt*0.5);
 	cpSpaceStep(w->space, dt*0.5);
 

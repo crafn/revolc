@@ -48,14 +48,14 @@ void rotate_modelentity(ModelEntity *e, U32 count)
 }
 
 
-void poly_to_modelentity(	ModelEntity *e, U32 e_count,
-							RigidBody *b, U32 b_count)
+void poly_to_modelentity(	ModelEntity *e, ModelEntity *e_end,
+							RigidBody *b, RigidBody *b_end)
 {
 	//debug_print("POLY_TO_MODELENTITY, %i", b->shape_changed);
-	ensure(e_count == b_count);
+	ensure(e_end - e == b_end - b);
 	ensure(b->poly_count == 1 && b->circle_count == 0 && "@todo");
 
-	for (U32 i= 0; i < e_count; ++i, ++e, ++b) {
+	for (; e != e_end; ++e, ++b) {
 		V2d *poly= b->polys[0].v;
 
 		U32 v_count= b->polys[0].v_count;

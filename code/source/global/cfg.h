@@ -37,4 +37,9 @@
 #define MAX_FUNC_NAME_SIZE 64
 #define MAX_PATH_SIZE 256
 
+#define RES_NAME_SIZE 16
+
+#define SYM_NAME_SIZE 256
+#define MAX_SYM_COUNT 1024*4
+
 #endif // REVOLC_GLOBAL_CFG_H

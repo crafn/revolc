@@ -24,7 +24,7 @@ REVOLC_API
 void rotate_modelentity(ModelEntity *e, U32 count);
 
 REVOLC_API
-void poly_to_modelentity(	ModelEntity *e, U32 e_count,
-							RigidBody *b, U32 b_count);
+void poly_to_modelentity(	ModelEntity *e, ModelEntity *e_end,
+							RigidBody *b, RigidBody *b_end);
 
 #endif // REVOLC_GAME_AITEST_H
