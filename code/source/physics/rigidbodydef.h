@@ -9,9 +9,10 @@
 typedef struct RigidBodyDef {
 	Resource res;
 
+	char mat_name[RES_NAME_SIZE];
+
 	Circle circles[MAX_SHAPES_PER_BODY];
 	U32 circle_count;
-
 	Poly polys[MAX_SHAPES_PER_BODY];
 	U32 poly_count;
 } PACKED RigidBodyDef;

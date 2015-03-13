@@ -4,6 +4,7 @@
 #include "build.h"
 #include "core/transform.h"
 #include "global/cfg.h"
+#include "physmat.h"
 #include "shapes.h"
 
 #include <chipmunk/chipmunk.h>
@@ -28,6 +29,7 @@ typedef struct RigidBody {
 	U8 poly_count;
 	U8 circle_count;
 
+	// Cached
 	cpShape *cp_shapes[MAX_SHAPES_PER_BODY];
 	cpBody *cp_body;
 	U8 cp_shape_count;

@@ -20,6 +20,7 @@
 #include "global/module.c"
 #include "global/rtti.c"
 #include "main.c"
+#include "physics/physmat.c"
 #include "physics/physworld.c"
 #include "physics/rigidbody.c"
 #include "physics/rigidbodydef.c"

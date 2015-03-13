@@ -265,6 +265,11 @@ void set_rigidbody(U32 h, RigidBodyDef *def)
 	strncpy(b->def_name, def->res.name, sizeof(b->def_name));
 	b->shape_changed= true;
 
+	const PhysMat *mat=
+		(PhysMat*)res_by_name(	g_env.resblob,
+								ResType_PhysMat,
+								def->mat_name);
+
 	/// @todo Mass & moment could be precalculated to ResBlob
 	F64 total_mass= 0;
 	F64 total_moment= 0;
@@ -348,8 +353,8 @@ void set_rigidbody(U32 h, RigidBodyDef *def)
 
 		for (U32 i= 0; i < b->cp_shape_count; ++i) {
 			cpShape *shape= b->cp_shapes[i];
-			cpShapeSetFriction(shape, 2.5);
-			cpShapeSetElasticity(shape, 0.5);
+			cpShapeSetFriction(shape, mat->friction);
+			cpShapeSetElasticity(shape, mat->restitution);
 		}
 	}
 }

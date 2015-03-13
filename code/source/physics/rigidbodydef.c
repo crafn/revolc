@@ -2,19 +2,25 @@
 
 int json_rigidbodydef_to_blob(struct BlobBuf *buf, JsonTok j)
 {
-	RigidBodyDef def= {};
-
+	JsonTok j_mat= json_value_by_key(j, "mat");
 	JsonTok j_shapes= json_value_by_key(j, "shapes");
 
+	if (json_is_null(j_mat))
+		RES_ATTRIB_MISSING("mat");
+
 	if (json_is_null(j_shapes)) {
-		critical_print("Attrib 'shapes' missing for RigidBodyDef");
-		return 1;
+		RES_ATTRIB_MISSING("shapes");
 	} else if (json_member_count(j_shapes) > MAX_SHAPES_PER_BODY) {
 		critical_print("Too many shapes in RigidBodyDef: %i > %i",
 				json_member_count(j_shapes),
 				MAX_SHAPES_PER_BODY);
-		return 1;
+		goto error;
 	}
+
+	RigidBodyDef def= {};
+	snprintf(def.mat_name, sizeof(def.mat_name), "%s",
+			json_str(j_mat));
+	/// @todo Take density into account
 
 	for (U32 i= 0; i < json_member_count(j_shapes); ++i) {
 		JsonTok j_shp= json_member(j_shapes, i);
@@ -59,4 +65,7 @@ int json_rigidbodydef_to_blob(struct BlobBuf *buf, JsonTok j)
 
 	blob_write(buf, (U8*)&def + sizeof(Resource), sizeof(def) - sizeof(Resource));
 	return 0;
+
+error:
+	return 1;
 }
