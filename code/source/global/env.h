@@ -4,6 +4,7 @@
 #include "build.h"
 
 struct AudioSystem;
+struct Editor;
 struct Device;
 struct PhysWorld;
 struct ResBlob;
@@ -14,6 +15,7 @@ struct SymbolTable;
 
 typedef struct Env {
 	struct AudioSystem *audiosystem;
+	struct Editor *editor;
 	struct Device *device;
 	struct PhysWorld *physworld;
 	struct Renderer *renderer;

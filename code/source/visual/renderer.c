@@ -487,8 +487,9 @@ void render_frame()
 
 			r->ddraw_v_count= 0;
 			r->ddraw_i_count= 0;
+		}
 
-			// Grid
+		if (r->draw_grid) {
 			U32 grid_id;
 			glGenTextures(1, &grid_id);
 			glBindTexture(GL_TEXTURE_2D, grid_id);
@@ -534,7 +535,6 @@ void render_frame()
 
 			glDeleteTextures(1, &grid_id);
 		}
-
 	}
 }
 

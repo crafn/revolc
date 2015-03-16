@@ -38,5 +38,6 @@ REVOLC_API void * storage_rigidbody();
 
 REVOLC_API void upd_physworld(F64 dt);
 REVOLC_API void post_upd_physworld();
+REVOLC_API void upd_phys_debugdraw();
 
 #endif // REVOLC_PHYSICS_PHYS_WORLD_H

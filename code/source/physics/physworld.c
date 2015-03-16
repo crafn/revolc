@@ -496,7 +496,12 @@ void upd_physworld(F64 dt)
 		b->tf_changed= !equals_v3d(b->prev_tf.pos, b->tf.pos) ||
 						!equals_qd(b->prev_tf.rot, b->tf.rot);
 	}
+}
 
+void upd_phys_debugdraw()
+{
+	PhysWorld *w= g_env.physworld;
+	g_env.renderer->draw_grid= w->debug_draw;
 	if (w->debug_draw) {
 		cpSpaceDebugDrawOptions options= {
 			.drawCircle= phys_draw_circle,
@@ -514,6 +519,7 @@ void upd_physworld(F64 dt)
 		}
 	}
 }
+
 void post_upd_physworld()
 {
 	PhysWorld *w= g_env.physworld;

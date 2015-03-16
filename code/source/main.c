@@ -5,6 +5,7 @@
 #include "core/file.h"
 #include "core/debug_print.h"
 #include "core/vector.h"
+#include "editor/editor.h"
 #include "game/aitest.h"
 #include "game/world.h"
 #include "game/worldgen.h"
@@ -79,6 +80,7 @@ int main(int argc, const char **argv)
 		load_world(world, SAVEFILE_PATH);
 	else
 		generate_world(world, (U32)time(NULL));
+	create_editor();
 
 	F64 time_accum= 0.0; // For fps
 	U32 frame= 0;
@@ -131,7 +133,7 @@ int main(int argc, const char **argv)
 				free_node_group(world, 1);
 			if (d->key_pressed['g'])
 				free_node_group(world, 2);
-			
+
 			if (d->key_pressed['q'])
 				g_env.physworld->debug_draw= !g_env.physworld->debug_draw;
 
@@ -162,37 +164,49 @@ int main(int argc, const char **argv)
 				load_world(world, SAVEFILE_PATH);
 			}
 
-			local_persist cpBody *body= NULL;
-			if (d->lmb_down) {
-				cpVect p= {cursor_on_world.x, cursor_on_world.y};
-				cpShape *shape=
-					cpSpacePointQueryNearest(
-							g_env.physworld->cp_space,
-							p, 0.1,
-							CP_SHAPE_FILTER_ALL, NULL);
+			if (d->key_pressed[KEY_F1])
+				toggle_editor();
 
-				if (!body && shape) {
-					body= cpShapeGetBody(shape);
-				}
+			if (!g_env.editor->visible) {
+				local_persist cpBody *body= NULL;
+				if (d->lmb_down) {
+					cpVect p= {cursor_on_world.x, cursor_on_world.y};
+					cpShape *shape=
+						cpSpacePointQueryNearest(
+								g_env.physworld->cp_space,
+								p, 0.1,
+								CP_SHAPE_FILTER_ALL, NULL);
 
-				if (body) {
-					cpBodySetPosition(body, p);
-					cpBodySetVelocity(body, cpv(0, 0));
+					if (!body && shape) {
+						body= cpShapeGetBody(shape);
+					}
+
+					if (body) {
+						cpBodySetPosition(body, p);
+						cpBodySetVelocity(body, cpv(0, 0));
+					}
+				} else if (body) {
+					body= NULL;
 				}
-			} else if (body) {
-				body= NULL;
 			}
 		}
 
-		upd_physworld(d->dt);
-		upd_world(world, d->dt);
-		post_upd_physworld();
+		upd_editor();
+
+		if (!g_env.editor->visible) {
+			upd_physworld(d->dt);
+			upd_world(world, d->dt);
+			post_upd_physworld();
+		}
+		upd_phys_debugdraw();
+
 		render_frame();
 
 		gl_check_errors("loop");
 		plat_sleep(1);
 	}
 
+	destroy_editor();
 	destroy_world(world);
 	g_env.world= NULL;
 

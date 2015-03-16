@@ -15,11 +15,11 @@ typedef struct Renderer {
 	ModelEntity m_entities[MAX_MODELENTITY_COUNT];
 	ModelEntity m_entities_sort_space[MAX_MODELENTITY_COUNT];
 	U32 next_m_entity;
-	U32 m_entity_count;
+	U32 m_entity_count; // Statistics
 
 	CompEntity c_entities[MAX_COMPENTITY_COUNT];
 	U32 next_c_entity;
-	U32 c_entity_count;
+	U32 c_entity_count; // Statistics
 
 	TriMeshVertex ddraw_v[MAX_DEBUG_DRAW_VERTICES];
 	MeshIndexType ddraw_i[MAX_DEBUG_DRAW_INDICES];
@@ -27,6 +27,7 @@ typedef struct Renderer {
 	U32 ddraw_i_count;
 
 	Texel grid_ddraw_data[GRID_CELL_COUNT]; // Directly written
+	bool draw_grid;
 
 	U32 atlas_gl_id;
 	Vao vao;

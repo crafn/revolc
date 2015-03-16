@@ -11,6 +11,7 @@
 #include "core/malloc.c"
 #include "core/matrix.c"
 #include "core/string.c"
+#include "editor/editor.c"
 #include "game/aitest.c"
 #include "game/nodegroupdef.c"
 #include "game/nodetype.c"
