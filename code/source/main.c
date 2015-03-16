@@ -131,8 +131,6 @@ int main(int argc, const char **argv)
 				free_node_group(world, 0);
 			if (d->key_pressed['t'])
 				free_node_group(world, 1);
-			if (d->key_pressed['g'])
-				free_node_group(world, 2);
 
 			if (d->key_pressed['q'])
 				g_env.physworld->debug_draw= !g_env.physworld->debug_draw;
@@ -169,7 +167,7 @@ int main(int argc, const char **argv)
 
 			if (!g_env.editor->visible) {
 				local_persist cpBody *body= NULL;
-				if (d->lmb_down) {
+				if (d->key_down[KEY_LMB]) {
 					cpVect p= {cursor_on_world.x, cursor_on_world.y};
 					cpShape *shape=
 						cpSpacePointQueryNearest(

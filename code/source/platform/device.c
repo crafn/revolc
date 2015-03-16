@@ -319,13 +319,17 @@ void plat_update(Device *d)
 				if (*keysym == XK_Escape)
 					d->quit_requested= true;
 			}
-			//debug_print("key: %i", *keysym);
+			//debug_print("keysym: %i", *keysym);
 
 			int table_index= 0;
 			if (*keysym < KEYBOARD_KEY_COUNT)
 				table_index= *keysym;
 			else if (*keysym >= 65470 && *keysym <= 65481)
 				table_index= KEY_F1 + (*keysym - 65470);
+			else if (*keysym == 65289)
+				table_index= KEY_TAB;
+			else if (*keysym == 65505)
+				table_index= KEY_LSHIFT;
 
 			d->key_down[table_index]= (xev.type == KeyPress);
 			d->key_pressed[table_index]= (xev.type == KeyPress);
@@ -334,10 +338,15 @@ void plat_update(Device *d)
 			XFree(keysym);
 		}
 
-		if (xev.xbutton.type == ButtonPress)
-			d->lmb_down= true;
-		else if (xev.xbutton.type == ButtonRelease)
-			d->lmb_down= false;
+		if (xev.xbutton.type == ButtonPress || xev.xbutton.type == ButtonRelease) {
+			int key= KEY_LMB;
+			if (xev.xkey.keycode == 3)
+				key= KEY_RMB;
+
+			d->key_pressed[key]= (xev.xbutton.type == ButtonPress);
+			d->key_down[key]= (xev.xbutton.type == ButtonPress);
+			d->key_released[key]= (xev.xbutton.type == ButtonRelease);
+		}
 	}
 
 	XWindowAttributes gwa;

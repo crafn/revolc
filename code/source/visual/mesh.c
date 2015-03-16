@@ -9,8 +9,6 @@ void vertex_attributes(MeshType type, const VertexAttrib **attribs, U32 *count)
 			{ "a_pos", 3, GL_FLOAT, false, offsetof(TriMeshVertex, pos) },
 			{ "a_uv", 3, GL_FLOAT, false, offsetof(TriMeshVertex, uv) },
 			{ "a_color", 4, GL_FLOAT, false, offsetof(TriMeshVertex, color) },
-			{ "a_normal", 3, GL_FLOAT, false, offsetof(TriMeshVertex, normal) },
-			{ "a_tangent", 3, GL_FLOAT, false, offsetof(TriMeshVertex, tangent) }
 		};
 		if (attribs)
 			*attribs= tri_attribs;

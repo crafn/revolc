@@ -5,7 +5,9 @@
 
 typedef struct Editor {
 	U32 cur_model_h;
-	
+	bool is_edit_mode; // Edit or object mode
+	bool grabbing;
+
 	bool visible; 
 } Editor;
 

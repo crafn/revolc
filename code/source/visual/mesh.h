@@ -28,8 +28,7 @@ typedef struct TriMeshVertex {
 	V3f pos;
 	V3f uv;
 	Color color;
-	V3f normal;
-	V3f tangent;
+	bool selected; // Editor
 } TriMeshVertex ALIGNED(64);
 
 typedef struct Mesh {

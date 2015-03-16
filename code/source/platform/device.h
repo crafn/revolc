@@ -4,6 +4,9 @@
 #include "build.h"
 
 #define KEYBOARD_KEY_COUNT 256
+#define KEY_LMB 0
+#define KEY_RMB 2
+#define KEY_LSHIFT 10
 #define KEY_F1  127
 #define KEY_F2  128
 #define KEY_F3  129
@@ -16,6 +19,7 @@
 #define KEY_F10 136
 #define KEY_F11 137
 #define KEY_F12 138
+#define KEY_TAB 139
 
 struct DevicePlatformData;
 typedef struct Device {
@@ -23,7 +27,6 @@ typedef struct Device {
 	int win_size[2];
 	bool quit_requested;
 	F32 dt;
-	bool lmb_down;
 
 	bool key_down[KEYBOARD_KEY_COUNT];
 	bool key_pressed[KEYBOARD_KEY_COUNT];

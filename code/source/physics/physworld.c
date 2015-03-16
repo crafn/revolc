@@ -502,21 +502,22 @@ void upd_phys_debugdraw()
 {
 	PhysWorld *w= g_env.physworld;
 	g_env.renderer->draw_grid= w->debug_draw;
-	if (w->debug_draw) {
-		cpSpaceDebugDrawOptions options= {
-			.drawCircle= phys_draw_circle,
-			.drawPolygon= phys_draw_poly,
-			.flags= CP_SPACE_DEBUG_DRAW_SHAPES,
-		};
-		cpSpaceDebugDraw(w->cp_space, &options);
 
-		Texel *grid= g_env.renderer->grid_ddraw_data;
-		for (U32 i= 0; i < GRID_CELL_COUNT; ++i) {
-			grid[i].r= MIN(w->grid[i].dynamic_portion*3, 255);
-			grid[i].g= 0;
-			grid[i].b= MIN(w->grid[i].static_portion*3, 255);
-			grid[i].a= MIN(w->grid[i].static_portion*3 + w->grid[i].dynamic_portion*3, 255);
-		}
+	if (!w->debug_draw)
+		return;
+	cpSpaceDebugDrawOptions options= {
+		.drawCircle= phys_draw_circle,
+		.drawPolygon= phys_draw_poly,
+		.flags= CP_SPACE_DEBUG_DRAW_SHAPES,
+	};
+	cpSpaceDebugDraw(w->cp_space, &options);
+
+	Texel *grid= g_env.renderer->grid_ddraw_data;
+	for (U32 i= 0; i < GRID_CELL_COUNT; ++i) {
+		grid[i].r= MIN(w->grid[i].dynamic_portion*3, 255);
+		grid[i].g= 0;
+		grid[i].b= MIN(w->grid[i].static_portion*3, 255);
+		grid[i].a= MIN(w->grid[i].static_portion*3 + w->grid[i].dynamic_portion*3, 255);
 	}
 }
 
