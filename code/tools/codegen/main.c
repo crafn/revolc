@@ -278,6 +278,13 @@ static void write_math()
 			fprintf(f, "}; }\n\n");
 
 			fprintf(f, "static\n");
+			fprintf(f, "%s neg_%s(%s v)\n", v.name, v.lc_name, v.name);
+			fprintf(f, "{ return (%s) {", v.name);
+			for (int k= 0; k < v.comp_count; ++k)
+				fprintf(f, "-v.%s, ", comp_names[k]); 
+			fprintf(f, "}; }\n\n");
+
+			fprintf(f, "static\n");
 			fprintf(f, "%s scaled_%s(%s s, %s v)\n", v.name, v.lc_name, v.comp_type_name, v.name);
 			fprintf(f, "{ return (%s) {", v.name);
 			for (int k= 0; k < v.comp_count; ++k)
@@ -360,7 +367,13 @@ static void write_math()
 		fprintf(f,
 			"static\n"
 			"V2d v3d_to_v2d(V3d v)\n"
-			"{ return (V2d) {v.x, v.y}; }\n");
+			"{ return (V2d) {v.x, v.y}; }\n\n");
+
+		fprintf(f,
+			"static\n"
+			"V3d v2d_to_v3d(V2d v)\n"
+			"{ return (V3d) {v.x, v.y, 0.0}; }\n");
+
 		fprintf(f, "\n#endif\n");
 
 		fclose(f);
@@ -421,6 +434,10 @@ static void write_math()
 						"	a.w*b.y + a.y*b.w + a.z*b.x - a.x*b.z,\n"
 						"	a.w*b.z + a.z*b.w + a.x*b.y - a.y*b.x,\n"
 						"	a.w*b.w - a.x*b.x - a.y*b.y - a.z*b.z };\n}\n\n", q.name);
+
+			fprintf(f, "static\n");
+			fprintf(f, "%s neg_%s(%s q)\n", q.name, q.lc_name, q.name);
+			fprintf(f, "{ return (%s) {-q.x, -q.y, -q.z, q.w}; }\n\n", q.name);
 
 			fprintf(f, "static\n");
 			fprintf(f, "%s rot_%s(%s q, %s v)\n", q.axis_type_name, q.axis_lc_name, q.name, q.axis_type_name);

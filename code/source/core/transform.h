@@ -42,6 +42,16 @@ T3d mul_t3d(T3d op, T3d subj)
 }
 
 static
+T3d inv_t3d(T3d tf)
+{
+	T3d t= tf;
+	t.scale= (V3d) {1/t.scale.x, 1/t.scale.y, 1/t.scale.z};
+	t.rot= neg_qd(t.rot);
+	t.pos= neg_v3d(rot_v3d(t.rot, mul_v3d(t.pos, t.scale)));
+	return t;
+}
+
+static
 T3f t3d_to_t3f(T3d tf)
 { return (T3f) {v3d_to_v3f(tf.scale), qd_to_qf(tf.rot), v3d_to_v3f(tf.pos)}; }
 

@@ -36,6 +36,10 @@ Qf mul_qf(Qf a, Qf b)
 }
 
 static
+Qf neg_qf(Qf q)
+{ return (Qf) {-q.x, -q.y, -q.z, q.w}; }
+
+static
 V3f rot_v3f(Qf q, V3f v)
 {
 	V3f a, b, c= {q.x, q.y, q.z};
@@ -108,6 +112,10 @@ Qd mul_qd(Qd a, Qd b)
 	a.w*b.z + a.z*b.w + a.x*b.y - a.y*b.x,
 	a.w*b.w - a.x*b.x - a.y*b.y - a.z*b.z };
 }
+
+static
+Qd neg_qd(Qd q)
+{ return (Qd) {-q.x, -q.y, -q.z, q.w}; }
 
 static
 V3d rot_v3d(Qd q, V3d v)

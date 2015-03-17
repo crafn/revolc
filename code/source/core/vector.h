@@ -49,6 +49,10 @@ V2d mul_v2d(V2d a, V2d b)
 { return (V2d) {a.x * b.x, a.y * b.y, }; }
 
 static
+V2d neg_v2d(V2d v)
+{ return (V2d) {-v.x, -v.y, }; }
+
+static
 V2d scaled_v2d(F64 s, V2d v)
 { return (V2d) {s*v.x, s*v.y, }; }
 
@@ -107,6 +111,10 @@ V2f sub_v2f(V2f a, V2f b)
 static
 V2f mul_v2f(V2f a, V2f b)
 { return (V2f) {a.x * b.x, a.y * b.y, }; }
+
+static
+V2f neg_v2f(V2f v)
+{ return (V2f) {-v.x, -v.y, }; }
 
 static
 V2f scaled_v2f(F32 s, V2f v)
@@ -169,6 +177,10 @@ V2i mul_v2i(V2i a, V2i b)
 { return (V2i) {a.x * b.x, a.y * b.y, }; }
 
 static
+V2i neg_v2i(V2i v)
+{ return (V2i) {-v.x, -v.y, }; }
+
+static
 V2i scaled_v2i(S32 s, V2i v)
 { return (V2i) {s*v.x, s*v.y, }; }
 
@@ -219,6 +231,10 @@ V3d sub_v3d(V3d a, V3d b)
 static
 V3d mul_v3d(V3d a, V3d b)
 { return (V3d) {a.x * b.x, a.y * b.y, a.z * b.z, }; }
+
+static
+V3d neg_v3d(V3d v)
+{ return (V3d) {-v.x, -v.y, -v.z, }; }
 
 static
 V3d scaled_v3d(F64 s, V3d v)
@@ -277,6 +293,10 @@ V3f mul_v3f(V3f a, V3f b)
 { return (V3f) {a.x * b.x, a.y * b.y, a.z * b.z, }; }
 
 static
+V3f neg_v3f(V3f v)
+{ return (V3f) {-v.x, -v.y, -v.z, }; }
+
+static
 V3f scaled_v3f(F32 s, V3f v)
 { return (V3f) {s*v.x, s*v.y, s*v.z, }; }
 
@@ -319,5 +339,9 @@ V3d v3f_to_v3d(V3f v)
 static
 V2d v3d_to_v2d(V3d v)
 { return (V2d) {v.x, v.y}; }
+
+static
+V3d v2d_to_v3d(V2d v)
+{ return (V3d) {v.x, v.y, 0.0}; }
 
 #endif
