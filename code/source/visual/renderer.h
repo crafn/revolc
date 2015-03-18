@@ -49,7 +49,7 @@ REVOLC_API void * storage_compentity();
 
 REVOLC_API void render_frame();
 
-REVOLC_API void ddraw_poly(Color c, V2d *poly, U32 count);
+REVOLC_API void ddraw_poly(Color c, V3d *poly, U32 count);
 
 // Pixel coord (upper-left origin) -> world coord
 REVOLC_API V2d screen_to_world_point(V2i p);

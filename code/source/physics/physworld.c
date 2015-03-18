@@ -422,11 +422,12 @@ void phys_draw_circle(
 		cpDataPointer data)
 {
 	const U32 v_count= 30;
-	V2d v[v_count];
+	V3d v[v_count];
 	for (U32 i= 0; i < v_count; ++i) {
 		F64 a= angle + i*3.141*2.0/v_count;
 		v[i].x= pos.x + cos(a)*radius;
 		v[i].y= pos.y + sin(a)*radius;
+		v[i].z= 0.0;
 	}
 	v[0].x= v[0].x*0.9 + pos.x*0.1;
 	v[0].y= v[0].y*0.9 + pos.y*0.1;
@@ -444,10 +445,11 @@ void phys_draw_poly(
 		cpSpaceDebugColor outlineColor, cpSpaceDebugColor fillColor,
 		cpDataPointer data)
 {
-	V2d v[count];
+	V3d v[count];
 	for (U32 i= 0; i < count; ++i) {
 		v[i].x= verts[i].x;
 		v[i].y= verts[i].y;
+		v[i].z= 0.0;
 	}
 
 	Color c= {0.4, 0.7, 1.0, 0.5};

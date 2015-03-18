@@ -556,7 +556,7 @@ void render_frame()
 	}
 }
 
-void ddraw_poly(Color c, V2d *poly, U32 count)
+void ddraw_poly(Color c, V3d *poly, U32 count)
 {
 	Renderer *r= g_env.renderer;
 
@@ -577,7 +577,7 @@ void ddraw_poly(Color c, V2d *poly, U32 count)
 	U32 start_index= r->ddraw_v_count;
 	for (U32 i= 0; i < count; ++i) {
 		TriMeshVertex v= {
-			.pos= { .x= poly[i].x, .y= poly[i].y },
+			.pos= v3d_to_v3f(poly[i]),
 			.uv= atlas_uv,
 			.color= c,
 		};

@@ -114,8 +114,15 @@ void blob_mesh_to_json(JsonOut *j, const Mesh *m)
 {
 	JsonOut* j_pos= jout_array(j, "pos");
 	JsonOut* j_uv= jout_array(j, "uv");
+	JsonOut* j_ind= jout_array(j, "ind");
+
 	for (U32 i= 0; i < m->v_count; ++i) {
-		jout_set_member(j_pos, i, jout_v3d(mesh_vertices(m)[i].pos));
+		jout_member(j_pos, i, jout_v3d(mesh_vertices(m)[i].pos));
+		jout_member(j_uv, i, jout_v3d(mesh_vertices(m)[i].uv));
+	}
+
+	for (U32 i= 0; i < m->i_count; ++i) {
+		jout_member(j_ind, i, jout_integer(mesh_indices(m)[i]));
 	}
 }
 */

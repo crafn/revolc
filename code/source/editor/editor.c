@@ -46,6 +46,7 @@ void gui_wrap(V2i *p, V2i *s)
 		p->y -= win_size.y;
 }
 
+// Draws single-color quad
 internal
 void gui_quad(V2i pix_pos, V2i pix_size, Color c)
 {
@@ -64,6 +65,7 @@ void gui_quad(V2i pix_pos, V2i pix_size, Color c)
 	e->color= c;
 }
 
+// Draws texture of a model
 internal
 void gui_model_image(V2i pix_pos, V2i pix_size, ModelEntity *src_model)
 {
@@ -135,31 +137,13 @@ EditorBoxState gui_editorbox(const char *label, V2i pix_pos, V2i pix_size, bool 
 
 internal
 V2i uv_to_pix(V3f uv, V2i pix_pos, V2i pix_size)
-{ return (V2i) {uv.x*pix_size.x + pix_pos.x, uv.y*pix_size.y + pix_pos.y}; }
+{ return (V2i) {uv.x*pix_size.x + pix_pos.x, (1 - uv.y)*pix_size.y + pix_pos.y}; }
 
 internal
 V3d pix_to_uv(V2i p, V2i pix_pos, V2i pix_size)
 { return (V3d) {(F64)(p.x - pix_pos.x)/pix_size.x,
-				(F64)(p.y - pix_pos.y)/pix_size.y,
+				1 - (F64)(p.y - pix_pos.y)/pix_size.y,
 				0.0};
-}
-
-internal
-void draw_vert(V2i pix_pos, bool selected)
-{
-	gui_wrap(&pix_pos, NULL);
-	V2d p= screen_to_world_point(pix_pos);
-	const F64 v_size= editor_vertex_size();
-	V2d poly[4]= {
-		{-v_size + p.x, -v_size + p.y},
-		{-v_size + p.x, +v_size + p.y},
-		{+v_size + p.x, +v_size + p.y},
-		{+v_size + p.x, -v_size + p.y},
-	};
-	if (selected)
-		ddraw_poly((Color) {1.0, 0.7, 0.2, 0.8}, poly, 4);
-	else
-		ddraw_poly((Color) {0.0, 0.0, 0.0, 0.8}, poly, 4);
 }
 
 internal
@@ -219,13 +203,40 @@ void gui_uvbox(V2i pix_pos, V2i pix_size, ModelEntity *m)
 		}
 	}
 
-	V2i padding= {2, 2};
+	/*V2i padding= {2, 2};
 	pix_pos= add_v2i(pix_pos, padding);
 	pix_size= sub_v2i(pix_size, scaled_v2i(2, padding));
-
+*/
 	for (U32 i= 0; i < m->mesh_v_count; ++i) {
 		TriMeshVertex *v= &m->vertices[i];
-		draw_vert(uv_to_pix(v->uv, pix_pos, pix_size), v->selected);
+
+		V2i pix_uv= uv_to_pix(v->uv, pix_pos, pix_size);
+		gui_wrap(&pix_uv, NULL);
+		V2d p= screen_to_world_point(pix_uv);
+		const F64 v_size= editor_vertex_size();
+		V3d poly[4]= {
+			{-v_size + p.x, -v_size + p.y, 0},
+			{-v_size + p.x, +v_size + p.y, 0},
+			{+v_size + p.x, +v_size + p.y, 0},
+			{+v_size + p.x, -v_size + p.y, 0},
+		};
+		if (v->selected)
+			ddraw_poly((Color) {1.0, 0.7, 0.2, 0.8}, poly, 4);
+		else
+			ddraw_poly((Color) {0.0, 0.0, 0.0, 0.8}, poly, 4);
+	}
+
+	Color fill_color= {0.6, 0.6, 0.8, 0.4};
+	V3d poly[3];
+	for (U32 i= 0; i < m->mesh_i_count; ++i) {
+		U32 v_i= m->indices[i];
+		TriMeshVertex *v= &m->vertices[v_i];
+		V2i pix_uv= uv_to_pix(v->uv, pix_pos, pix_size);
+		V2d p= screen_to_world_point(pix_uv);
+		poly[i%3]= (V3d) {p.x, p.y, 0};
+
+		if (i % 3 == 2)
+			ddraw_poly(fill_color, poly, 3);
 	}
 }
 
@@ -237,8 +248,6 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 	V3d cur_wp= v2d_to_v3d(screen_to_world_point(ctx->cursor_pos));
 	V3d prev_wp= v2d_to_v3d(screen_to_world_point(ctx->prev_cursor_pos));
 	F64 v_size= editor_vertex_size();
-	if (!*is_edit_mode)
-		v_size *= 6.0;
 
 	ModelEntity *m= NULL;
 	if (*model_h != NULL_HANDLE)
@@ -319,23 +328,36 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 	if (*model_h != NULL_HANDLE)
 		m= get_modelentity(*model_h);
 	if (m) {
-		/// @todo Proper drawing
-		for (U32 i= 0; i < m->mesh_v_count; ++i) {
-			TriMeshVertex *v= &m->vertices[i];
-			V3d p= vertex_world_pos(m, i);
-			V2d poly[4]= {
-				{-v_size + p.x, -v_size + p.y},
-				{-v_size + p.x, +v_size + p.y},
-				{+v_size + p.x, +v_size + p.y},
-				{+v_size + p.x, -v_size + p.y},
-			};
+		if (*is_edit_mode) {
+			for (U32 i= 0; i < m->mesh_v_count; ++i) {
+				TriMeshVertex *v= &m->vertices[i];
+				V3d p= vertex_world_pos(m, i);
+				V3d poly[4]= {
+					{-v_size + p.x, -v_size + p.y, p.z},
+					{-v_size + p.x, +v_size + p.y, p.z},
+					{+v_size + p.x, +v_size + p.y, p.z},
+					{+v_size + p.x, -v_size + p.y, p.z},
+				};
 
-			if (!is_edit_mode)
-				ddraw_poly((Color) {0.5, 0.5, 0.5, 0.8}, poly, 4);
-			else if (v->selected)
-				ddraw_poly((Color) {1.0, 0.7, 0.2, 0.8}, poly, 4);
-			else
-				ddraw_poly((Color) {0.0, 0.0, 0.0, 0.8}, poly, 4);
+				if (v->selected)
+					ddraw_poly((Color) {1.0, 0.7, 0.2, 0.8}, poly, 4);
+				else
+					ddraw_poly((Color) {0.0, 0.0, 0.0, 0.8}, poly, 4);
+			}
+		}
+
+		Color fill_color= {0.6, 0.6, 0.8, 0.4};
+		if (!*is_edit_mode)
+			fill_color= (Color) {1.0, 0.8, 0.5, 0.6};
+
+		V3d poly[3];
+		for (U32 i= 0; i < m->mesh_i_count; ++i) {
+			U32 v_i= m->indices[i];
+			V3d p= vertex_world_pos(m, v_i);
+			poly[i%3]= p;
+
+			if (i % 3 == 2)
+				ddraw_poly(fill_color, poly, 3);
 		}
 	}
 }
@@ -360,10 +382,9 @@ void toggle_editor()
 void upd_editor()
 {
 	Editor *e= g_env.editor;
-	if (!e->visible) {
-		e->is_edit_mode= false;
+	if (!e->visible)
 		return;
-	}
+
 	bool tab_pressed= g_env.device->key_pressed[KEY_TAB];
 	if (tab_pressed) {
 		toggle_bool(&e->is_edit_mode);
