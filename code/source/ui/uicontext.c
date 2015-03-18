@@ -47,7 +47,6 @@ U32 hash32(const U8* buf, U32 size)
 	return hash;
 }
 
-internal
 GuiId gui_id(const char *label)
 { return hash32((U8*)label, strlen(label)); }
 

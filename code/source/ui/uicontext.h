@@ -21,7 +21,7 @@ typedef struct UiContext {
 	bool shift_down;
 	bool g_pressed;
 
-	bool grabbing; // Set by editor controls
+	GuiId grabbing; // Set by editor controls
 
 	GuiId hot_id, last_hot_id;
 	GuiId active_id;
@@ -40,5 +40,7 @@ bool gui_is_hot(const char *label);
 void gui_set_active(const char *label);
 void gui_set_inactive(const char *label);
 bool gui_is_active(const char *label);
+
+GuiId gui_id(const char *label);
 
 #endif // REVOLC_UI_UICONTEXT_H

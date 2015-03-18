@@ -66,7 +66,7 @@ EditorBoxState gui_editorbox(const char *label, V2i pix_pos, V2i pix_size, bool 
 		}
 
 		if (ctx->lmb.pressed || ctx->g_pressed) {
-			ctx->grabbing= false;
+			ctx->grabbing= 0;
 			gui_set_inactive(label);
 		}
 	} else if (gui_is_hot(label)) {
@@ -75,7 +75,7 @@ EditorBoxState gui_editorbox(const char *label, V2i pix_pos, V2i pix_size, bool 
 			state.down= true;
 			gui_set_active(label);
 		} else if (ctx->g_pressed) {
-			ctx->grabbing= true;
+			ctx->grabbing= gui_id(label);
 			gui_set_active(label);
 		}
 	}
@@ -170,7 +170,7 @@ void gui_uvbox(V2i pix_pos, V2i pix_size, ModelEntity *m)
 		}
 	}
 
-	if (gui_is_active(box_label) && ctx->grabbing) {
+	if (ctx->grabbing == gui_id(box_label)) {
 		// Move selected uv coords
 		V3d cur= pix_to_uv(ctx->cursor_pos, pix_pos, pix_size);
 		V3d prev= pix_to_uv(ctx->prev_cursor_pos, pix_pos, pix_size);
@@ -205,7 +205,7 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 	V3d prev_wp= v2d_to_v3d(screen_to_world_point(ctx->prev_cursor_pos));
 	F64 v_size= editor_vertex_size();
 	if (!*is_edit_mode)
-		v_size *= 10.0;
+		v_size *= 6.0;
 
 	ModelEntity *m= NULL;
 	if (*model_h != NULL_HANDLE)
@@ -235,7 +235,7 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 			*model_h= closest_h;
 		}
 	} else { // Edit mode
-		if (gui_is_active(box_label) && ctx->grabbing) {
+		if (ctx->grabbing == gui_id(box_label)) {
 			ensure(m);
 			V3d cur= mul_t3d(	inv_t3d(m->tf),
 								(T3d) {	{1, 1, 1},
