@@ -21,6 +21,8 @@ typedef struct UiContext {
 	bool shift_down;
 	bool g_pressed;
 
+	bool grabbing; // Set by editor controls
+
 	GuiId hot_id, last_hot_id;
 	GuiId active_id;
 } UiContext;

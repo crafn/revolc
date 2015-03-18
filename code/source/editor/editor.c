@@ -43,7 +43,7 @@ void gui_wrap(V2i *p, V2i *s)
 }
 
 internal
-GuiBoxState gui_editorbox(const char *label, V2i pix_pos, V2i pix_size, bool *grabbing)
+GuiBoxState gui_editorbox(const char *label, V2i pix_pos, V2i pix_size)
 {
 	gui_wrap(&pix_pos, &pix_size);
 	UiContext *ctx= g_env.uicontext;
@@ -54,7 +54,7 @@ GuiBoxState gui_editorbox(const char *label, V2i pix_pos, V2i pix_size, bool *gr
 
 	if (gui_is_active(label)) {
 		state.pressed= false;
-		if (!ctx->rmb.down && !*grabbing) {
+		if (!ctx->rmb.down && !ctx->grabbing) {
 			state.released= true;
 			gui_set_inactive(label);
 		} else if (ctx->rmb.down) {
@@ -62,7 +62,7 @@ GuiBoxState gui_editorbox(const char *label, V2i pix_pos, V2i pix_size, bool *gr
 		}
 
 		if (ctx->lmb.pressed || ctx->g_pressed) {
-			*grabbing= false;
+			ctx->grabbing= false;
 			gui_set_inactive(label);
 		}
 	} else if (gui_is_hot(label)) {
@@ -71,7 +71,7 @@ GuiBoxState gui_editorbox(const char *label, V2i pix_pos, V2i pix_size, bool *gr
 			state.down= true;
 			gui_set_active(label);
 		} else if (ctx->g_pressed) {
-			*grabbing= true;
+			ctx->grabbing= true;
 			gui_set_active(label);
 		}
 	}
@@ -127,12 +127,12 @@ void draw_vert(V2i pix_pos, bool selected)
 }
 
 internal
-void gui_uvbox(V2i pix_pos, V2i pix_size, ModelEntity *m, bool *grabbing)
+void gui_uvbox(V2i pix_pos, V2i pix_size, ModelEntity *m)
 {
 	const char *box_label= "uvbox_box";
 	UiContext *ctx= g_env.uicontext;
 	gui_wrap(&pix_pos, &pix_size);
-	GuiBoxState state= gui_editorbox(box_label, pix_pos, pix_size, grabbing);
+	GuiBoxState state= gui_editorbox(box_label, pix_pos, pix_size);
 
 	if (!m)
 		return;
@@ -158,13 +158,13 @@ void gui_uvbox(V2i pix_pos, V2i pix_size, ModelEntity *m, bool *grabbing)
 				m->vertices[i].selected= false;
 		}
 
-		if (closest_dist < 40*40) {
+		if (closest_dist < 100*100) {
 			ensure(closest_i != NULL_HANDLE);
 			toggle_bool(&m->vertices[closest_i].selected);
 		}
 	}
 
-	if (gui_is_active(box_label) && *grabbing) {
+	if (gui_is_active(box_label) && ctx->grabbing) {
 		// Move selected uv coords
 		V3d cur= pix_to_uv(ctx->cursor_pos, pix_pos, pix_size);
 		V3d prev= pix_to_uv(ctx->prev_cursor_pos, pix_pos, pix_size);
@@ -174,6 +174,9 @@ void gui_uvbox(V2i pix_pos, V2i pix_size, ModelEntity *m, bool *grabbing)
 			if (!v->selected)
 				continue;
 			v->uv= add_v3f(v3d_to_v3f(delta), v->uv);
+
+			v->uv.x= CLAMP(v->uv.x, 0.0, 1.0);
+			v->uv.y= CLAMP(v->uv.y, 0.0, 1.0);
 		}
 	}
 
@@ -189,7 +192,7 @@ void gui_uvbox(V2i pix_pos, V2i pix_size, ModelEntity *m, bool *grabbing)
 
 // Mesh editing on world
 internal
-void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode, bool *grabbing)
+void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 {
 	UiContext *ctx= g_env.uicontext;
 	const char *label= "mesh_overlay";
@@ -234,9 +237,9 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode, bool *grabbing)
 			}
 		} else { // Edit mode
 			ensure(m);
-			if (*grabbing) {
+			if (ctx->grabbing) {
 				if (lmb_pressed || g_pressed) {
-					*grabbing= false;
+					ctx->grabbing= false;
 					gui_set_inactive(label);
 				} else {
 					V3d cur= mul_t3d(	inv_t3d(m->tf),
@@ -265,7 +268,7 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode, bool *grabbing)
 			if (*model_h == NULL_HANDLE)
 				*is_edit_mode= false;
 		} else if (g_pressed) {
-			*grabbing= true;
+			ctx->grabbing= true;
 			gui_set_active(label);
 		} else if (*is_edit_mode && rmb_pressed) {
 			// Control vertex selection
@@ -347,7 +350,7 @@ void upd_editor()
 		return;
 	}
 
-	gui_mesh_overlay(&e->cur_model_h, &e->is_edit_mode, &e->grabbing);
+	gui_mesh_overlay(&e->cur_model_h, &e->is_edit_mode);
 
 	ModelEntity *m= NULL;
 	if (e->cur_model_h != NULL_HANDLE)
@@ -356,6 +359,5 @@ void upd_editor()
 	const S32 box_size= 400;
 	gui_uvbox(	(V2i) {-box_size, 0},
 				(V2i) {box_size, box_size},
-				m,
-				&e->grabbing);
+				m);
 }
