@@ -158,8 +158,6 @@ void gui_uvbox(V2i pix_pos, V2i pix_size, ModelEntity *m)
 	if (!m)
 		return;
 
-	gui_model_image(pix_pos, pix_size, m);
-
 	if (state.pressed) {
 		// Control vertex selection
 		F64 closest_dist= 0;
@@ -203,10 +201,12 @@ void gui_uvbox(V2i pix_pos, V2i pix_size, ModelEntity *m)
 		}
 	}
 
-	/*V2i padding= {2, 2};
+	V2i padding= {20, 20};
 	pix_pos= add_v2i(pix_pos, padding);
 	pix_size= sub_v2i(pix_size, scaled_v2i(2, padding));
-*/
+
+	gui_model_image(pix_pos, pix_size, m);
+
 	for (U32 i= 0; i < m->mesh_v_count; ++i) {
 		TriMeshVertex *v= &m->vertices[i];
 

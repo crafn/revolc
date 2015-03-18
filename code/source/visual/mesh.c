@@ -47,23 +47,16 @@ int json_mesh_to_blob(struct BlobBuf *buf, JsonTok j)
 	JsonTok j_uv= json_value_by_key(j, "uv");
 	JsonTok j_ind= json_value_by_key(j, "ind");
 
-	if (json_is_null(j_pos)) {
-		critical_print("Attrib 'pos' missing for Mesh: %s",
-				json_str(json_value_by_key(j, "name")));
-		return 1;
-	}
-
-	if (json_is_null(j_ind)) {
-		critical_print("Attrib 'ind' missing for Mesh: %s",
-				json_str(json_value_by_key(j, "name")));
-		return 1;
-	}
+	if (json_is_null(j_pos))
+		RES_ATTRIB_MISSING("pos");
+	if (json_is_null(j_ind))
+		RES_ATTRIB_MISSING("ind");
 
 	if (	!json_is_null(j_uv) &&
 			json_member_count(j_uv) != json_member_count(j_pos)) {
 		critical_print("Attrib 'uv' size doesn't match with 'pos' for Mesh: %s",
 				json_str(json_value_by_key(j, "name")));
-		return 1;
+		goto error;
 	}
 
 	{
@@ -107,6 +100,69 @@ int json_mesh_to_blob(struct BlobBuf *buf, JsonTok j)
 	}
 
 	return 0;
+
+error:
+	return 1;
+}
+
+typedef enum {
+	JsonType_object,
+	JsonType_array,
+	JsonType_number,
+	JsonType_string
+} JsonType;
+
+// If complex manipulation of json files is needed, this should
+// probably override JsonTok as read/write structure
+typedef struct JsonNode {
+	JsonType type;
+	struct JsonNode *members; // Owns
+	U32 member_count;
+
+	F64 number;
+	char *string; // Owns
+} JsonNode;
+
+JsonNode create_jsonnode(JsonTok input)
+{
+	JsonNode n= {};
+
+	ensure(!json_is_null(input) && "@todo Null support");
+
+	if (json_is_object(input) || json_is_array(input) || json_is_string(input)) {
+		if (json_is_object(input)) {
+			n.type= JsonType_object;
+		} else if (json_is_array(input)) {
+			n.type= JsonType_array;
+		} else {
+			n.type= JsonType_string;
+			U32 string_len= strlen(json_str(input));
+			n.string= dev_malloc(string_len + 1);
+			json_strcpy(n.string, string_len, input);
+		}
+		n.member_count= json_member_count(input);
+		n.members= dev_malloc(sizeof(*n.members)*n.member_count);
+		for (U32 i= 0; i < n.member_count; ++i)
+			n.members[i]= create_jsonnode(json_member(input, i));
+	} else { // Number
+		n.type= JsonType_number;
+		n.number= json_real(input);
+	}
+	return n;
+}
+
+void destroy_jsonnode(JsonNode node)
+{
+	if (	node.type == JsonType_object ||
+			node.type == JsonType_array ||
+			node.type == JsonType_string) {
+		for (U32 i= 0; i < node.member_count; ++i)
+			destroy_jsonnode(node.members[i]);
+		dev_free(node.members);
+	}
+
+	if (node.type == JsonType_string)
+		dev_free(node.string);
 }
 
 /*
