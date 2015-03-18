@@ -3,6 +3,7 @@ uniform sampler2DArray u_tex_color;
 in vec3 v_uv;
 in vec3 v_pos;
 in vec4 v_color;
+in float v_dev_highlight;
 out vec4 f_color;
 void main()
 {

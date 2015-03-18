@@ -28,6 +28,7 @@ typedef struct TriMeshVertex {
 	V3f pos;
 	V3f uv;
 	Color color;
+	F32 dev_highlight;
 	bool selected; // Editor
 } TriMeshVertex ALIGNED(64);
 
