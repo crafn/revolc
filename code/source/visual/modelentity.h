@@ -13,7 +13,7 @@ typedef struct ModelEntity {
 	T3d tf;
 	bool allocated;
 	bool has_own_mesh; // If true, vertices and indices are free'd along this
-	bool visible;
+	bool free_after_draw;
 
 	// Cached
 	Color color;

@@ -109,3 +109,13 @@ int json_mesh_to_blob(struct BlobBuf *buf, JsonTok j)
 	return 0;
 }
 
+/*
+void blob_mesh_to_json(JsonOut *j, const Mesh *m)
+{
+	JsonOut* j_pos= jout_array(j, "pos");
+	JsonOut* j_uv= jout_array(j, "uv");
+	for (U32 i= 0; i < m->v_count; ++i) {
+		jout_set_member(j_pos, i, jout_v3d(mesh_vertices(m)[i].pos));
+	}
+}
+*/

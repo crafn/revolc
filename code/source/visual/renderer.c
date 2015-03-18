@@ -201,6 +201,15 @@ void destroy_renderer()
 }
 
 internal
+V2f scale_to_atlas_uv(V2i reso)
+{
+	return (V2f) {
+		(F32)reso.x/TEXTURE_ATLAS_WIDTH,
+		(F32)reso.y/TEXTURE_ATLAS_WIDTH,
+	};
+}
+
+internal
 void recache_modelentity(ModelEntity *e)
 {
 	const Model *model=
@@ -211,10 +220,7 @@ void recache_modelentity(ModelEntity *e)
 	Texture *tex= model_texture(model, 0);
 	e->color= model->color;
 	e->atlas_uv= tex->atlas_uv;
-	e->scale_to_atlas_uv= (V2f) {
-		(F32)tex->reso.x/TEXTURE_ATLAS_WIDTH,
-		(F32)tex->reso.y/TEXTURE_ATLAS_WIDTH,
-	};
+	e->scale_to_atlas_uv= scale_to_atlas_uv(tex->reso);
 	e->vertices= (TriMeshVertex*)mesh_vertices(model_mesh(model));
 	e->indices= (MeshIndexType*)mesh_indices(model_mesh(model));
 	e->mesh_v_count= model_mesh(model)->v_count;
@@ -380,7 +386,7 @@ void render_frame()
 	U32 total_i_count= 0;
 	for (U32 i= 0; i < MAX_MODELENTITY_COUNT; ++i) {
 		ModelEntity *e= &r->m_entities[i];
-		if (!e->allocated || !e->visible)
+		if (!e->allocated)
 			continue;
 
 		total_v_count += e->mesh_v_count;
@@ -414,7 +420,7 @@ void render_frame()
 		U32 cur_i= 0;
 		for (U32 i= 0; i < MAX_MODELENTITY_COUNT; ++i) {
 			ModelEntity *e= &entities[i];
-			if (!e->allocated || !e->visible)
+			if (!e->allocated)
 				continue;
 
 			for (U32 k= 0; k < e->mesh_i_count; ++k) {
@@ -541,6 +547,12 @@ void render_frame()
 
 			glDeleteTextures(1, &grid_id);
 		}
+	}
+
+	for (U32 i= 0; i < MAX_MODELENTITY_COUNT; ++i) {
+		ModelEntity *e= &r->m_entities[i];
+		if (e->free_after_draw)
+			free_modelentity(e);
 	}
 }
 

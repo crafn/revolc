@@ -47,6 +47,45 @@ void gui_wrap(V2i *p, V2i *s)
 }
 
 internal
+void gui_quad(V2i pix_pos, V2i pix_size, Color c)
+{
+	V3d pos= v2d_to_v3d(screen_to_world_point(pix_pos)); 
+	V3d size= v2d_to_v3d(screen_to_world_size(pix_size));
+
+	ModelEntity init;
+	init_modelentity(&init);
+	init.tf.pos= pos;
+	init.tf.scale= size;
+	init.free_after_draw= true;
+	snprintf(init.model_name, sizeof(init.model_name), "guibox_singular");
+
+	U32 handle= resurrect_modelentity(&init);
+	ModelEntity *e= get_modelentity(handle);
+	e->color= c;
+}
+
+internal
+void gui_model_image(V2i pix_pos, V2i pix_size, ModelEntity *src_model)
+{
+	ensure(src_model);
+
+	V3d pos= v2d_to_v3d(screen_to_world_point(pix_pos)); 
+	V3d size= v2d_to_v3d(screen_to_world_size(pix_size));
+
+	ModelEntity init;
+	init_modelentity(&init);
+	init.tf.pos= pos;
+	init.tf.scale= size;
+	init.free_after_draw= true;
+	snprintf(init.model_name, sizeof(init.model_name), "guibox");
+
+	U32 handle= resurrect_modelentity(&init);
+	ModelEntity *e= get_modelentity(handle);
+	e->atlas_uv= src_model->atlas_uv;
+	e->scale_to_atlas_uv= src_model->scale_to_atlas_uv;
+}
+
+internal
 EditorBoxState gui_editorbox(const char *label, V2i pix_pos, V2i pix_size, bool invisible)
 {
 	gui_wrap(&pix_pos, &pix_size);
@@ -88,18 +127,8 @@ EditorBoxState gui_editorbox(const char *label, V2i pix_pos, V2i pix_size, bool 
 		gui_set_hot(label);
 	}
 
-	if (!invisible) {
-		const V3d pos= v2d_to_v3d(screen_to_world_point(pix_pos)); 
-		const V3d size= v2d_to_v3d(screen_to_world_size(pix_size));
-
-		V2d poly[4]= {
-			{pos.x, pos.y},
-			{pos.x + size.x, pos.y},
-			{pos.x + size.x, pos.y + size.y},
-			{pos.x, pos.y + size.y},
-		};
-		ddraw_poly(c, poly, 4);
-	}
+	if (!invisible)
+		gui_quad(pix_pos, pix_size, c);
 
 	return state;
 }
@@ -112,7 +141,8 @@ internal
 V3d pix_to_uv(V2i p, V2i pix_pos, V2i pix_size)
 { return (V3d) {(F64)(p.x - pix_pos.x)/pix_size.x,
 				(F64)(p.y - pix_pos.y)/pix_size.y,
-				0.0}; }
+				0.0};
+}
 
 internal
 void draw_vert(V2i pix_pos, bool selected)
@@ -138,10 +168,13 @@ void gui_uvbox(V2i pix_pos, V2i pix_size, ModelEntity *m)
 	const char *box_label= "uvbox_box";
 	UiContext *ctx= g_env.uicontext;
 	gui_wrap(&pix_pos, &pix_size);
+
 	EditorBoxState state= gui_editorbox(box_label, pix_pos, pix_size, false);
 
 	if (!m)
 		return;
+
+	gui_model_image(pix_pos, pix_size, m);
 
 	if (state.pressed) {
 		// Control vertex selection
@@ -256,7 +289,7 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 			}
 		}
 	}
-	
+
 	if (*is_edit_mode && state.pressed) {
 		// Control vertex selection
 		F64 closest_dist= 0;
