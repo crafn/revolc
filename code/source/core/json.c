@@ -109,6 +109,16 @@ V3d json_v3(JsonTok j)
 	};
 }
 
+Color json_color(JsonTok j)
+{
+	return (Color) {
+		json_real(json_member(j, 0)),
+		json_real(json_member(j, 1)),
+		json_real(json_member(j, 2)),
+		json_real(json_member(j, 3)),
+	};
+}
+
 Qd json_q(JsonTok j)
 {
 	V3d axis= {

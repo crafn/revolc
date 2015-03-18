@@ -15,34 +15,30 @@ Mesh* model_mesh(const Model *model)
 
 int json_model_to_blob(struct BlobBuf *buf, JsonTok j)
 {
-	char textures[MODEL_TEX_COUNT][RES_NAME_SIZE]= {};
-	char mesh[RES_NAME_SIZE]= {};
-
 	JsonTok j_mesh= json_value_by_key(j, "mesh");
 	JsonTok j_texs= json_value_by_key(j, "textures");
+	JsonTok j_color= json_value_by_key(j, "color");
 
-	if (json_is_null(j_mesh)) {
-		critical_print("Attrib 'mesh' missing for Model");
-		return 1;
-	}
+	if (json_is_null(j_mesh))
+		RES_ATTRIB_MISSING("mesh");
+	if (json_is_null(j_texs))
+		RES_ATTRIB_MISSING("textures");
+	if (json_is_null(j_color))
+		RES_ATTRIB_MISSING("color");
 
-	if (json_is_null(j_texs)) {
-		critical_print("Attrib 'textures' missing for Model");
-		return 1;
-	}
-
-	json_strcpy(mesh, sizeof(mesh), j_mesh);
+	Model m= {};
+	json_strcpy(m.mesh, sizeof(m.mesh), j_mesh);
 
 	for (U32 i= 0; i < json_member_count(j_texs); ++i) {
-		JsonTok m= json_member(j_texs, i);
-		if (!json_is_string(m)) {
-			fail("@todo ERR MSG");
-			return 1;
-		}
-		json_strcpy(textures[i], sizeof(textures[i]), m);
+		JsonTok j_tex= json_member(j_texs, i);
+		json_strcpy(m.textures[i], sizeof(m.textures[i]), j_tex);
 	}
 
-	blob_write(buf, textures, sizeof(textures));
-	blob_write(buf, mesh, sizeof(mesh));
+	m.color= json_color(j_color);
+
+	blob_write(buf, (U8*)&m + sizeof(m.res), sizeof(m) - sizeof(m.res));
 	return 0;
+
+error:
+	return 1;
 }

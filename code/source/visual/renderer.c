@@ -209,6 +209,7 @@ void recache_modelentity(ModelEntity *e)
 					ResType_Model,
 					e->model_name);
 	Texture *tex= model_texture(model, 0);
+	e->color= model->color;
 	e->atlas_uv= tex->atlas_uv;
 	e->scale_to_atlas_uv= (V2f) {
 		(F32)tex->reso.x/TEXTURE_ATLAS_WIDTH,
@@ -263,6 +264,10 @@ void free_modelentity(ModelEntity *e)
 
 void * storage_modelentity()
 { return g_env.renderer->m_entities; }
+
+
+ModelEntity * get_modelentity(U32 h)
+{ return &g_env.renderer->m_entities[h]; }
 
 internal
 void recache_compentity(CompEntity *e)
@@ -370,11 +375,12 @@ void render_frame()
 		}
 	}
 
+	// Calculate total vertex and index count for frame
 	U32 total_v_count= 0;
 	U32 total_i_count= 0;
 	for (U32 i= 0; i < MAX_MODELENTITY_COUNT; ++i) {
 		ModelEntity *e= &r->m_entities[i];
-		if (!e->model_name[0])
+		if (!e->allocated || !e->visible)
 			continue;
 
 		total_v_count += e->mesh_v_count;
@@ -408,7 +414,7 @@ void render_frame()
 		U32 cur_i= 0;
 		for (U32 i= 0; i < MAX_MODELENTITY_COUNT; ++i) {
 			ModelEntity *e= &entities[i];
-			if (!e->model_name[0])
+			if (!e->allocated || !e->visible)
 				continue;
 
 			for (U32 k= 0; k < e->mesh_i_count; ++k) {
@@ -432,7 +438,7 @@ void render_frame()
 				v.uv.y += e->atlas_uv.y;
 				v.uv.z += e->atlas_uv.z;
 
-				v.color= (Color) {1, 1, 1, 1};
+				v.color= e->color;
 
 				total_verts[cur_v]= v;
 				++cur_v;
@@ -467,8 +473,8 @@ void render_frame()
 				cam_matrix(r).e);
 
 		glViewport(0, 0,
-				g_env.device->win_size[0],
-				g_env.device->win_size[1]);
+				g_env.device->win_size.x,
+				g_env.device->win_size.y);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		draw_vao(&r->vao);
@@ -573,14 +579,19 @@ void ddraw_poly(Color c, V2d *poly, U32 count)
 	}
 }
 
-V2d screen_to_world_point(V2d p)
+V2d screen_to_world_point(V2i p)
 {
 	Renderer *r= g_env.renderer;
 
+	V2d gl_p= {
+		2.0*p.x/g_env.device->win_size.x - 1.0,
+		-2.0*p.y/g_env.device->win_size.y + 1.0
+	};
+
 	/// @todo Aspect ratio
 	V2d view_p= {
-		p.x*tan(r->cam_fov*0.5)*r->cam_pos.z,
-		p.y*tan(r->cam_fov*0.5)*r->cam_pos.z,
+		gl_p.x*tan(r->cam_fov*0.5)*r->cam_pos.z,
+		gl_p.y*tan(r->cam_fov*0.5)*r->cam_pos.z,
 	};
 
 	M44f m= inverted_m44f(view_matrix(r));
@@ -589,6 +600,13 @@ V2d screen_to_world_point(V2d p)
 		.y= view_p.x*m.e[1] + view_p.y*m.e[5] + m.e[13],
 	};
 	return result;
+}
+
+V2d screen_to_world_size(V2i s)
+{
+	V2d a= screen_to_world_point((V2i){0, 0});
+	V2d b= screen_to_world_point(s);
+	return sub_v2d(b, a);
 }
 
 void renderer_on_res_reload()

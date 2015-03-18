@@ -42,4 +42,6 @@
 #define SYM_NAME_SIZE 256
 #define MAX_SYM_COUNT 1024*4
 
+#define MAX_GUI_ELEM_COUNT 1024
+
 #endif // REVOLC_GLOBAL_CFG_H

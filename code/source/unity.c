@@ -31,6 +31,7 @@
 #include "platform/gl.c"
 #include "resources/resblob.c"
 #include "resources/resource.c"
+#include "ui/uicontext.c"
 #include "visual/compdef.c"
 #include "visual/compentity.c"
 #include "visual/mesh.c"

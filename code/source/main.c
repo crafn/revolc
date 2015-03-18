@@ -13,6 +13,7 @@
 #include "physics/physworld.h"
 #include "platform/device.h"
 #include "resources/resblob.h"
+#include "ui/uicontext.h"
 #include "visual/model.h"
 #include "visual/renderer.h"
 
@@ -80,6 +81,7 @@ int main(int argc, const char **argv)
 		load_world(world, SAVEFILE_PATH);
 	else
 		generate_world(world, (U32)time(NULL));
+	create_uicontext();
 	create_editor();
 
 	F64 time_accum= 0.0; // For fps
@@ -88,6 +90,7 @@ int main(int argc, const char **argv)
 		reset_frame_alloc();
 
 		plat_update(d);
+		upd_uicontext();
 		time_accum += d->dt;
 		if (frame++ == 60) {
 			debug_print("---");
@@ -101,12 +104,7 @@ int main(int argc, const char **argv)
 		}
 
 		{ // User input
-			V2d cursor= {
-				2.0*d->cursor_pos[0]/d->win_size[0] - 1.0,
-				-2.0*d->cursor_pos[1]/d->win_size[1] + 1.0
-			};
-
-			V2d cursor_on_world= screen_to_world_point(cursor);
+			V2d cursor_on_world= screen_to_world_point(g_env.device->cursor_pos);
 
 			F32 dt= d->dt;
 			F32 spd= 25.0;
@@ -205,6 +203,7 @@ int main(int argc, const char **argv)
 	}
 
 	destroy_editor();
+	destroy_uicontext();
 	destroy_world(world);
 	g_env.world= NULL;
 

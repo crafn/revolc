@@ -2,6 +2,7 @@
 #define REVOLC_PLATFORM_DEVICE_H
 
 #include "build.h"
+#include "core/vector.h"
 
 #define KEYBOARD_KEY_COUNT 256
 #define KEY_LMB 0
@@ -23,8 +24,8 @@
 
 struct DevicePlatformData;
 typedef struct Device {
-	int cursor_pos[2];
-	int win_size[2];
+	V2i cursor_pos;
+	V2i win_size;
 	bool quit_requested;
 	F32 dt;
 

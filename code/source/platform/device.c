@@ -351,14 +351,14 @@ void plat_update(Device *d)
 
 	XWindowAttributes gwa;
 	XGetWindowAttributes(d->data->dpy, d->data->win, &gwa);
-	d->win_size[0]= gwa.width;
-	d->win_size[1]= gwa.height;
+	d->win_size.x= gwa.width;
+	d->win_size.y= gwa.height;
 
 	int root_x= 0, root_y= 0;
 	Window w;
 	unsigned int mask;
 	XQueryPointer(	d->data->dpy, d->data->win, &w,
-					&w, &root_x, &root_y, &d->cursor_pos[0], &d->cursor_pos[1],
+					&w, &root_x, &root_y, &d->cursor_pos.x, &d->cursor_pos.y,
 					&mask);
 
 	long old_us= d->data->ts.tv_nsec/1000 + d->data->ts.tv_sec*1000000;

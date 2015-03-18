@@ -13,15 +13,16 @@ typedef struct ModelEntity {
 	T3d tf;
 	bool allocated;
 	bool has_own_mesh; // If true, vertices and indices are free'd along this
+	bool visible;
 
 	// Cached
+	Color color;
 	V3f atlas_uv;
 	V2f scale_to_atlas_uv;
 	TriMeshVertex* vertices;
 	MeshIndexType* indices;
 	U32 mesh_v_count;
 	U32 mesh_i_count;
-
 } ModelEntity;
 
 REVOLC_API void init_modelentity(ModelEntity *data);

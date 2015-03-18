@@ -9,6 +9,7 @@ struct Device;
 struct PhysWorld;
 struct ResBlob;
 struct Renderer;
+struct UiContext;
 struct World;
 
 struct SymbolTable;
@@ -20,6 +21,7 @@ typedef struct Env {
 	struct PhysWorld *physworld;
 	struct Renderer *renderer;
 	struct ResBlob *resblob;
+	struct UiContext *uicontext;
 	struct World *world;
 
 	U8 *frame_mem_begin;
