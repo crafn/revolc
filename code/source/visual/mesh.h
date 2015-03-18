@@ -41,10 +41,40 @@ typedef struct Mesh {
 	BlobOffset i_offset;
 } PACKED Mesh;
 
-REVOLC_API void * mesh_vertices(const Mesh *m);
+REVOLC_API TriMeshVertex * mesh_vertices(const Mesh *m);
 REVOLC_API MeshIndexType * mesh_indices(const Mesh *m);
 
 REVOLC_API WARN_UNUSED
 int json_mesh_to_blob(struct BlobBuf *buf, JsonTok j);
+
+//
+// Json output test
+//
+
+typedef enum {
+	WJsonType_object,
+	WJsonType_array,
+	WJsonType_number,
+	WJsonType_string
+} WJsonType;
+
+// Used to write json
+// If complex manipulation of json files is needed, this should
+// probably override JsonTok as read/write structure
+typedef struct WJson {
+	WJsonType type;
+
+	struct WJson *last_member; // Owns
+	struct WJson *prev;
+
+	F64 number;
+	char *string; // Owns
+} WJson;
+
+REVOLC_API void mesh_to_json(WJson *j, const Mesh *m);
+
+REVOLC_API WJson *wjson_create();
+REVOLC_API void wjson_destroy(WJson *j);
+REVOLC_API void wjson_dump(WJson *j);
 
 #endif // REVOLC_VISUAL_MESH_H

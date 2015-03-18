@@ -31,7 +31,7 @@ U32 vertex_size(MeshType type)
 	return 0;
 }
 
-void * mesh_vertices(const Mesh *m)
+TriMeshVertex * mesh_vertices(const Mesh *m)
 { return blob_ptr(&m->res, m->v_offset); }
 
 MeshIndexType * mesh_indices(const Mesh *m)
@@ -105,80 +105,145 @@ error:
 	return 1;
 }
 
-typedef enum {
-	JsonType_object,
-	JsonType_array,
-	JsonType_number,
-	JsonType_string
-} JsonType;
-
-// If complex manipulation of json files is needed, this should
-// probably override JsonTok as read/write structure
-typedef struct JsonNode {
-	JsonType type;
-	struct JsonNode *members; // Owns
-	U32 member_count;
-
-	F64 number;
-	char *string; // Owns
-} JsonNode;
-
-JsonNode create_jsonnode(JsonTok input)
+WJson *wjson_create()
 {
-	JsonNode n= {};
-
-	ensure(!json_is_null(input) && "@todo Null support");
-
-	if (json_is_object(input) || json_is_array(input) || json_is_string(input)) {
-		if (json_is_object(input)) {
-			n.type= JsonType_object;
-		} else if (json_is_array(input)) {
-			n.type= JsonType_array;
-		} else {
-			n.type= JsonType_string;
-			U32 string_len= strlen(json_str(input));
-			n.string= dev_malloc(string_len + 1);
-			json_strcpy(n.string, string_len, input);
-		}
-		n.member_count= json_member_count(input);
-		n.members= dev_malloc(sizeof(*n.members)*n.member_count);
-		for (U32 i= 0; i < n.member_count; ++i)
-			n.members[i]= create_jsonnode(json_member(input, i));
-	} else { // Number
-		n.type= JsonType_number;
-		n.number= json_real(input);
-	}
-	return n;
+	WJson *new_member= dev_malloc(sizeof(*new_member));
+	*new_member= (WJson) {};
+	return new_member;
 }
 
-void destroy_jsonnode(JsonNode node)
+void wjson_destroy(WJson *j)
 {
-	if (	node.type == JsonType_object ||
-			node.type == JsonType_array ||
-			node.type == JsonType_string) {
-		for (U32 i= 0; i < node.member_count; ++i)
-			destroy_jsonnode(node.members[i]);
-		dev_free(node.members);
+	WJson *member= j->last_member;
+	while (member) {
+		WJson* prev= member->prev;
+		wjson_destroy(member);
+		member= prev;
 	}
 
-	if (node.type == JsonType_string)
-		dev_free(node.string);
+	if (j->type == WJsonType_string) {
+		dev_free(j->string);
+		j->string= NULL;
+	}
+
+	dev_free(j);
 }
 
-/*
-void blob_mesh_to_json(JsonOut *j, const Mesh *m)
+void * wjson_init_string(WJson *j_str, const char *str)
 {
-	JsonOut* j_pos= jout_array(j, "pos");
-	JsonOut* j_uv= jout_array(j, "uv");
-	JsonOut* j_ind= jout_array(j, "ind");
+	ensure(j_str->string == NULL);
+	j_str->type= WJsonType_string;
+	U32 size= strlen(str) + 1;
+	j_str->string= dev_malloc(size);
+	snprintf(j_str->string, size, "%s", str);
+	return j_str;
+}
+
+void wjson_append(WJson *j, WJson *item)
+{
+	item->prev= j->last_member;
+	j->last_member= item;
+}
+
+WJson * wjson_new_member(WJson *j)
+{
+	WJson *new_member= wjson_create();
+	wjson_append(j, new_member);
+	return new_member;
+}
+
+WJson *wjson_named_member(WJson *j, WJsonType t, const char *name)
+{
+	WJson *j_str= wjson_new_member(j);
+	wjson_init_string(j_str, name);
+	WJson *j_member= wjson_new_member(j_str);
+	j_member->type= t;
+	return j_member;
+}
+
+void wjson_move(WJson *dst, WJson *src)
+{
+	WJson *prev= dst->prev;
+	*dst= *src;
+	dst->prev= prev;
+}
+
+WJson *wjson_number(F64 n)
+{
+	WJson *j_number= wjson_create();
+	j_number->type= WJsonType_number;
+	j_number->number= n;
+	return j_number;
+}
+
+WJson *wjson_v3(V3d vec)
+{
+	WJson *j_v3= wjson_create();
+	j_v3->type= WJsonType_array;
+	
+	wjson_append(j_v3, wjson_number(vec.x));
+	wjson_append(j_v3, wjson_number(vec.y));
+	wjson_append(j_v3, wjson_number(vec.z));
+	return j_v3;
+}
+
+internal
+void wjson_dump_recurse(WJson *j, U32 depth)
+{
+	for (U32 i= 0; i < depth; ++i)
+		printf("  ");
+	switch (j->type) {
+	case WJsonType_object: debug_print("{"); break;
+	case WJsonType_array: debug_print("["); break;
+	case WJsonType_string:
+		if (j->last_member)
+			debug_print("\"%s\" : ", j->string);
+		else
+			debug_print("\"%s\",", j->string);
+	break;
+	case WJsonType_number: debug_print("%g,", j->number); break;
+	default: fail("Unknown value");
+	}
+
+	WJson *member= j->last_member;
+	while (member) {
+		wjson_dump_recurse(member, depth + 1);
+		member= member->prev;
+	}
+
+	if (	j->type == WJsonType_object ||
+			j->type == WJsonType_array) {
+		for (U32 i= 0; i < depth; ++i)
+			printf("  ");
+
+		if (j->type == WJsonType_object)
+			debug_print("},");
+		else
+			debug_print("],");
+	}
+}
+
+void wjson_dump(WJson *j)
+{
+	debug_print("WJson dump");
+	wjson_dump_recurse(j, 0);
+}
+
+void mesh_to_json(WJson *j, const Mesh *m)
+{
+	WJson *j_pos= wjson_named_member(j, WJsonType_array, "pos");
+	WJson *j_uv= wjson_named_member(j, WJsonType_array, "uv");
+	WJson *j_ind= wjson_named_member(j, WJsonType_array, "ind");
 
 	for (U32 i= 0; i < m->v_count; ++i) {
-		jout_member(j_pos, i, jout_v3d(mesh_vertices(m)[i].pos));
-		jout_member(j_uv, i, jout_v3d(mesh_vertices(m)[i].uv));
+		wjson_append(	j_pos,
+						wjson_v3(v3f_to_v3d(mesh_vertices(m)[i].pos)));
+		wjson_append(	j_uv,
+						wjson_v3(v3f_to_v3d(mesh_vertices(m)[i].uv)));
 	}
 
 	for (U32 i= 0; i < m->i_count; ++i) {
-		jout_member(j_ind, i, jout_integer(mesh_indices(m)[i]));
+		wjson_append(	j_ind,
+						wjson_number(mesh_indices(m)[i]));
 	}
 }
-*/

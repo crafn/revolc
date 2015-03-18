@@ -385,6 +385,15 @@ void upd_editor()
 	if (!e->visible)
 		return;
 
+	if (g_env.device->key_pressed['m']) {
+		Mesh *mesh= (Mesh*)res_by_name(g_env.resblob, ResType_Mesh, "unitquad");
+
+		WJson *j_obj= wjson_create();
+		mesh_to_json(j_obj, mesh);
+		wjson_dump(j_obj);
+		wjson_destroy(j_obj);
+	}
+
 	bool tab_pressed= g_env.device->key_pressed[KEY_TAB];
 	if (tab_pressed) {
 		toggle_bool(&e->is_edit_mode);
