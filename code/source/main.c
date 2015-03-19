@@ -139,7 +139,9 @@ int main(int argc, const char **argv)
 				play_sound("dev_beep1", 0.5, 1.0);
 
 			if (d->key_pressed[KEY_F5]) {
-				mirror_blob_modifications(g_env.resblob);
+				U32 count= mirror_blob_modifications(g_env.resblob);
+				if (count > 0)
+					delete_file(DEFAULT_BLOB_PATH); // Force make_blob at restart
 			}
 
 			if (d->key_pressed[KEY_F9]) {
@@ -153,9 +155,15 @@ int main(int argc, const char **argv)
 			}
 
 			if (d->key_pressed[KEY_F12]) {
-				system("../../code/build_mod");
 				/// @todo Reload only modules
-				reload_blob(&g_env.resblob, g_env.resblob, DEFAULT_BLOB_PATH);
+				system("../../code/build_mod");
+				if (!file_exists(DEFAULT_BLOB_PATH))
+					make_main_blob();
+
+				if (!d->key_down[KEY_LSHIFT] && blob_has_modifications(g_env.resblob))
+					critical_print("Current resblob has unsaved modifications -- not reloading");
+				else
+					reload_blob(&g_env.resblob, g_env.resblob, DEFAULT_BLOB_PATH);
 			}
 
 			if (d->key_pressed[KEY_ESC]) {

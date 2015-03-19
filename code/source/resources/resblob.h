@@ -38,7 +38,7 @@ REVOLC_API void print_blob(const ResBlob *blob);
 REVOLC_API void make_blob(const char *dst_file, char **res_file_paths);
 
 // Saves changes to original, unpacked resource files
-REVOLC_API void mirror_blob_modifications(ResBlob *blob);
+REVOLC_API U32 mirror_blob_modifications(ResBlob *blob);
 
 REVOLC_API bool blob_has_modifications(const ResBlob *blob);
 

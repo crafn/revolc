@@ -527,7 +527,7 @@ void mirror_res(Resource *res)
 		res_to_json(upd_res, res);
 	}
 
-	wjson_write_updated("test_upd.json", file.root, upd_file);
+	wjson_write_updated(res_file_path, file.root, upd_file);
 
 cleanup:
 	wjson_destroy(upd_file);
@@ -539,7 +539,7 @@ error:
 	goto cleanup;
 }
 
-void mirror_blob_modifications(ResBlob *blob)
+U32 mirror_blob_modifications(ResBlob *blob)
 {
 	U32 count= 0;
 	for (U32 i= 0; i < blob->res_count; ++i) {
@@ -554,6 +554,7 @@ void mirror_blob_modifications(ResBlob *blob)
 		}
 	}
 	debug_print("mirror_blob_modifications: %i", count);
+	return count;
 }
 
 bool blob_has_modifications(const ResBlob *blob)
