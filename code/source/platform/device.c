@@ -304,6 +304,7 @@ void plat_update(Device *d)
 
 	for (int i= 0; i < KEYBOARD_KEY_COUNT; ++i)
 		d->key_pressed[i]= d->key_released[i]= false;
+	d->quit_requested= false;
 
 	while(XPending(d->data->dpy)) {
 		XEvent xev;
@@ -330,6 +331,8 @@ void plat_update(Device *d)
 				table_index= KEY_TAB;
 			else if (*keysym == 65505)
 				table_index= KEY_LSHIFT;
+			else if (*keysym == 65307)
+				table_index= KEY_ESC;
 
 			d->key_down[table_index]= (xev.type == KeyPress);
 			d->key_pressed[table_index]= (xev.type == KeyPress);

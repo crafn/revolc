@@ -18,7 +18,7 @@
 internal
 int json_res_to_blob(BlobBuf *buf, JsonTok j, ResType res_t)
 {
-#define RESOURCE(name, init, deinit, blobify) \
+#define RESOURCE(name, init, deinit, blobify, jsonify) \
 	if (res_t == ResType_ ## name) \
 		return blobify(buf, j);
 #	include "resources.def"
@@ -26,13 +26,29 @@ int json_res_to_blob(BlobBuf *buf, JsonTok j, ResType res_t)
 	return 1;
 }
 
+internal
+void res_to_json(WJson *j, const Resource *res)
+{
+#define RESOURCE(rtype, init, deinit, blobify, jsonify) \
+	{ \
+		void *fptr= (void*)jsonify; \
+		if (fptr && ResType_ ## rtype == res->type) { \
+			if (!fptr) \
+				fail(	"Jsonify function missing for resource type: %s", \
+						restype_to_str(res->type)); \
+			((void (*)(WJson *, const rtype *))fptr)(j, (const rtype*)res); \
+		} \
+	}
+#	include "resources/resources.def"
+#undef RESOURCE
+}
 
 internal
 void init_res(Resource *res)
 {
-#define RESOURCE(rtype, init, deinit, blobify) \
+#define RESOURCE(rtype, init, deinit, blobify, jsonify) \
 	{ \
-		void* fptr= (void*)init; \
+		void *fptr= (void*)init; \
 		if (fptr && ResType_ ## rtype == res->type) \
 			((void (*)(rtype *))fptr)((rtype*)res); \
 	}
@@ -47,6 +63,9 @@ void load_blob(ResBlob **blob, const char *path)
 		U32 blob_size;
 		*blob= (ResBlob*)malloc_file(path, &blob_size);
 		debug_print("load_blob: %s, %iM", path, (int)blob_size/(1024*1024));
+
+		for (U32 i= 0; i < (*blob)->res_file_count; ++i)
+			debug_print("  %s", (*blob)->res_file_paths[i]);
 	}
 
 	{ // Initialize resources
@@ -70,7 +89,7 @@ void load_blob(ResBlob **blob, const char *path)
 internal
 void deinit_res(Resource *res)
 {
-#define RESOURCE(rtype, init, deinit, blobify) \
+#define RESOURCE(rtype, init, deinit, blobify, jsonify) \
 	{ \
 		void* fptr= (void*)deinit; \
 		if (fptr && ResType_ ## rtype == res->type) \
@@ -271,7 +290,7 @@ void print_blob(const ResBlob *blob)
 	for (int res_i= 0; res_i < blob->res_count; ++res_i) {
 		Resource* res= res_by_index(blob, res_i);
 		debug_print(
-				"  resource: %s, %s",
+				"  %s, %s",
 				res->name,
 				restype_to_str(res->type));
 
@@ -279,7 +298,7 @@ void print_blob(const ResBlob *blob)
 			case ResType_Texture: {
 				Texture* tex= (Texture*)res;
 				debug_print(
-					"  reso: %i, %i",
+					"    reso: %i, %i",
 					tex->reso.x, tex->reso.y);
 			} break;
 			/*case ResType_Mesh: {
@@ -363,6 +382,7 @@ void make_blob(const char *dst_file_path, char **res_file_paths)
 				JsonTok j_res= json_member(j_root, res_i);
 				ResInfo res_info= {};
 				res_info.tok= j_res;
+				res_info.header.res_file_index= json_i;
 
 				ensure(json_is_object(j_res));
 
@@ -410,8 +430,13 @@ void make_blob(const char *dst_file_path, char **res_file_paths)
 
 		ResBlob header= {
 			.version= 1,
-			.res_count= res_info_count
+			.res_count= res_info_count,
+			.res_file_count= res_file_count,
 		};
+		for (U32 i= 0; i < res_file_count; ++i) {
+			snprintf(	header.res_file_paths[i], sizeof(header.res_file_paths),
+						"%s", parsed_jsons[i].json_path);
+		}
 		blob_write(&buf, &header, sizeof(header));
 
 		BlobOffset offset_of_offset_table= buf.offset;
@@ -474,4 +499,69 @@ exit:
 error:
 	critical_print("make_blob failed");
 	goto exit;
+}
+
+internal
+void mirror_res(Resource *res)
+{
+	const char *res_file_path= res->blob->res_file_paths[res->res_file_index];
+	ParsedJsonFile file= malloc_parsed_json_file(res_file_path);
+	WJson *upd_file= wjson_create(JsonType_array);
+	for (U32 i= 0; i < json_member_count(file.root); ++i) {
+		JsonTok j_res= json_member(file.root, i);
+		JsonTok j_name= json_value_by_key(j_res, "name");
+		JsonTok j_type= json_value_by_key(j_res, "type");
+
+		WJson *upd_res= wjson_create(JsonType_object);
+		wjson_append(upd_file, upd_res);
+
+		if (json_is_null(j_name))
+			RES_ATTRIB_MISSING("name");
+		if (json_is_null(j_type))
+			RES_ATTRIB_MISSING("type");
+
+		if (	str_to_restype(json_str(j_type)) != res->type ||
+				strcmp(json_str(j_name), res->name))
+			continue;
+
+		res_to_json(upd_res, res);
+	}
+
+	wjson_write_updated("test_upd.json", file.root, upd_file);
+
+cleanup:
+	wjson_destroy(upd_file);
+	free_parsed_json_file(file);
+	return;
+
+error:
+	critical_print("Error at mirroring resources");
+	goto cleanup;
+}
+
+void mirror_blob_modifications(ResBlob *blob)
+{
+	U32 count= 0;
+	for (U32 i= 0; i < blob->res_count; ++i) {
+		Resource *res= res_by_index(blob, i);
+		if (res->modified) {
+			// Reloading & writing json for every modified resource
+			// shouldn't be a problem, because typically few resources
+			// are modified at once
+			mirror_res(res);
+			res->modified= false;
+			++count;
+		}
+	}
+	debug_print("mirror_blob_modifications: %i", count);
+}
+
+bool blob_has_modifications(const ResBlob *blob)
+{
+	for (U32 i= 0; i < blob->res_count; ++i) {
+		Resource *res= res_by_index(blob, i);
+		if (res->modified)
+			return true;
+	}
+	return false;
 }

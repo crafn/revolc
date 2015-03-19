@@ -199,6 +199,11 @@ void gui_uvbox(V2i pix_pos, V2i pix_size, ModelEntity *m)
 			v->uv.x= CLAMP(v->uv.x, 0.0, 1.0);
 			v->uv.y= CLAMP(v->uv.y, 0.0, 1.0);
 		}
+
+		Mesh *mesh= model_mesh((Model*)res_by_name(	g_env.resblob,
+													ResType_Model,
+													m->model_name));
+		mesh->res.modified= true;
 	}
 
 	V2i padding= {20, 20};
@@ -296,6 +301,10 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 				// Delta to world coords
 				v->pos= add_v3f(v3d_to_v3f(delta), v->pos);
 			}
+			Mesh *mesh= model_mesh((Model*)res_by_name(	g_env.resblob,
+														ResType_Model,
+														m->model_name));
+			mesh->res.modified= true;
 		}
 	}
 
@@ -385,9 +394,8 @@ void upd_editor()
 	if (!e->visible)
 		return;
 
-	if (g_env.device->key_pressed['m']) {
+/*	if (g_env.device->key_pressed['m']) {
 		Mesh *mesh= (Mesh*)res_by_name(g_env.resblob, ResType_Mesh, "unitquad");
-
 
 		ParsedJsonFile j_file= malloc_parsed_json_file("test.json");
 
@@ -400,6 +408,7 @@ void upd_editor()
 		wjson_destroy(j_upd);
 		free_parsed_json_file(j_file);
 	}
+	*/
 
 	bool tab_pressed= g_env.device->key_pressed[KEY_TAB];
 	if (tab_pressed) {

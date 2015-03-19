@@ -7,7 +7,13 @@
 typedef struct ResBlob {
 	U32 version;
 	U32 res_count;
+
+	char res_file_paths[MAX_RES_FILES][MAX_PATH_SIZE];
+	U32 res_file_count;
+
+	// Cached
 	MissingResource *first_missing_res;
+
 	BlobOffset res_offsets[];
 } PACKED ResBlob;
 
@@ -30,6 +36,11 @@ REVOLC_API void print_blob(const ResBlob *blob);
 // makes binary blob out of them to `dst_file
 // `res_file_paths` is a null-terminated array of null-terminated strings
 REVOLC_API void make_blob(const char *dst_file, char **res_file_paths);
+
+// Saves changes to original, unpacked resource files
+REVOLC_API void mirror_blob_modifications(ResBlob *blob);
+
+REVOLC_API bool blob_has_modifications(const ResBlob *blob);
 
 typedef struct BlobBuf {
 	void *data;

@@ -11,7 +11,7 @@ typedef U64 BlobOffset; // Offset from the beginning of a resource blob
 
 typedef enum {
 	ResType_None,
-#define RESOURCE(x, init, deinit, blobify) ResType_ ## x,
+#define RESOURCE(x, init, deinit, blobify, jsonify) ResType_ ## x,
 #	include "resources.def"
 #undef RESOURCE
 	ResType_last
@@ -27,17 +27,21 @@ typedef struct Resource {
 	ResType type;
 	char name[RES_NAME_SIZE];
 	struct ResBlob *blob;
-	bool is_missing_res; /// true if Resource is owned by MissingResource
+
+	// Dev info
+	U32 res_file_index;
+	bool is_missing_res; // true if Resource is owned by MissingResource
+	bool modified; // true if Resource has been modified, but not yet saved
 } PACKED Resource;
 
-/// MissingResources are created on demand to separately allocated
-/// chunks, using the conventional blob creation facility.
-///
-/// Can't use just a single Resource represent missing ones, as then
-/// pointers can't be resolved when reloading updated blob.
-///
-/// For MissingResources, BlobOffsets are calculated from the
-/// beginning of the Resource, NOT from the beginning of the ResBlob.
+// MissingResources are created on demand to separately allocated
+// chunks, using the conventional blob creation facility.
+//
+// Can't use just a single Resource represent missing ones, as then
+// pointers can't be resolved when reloading updated blob.
+//
+// For MissingResources, BlobOffsets are calculated from the
+// beginning of the Resource, NOT from the beginning of the ResBlob.
 typedef struct MissingResource {
 	Resource *res;
 	struct MissingResource *next;

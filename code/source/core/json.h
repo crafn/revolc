@@ -27,6 +27,7 @@ typedef struct JsonTok {
 } JsonTok;
 
 typedef struct ParsedJsonFile {
+	const char *json_path;
 	jsmntok_t *tokens;
 	char *json;
 	char *null_json;
@@ -69,11 +70,13 @@ typedef struct WJson {
 	struct WJson *first_member;
 	struct WJson *next;
 
+	U32 member_count;
+
 	F64 number;
 	char *string; // Owns
 } WJson;
 
-REVOLC_API WJson *wjson_create();
+REVOLC_API WJson *wjson_create(JsonType type);
 REVOLC_API void wjson_destroy(WJson *j);
 
 REVOLC_API void wjson_append(WJson *j, WJson *item);

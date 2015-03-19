@@ -21,6 +21,7 @@
 #define KEY_F11 137
 #define KEY_F12 138
 #define KEY_TAB 139
+#define KEY_ESC 140
 
 struct DevicePlatformData;
 typedef struct Device {

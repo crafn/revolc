@@ -6,8 +6,9 @@ ParsedJsonFile malloc_parsed_json_file(const char *file)
 {
 	ParsedJsonFile ret= {};
 	U32 file_size;
+	ret.json_path= file;
 	ret.json= (char*)malloc_file(file, &file_size);
-	ret.null_json= strdup(ret.json);
+	ret.null_json= (char*)malloc_file(file, &file_size);
 	ret.root.json_size= file_size;
 
 	{ // Parse json
@@ -233,17 +234,22 @@ T3d json_t3(JsonTok j)
 	};
 }
 
+//
+// wjson
+//
 
-
-WJson *wjson_create()
+WJson *wjson_create(JsonType type)
 {
 	WJson *new_member= dev_malloc(sizeof(*new_member));
-	*new_member= (WJson) {};
+	*new_member= (WJson) {.type= type};
 	return new_member;
 }
 
 void wjson_destroy(WJson *j)
 {
+	if (!j)
+		return;
+
 	WJson *member= j->last_member;
 	while (member) {
 		WJson* prev= member->prev;
@@ -280,12 +286,14 @@ void wjson_append(WJson *j, WJson *item)
 
 	if (!j->first_member)
 		j->first_member= item;
+
+	++j->member_count;
 }
 
 internal
 WJson * wjson_new_member(WJson *j)
 {
-	WJson *new_member= wjson_create();
+	WJson *new_member= wjson_create(JsonType_object);
 	wjson_append(j, new_member);
 	return new_member;
 }
@@ -301,17 +309,14 @@ WJson * wjson_named_member(WJson *j, JsonType t, const char *name)
 
 WJson * wjson_number(F64 n)
 {
-	WJson *j_number= wjson_create();
-	j_number->type= JsonType_number;
+	WJson *j_number= wjson_create(JsonType_number);
 	j_number->number= n;
 	return j_number;
 }
 
 WJson * wjson_v3(V3d vec)
 {
-	WJson *j_v3= wjson_create();
-	j_v3->type= JsonType_array;
-	
+	WJson *j_v3= wjson_create(JsonType_array);
 	wjson_append(j_v3, wjson_number(vec.x));
 	wjson_append(j_v3, wjson_number(vec.y));
 	wjson_append(j_v3, wjson_number(vec.z));
@@ -433,14 +438,25 @@ void wjson_find_subs(	JsonSubs *subs,
 		}
 	} break;
 	case JsonType_array: {
-		/// @todo Don't just overwrite the whole array
-		wjson_add_sub(subs, sub_count, max_sub_count, in, upd);
+		if (json_member_count(in) == upd->member_count) {
+			WJson *upd_member= upd->first_member;
+			U32 i= 0;
+			while (upd_member) {
+				wjson_find_subs(subs, sub_count, max_sub_count,
+								json_member(in, i), upd_member);
+				upd_member= upd_member->next;
+				++i;
+			}
+		} else {
+			// Just overwrite everything in the array if count has changed
+			wjson_add_sub(subs, sub_count, max_sub_count, in, upd);
+		}
 	} break;
 	case JsonType_number: {
 		wjson_add_sub(subs, sub_count, max_sub_count, in, upd);
 	} break;
 	case JsonType_string: {
-		/// @todo Don't just overwrite string members
+		/// @todo Don't just overwrite string members, should inspect
 		wjson_add_sub(subs, sub_count, max_sub_count, in, upd);
 	} break;
 	default: fail("Unknown JsonType: %i", upd->type);
@@ -505,9 +521,8 @@ void wjson_write_with_subs(FILE *file, const char *json, U32 json_size, JsonSubs
 		// Stuff before the substitution
 		file_write(file, json + last_write_end, pre_sub_count);
 
+		// Substitution
 		wjson_write(file, subs[i].src);
-		//file_printf(file, "\n");
-
 		last_write_end= subs[i].dst_end;
 	}
 

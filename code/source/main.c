@@ -86,7 +86,7 @@ int main(int argc, const char **argv)
 
 	F64 time_accum= 0.0; // For fps
 	U32 frame= 0;
-	while (!d->quit_requested) {
+	while (1) {
 		reset_frame_alloc();
 
 		plat_update(d);
@@ -137,24 +137,37 @@ int main(int argc, const char **argv)
 				play_sound("dev_beep0", 1.0, -1.0);
 			if (d->key_pressed['l'])
 				play_sound("dev_beep1", 0.5, 1.0);
-			if (d->key_pressed['p'])
-				play_sound("ambient", 1.0, 0.0);
 
-			if (d->key_pressed[KEY_F12]) {
-				system("../../code/build_mod");
-				make_main_blob();
-				reload_blob(&g_env.resblob, g_env.resblob, DEFAULT_BLOB_PATH);
+			if (d->key_pressed[KEY_F5]) {
+				mirror_blob_modifications(g_env.resblob);
 			}
 
-			if (d->key_pressed[KEY_F11]) {
+			if (d->key_pressed[KEY_F9]) {
+				system("../../code/build_mod");
+				make_main_blob();
+
+				if (!d->key_down[KEY_LSHIFT] && blob_has_modifications(g_env.resblob))
+					critical_print("Current resblob has unsaved modifications -- not reloading");
+				else
+					reload_blob(&g_env.resblob, g_env.resblob, DEFAULT_BLOB_PATH);
+			}
+
+			if (d->key_pressed[KEY_F12]) {
 				system("../../code/build_mod");
 				/// @todo Reload only modules
 				reload_blob(&g_env.resblob, g_env.resblob, DEFAULT_BLOB_PATH);
 			}
 
-			if (d->key_pressed[KEY_F5])
+			if (d->key_pressed[KEY_ESC]) {
+				if (!d->key_down[KEY_LSHIFT] && blob_has_modifications(g_env.resblob))
+					critical_print("Current resblob has unsaved modifications -- press shift + ESC to quit without saving");
+				else
+					break;
+			}
+
+			if (d->key_pressed['p'])
 				save_world(world, SAVEFILE_PATH);
-			if (d->key_pressed[KEY_F9]) {
+			if (d->key_pressed['o']) {
 				destroy_world(world);
 				world= g_env.world= create_world();
 				load_world(world, SAVEFILE_PATH);

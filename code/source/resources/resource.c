@@ -2,7 +2,7 @@
 
 ResType str_to_restype(const char *str)
 {
-#define RESOURCE(x, init, deinit, blobify) \
+#define RESOURCE(x, init, deinit, blobify, jsonify) \
 	if (!strcmp(#x, str)) \
 		return ResType_ ## x;
 #	include "resources.def"
@@ -12,7 +12,7 @@ ResType str_to_restype(const char *str)
 
 const char * restype_to_str(ResType type)
 {
-#define RESOURCE(x, init, deinit, blobify) \
+#define RESOURCE(x, init, deinit, blobify, jsonify) \
 	if (ResType_ ## x == type) \
 		return #x;
 #	include "resources.def"
