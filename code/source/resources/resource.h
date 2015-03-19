@@ -30,21 +30,24 @@ typedef struct Resource {
 
 	// Dev info
 	U32 res_file_index;
-	bool is_missing_res; // true if Resource is owned by MissingResource
-	bool modified; // true if Resource has been modified, but not yet saved
+	bool is_runtime_res; // true if Resource is owned by RuntimeResource
+	bool needs_saving; // Can be true only for RuntimeResources
+	struct Resource *substitute; // Runtime res. Used for editing
 } PACKED Resource;
 
-// MissingResources are created on demand to separately allocated
+// RuntimeResource are created on demand to separately allocated
 // chunks, using the conventional blob creation facility.
 //
-// Can't use just a single Resource represent missing ones, as then
+// Can't use just a single Resource represent runtime ones, as then
 // pointers can't be resolved when reloading updated blob.
 //
-// For MissingResources, BlobOffsets are calculated from the
+// For RuntimeResource, BlobOffsets are calculated from the
 // beginning of the Resource, NOT from the beginning of the ResBlob.
-typedef struct MissingResource {
+//
+// RuntimeResources are used for missing and edited resources
+typedef struct RuntimeResource {
 	Resource *res;
-	struct MissingResource *next;
-} MissingResource;
+	struct RuntimeResource *next;
+} RuntimeResource;
 
 #endif // REVOLC_RESOURCES_RESOURCE_H

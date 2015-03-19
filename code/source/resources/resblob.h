@@ -11,8 +11,7 @@ typedef struct ResBlob {
 	char res_file_paths[MAX_RES_FILES][MAX_PATH_SIZE];
 	U32 res_file_count;
 
-	// Cached
-	MissingResource *first_missing_res;
+	RuntimeResource *first_runtime_res;
 
 	BlobOffset res_offsets[];
 } PACKED ResBlob;
@@ -25,6 +24,7 @@ REVOLC_API Resource * res_by_index(const ResBlob *blob, U32 index);
 REVOLC_API Resource * res_by_name(ResBlob *b, ResType t, const char *n);
 REVOLC_API bool res_exists(const ResBlob *blob, ResType t, const char *n);
 REVOLC_API Resource * find_res_by_name(const ResBlob *b, ResType t, const char *n);
+/// @todo Should take substitutes account somehow
 REVOLC_API void all_res_by_type(U32 *start_index, U32 *count,
 								const ResBlob *blob, ResType t);
 
@@ -37,9 +37,13 @@ REVOLC_API void print_blob(const ResBlob *blob);
 // `res_file_paths` is a null-terminated array of null-terminated strings
 REVOLC_API void make_blob(const char *dst_file, char **res_file_paths);
 
+// Makes/gives runtime substitution for a resource, although
+// all resources can be modified, but normal resources can't be saved.
+// ^ is due to unified handling of modified/created resources
+REVOLC_API Resource * runtime_res(Resource *res);
+
 // Saves changes to original, unpacked resource files
 REVOLC_API U32 mirror_blob_modifications(ResBlob *blob);
-
 REVOLC_API bool blob_has_modifications(const ResBlob *blob);
 
 typedef struct BlobBuf {

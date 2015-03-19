@@ -118,11 +118,11 @@ void deinit_blob_res(ResBlob *blob)
 // Part of unloading (2/2)
 internal
 void free_blob(ResBlob *blob)
-{ // Free MissingResources
-	MissingResource *res= blob->first_missing_res;
+{ // Free RuntimeResource
+	RuntimeResource *res= blob->first_runtime_res;
 	/// @note Proper order would be reverse
 	while (res) {
-		MissingResource *next= res->next;
+		RuntimeResource *next= res->next;
 		deinit_res(res->res);
 		free(res->res);
 		free(res);
@@ -164,32 +164,31 @@ Resource * res_by_name(ResBlob *blob, ResType type, const char *name)
 	if (res)
 		return res;
 
-	critical_print("Resource not found: %s, %s", name, restype_to_str(type));
-	// Search already created missing resources
-	MissingResource *missing= NULL;
-	if (blob->first_missing_res) {
-		missing= blob->first_missing_res;
-		while (missing) {
-			if (	missing->res->type == type &&
-					!strcmp(missing->res->name, name))
+	// Search already created runtime resources
+	RuntimeResource *runtime_res= NULL;
+	if (blob->first_runtime_res) {
+		runtime_res= blob->first_runtime_res;
+		while (runtime_res) {
+			if (	runtime_res->res->type == type &&
+					!strcmp(runtime_res->res->name, name))
 				break; // Found
-			missing= missing->next;
+			runtime_res= runtime_res->next;
 		}
 	}
 
-	if (missing) {
-		critical_print("Using MissingResource");
-		return missing->res;
+	if (runtime_res) {
+		return runtime_res->res;
 	} else {
+		critical_print("Resource not found: %s, %s", name, restype_to_str(type));
 		critical_print("Creating MissingResource");
 
 		Resource res_header= {};
 		snprintf(res_header.name, RES_NAME_SIZE, "%s", name);
 		res_header.type= type;
 		res_header.blob= blob;
-		res_header.is_missing_res= true;
+		res_header.is_runtime_res= true;
 
-		MissingResource *new_res= zero_malloc(sizeof(*new_res));
+		RuntimeResource *new_res= zero_malloc(sizeof(*new_res));
 		const U32 missing_res_max_size= 1024*4;
 		new_res->res= zero_malloc(missing_res_max_size);
 
@@ -218,11 +217,11 @@ Resource * res_by_name(ResBlob *blob, ResType type, const char *name)
 		free_parsed_json_file(parsed_json);
 		init_res(new_res->res);
 
-		// Insert to missing resources of the blob
-		if (!blob->first_missing_res) {
-			blob->first_missing_res= new_res;
+		// Insert to runtime resources of the blob
+		if (!blob->first_runtime_res) {
+			blob->first_runtime_res= new_res;
 		} else {
-			MissingResource *last= blob->first_missing_res;
+			RuntimeResource *last= blob->first_runtime_res;
 			while (last->next)
 				last= last->next;
 			last->next= new_res;
@@ -240,8 +239,11 @@ Resource * find_res_by_name(const ResBlob *b, ResType t, const char *n)
 	/// @todo Binary search from organized blob
 	for (U32 i= 0; i < b->res_count; ++i) {
 		Resource* res= res_by_index(b, i);
-		if (res->type == t && !strcmp(n, res->name))
+		if (res->type == t && !strcmp(n, res->name)) {
+			if (res->substitute)
+				return res->substitute;
 			return res;
+		}
 	}
 	return NULL;
 }
@@ -253,8 +255,11 @@ Resource * find_res_by_name_from_blobbuf(	const BlobBuf *buf,
 	/// @todo Binary search from organized blob
 	for (U32 i= 0; i < buf->res_count; ++i) {
 		Resource* res= (Resource*)((U8*)buf->data + buf->res_offsets[i]);
-		if (res->type == t && !strcmp(n, res->name))
+		if (res->type == t && !strcmp(n, res->name)) {
+			if (res->substitute)
+				return res->substitute;
 			return res;
+		}
 	}
 	return NULL;
 }
@@ -272,15 +277,19 @@ void all_res_by_type(	U32 *start_index, U32 *count,
 			res_by_index(blob, *start_index)->type != t)
 		++*start_index;
 	while (	*start_index + *count < blob->res_count &&
-			res_by_index(blob, *start_index + *count)->type == t)
+			res_by_index(blob, *start_index + *count)->type == t) {
+		ensure(	res_by_index(blob, *start_index + *count)->substitute == NULL &&
+				"Known problem, just waited it to happen. "
+				"Resources with substitutes shouldn't be accessible.");
 		++*count;
+	}
 }
 
 void* blob_ptr(const Resource *who_asks, BlobOffset offset)
 {
-	if (!who_asks->is_missing_res)
+	if (!who_asks->is_runtime_res)
 		return (void*)((U8*)who_asks->blob + offset);
-	else /// @see MissingResource definition
+	else /// @see RuntimeResource definition
 		return (void*)((U8*)who_asks + offset);
 }
 
@@ -544,12 +553,14 @@ U32 mirror_blob_modifications(ResBlob *blob)
 	U32 count= 0;
 	for (U32 i= 0; i < blob->res_count; ++i) {
 		Resource *res= res_by_index(blob, i);
-		if (res->modified) {
+		if (res->needs_saving) {
+			ensure(res->is_runtime_res);
+			ensure(!res->substitute);
 			// Reloading & writing json for every modified resource
 			// shouldn't be a problem, because typically few resources
 			// are modified at once
 			mirror_res(res);
-			res->modified= false;
+			res->needs_saving= false;
 			++count;
 		}
 	}
@@ -561,7 +572,7 @@ bool blob_has_modifications(const ResBlob *blob)
 {
 	for (U32 i= 0; i < blob->res_count; ++i) {
 		Resource *res= res_by_index(blob, i);
-		if (res->modified)
+		if (res->needs_saving)
 			return true;
 	}
 	return false;

@@ -136,6 +136,27 @@ EditorBoxState gui_editorbox(const char *label, V2i pix_pos, V2i pix_size, bool 
 }
 
 internal
+void modify_mesh(ModelEntity *m, V3d delta, bool uv)
+{
+	for (U32 i= 0; i < m->mesh_v_count; ++i) {
+		TriMeshVertex *v= &m->vertices[i];
+		if (!v->selected)
+			continue;
+		if (uv) {
+			v->uv= add_v3f(v3d_to_v3f(delta), v->uv);
+			v->uv.x= CLAMP(v->uv.x, 0.0, 1.0);
+			v->uv.y= CLAMP(v->uv.y, 0.0, 1.0);
+		} else {
+			v->pos= add_v3f(v3d_to_v3f(delta), v->pos);
+		}
+	}
+	Mesh *mesh= model_mesh((Model*)res_by_name(	g_env.resblob,
+												ResType_Model,
+												m->model_name));
+	mesh->res.needs_saving= true;
+}
+
+internal
 V2i uv_to_pix(V3f uv, V2i pix_pos, V2i pix_size)
 { return (V2i) {uv.x*pix_size.x + pix_pos.x, (1 - uv.y)*pix_size.y + pix_pos.y}; }
 
@@ -190,20 +211,7 @@ void gui_uvbox(V2i pix_pos, V2i pix_size, ModelEntity *m)
 		V3d cur= pix_to_uv(ctx->cursor_pos, pix_pos, pix_size);
 		V3d prev= pix_to_uv(ctx->prev_cursor_pos, pix_pos, pix_size);
 		V3d delta= sub_v3d(cur, prev);
-		for (U32 i= 0; i < m->mesh_v_count; ++i) {
-			TriMeshVertex *v= &m->vertices[i];
-			if (!v->selected)
-				continue;
-			v->uv= add_v3f(v3d_to_v3f(delta), v->uv);
-
-			v->uv.x= CLAMP(v->uv.x, 0.0, 1.0);
-			v->uv.y= CLAMP(v->uv.y, 0.0, 1.0);
-		}
-
-		Mesh *mesh= model_mesh((Model*)res_by_name(	g_env.resblob,
-													ResType_Model,
-													m->model_name));
-		mesh->res.modified= true;
+		modify_mesh(m, delta, true);
 	}
 
 	V2i padding= {20, 20};
@@ -294,17 +302,7 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 										prev_wp}).pos;
 			V3d delta= sub_v3d(cur, prev);
 
-			for (U32 i= 0; i < m->mesh_v_count; ++i) {
-				TriMeshVertex *v= &m->vertices[i];
-				if (!v->selected)
-					continue;
-				// Delta to world coords
-				v->pos= add_v3f(v3d_to_v3f(delta), v->pos);
-			}
-			Mesh *mesh= model_mesh((Model*)res_by_name(	g_env.resblob,
-														ResType_Model,
-														m->model_name));
-			mesh->res.modified= true;
+			modify_mesh(m, delta, false);
 		}
 	}
 
