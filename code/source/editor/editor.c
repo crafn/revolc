@@ -388,10 +388,17 @@ void upd_editor()
 	if (g_env.device->key_pressed['m']) {
 		Mesh *mesh= (Mesh*)res_by_name(g_env.resblob, ResType_Mesh, "unitquad");
 
-		WJson *j_obj= wjson_create();
-		mesh_to_json(j_obj, mesh);
-		wjson_dump(j_obj);
-		wjson_destroy(j_obj);
+
+		ParsedJsonFile j_file= malloc_parsed_json_file("test.json");
+
+		WJson *j_upd= wjson_create();
+		mesh_to_json(j_upd, mesh);
+		//wjson_dump(j_obj);
+
+		wjson_write_updated("test_upd.json", j_file.root, j_upd);
+
+		wjson_destroy(j_upd);
+		free_parsed_json_file(j_file);
 	}
 
 	bool tab_pressed= g_env.device->key_pressed[KEY_TAB];

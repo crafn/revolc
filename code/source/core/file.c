@@ -33,3 +33,21 @@ void * malloc_file(const char *path, U32 *file_size)
 
 	return buf;
 }
+
+void file_write(FILE *f, const void *data, U32 size)
+{
+	int ret= fwrite(data, 1, size, f);
+	if (ret != size)
+		fail("fwrite failed");
+}
+
+void file_printf(FILE *f, const char *fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	int ret= vfprintf(f, fmt, args);
+	va_end(args);
+
+	if (ret < 0)
+		fail("vfprintf failed");
+}
