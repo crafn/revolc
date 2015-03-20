@@ -195,7 +195,8 @@ void generate_world(World *w, U64 seed)
 		spawn_visual_prop(w, p_back, rot, scaled_v3d(scale, (V3d) {1.1, 1, 1}), "grassclump_b");
 	}
 
-	{ // Compound test
+	// Compound test
+	for (U32 i= 0; i < 5; ++i) {
 		T3d tf= {(V3d) {1, 1, 1}, identity_qd(), {0, 15, 0}};
 		SlotVal init_vals[]= {
 			{"body", "tf", WITH_DEREF_SIZEOF(&tf)},

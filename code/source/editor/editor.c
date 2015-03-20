@@ -307,35 +307,18 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 	V3d prev_wp= v2d_to_v3d(screen_to_world_point(ctx->prev_cursor_pos));
 	F64 v_size= editor_vertex_size();
 
-	ModelEntity *m= NULL;
-	if (*model_h != NULL_HANDLE)
-		m= get_modelentity(*model_h);
-
 	const char *box_label= "mesh_editorbox";
 	EditorBoxState state=
 		gui_editorbox(box_label, (V2i) {0, 0}, g_env.device->win_size, true);
 
 	if (!*is_edit_mode) { // Mesh select mode
-		if (state.down) {
-			/// @todo Bounds
-			F64 closest_dist= 0;
-			U32 closest_h= NULL_HANDLE;
-			for (U32 i= 0; i < MAX_MODELENTITY_COUNT; ++i) {
-				if (!g_env.renderer->m_entities[i].allocated)
-					continue;
-
-				V3d entity_pos= g_env.renderer->m_entities[i].tf.pos;
-				F64 dist= dist_sqr_v3d(entity_pos, cur_wp);
-				if (	closest_h == NULL_HANDLE ||
-						dist < closest_dist) {
-					closest_h= i;
-					closest_dist= dist;
-				}
-			}
-			*model_h= closest_h;
-		}
+		if (state.down)
+			*model_h= find_modelentity_at_pixel(ctx->cursor_pos);
 	} else { // Edit mode
 		if (ctx->grabbing == gui_id(box_label)) {
+			ModelEntity *m= NULL;
+			if (*model_h != NULL_HANDLE)
+				m= get_modelentity(*model_h);
 			ensure(m);
 			V3d cur= mul_t3d(	inv_t3d(m->tf),
 								(T3d) {	{1, 1, 1},
@@ -350,6 +333,10 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 			modify_mesh(m, delta, false);
 		}
 	}
+
+	ModelEntity *m= NULL;
+	if (*model_h != NULL_HANDLE)
+		m= get_modelentity(*model_h);
 
 	if (*is_edit_mode && state.pressed) {
 		// Control vertex selection
@@ -377,8 +364,6 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 		}
 	}
 
-	if (*model_h != NULL_HANDLE)
-		m= get_modelentity(*model_h);
 	if (m) {
 		if (*is_edit_mode) {
 			for (U32 i= 0; i < m->mesh_v_count; ++i) {
@@ -414,10 +399,129 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 	}
 }
 
+// Armature editing on world
+internal
+void gui_armature_overlay(U32 *comp_h, bool *is_edit_mode)
+{
+	UiContext *ctx= g_env.uicontext;
+	//V3d cur_wp= v2d_to_v3d(screen_to_world_point(ctx->cursor_pos));
+	//V3d prev_wp= v2d_to_v3d(screen_to_world_point(ctx->prev_cursor_pos));
+	//F64 v_size= editor_vertex_size();
+
+	const char *box_label= "armature_editorbox";
+	EditorBoxState state=
+		gui_editorbox(box_label, (V2i) {0, 0}, g_env.device->win_size, true);
+
+	if (!*is_edit_mode) { // Mesh select mode
+		if (state.down)
+			*comp_h= find_compentity_at_pixel(ctx->cursor_pos);
+	} else { // Edit mode
+		if (ctx->grabbing == gui_id(box_label)) {
+			/*ensure(m);
+			V3d cur= mul_t3d(	inv_t3d(m->tf),
+								(T3d) {	{1, 1, 1},
+										identity_qd(),
+										cur_wp}).pos;
+			V3d prev= mul_t3d(	inv_t3d(m->tf),
+								(T3d) {	{1, 1, 1},
+										identity_qd(),
+										prev_wp}).pos;
+			V3d delta= sub_v3d(cur, prev);
+
+			modify_mesh(m, delta, false);
+			*/
+		}
+	}
+
+	CompEntity *entity= NULL;
+	if (*comp_h != NULL_HANDLE)
+		entity= get_compentity(*comp_h);
+
+	if (*is_edit_mode && state.pressed) {
+		// Control vertex selection
+/*		F64 closest_dist= 0;
+		U32 closest_i= NULL_HANDLE;
+		for (U32 i= 0; i < m->mesh_v_count; ++i) {
+			V3d pos= vertex_world_pos(m, i);
+
+			F64 dist= dist_sqr_v3d(pos, cur_wp);
+			if (	closest_i == NULL_HANDLE ||
+					dist < closest_dist) {
+				closest_i= i;
+				closest_dist= dist;
+			}
+		}
+
+		if (!ctx->shift_down) {
+			for (U32 i= 0; i < m->mesh_v_count; ++i)
+				m->vertices[i].selected= false;
+		}
+
+		if (closest_dist < 2.0) {
+			ensure(closest_i != NULL_HANDLE);
+			toggle_bool(&m->vertices[closest_i].selected);
+		}
+		*/
+	}
+
+	if (entity) {
+		if (*is_edit_mode) {
+			/*
+			for (U32 i= 0; i < m->mesh_v_count; ++i) {
+				TriMeshVertex *v= &m->vertices[i];
+				V3d p= vertex_world_pos(m, i);
+				V3d poly[4]= {
+					{-v_size + p.x, -v_size + p.y, p.z},
+					{-v_size + p.x, +v_size + p.y, p.z},
+					{+v_size + p.x, +v_size + p.y, p.z},
+					{+v_size + p.x, -v_size + p.y, p.z},
+				};
+
+				if (v->selected)
+					ddraw_poly((Color) {1.0, 0.7, 0.2, 0.8}, poly, 4);
+				else
+					ddraw_poly((Color) {0.0, 0.0, 0.0, 0.8}, poly, 4);
+			}
+			*/
+		}
+
+		Color fill_color= {0.6, 0.6, 0.8, 0.8};
+		if (!*is_edit_mode)
+			fill_color= (Color) {1.0, 0.8, 0.5, 0.7};
+
+		T3d global_pose[MAX_ARMATURE_JOINT_COUNT];
+		calc_global_pose(global_pose, entity);
+		F64 v_size= editor_vertex_size();
+
+		const Armature *a= entity->armature;
+		for (U32 i= 0; i < a->joint_count; ++i) {
+			V3d p= global_pose[i].pos;
+
+			const U32 v_count= 20;
+			V3d v[v_count];
+			for (U32 i= 0; i < v_count; ++i) {
+				F64 a= i*3.141*2.0/v_count;
+				v[i].x= p.x + cos(a)*v_size*3;
+				v[i].y= p.y + sin(a)*v_size*3;
+				v[i].z= 0.0;
+			}
+
+			ddraw_poly(fill_color, v, v_count);
+
+			if (a->joints[i].super_id != NULL_JOINT_ID) {
+				ddraw_line(	(Color){0, 0, 0, 1},
+							p,
+							global_pose[a->joints[i].super_id].pos);
+			}
+		}
+	}
+}
+
 void create_editor()
 {
 	Editor* e= zero_malloc(sizeof(*e));
 	e->cur_model_h= NULL_HANDLE;
+	e->cur_comp_h= NULL_HANDLE;
 
 	g_env.editor= e;
 }
@@ -428,46 +532,62 @@ void destroy_editor()
 	g_env.editor= NULL;
 }
 
-void toggle_editor()
-{ toggle_bool(&g_env.editor->visible); }
-
 void upd_editor()
 {
 	Editor *e= g_env.editor;
-	if (!e->visible)
-		return;
 
-/*	if (g_env.device->key_pressed['m']) {
-		Mesh *mesh= (Mesh*)res_by_name(g_env.resblob, ResType_Mesh, "unitquad");
-
-		ParsedJsonFile j_file= malloc_parsed_json_file("test.json");
-
-		WJson *j_upd= wjson_create();
-		mesh_to_json(j_upd, mesh);
-		//wjson_dump(j_obj);
-
-		wjson_write_updated("test_upd.json", j_file.root, j_upd);
-
-		wjson_destroy(j_upd);
-		free_parsed_json_file(j_file);
+	if (g_env.device->key_pressed[KEY_F1]) {
+		if (e->state != EditorState_mesh)
+			e->state= EditorState_mesh;
+		else
+			e->state= EditorState_invisible;
 	}
-	*/
+
+	if (g_env.device->key_pressed[KEY_F2]) {
+		if (e->state != EditorState_armature)
+			e->state= EditorState_armature;
+		else
+			e->state= EditorState_invisible;
+	}
+
+	if (e->state == EditorState_invisible)
+		return;
 
 	bool tab_pressed= g_env.device->key_pressed[KEY_TAB];
 	if (tab_pressed) {
 		toggle_bool(&e->is_edit_mode);
-		if (e->cur_model_h == NULL_HANDLE)
+		if (e->state == EditorState_mesh && e->cur_model_h == NULL_HANDLE)
+			e->is_edit_mode= false;
+		if (e->state == EditorState_armature && e->cur_comp_h == NULL_HANDLE)
 			e->is_edit_mode= false;
 	}
 
-	gui_mesh_overlay(&e->cur_model_h, &e->is_edit_mode);
+	switch (e->state) {
+	case EditorState_mesh: {
+		gui_mesh_overlay(&e->cur_model_h, &e->is_edit_mode);
 
-	ModelEntity *m= NULL;
-	if (e->cur_model_h != NULL_HANDLE)
-		m= get_modelentity(e->cur_model_h);
+		ModelEntity *m= NULL;
+		if (e->cur_model_h != NULL_HANDLE)
+			m= get_modelentity(e->cur_model_h);
 
-	const S32 box_size= 400;
-	gui_uvbox(	(V2i) {-box_size, 0},
-				(V2i) {box_size, box_size},
-				m);
+		const S32 box_size= 400;
+		gui_uvbox(	(V2i) {-box_size, 0},
+					(V2i) {box_size, box_size},
+					m);
+	} break;
+	case EditorState_armature: {
+		gui_armature_overlay(&e->cur_comp_h, &e->is_edit_mode);
+/*
+		CompEntity *c= NULL;
+		if (e->cur_comp_h != NULL_HANDLE)
+			c= get_compentity(e->cur_comp_h);
+
+		const S32 box_size= 400;
+		gui_uvbox(	(V2i) {-box_size, -box_size},
+					(V2i) {box_size, box_size},
+					c);
+					*/
+	} break;
+	default: fail("Unhandled editor state: %i", e->state);
+	}
 }

@@ -181,10 +181,7 @@ int main(int argc, const char **argv)
 				load_world(world, SAVEFILE_PATH);
 			}
 
-			if (d->key_pressed[KEY_F1])
-				toggle_editor();
-
-			if (!g_env.editor->visible) {
+			if (g_env.editor->state == EditorState_invisible) {
 				local_persist cpBody *body= NULL;
 				if (d->key_down[KEY_LMB]) {
 					cpVect p= {cursor_on_world.x, cursor_on_world.y};
@@ -210,7 +207,7 @@ int main(int argc, const char **argv)
 
 		upd_editor();
 
-		if (!g_env.editor->visible) {
+		if (g_env.editor->state == EditorState_invisible) {
 			upd_physworld(d->dt);
 			upd_world(world, d->dt);
 			post_upd_physworld();

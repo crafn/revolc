@@ -39,4 +39,6 @@ REVOLC_API void init_compentity(CompEntity *data);
 REVOLC_API SubEntity create_subentity(const Armature *a, CompDef_Sub sub);
 REVOLC_API void destroy_subentity(SubEntity e);
 
+REVOLC_API void calc_global_pose(T3d *global_pose, const CompEntity *e);
+
 #endif // REVOLC_VISUAL_COMPOUNDENTITY_H

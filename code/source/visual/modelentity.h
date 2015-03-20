@@ -19,10 +19,10 @@ typedef struct ModelEntity {
 	Color color;
 	V3f atlas_uv;
 	V2f scale_to_atlas_uv;
-	TriMeshVertex* vertices;
-	MeshIndexType* indices;
 	U32 mesh_v_count;
 	U32 mesh_i_count;
+	TriMeshVertex* vertices;
+	MeshIndexType* indices;
 } ModelEntity;
 
 REVOLC_API void init_modelentity(ModelEntity *data);

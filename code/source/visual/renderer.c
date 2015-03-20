@@ -275,6 +275,9 @@ void * storage_modelentity()
 ModelEntity * get_modelentity(U32 h)
 { return &g_env.renderer->m_entities[h]; }
 
+CompEntity * get_compentity(U32 h)
+{ return &g_env.renderer->c_entities[h]; }
+
 internal
 void recache_compentity(CompEntity *e)
 {
@@ -351,25 +354,8 @@ void render_frame()
 				continue;
 			ensure(e->armature);
 
-			// Calculate global armature pose
 			T3d global_pose[MAX_ARMATURE_JOINT_COUNT];
-			// In armature coordinates
-			T3f joint_poses[MAX_ARMATURE_JOINT_COUNT];
-			const Joint *joints= e->armature->joints;
-			for (U32 j_i= 0; j_i < e->armature->joint_count; ++j_i) {
-				T3f joint_pose=
-					mul_t3f(e->pose.tf[j_i],
-							joints[j_i].bind_pose);
-
-				JointId super_id= joints[j_i].super_id;
-				if (super_id != NULL_JOINT_ID) {
-					joint_pose=
-						mul_t3f(joint_poses[super_id], joint_pose);
-				}
-
-				joint_poses[j_i]= joint_pose;
-				global_pose[j_i]= mul_t3d(e->tf, t3f_to_t3d(joint_pose));
-			}
+			calc_global_pose(global_pose, e);
 
 			// Position subentities by global_pose
 			for (U32 s_i= 0; s_i < e->sub_count; ++s_i) {
@@ -591,6 +577,23 @@ void ddraw_poly(Color c, V3d *poly, U32 count)
 	}
 }
 
+void ddraw_line(Color c, V3d a, V3d b)
+{
+	F64 scale= screen_to_world_size((V2i) {1, 0}).x;
+	F64 rot= atan2(a.y - b.y, a.x - b.x);
+	F64 c1= cos(rot - PI/2)*scale;
+	F64 s1= sin(rot - PI/2)*scale;
+	F64 c2= cos(rot + PI/2)*scale;
+	F64 s2= sin(rot + PI/2)*scale;
+	V3d quad[4]= {
+		{a.x + c1, a.y + s1, a.z},
+		{b.x + c1, b.y + s1, b.z},
+		{b.x + c2, b.y + s2, b.z},
+		{a.x + c2, a.y + s2, a.z},
+	};
+	ddraw_poly(c, quad, 4);
+}
+
 V2d screen_to_world_point(V2i p)
 {
 	Renderer *r= g_env.renderer;
@@ -620,6 +623,51 @@ V2d screen_to_world_size(V2i s)
 	V2d b= screen_to_world_point(s);
 	return sub_v2d(b, a);
 }
+
+U32 find_modelentity_at_pixel(V2i p)
+{
+	V3d wp= v2d_to_v3d(screen_to_world_point(p));
+
+	/// @todo Bounds
+	F64 closest_dist= 0;
+	U32 closest_h= NULL_HANDLE;
+	for (U32 i= 0; i < MAX_MODELENTITY_COUNT; ++i) {
+		if (!g_env.renderer->m_entities[i].allocated)
+			continue;
+
+		V3d entity_pos= g_env.renderer->m_entities[i].tf.pos;
+		F64 dist= dist_sqr_v3d(entity_pos, wp);
+		if (	closest_h == NULL_HANDLE ||
+				dist < closest_dist) {
+			closest_h= i;
+			closest_dist= dist;
+		}
+	}
+	return closest_h;
+}
+
+U32 find_compentity_at_pixel(V2i p)
+{
+	V3d wp= v2d_to_v3d(screen_to_world_point(p));
+
+	/// @todo Bounds
+	F64 closest_dist= 0;
+	U32 closest_h= NULL_HANDLE;
+	for (U32 i= 0; i < MAX_COMPENTITY_COUNT; ++i) {
+		if (!g_env.renderer->c_entities[i].allocated)
+			continue;
+
+		V3d entity_pos= g_env.renderer->c_entities[i].tf.pos;
+		F64 dist= dist_sqr_v3d(entity_pos, wp);
+		if (	closest_h == NULL_HANDLE ||
+				dist < closest_dist) {
+			closest_h= i;
+			closest_dist= dist;
+		}
+	}
+	return closest_h;
+}
+
 
 void renderer_on_res_reload()
 {
