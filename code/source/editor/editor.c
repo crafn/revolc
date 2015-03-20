@@ -455,8 +455,20 @@ void gui_armature_overlay(U32 *comp_h, bool *is_edit_mode)
 			for (U32 i= 0; i < a->joint_count; ++i) {
 				if (!a->joints[i].selected)
 					continue;
-				T3d tf= global_pose[i];
-				V3f translation= v3d_to_v3f(cursor_delta_in_tf_coords(tf));
+
+				T3d coords= entity->tf;
+				U32 super_i= a->joints[i].super_id;
+				if (super_i != NULL_JOINT_ID)
+					coords= global_pose[super_i];
+
+				V3f translation= v3d_to_v3f(cursor_delta_in_tf_coords(coords));
+
+				{ // `translation` from cur pose coords to bind pose coords
+					T3f to_bind= inv_t3f(entity->pose.tf[i]);
+					V3f a= transform_v3f(to_bind, (V3f) {0, 0, 0});
+					V3f b= transform_v3f(to_bind, translation);
+					translation= sub_v3f(b, a);
+				}
 
 				V3f *pos= &a->joints[i].bind_pose.pos;
 				*pos= add_v3f(*pos, translation);
