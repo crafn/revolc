@@ -7,15 +7,15 @@
 #include "platform/device.h"
 
 // Character
-typedef struct PlayerChar {
+typedef struct PlayerCh {
 	V3d pos;
 
 	// Cached
 	RigidBody *body;
 	Constraint *motor;
-} PlayerChar;
+} PlayerCh;
 
-MOD_API U32 resurrect_playerchar(PlayerChar *data)
+MOD_API U32 resurrect_playerch(PlayerCh *data)
 {
 	data->body= NULL;
 	data->motor= NULL;
@@ -23,7 +23,7 @@ MOD_API U32 resurrect_playerchar(PlayerChar *data)
 }
 
 /// @todo Replace with owned RigidBody 
-MOD_API void supply_playerchar(	PlayerChar *p, PlayerChar *p_end,
+MOD_API void supply_playerch(	PlayerCh *p, PlayerCh *p_end,
 								RigidBody *b, RigidBody *b_end)
 {
 	ensure(p_end - p == b_end - b);
@@ -31,7 +31,7 @@ MOD_API void supply_playerchar(	PlayerChar *p, PlayerChar *p_end,
 		p->body= b;
 }
 
-MOD_API void upd_playerchar(PlayerChar *p, PlayerChar *e)
+MOD_API void upd_playerch(PlayerCh *p, PlayerCh *e)
 {
 	int dir= 0;
 	if (g_env.device->key_down['c'])
@@ -60,7 +60,7 @@ MOD_API void upd_playerchar(PlayerChar *p, PlayerChar *e)
 	}
 }
 
-MOD_API void free_playerchar(PlayerChar *p)
+MOD_API void free_playerch(PlayerCh *p)
 {
 	// No need to free p->motor -- destroyed along body
 }

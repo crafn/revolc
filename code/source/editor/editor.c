@@ -381,10 +381,8 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 				m->vertices[i].selected= false;
 		}
 
-		if (closest_dist < 2.0) {
-			ensure(closest_i != NULL_HANDLE);
+		if (closest_i != NULL_HANDLE && closest_dist < 2.0)
 			toggle_bool(&m->vertices[closest_i].selected);
-		}
 	}
 
 	// Draw

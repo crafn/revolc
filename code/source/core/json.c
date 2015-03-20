@@ -444,7 +444,6 @@ void wjson_find_subs(	JsonSubs *subs,
 						U32 max_sub_count,
 						JsonTok in, WJson *upd)
 {
-	debug_print("%i, %i", upd->type, json_type(in));
 	ensure(upd->type == json_type(in) && "Json type mismatch");
 
 	switch (upd->type) {

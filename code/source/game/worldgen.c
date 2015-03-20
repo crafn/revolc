@@ -212,7 +212,7 @@ void generate_world(World *w, U64 seed)
 			{"body", "tf", WITH_DEREF_SIZEOF(&tf)},
 		};
 		NodeGroupDef *def=
-			(NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, "playerchar");
+			(NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, "playerch");
 		create_nodes(w, def, WITH_ARRAY_COUNT(init_vals), 0);
 	}
 }
