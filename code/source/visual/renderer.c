@@ -626,6 +626,20 @@ void renderer_on_res_reload()
 	Renderer *r= g_env.renderer;
 
 	recreate_texture_atlas(r, g_env.resblob);
+	recache_modelentities();
+
+	for (U32 e_i= 0; e_i < MAX_COMPENTITY_COUNT; ++e_i) {
+		CompEntity *e= &r->c_entities[e_i];
+		if (!e->allocated)
+			continue;
+
+		recache_compentity(e);
+	}
+}
+
+void recache_modelentities()
+{
+	Renderer *r= g_env.renderer;
 
 	for (U32 e_i= 0; e_i < MAX_MODELENTITY_COUNT; ++e_i) {
 		ModelEntity *e= &r->m_entities[e_i];
@@ -635,13 +649,5 @@ void renderer_on_res_reload()
 			continue;
 
 		recache_modelentity(e);
-	}
-
-	for (U32 e_i= 0; e_i < MAX_COMPENTITY_COUNT; ++e_i) {
-		CompEntity *e= &r->c_entities[e_i];
-		if (!e->allocated)
-			continue;
-
-		recache_compentity(e);
 	}
 }

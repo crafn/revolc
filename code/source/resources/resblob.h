@@ -29,6 +29,7 @@ REVOLC_API void all_res_by_type(U32 *start_index, U32 *count,
 								const ResBlob *blob, ResType t);
 
 REVOLC_API void * blob_ptr(const Resource *who_asks, BlobOffset offset);
+REVOLC_API BlobOffset blob_offset(const Resource *who_asks, const void *ptr);
 
 REVOLC_API void print_blob(const ResBlob *blob);
 
@@ -37,10 +38,11 @@ REVOLC_API void print_blob(const ResBlob *blob);
 // `res_file_paths` is a null-terminated array of null-terminated strings
 REVOLC_API void make_blob(const char *dst_file, char **res_file_paths);
 
-// Makes/gives runtime substitution for a resource, although
-// all resources can be modified, but normal resources can't be saved.
+// Makes a runtime substitution for a resource
+// Although all resources can be modified, normal resources can't be saved
 // ^ is due to unified handling of modified/created resources
-REVOLC_API Resource * runtime_res(Resource *res);
+// It's up to user to get pointers to the stale res requeried
+void substitute_res(Resource *stale, Resource *new_res, RtResFree rt_free);
 
 // Saves changes to original, unpacked resource files
 REVOLC_API U32 mirror_blob_modifications(ResBlob *blob);

@@ -120,12 +120,16 @@ internal
 void free_blob(ResBlob *blob)
 { // Free RuntimeResource
 	RuntimeResource *res= blob->first_runtime_res;
-	/// @note Proper order would be reverse
+	// RuntimeResources are in reverse, so destruction is properly ordered
 	while (res) {
 		RuntimeResource *next= res->next;
 		deinit_res(res->res);
-		free(res->res);
-		free(res);
+		if (res->rt_free) {
+			res->rt_free(res->res);
+		} else {
+			dev_free(res->res);
+		}
+		dev_free(res);
 		res= next;
 	}
 	free(blob);
@@ -188,9 +192,12 @@ Resource * res_by_name(ResBlob *blob, ResType type, const char *name)
 		res_header.blob= blob;
 		res_header.is_runtime_res= true;
 
-		RuntimeResource *new_res= zero_malloc(sizeof(*new_res));
+		RuntimeResource *new_res= dev_malloc(sizeof(*new_res));
+		*new_res= (RuntimeResource) {};
+
 		const U32 missing_res_max_size= 1024*4;
-		new_res->res= zero_malloc(missing_res_max_size);
+		new_res->res= dev_malloc(missing_res_max_size);
+		memset(new_res->res, 0, missing_res_max_size);
 
 		BlobBuf buf= {
 			.data= new_res->res,
@@ -217,16 +224,10 @@ Resource * res_by_name(ResBlob *blob, ResType type, const char *name)
 		free_parsed_json_file(parsed_json);
 		init_res(new_res->res);
 
-		// Insert to runtime resources of the blob
-		if (!blob->first_runtime_res) {
-			blob->first_runtime_res= new_res;
-		} else {
-			RuntimeResource *last= blob->first_runtime_res;
-			while (last->next)
-				last= last->next;
-			last->next= new_res;
-		}
-
+		// Insert to runtime resources of the blob in reverse order
+		// this way destruction happens naturally in reverse
+		new_res->next= blob->first_runtime_res;
+		blob->first_runtime_res= new_res;
 		return new_res->res;
 	}
 }
@@ -291,6 +292,14 @@ void* blob_ptr(const Resource *who_asks, BlobOffset offset)
 		return (void*)((U8*)who_asks->blob + offset);
 	else /// @see RuntimeResource definition
 		return (void*)((U8*)who_asks + offset);
+}
+
+BlobOffset blob_offset(const Resource *who_asks, const void *ptr)
+{
+	if (!who_asks->is_runtime_res)
+		return (U64)((U8*)ptr - (U8*)who_asks->blob);
+	else /// @see RuntimeResource definition
+		return (U64)((U8*)ptr - (U8*)who_asks);
 }
 
 void print_blob(const ResBlob *blob)
@@ -510,6 +519,25 @@ error:
 	goto exit;
 }
 
+void substitute_res(Resource *stale, Resource *new_res, RtResFree rt_free)
+{
+	ensure(!stale->substitute);
+	*new_res= *stale;
+	new_res->is_runtime_res= true;
+
+	RuntimeResource *rt_res= dev_malloc(sizeof(*rt_res));
+	*rt_res= (RuntimeResource) {
+		.res= new_res,
+		.next= stale->blob->first_runtime_res,
+		.rt_free= rt_free,
+	};
+	// Adding as first runtime res ensures reverse destruction
+	stale->blob->first_runtime_res= rt_res;
+
+	stale->substitute= new_res;
+}
+
+// Mirror possibly modified resource to json
 internal
 void mirror_res(Resource *res)
 {
@@ -551,8 +579,9 @@ error:
 U32 mirror_blob_modifications(ResBlob *blob)
 {
 	U32 count= 0;
-	for (U32 i= 0; i < blob->res_count; ++i) {
-		Resource *res= res_by_index(blob, i);
+	RuntimeResource *rt_res= blob->first_runtime_res;
+	while (rt_res) {
+		Resource *res= rt_res->res;
 		if (res->needs_saving) {
 			ensure(res->is_runtime_res);
 			ensure(!res->substitute);
@@ -563,6 +592,7 @@ U32 mirror_blob_modifications(ResBlob *blob)
 			res->needs_saving= false;
 			++count;
 		}
+		rt_res= rt_res->next;
 	}
 	debug_print("mirror_blob_modifications: %i", count);
 	return count;
@@ -570,10 +600,11 @@ U32 mirror_blob_modifications(ResBlob *blob)
 
 bool blob_has_modifications(const ResBlob *blob)
 {
-	for (U32 i= 0; i < blob->res_count; ++i) {
-		Resource *res= res_by_index(blob, i);
-		if (res->needs_saving)
+	RuntimeResource *rt_res= blob->first_runtime_res;
+	while (rt_res) {
+		if (rt_res->res->needs_saving)
 			return true;
+		rt_res= rt_res->next;
 	}
 	return false;
 }

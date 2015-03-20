@@ -55,6 +55,7 @@ REVOLC_API void ddraw_poly(Color c, V3d *poly, U32 count);
 REVOLC_API V2d screen_to_world_point(V2i p);
 REVOLC_API V2d screen_to_world_size(V2i s);
 
-internal void renderer_on_res_reload();
+REVOLC_API void renderer_on_res_reload();
+REVOLC_API void recache_modelentities();
 
 #endif // REVOLC_VISUAL_RENDERER_H

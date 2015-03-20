@@ -115,6 +115,7 @@ EditorBoxState gui_editorbox(const char *label, V2i pix_pos, V2i pix_size, bool 
 			state.pressed= true;
 			state.down= true;
 			gui_set_active(label);
+
 		} else if (ctx->g_pressed) {
 			ctx->grabbing= gui_id(label);
 			gui_set_active(label);
@@ -136,10 +137,46 @@ EditorBoxState gui_editorbox(const char *label, V2i pix_pos, V2i pix_size, bool 
 }
 
 internal
+void free_rt_mesh(Resource *res)
+{
+	Mesh *m= (Mesh*)res;
+	dev_free(blob_ptr(res, m->v_offset));
+	dev_free(blob_ptr(res, m->i_offset));
+}
+
+internal
 void modify_mesh(ModelEntity *m, V3d delta, bool uv)
 {
-	for (U32 i= 0; i < m->mesh_v_count; ++i) {
-		TriMeshVertex *v= &m->vertices[i];
+	if (m->has_own_mesh) {
+		debug_print("@todo Modify unique mesh");
+		return;
+	}
+
+	Mesh *mesh= model_mesh((Model*)res_by_name(	g_env.resblob,
+												ResType_Model,
+												m->model_name));
+	if (!mesh->res.is_runtime_res) {
+		Mesh *rt_mesh= dev_malloc(sizeof(*rt_mesh));
+		*rt_mesh= *mesh;
+		substitute_res(&mesh->res, &rt_mesh->res, free_rt_mesh);
+
+		TriMeshVertex *verts= dev_malloc(sizeof(*verts)*mesh->v_count);
+		memcpy(verts, mesh_vertices(mesh), sizeof(*verts)*mesh->v_count);
+
+		MeshIndexType *inds= dev_malloc(sizeof(*inds)*mesh->i_count);
+		memcpy(inds, mesh_indices(mesh), sizeof(*inds)*mesh->i_count);
+
+		rt_mesh->v_offset= blob_offset(&rt_mesh->res, verts);
+		rt_mesh->i_offset= blob_offset(&rt_mesh->res, inds);
+
+		mesh= rt_mesh;
+
+		// Requery pointers to the new mesh
+		recache_modelentities();
+	}
+
+	for (U32 i= 0; i < mesh->v_count; ++i) {
+		TriMeshVertex *v= &mesh_vertices(mesh)[i];
 		if (!v->selected)
 			continue;
 		if (uv) {
@@ -150,9 +187,7 @@ void modify_mesh(ModelEntity *m, V3d delta, bool uv)
 			v->pos= add_v3f(v3d_to_v3f(delta), v->pos);
 		}
 	}
-	Mesh *mesh= model_mesh((Model*)res_by_name(	g_env.resblob,
-												ResType_Model,
-												m->model_name));
+
 	mesh->res.needs_saving= true;
 }
 

@@ -4,7 +4,7 @@
 #include "build.h"
 #include "global/cfg.h"
 
-typedef U64 BlobOffset; // Offset from the beginning of a resource blob
+typedef U64 BlobOffset;
 
 #define RES_ATTRIB_MISSING(name) \
 	do { critical_print("Attrib '%s' missing", name); goto error; } while(0)
@@ -43,11 +43,14 @@ typedef struct Resource {
 //
 // For RuntimeResource, BlobOffsets are calculated from the
 // beginning of the Resource, NOT from the beginning of the ResBlob.
+/// @todo Change offsets to always refer from beginning of the res
 //
 // RuntimeResources are used for missing and edited resources
+typedef void (*RtResFree)(Resource *res);
 typedef struct RuntimeResource {
 	Resource *res;
 	struct RuntimeResource *next;
+	RtResFree rt_free; // Called after ordinary res deinit
 } RuntimeResource;
 
 #endif // REVOLC_RESOURCES_RESOURCE_H
