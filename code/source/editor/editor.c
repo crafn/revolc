@@ -137,11 +137,35 @@ EditorBoxState gui_editorbox(const char *label, V2i pix_pos, V2i pix_size, bool 
 }
 
 internal
-void free_rt_mesh(Resource *res)
+void destroy_rt_mesh(Resource *res);
+
+// Creates modifiable substitute for static mesh resource
+internal
+Mesh *create_rt_mesh(Mesh *src)
+{
+	Mesh *rt_mesh= dev_malloc(sizeof(*rt_mesh));
+	*rt_mesh= *src;
+	substitute_res(&src->res, &rt_mesh->res, destroy_rt_mesh);
+
+	TriMeshVertex *verts= dev_malloc(sizeof(*verts)*src->v_count);
+	memcpy(verts, mesh_vertices(src), sizeof(*verts)*src->v_count);
+
+	MeshIndexType *inds= dev_malloc(sizeof(*inds)*src->i_count);
+	memcpy(inds, mesh_indices(src), sizeof(*inds)*src->i_count);
+
+	rt_mesh->v_offset= blob_offset(&rt_mesh->res, verts);
+	rt_mesh->i_offset= blob_offset(&rt_mesh->res, inds);
+
+	return rt_mesh;
+}
+
+internal
+void destroy_rt_mesh(Resource *res)
 {
 	Mesh *m= (Mesh*)res;
 	dev_free(blob_ptr(res, m->v_offset));
 	dev_free(blob_ptr(res, m->i_offset));
+	dev_free(m);
 }
 
 internal
@@ -156,21 +180,7 @@ void modify_mesh(ModelEntity *m, V3d delta, bool uv)
 												ResType_Model,
 												m->model_name));
 	if (!mesh->res.is_runtime_res) {
-		Mesh *rt_mesh= dev_malloc(sizeof(*rt_mesh));
-		*rt_mesh= *mesh;
-		substitute_res(&mesh->res, &rt_mesh->res, free_rt_mesh);
-
-		TriMeshVertex *verts= dev_malloc(sizeof(*verts)*mesh->v_count);
-		memcpy(verts, mesh_vertices(mesh), sizeof(*verts)*mesh->v_count);
-
-		MeshIndexType *inds= dev_malloc(sizeof(*inds)*mesh->i_count);
-		memcpy(inds, mesh_indices(mesh), sizeof(*inds)*mesh->i_count);
-
-		rt_mesh->v_offset= blob_offset(&rt_mesh->res, verts);
-		rt_mesh->i_offset= blob_offset(&rt_mesh->res, inds);
-
-		mesh= rt_mesh;
-
+		mesh= create_rt_mesh(mesh);
 		// Requery pointers to the new mesh
 		recache_modelentities();
 	}
