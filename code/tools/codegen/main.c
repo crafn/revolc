@@ -477,14 +477,31 @@ static void write_math()
 			fprintf(f, "static\n");
 			fprintf(f, "%s normalized_%s(%s q)\n", q.name, q.lc_name, q.name);
 			fprintf(f, "{\n"
-						"	%s a = q.x*q.x + q.y*q.y + q.z*q.z + q.w*q.w;"
-						"	if (a == 1)"
-						"		return q;"
-						"	else if (a == 0)"
-						"		return identity_%s();"
-						"	a= sqrt(a);"
+						"	%s a = q.x*q.x + q.y*q.y + q.z*q.z + q.w*q.w;\n"
+						"	if (a == 1)\n"
+						"		return q;\n"
+						"	else if (a == 0)\n"
+						"		return identity_%s();\n"
+						"	a= sqrt(a);\n"
 						"	return (%s) {q.x/a, q.y/a, q.z/a, q.w/a};\n}\n\n",
 						q.comp_type_name, q.lc_name, q.name);
+
+
+			fprintf(f, "static\n");
+			fprintf(f, "%s axis_%s(%s q)\n", q.axis_type_name, q.lc_name, q.name);
+			fprintf(f, "{\n"
+						"	%s s= sqrt(q.x*q.x + q.y*q.y + q.z*q.z);\n"
+						"	if (s <= EPSILON || q.w > 1.0 || q.w < -1.0) {\n"
+						"		return (%s) {0, 1, 0};\n"
+						"	} else {\n"
+						"		%s inv_s= 1.0/s;\n"
+						"		return (%s) {q.x*inv_s, q.y*inv_s, q.z*inv_s};"
+						"	}\n}\n\n",
+						q.comp_type_name, q.axis_type_name, q.comp_type_name, q.axis_type_name);
+
+			fprintf(f, "static\n");
+			fprintf(f, "%s angle_%s(%s q)\n", q.comp_type_name, q.lc_name, q.name);
+			fprintf(f, "{ return 2.0*acos(q.w); }\n\n");
 
 			fprintf(f, "static\n");
 			fprintf(f, "%s %s_by_axis(%s axis, %s angle)\n", q.name, q.lc_name, q.axis_type_name, q.comp_type_name);

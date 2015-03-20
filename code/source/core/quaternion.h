@@ -76,8 +76,29 @@ Qf identity_qf()
 static
 Qf normalized_qf(Qf q)
 {
-	F32 a = q.x*q.x + q.y*q.y + q.z*q.z + q.w*q.w;	if (a == 1)		return q;	else if (a == 0)		return identity_qf();	a= sqrt(a);	return (Qf) {q.x/a, q.y/a, q.z/a, q.w/a};
+	F32 a = q.x*q.x + q.y*q.y + q.z*q.z + q.w*q.w;
+	if (a == 1)
+		return q;
+	else if (a == 0)
+		return identity_qf();
+	a= sqrt(a);
+	return (Qf) {q.x/a, q.y/a, q.z/a, q.w/a};
 }
+
+static
+V3f axis_qf(Qf q)
+{
+	F32 s= sqrt(q.x*q.x + q.y*q.y + q.z*q.z);
+	if (s <= EPSILON || q.w > 1.0 || q.w < -1.0) {
+		return (V3f) {0, 1, 0};
+	} else {
+		F32 inv_s= 1.0/s;
+		return (V3f) {q.x*inv_s, q.y*inv_s, q.z*inv_s};	}
+}
+
+static
+F32 angle_qf(Qf q)
+{ return 2.0*acos(q.w); }
 
 static
 Qf qf_by_axis(V3f axis, F32 angle)
@@ -154,8 +175,29 @@ Qd identity_qd()
 static
 Qd normalized_qd(Qd q)
 {
-	F64 a = q.x*q.x + q.y*q.y + q.z*q.z + q.w*q.w;	if (a == 1)		return q;	else if (a == 0)		return identity_qd();	a= sqrt(a);	return (Qd) {q.x/a, q.y/a, q.z/a, q.w/a};
+	F64 a = q.x*q.x + q.y*q.y + q.z*q.z + q.w*q.w;
+	if (a == 1)
+		return q;
+	else if (a == 0)
+		return identity_qd();
+	a= sqrt(a);
+	return (Qd) {q.x/a, q.y/a, q.z/a, q.w/a};
 }
+
+static
+V3d axis_qd(Qd q)
+{
+	F64 s= sqrt(q.x*q.x + q.y*q.y + q.z*q.z);
+	if (s <= EPSILON || q.w > 1.0 || q.w < -1.0) {
+		return (V3d) {0, 1, 0};
+	} else {
+		F64 inv_s= 1.0/s;
+		return (V3d) {q.x*inv_s, q.y*inv_s, q.z*inv_s};	}
+}
+
+static
+F64 angle_qd(Qd q)
+{ return 2.0*acos(q.w); }
 
 static
 Qd qd_by_axis(V3d axis, F64 angle)

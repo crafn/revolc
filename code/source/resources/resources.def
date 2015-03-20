@@ -27,7 +27,7 @@ RESOURCE(PhysMat, NULL, NULL, json_physmat_to_blob, NULL)
 RESOURCE(NodeType, init_nodetype, NULL, json_nodetype_to_blob, NULL)
 RESOURCE(NodeGroupDef, init_nodegroupdef, NULL, json_nodegroupdef_to_blob, NULL)
 RESOURCE(Sound, NULL, NULL, json_sound_to_blob, NULL)
-RESOURCE(Armature, NULL, NULL, json_armature_to_blob, NULL)
+RESOURCE(Armature, NULL, NULL, json_armature_to_blob, armature_to_json)
 RESOURCE(Clip, NULL, NULL, json_clip_to_blob, NULL)
 
 #endif

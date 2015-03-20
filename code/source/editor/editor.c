@@ -21,6 +21,23 @@ F64 editor_vertex_size()
 { return screen_to_world_size((V2i) {5, 0}).x; }
 
 internal
+V3d cursor_delta_in_tf_coords(T3d tf)
+{
+	UiContext *ctx= g_env.uicontext;
+	V3d cur_wp= v2d_to_v3d(screen_to_world_point(ctx->cursor_pos));
+	V3d prev_wp= v2d_to_v3d(screen_to_world_point(ctx->prev_cursor_pos));
+	V3d cur= mul_t3d(	inv_t3d(tf),
+						(T3d) {	{1, 1, 1},
+								identity_qd(),
+								cur_wp}).pos;
+	V3d prev= mul_t3d(	inv_t3d(tf),
+						(T3d) {	{1, 1, 1},
+								identity_qd(),
+								prev_wp}).pos;
+	return sub_v3d(cur, prev);
+}
+
+internal
 V3d vertex_world_pos(ModelEntity *m, U32 i)
 {
 	TriMeshVertex *v= &m->vertices[i];
@@ -169,7 +186,7 @@ void destroy_rt_mesh(Resource *res)
 }
 
 internal
-void modify_mesh(ModelEntity *m, V3d delta, bool uv)
+void translate_mesh(ModelEntity *m, V3d delta, bool uv)
 {
 	if (m->has_own_mesh) {
 		debug_print("@todo Modify unique mesh");
@@ -199,6 +216,19 @@ void modify_mesh(ModelEntity *m, V3d delta, bool uv)
 	}
 
 	mesh->res.needs_saving= true;
+}
+
+internal
+void destroy_rt_armature(Resource *res);
+
+// Creates modifiable substitute for static armature resource
+internal
+Armature *create_rt_armature(Armature *src)
+{
+	Armature *rt_armature= dev_malloc(sizeof(*rt_armature));
+	*rt_armature= *src;
+	substitute_res(&src->res, &rt_armature->res, NULL);
+	return rt_armature;
 }
 
 internal
@@ -256,7 +286,7 @@ void gui_uvbox(V2i pix_pos, V2i pix_size, ModelEntity *m)
 		V3d cur= pix_to_uv(ctx->cursor_pos, pix_pos, pix_size);
 		V3d prev= pix_to_uv(ctx->prev_cursor_pos, pix_pos, pix_size);
 		V3d delta= sub_v3d(cur, prev);
-		modify_mesh(m, delta, true);
+		translate_mesh(m, delta, true);
 	}
 
 	V2i padding= {20, 20};
@@ -304,39 +334,28 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 {
 	UiContext *ctx= g_env.uicontext;
 	V3d cur_wp= v2d_to_v3d(screen_to_world_point(ctx->cursor_pos));
-	V3d prev_wp= v2d_to_v3d(screen_to_world_point(ctx->prev_cursor_pos));
 	F64 v_size= editor_vertex_size();
 
-	const char *box_label= "mesh_editorbox";
+	const char *box_label= "mesh_overlay_box";
 	EditorBoxState state=
 		gui_editorbox(box_label, (V2i) {0, 0}, g_env.device->win_size, true);
 
 	if (!*is_edit_mode) { // Mesh select mode
 		if (state.down)
 			*model_h= find_modelentity_at_pixel(ctx->cursor_pos);
-	} else { // Edit mode
-		if (ctx->grabbing == gui_id(box_label)) {
-			ModelEntity *m= NULL;
-			if (*model_h != NULL_HANDLE)
-				m= get_modelentity(*model_h);
-			ensure(m);
-			V3d cur= mul_t3d(	inv_t3d(m->tf),
-								(T3d) {	{1, 1, 1},
-										identity_qd(),
-										cur_wp}).pos;
-			V3d prev= mul_t3d(	inv_t3d(m->tf),
-								(T3d) {	{1, 1, 1},
-										identity_qd(),
-										prev_wp}).pos;
-			V3d delta= sub_v3d(cur, prev);
-
-			modify_mesh(m, delta, false);
-		}
 	}
 
 	ModelEntity *m= NULL;
 	if (*model_h != NULL_HANDLE)
 		m= get_modelentity(*model_h);
+	else
+		return;
+
+	if (*is_edit_mode) {
+		if (ctx->grabbing == gui_id(box_label)) {
+			translate_mesh(m, cursor_delta_in_tf_coords(m->tf), false);
+		}
+	}
 
 	if (*is_edit_mode && state.pressed) {
 		// Control vertex selection
@@ -364,38 +383,38 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 		}
 	}
 
-	if (m) {
-		if (*is_edit_mode) {
-			for (U32 i= 0; i < m->mesh_v_count; ++i) {
-				TriMeshVertex *v= &m->vertices[i];
-				V3d p= vertex_world_pos(m, i);
-				V3d poly[4]= {
-					{-v_size + p.x, -v_size + p.y, p.z},
-					{-v_size + p.x, +v_size + p.y, p.z},
-					{+v_size + p.x, +v_size + p.y, p.z},
-					{+v_size + p.x, -v_size + p.y, p.z},
-				};
+	// Draw
 
-				if (v->selected)
-					ddraw_poly((Color) {1.0, 0.7, 0.2, 0.8}, poly, 4);
-				else
-					ddraw_poly((Color) {0.0, 0.0, 0.0, 0.8}, poly, 4);
-			}
+	if (*is_edit_mode) {
+		for (U32 i= 0; i < m->mesh_v_count; ++i) {
+			TriMeshVertex *v= &m->vertices[i];
+			V3d p= vertex_world_pos(m, i);
+			V3d poly[4]= {
+				{-v_size + p.x, -v_size + p.y, p.z},
+				{-v_size + p.x, +v_size + p.y, p.z},
+				{+v_size + p.x, +v_size + p.y, p.z},
+				{+v_size + p.x, -v_size + p.y, p.z},
+			};
+
+			if (v->selected)
+				ddraw_poly((Color) {1.0, 0.7, 0.2, 0.8}, poly, 4);
+			else
+				ddraw_poly((Color) {0.0, 0.0, 0.0, 0.8}, poly, 4);
 		}
+	}
 
-		Color fill_color= {0.6, 0.6, 0.8, 0.4};
-		if (!*is_edit_mode)
-			fill_color= (Color) {1.0, 0.8, 0.5, 0.6};
+	Color fill_color= {0.6, 0.6, 0.8, 0.4};
+	if (!*is_edit_mode)
+		fill_color= (Color) {1.0, 0.8, 0.5, 0.6};
 
-		V3d poly[3];
-		for (U32 i= 0; i < m->mesh_i_count; ++i) {
-			U32 v_i= m->indices[i];
-			V3d p= vertex_world_pos(m, v_i);
-			poly[i%3]= p;
+	V3d poly[3];
+	for (U32 i= 0; i < m->mesh_i_count; ++i) {
+		U32 v_i= m->indices[i];
+		V3d p= vertex_world_pos(m, v_i);
+		poly[i%3]= p;
 
-			if (i % 3 == 2)
-				ddraw_poly(fill_color, poly, 3);
-		}
+		if (i % 3 == 2)
+			ddraw_poly(fill_color, poly, 3);
 	}
 }
 
@@ -405,49 +424,55 @@ void gui_armature_overlay(U32 *comp_h, bool *is_edit_mode)
 {
 	UiContext *ctx= g_env.uicontext;
 	V3d cur_wp= v2d_to_v3d(screen_to_world_point(ctx->cursor_pos));
-	//V3d prev_wp= v2d_to_v3d(screen_to_world_point(ctx->prev_cursor_pos));
 	F64 v_size= editor_vertex_size();
 
-	const char *box_label= "armature_editorbox";
+	const char *box_label= "armature_overlay_box";
 	EditorBoxState state=
 		gui_editorbox(box_label, (V2i) {0, 0}, g_env.device->win_size, true);
 
 	if (!*is_edit_mode) { // Mesh select mode
 		if (state.down)
 			*comp_h= find_compentity_at_pixel(ctx->cursor_pos);
-	} else { // Edit mode
-		if (ctx->grabbing == gui_id(box_label)) {
-			/*ensure(m);
-			V3d cur= mul_t3d(	inv_t3d(m->tf),
-								(T3d) {	{1, 1, 1},
-										identity_qd(),
-										cur_wp}).pos;
-			V3d prev= mul_t3d(	inv_t3d(m->tf),
-								(T3d) {	{1, 1, 1},
-										identity_qd(),
-										prev_wp}).pos;
-			V3d delta= sub_v3d(cur, prev);
-
-			modify_mesh(m, delta, false);
-			*/
-		}
 	}
 
 	CompEntity *entity= NULL;
 	if (*comp_h != NULL_HANDLE)
 		entity= get_compentity(*comp_h);
-
-	if (!entity)
+	else
 		return;
-
+	Armature *a= entity->armature;
 	T3d global_pose[MAX_ARMATURE_JOINT_COUNT];
 	calc_global_pose(global_pose, entity);
+
+	if (*is_edit_mode) {
+		if (ctx->grabbing == gui_id(box_label)) {
+			if (!a->res.is_runtime_res) {
+				a= create_rt_armature(a);
+				// Requery pointers to the new armature
+				recache_compentities();
+			}
+
+			for (U32 i= 0; i < a->joint_count; ++i) {
+				if (!a->joints[i].selected)
+					continue;
+				T3d tf= global_pose[i];
+				V3f translation= v3d_to_v3f(cursor_delta_in_tf_coords(tf));
+
+				V3f *pos= &a->joints[i].bind_pose.pos;
+				*pos= add_v3f(*pos, translation);
+			}
+			a->res.needs_saving= true;
+
+			calc_global_pose(global_pose, entity);
+		}
+	}
+
 
 	if (*is_edit_mode && state.pressed) {
 		// Control joint selection
 		F64 closest_dist= 0;
 		U32 closest_i= NULL_HANDLE;
-		for (U32 i= 0; i < entity->armature->joint_count; ++i) {
+		for (U32 i= 0; i < a->joint_count; ++i) {
 			V3d pos= global_pose[i].pos;
 
 			F64 dist= dist_sqr_v3d(pos, cur_wp);
@@ -459,46 +484,45 @@ void gui_armature_overlay(U32 *comp_h, bool *is_edit_mode)
 		}
 
 		if (!ctx->shift_down) {
-			for (U32 i= 0; i < entity->armature->joint_count; ++i)
-				entity->armature->joints[i].selected= false;
+			for (U32 i= 0; i < a->joint_count; ++i)
+				a->joints[i].selected= false;
 		}
 
 		if (closest_dist < 2.0) {
 			ensure(closest_i != NULL_HANDLE);
-			toggle_bool(&entity->armature->joints[closest_i].selected);
+			toggle_bool(&a->joints[closest_i].selected);
 		}
 	}
 
-	if (entity) {
-		Color default_color= {0.6, 0.6, 0.8, 0.8};
-		Color selected_color= {1.0, 0.8, 0.5, 0.7};
-		Color line_color= {0.0, 0.0, 0.0, 1.0};
-		if (!*is_edit_mode)
-			line_color= selected_color;
+	// Draw
 
-		const Armature *a= entity->armature;
-		for (U32 i= 0; i < a->joint_count; ++i) {
-			V3d p= global_pose[i].pos;
+	Color default_color= {0.6, 0.6, 0.8, 0.8};
+	Color selected_color= {1.0, 0.8, 0.5, 0.7};
+	Color line_color= {0.0, 0.0, 0.0, 1.0};
+	if (!*is_edit_mode)
+		line_color= selected_color;
 
-			const U32 v_count= 20;
-			V3d v[v_count];
-			for (U32 i= 0; i < v_count; ++i) {
-				F64 a= i*3.141*2.0/v_count;
-				v[i].x= p.x + cos(a)*v_size*3;
-				v[i].y= p.y + sin(a)*v_size*3;
-				v[i].z= 0.0;
-			}
+	for (U32 i= 0; i < a->joint_count; ++i) {
+		V3d p= global_pose[i].pos;
 
-			Color c= default_color;
-			if (a->joints[i].selected || !*is_edit_mode)
-				c= selected_color;
-			ddraw_poly(c, v, v_count);
+		const U32 v_count= 15;
+		V3d v[v_count];
+		for (U32 i= 0; i < v_count; ++i) {
+			F64 a= i*3.141*2.0/v_count;
+			v[i].x= p.x + cos(a)*v_size*3;
+			v[i].y= p.y + sin(a)*v_size*3;
+			v[i].z= 0.0;
+		}
 
-			if (a->joints[i].super_id != NULL_JOINT_ID) {
-				ddraw_line(	line_color,
-							p,
-							global_pose[a->joints[i].super_id].pos);
-			}
+		Color c= default_color;
+		if (a->joints[i].selected || !*is_edit_mode)
+			c= selected_color;
+		ddraw_poly(c, v, v_count);
+
+		if (a->joints[i].super_id != NULL_JOINT_ID) {
+			ddraw_line(	line_color,
+						p,
+						global_pose[a->joints[i].super_id].pos);
 		}
 	}
 }

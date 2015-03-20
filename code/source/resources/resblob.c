@@ -32,7 +32,7 @@ void res_to_json(WJson *j, const Resource *res)
 #define RESOURCE(rtype, init, deinit, blobify, jsonify) \
 	{ \
 		void *fptr= (void*)jsonify; \
-		if (fptr && ResType_ ## rtype == res->type) { \
+		if (ResType_ ## rtype == res->type) { \
 			if (!fptr) \
 				fail(	"Jsonify function missing for resource type: %s", \
 						restype_to_str(res->type)); \

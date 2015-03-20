@@ -106,9 +106,14 @@ bool json_is_array(JsonTok obj)
 { return obj.tok->type == JSMN_ARRAY; }
 
 bool json_is_number(JsonTok obj)
-{ return	obj.tok &&
-			obj.json[obj.tok->start] >= '0' &&
-			obj.json[obj.tok->start] <= '9'; }
+{
+	if (!obj.tok)
+		return false;
+	bool starts_with_digit= obj.json[obj.tok->start] >= '0' &&
+							obj.json[obj.tok->start] <= '9';
+	bool starts_with_minus= obj.json[obj.tok->start] == '-';
+	return starts_with_digit || starts_with_minus;
+}
 
 JsonType json_type(JsonTok j)
 {
@@ -307,6 +312,13 @@ WJson * wjson_named_member(WJson *j, JsonType t, const char *name)
 	return j_member;
 }
 
+WJson * wjson_str(const char *str)
+{
+	WJson *j_str= wjson_create(JsonType_string);
+	wjson_init_string(j_str, str);
+	return j_str;
+}
+
 WJson * wjson_number(F64 n)
 {
 	WJson *j_number= wjson_create(JsonType_number);
@@ -321,6 +333,37 @@ WJson * wjson_v3(V3d vec)
 	wjson_append(j_v3, wjson_number(vec.y));
 	wjson_append(j_v3, wjson_number(vec.z));
 	return j_v3;
+}
+
+WJson * wjson_q(Qd q)
+{
+	V3d axis= axis_qd(q);
+	F64 angle= angle_qd(q);
+
+	WJson *j_q= wjson_create(JsonType_array);
+	wjson_append(j_q, wjson_number(axis.x));
+	wjson_append(j_q, wjson_number(axis.y));
+	wjson_append(j_q, wjson_number(axis.z));
+	wjson_append(j_q, wjson_number(angle));
+	return j_q;
+}
+
+WJson * wjson_t3(T3d tf)
+{
+	WJson *j_scale= wjson_str("scale");
+	wjson_append(j_scale, wjson_v3(tf.scale));
+
+	WJson *j_rot= wjson_str("rot");
+	wjson_append(j_rot, wjson_q(tf.rot));
+
+	WJson *j_pos= wjson_str("pos");
+	wjson_append(j_pos, wjson_v3(tf.pos));
+
+	WJson *j_t3= wjson_create(JsonType_object);
+	wjson_append(j_t3, j_scale);
+	wjson_append(j_t3, j_rot);
+	wjson_append(j_t3, j_pos);
+	return j_t3;
 }
 
 internal
@@ -378,18 +421,15 @@ void wjson_add_sub(	JsonSubs *subs, U32 *count, U32 max_count,
 {
 	ensure(max_count > *count);
 
-	// Substituting strings should chomp the whole `"str" : [1, 2],`
-	/// @todo This probably disappears when fields have partial substitution
-	int begin_offset= 0;
 	int end_offset= 0;
-	if (json_is_string(in)) {
-		begin_offset= -1;
-		if (json_member_count(in) == 1)
-			end_offset= json_member(in, 0).tok->end - in.tok->end + 1;
+	if (in.tok->end < in.json_size && in.json[in.tok->end] == ',') {
+		end_offset= 1; // Chomp `,` as commas are always written with substs
+		if (in.tok->end + 1 < in.json_size && in.json[in.tok->end + 1] == ' ')
+			end_offset= 2; // Chomp `, `, as spaces are added too
 	}
 
 	JsonSubs s= {
-		.dst_begin= in.tok->start + begin_offset,
+		.dst_begin= in.tok->start,
 		.dst_end= in.tok->end + end_offset,
 		.src= upd,
 	};
@@ -404,6 +444,7 @@ void wjson_find_subs(	JsonSubs *subs,
 						U32 max_sub_count,
 						JsonTok in, WJson *upd)
 {
+	debug_print("%i, %i", upd->type, json_type(in));
 	ensure(upd->type == json_type(in) && "Json type mismatch");
 
 	switch (upd->type) {
@@ -456,8 +497,13 @@ void wjson_find_subs(	JsonSubs *subs,
 		wjson_add_sub(subs, sub_count, max_sub_count, in, upd);
 	} break;
 	case JsonType_string: {
-		/// @todo Don't just overwrite string members, should inspect
-		wjson_add_sub(subs, sub_count, max_sub_count, in, upd);
+		ensure(upd->member_count <= 1);
+		if (upd->member_count == 1) {
+			wjson_find_subs(subs, sub_count, max_sub_count,
+							json_member(in, 0), upd->first_member);
+		} else {
+			wjson_add_sub(subs, sub_count, max_sub_count, in, upd);
+		}
 	} break;
 	default: fail("Unknown JsonType: %i", upd->type);
 	}

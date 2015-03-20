@@ -92,6 +92,23 @@ error:
 	return 1;
 }
 
+void armature_to_json(WJson *j, const Armature *a)
+{
+	WJson *j_joints= wjson_named_member(j, JsonType_array, "joints");
+
+	for (U32 i= 0; i < a->joint_count; ++i) {
+		/// @todo Name and super joints
+
+		WJson *j_offset= wjson_str("offset");
+		wjson_append(	j_offset,
+						wjson_t3(t3f_to_t3d(a->joints[i].bind_pose)));
+
+		WJson *j_joint= wjson_create(JsonType_object);
+		wjson_append(j_joint, j_offset);
+		wjson_append(j_joints, j_joint);
+	}
+}
+
 JointId joint_id_by_name(const Armature *a, const char *name)
 {
 	for (JointId i= 0; i < a->joint_count; ++i) {

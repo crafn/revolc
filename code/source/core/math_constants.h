@@ -4,4 +4,7 @@
 #define PI 3.1415926535
 #define TAU (2*PI)
 
+// ???
+#define EPSILON 0.00000000001
+
 #endif // REVOLC_CORE_MATH_CONSTANTS_H

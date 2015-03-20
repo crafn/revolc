@@ -62,5 +62,6 @@ REVOLC_API U32 find_compentity_at_pixel(V2i p);
 
 REVOLC_API void renderer_on_res_reload();
 REVOLC_API void recache_modelentities();
+REVOLC_API void recache_compentities();
 
 #endif // REVOLC_VISUAL_RENDERER_H

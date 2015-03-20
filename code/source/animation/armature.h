@@ -16,6 +16,7 @@ typedef struct Armature {
 
 REVOLC_API WARN_UNUSED
 int json_armature_to_blob(struct BlobBuf *buf, JsonTok j);
+REVOLC_API void armature_to_json(WJson *j, const Armature *a);
 
 REVOLC_API
 JointId joint_id_by_name(const Armature *a, const char *name);
