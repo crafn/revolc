@@ -29,7 +29,7 @@ typedef struct CompEntity {
 	JointPoseArray pose; // Relative to bind offsets
 
 	// Cached
-	const Armature *armature;
+	Armature *armature;
 	SubEntity subs[MAX_SUBENTITY_COUNT];
 	U8 sub_count;
 } CompEntity;

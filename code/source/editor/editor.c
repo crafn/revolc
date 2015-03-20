@@ -404,9 +404,9 @@ internal
 void gui_armature_overlay(U32 *comp_h, bool *is_edit_mode)
 {
 	UiContext *ctx= g_env.uicontext;
-	//V3d cur_wp= v2d_to_v3d(screen_to_world_point(ctx->cursor_pos));
+	V3d cur_wp= v2d_to_v3d(screen_to_world_point(ctx->cursor_pos));
 	//V3d prev_wp= v2d_to_v3d(screen_to_world_point(ctx->prev_cursor_pos));
-	//F64 v_size= editor_vertex_size();
+	F64 v_size= editor_vertex_size();
 
 	const char *box_label= "armature_editorbox";
 	EditorBoxState state=
@@ -437,12 +437,18 @@ void gui_armature_overlay(U32 *comp_h, bool *is_edit_mode)
 	if (*comp_h != NULL_HANDLE)
 		entity= get_compentity(*comp_h);
 
+	if (!entity)
+		return;
+
+	T3d global_pose[MAX_ARMATURE_JOINT_COUNT];
+	calc_global_pose(global_pose, entity);
+
 	if (*is_edit_mode && state.pressed) {
-		// Control vertex selection
-/*		F64 closest_dist= 0;
+		// Control joint selection
+		F64 closest_dist= 0;
 		U32 closest_i= NULL_HANDLE;
-		for (U32 i= 0; i < m->mesh_v_count; ++i) {
-			V3d pos= vertex_world_pos(m, i);
+		for (U32 i= 0; i < entity->armature->joint_count; ++i) {
+			V3d pos= global_pose[i].pos;
 
 			F64 dist= dist_sqr_v3d(pos, cur_wp);
 			if (	closest_i == NULL_HANDLE ||
@@ -453,45 +459,22 @@ void gui_armature_overlay(U32 *comp_h, bool *is_edit_mode)
 		}
 
 		if (!ctx->shift_down) {
-			for (U32 i= 0; i < m->mesh_v_count; ++i)
-				m->vertices[i].selected= false;
+			for (U32 i= 0; i < entity->armature->joint_count; ++i)
+				entity->armature->joints[i].selected= false;
 		}
 
 		if (closest_dist < 2.0) {
 			ensure(closest_i != NULL_HANDLE);
-			toggle_bool(&m->vertices[closest_i].selected);
+			toggle_bool(&entity->armature->joints[closest_i].selected);
 		}
-		*/
 	}
 
 	if (entity) {
-		if (*is_edit_mode) {
-			/*
-			for (U32 i= 0; i < m->mesh_v_count; ++i) {
-				TriMeshVertex *v= &m->vertices[i];
-				V3d p= vertex_world_pos(m, i);
-				V3d poly[4]= {
-					{-v_size + p.x, -v_size + p.y, p.z},
-					{-v_size + p.x, +v_size + p.y, p.z},
-					{+v_size + p.x, +v_size + p.y, p.z},
-					{+v_size + p.x, -v_size + p.y, p.z},
-				};
-
-				if (v->selected)
-					ddraw_poly((Color) {1.0, 0.7, 0.2, 0.8}, poly, 4);
-				else
-					ddraw_poly((Color) {0.0, 0.0, 0.0, 0.8}, poly, 4);
-			}
-			*/
-		}
-
-		Color fill_color= {0.6, 0.6, 0.8, 0.8};
+		Color default_color= {0.6, 0.6, 0.8, 0.8};
+		Color selected_color= {1.0, 0.8, 0.5, 0.7};
+		Color line_color= {0.0, 0.0, 0.0, 1.0};
 		if (!*is_edit_mode)
-			fill_color= (Color) {1.0, 0.8, 0.5, 0.7};
-
-		T3d global_pose[MAX_ARMATURE_JOINT_COUNT];
-		calc_global_pose(global_pose, entity);
-		F64 v_size= editor_vertex_size();
+			line_color= selected_color;
 
 		const Armature *a= entity->armature;
 		for (U32 i= 0; i < a->joint_count; ++i) {
@@ -506,10 +489,13 @@ void gui_armature_overlay(U32 *comp_h, bool *is_edit_mode)
 				v[i].z= 0.0;
 			}
 
-			ddraw_poly(fill_color, v, v_count);
+			Color c= default_color;
+			if (a->joints[i].selected || !*is_edit_mode)
+				c= selected_color;
+			ddraw_poly(c, v, v_count);
 
 			if (a->joints[i].super_id != NULL_JOINT_ID) {
-				ddraw_line(	(Color){0, 0, 0, 1},
+				ddraw_line(	line_color,
 							p,
 							global_pose[a->joints[i].super_id].pos);
 			}
@@ -577,16 +563,6 @@ void upd_editor()
 	} break;
 	case EditorState_armature: {
 		gui_armature_overlay(&e->cur_comp_h, &e->is_edit_mode);
-/*
-		CompEntity *c= NULL;
-		if (e->cur_comp_h != NULL_HANDLE)
-			c= get_compentity(e->cur_comp_h);
-
-		const S32 box_size= 400;
-		gui_uvbox(	(V2i) {-box_size, -box_size},
-					(V2i) {box_size, box_size},
-					c);
-					*/
 	} break;
 	default: fail("Unhandled editor state: %i", e->state);
 	}

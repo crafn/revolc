@@ -18,6 +18,7 @@ typedef struct Joint {
 	JointId id;
 	JointId super_id;
 	T3f bind_pose; // Offsets relative to super joint in bind pose
+	bool selected; // Editor
 } Joint;
 
 #endif // REVOLC_ANIMATION_JOINT_H
