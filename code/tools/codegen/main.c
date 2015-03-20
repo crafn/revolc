@@ -436,6 +436,10 @@ static void write_math()
 						"	a.w*b.w - a.x*b.x - a.y*b.y - a.z*b.z };\n}\n\n", q.name);
 
 			fprintf(f, "static\n");
+			fprintf(f, "%s dot_%s(%s a, %s b)\n", q.comp_type_name, q.lc_name, q.name, q.name);
+			fprintf(f, "{ return a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w;\n}\n\n");
+
+			fprintf(f, "static\n");
 			fprintf(f, "%s neg_%s(%s q)\n", q.name, q.lc_name, q.name);
 			fprintf(f, "{ return (%s) {-q.x, -q.y, -q.z, q.w}; }\n\n", q.name);
 
@@ -511,6 +515,30 @@ static void write_math()
 						"	%s s= sin(half);\n"
 						"	return (%s) {axis.x*s, axis.y*s, axis.z*s, cos(half)};\n}\n\n",
 						q.axis_lc_name, q.comp_type_name, q.comp_type_name, q.name);
+
+			fprintf(f, "static\n");
+			fprintf(f, "%s %s_by_from_to(%s v1, %s v2)\n", q.name, q.lc_name, q.axis_type_name, q.axis_type_name);
+			fprintf(f, "{\n"
+						"	v1= normalized_%s(v1); v2= normalized_%s(v2);\n"
+						"	F64 dot= dot_%s(v1, v2);\n"
+						"	if (dot >= 1.0) {\n"
+						"		return identity_%s();\n"
+						"	} else if (dot <= -1.0) {\n"
+						"		%s axis= {1.0, 0.0, 0.0};\n"
+						"		axis= cross_%s(axis, v1);\n"
+						"		if (length_sqr_%s(axis) == 0.0) {\n"
+						"			axis= (%s) {0.0, 1.0, 0.0};\n"
+						"			axis= cross_%s(axis, v1);\n"
+						"		}\n"
+						"		return normalized_%s((%s) {axis.x, axis.y, axis.z, 0});\n"
+						"	}\n"
+						"	F64 mul= sqrt(2 + dot*2);\n"
+						"	%s v= scaled_%s(1.0/mul, cross_%s(v1, v2));\n"
+						"	return (%s) {v.x, v.y, v.z, 0.5*mul};\n}\n\n",
+						q.axis_lc_name, q.axis_lc_name, q.axis_lc_name, q.lc_name, q.axis_type_name,
+						q.axis_lc_name, q.axis_lc_name, q.axis_type_name, q.axis_lc_name, q.lc_name,
+						q.name, q.axis_type_name, q.axis_lc_name, q.axis_lc_name, q.name);
+						
 
 			fprintf(f, "static\n");
 			fprintf(f, "%s %s_by_xy_rot_matrix(%s cs, %s sn)\n", q.name, q.lc_name, q.comp_type_name, q.comp_type_name);

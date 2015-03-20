@@ -36,6 +36,11 @@ Qf mul_qf(Qf a, Qf b)
 }
 
 static
+F32 dot_qf(Qf a, Qf b)
+{ return a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w;
+}
+
+static
 Qf neg_qf(Qf q)
 { return (Qf) {-q.x, -q.y, -q.z, q.w}; }
 
@@ -110,6 +115,27 @@ Qf qf_by_axis(V3f axis, F32 angle)
 }
 
 static
+Qf qf_by_from_to(V3f v1, V3f v2)
+{
+	v1= normalized_v3f(v1); v2= normalized_v3f(v2);
+	F64 dot= dot_v3f(v1, v2);
+	if (dot >= 1.0) {
+		return identity_qf();
+	} else if (dot <= -1.0) {
+		V3f axis= {1.0, 0.0, 0.0};
+		axis= cross_v3f(axis, v1);
+		if (length_sqr_v3f(axis) == 0.0) {
+			axis= (V3f) {0.0, 1.0, 0.0};
+			axis= cross_v3f(axis, v1);
+		}
+		return normalized_qf((Qf) {axis.x, axis.y, axis.z, 0});
+	}
+	F64 mul= sqrt(2 + dot*2);
+	V3f v= scaled_v3f(1.0/mul, cross_v3f(v1, v2));
+	return (Qf) {v.x, v.y, v.z, 0.5*mul};
+}
+
+static
 Qf qf_by_xy_rot_matrix(F32 cs, F32 sn)
 {
 	/// @todo There must be a faster way
@@ -132,6 +158,11 @@ Qd mul_qd(Qd a, Qd b)
 	a.w*b.y + a.y*b.w + a.z*b.x - a.x*b.z,
 	a.w*b.z + a.z*b.w + a.x*b.y - a.y*b.x,
 	a.w*b.w - a.x*b.x - a.y*b.y - a.z*b.z };
+}
+
+static
+F64 dot_qd(Qd a, Qd b)
+{ return a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w;
 }
 
 static
@@ -206,6 +237,27 @@ Qd qd_by_axis(V3d axis, F64 angle)
 	F64 half= 0.5*angle;
 	F64 s= sin(half);
 	return (Qd) {axis.x*s, axis.y*s, axis.z*s, cos(half)};
+}
+
+static
+Qd qd_by_from_to(V3d v1, V3d v2)
+{
+	v1= normalized_v3d(v1); v2= normalized_v3d(v2);
+	F64 dot= dot_v3d(v1, v2);
+	if (dot >= 1.0) {
+		return identity_qd();
+	} else if (dot <= -1.0) {
+		V3d axis= {1.0, 0.0, 0.0};
+		axis= cross_v3d(axis, v1);
+		if (length_sqr_v3d(axis) == 0.0) {
+			axis= (V3d) {0.0, 1.0, 0.0};
+			axis= cross_v3d(axis, v1);
+		}
+		return normalized_qd((Qd) {axis.x, axis.y, axis.z, 0});
+	}
+	F64 mul= sqrt(2 + dot*2);
+	V3d v= scaled_v3d(1.0/mul, cross_v3d(v1, v2));
+	return (Qd) {v.x, v.y, v.z, 0.5*mul};
 }
 
 static

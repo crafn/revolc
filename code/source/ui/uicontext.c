@@ -18,20 +18,21 @@ void upd_uicontext()
 {
 	UiContext *ctx= g_env.uicontext;
 
-	ctx->prev_cursor_pos= ctx->cursor_pos;
-	ctx->cursor_pos= g_env.device->cursor_pos;
-	ctx->cursor_delta= sub_v2i(ctx->cursor_pos, ctx->prev_cursor_pos);
+	ctx->dev.prev_cursor_pos= ctx->dev.cursor_pos;
+	ctx->dev.cursor_pos= g_env.device->cursor_pos;
+	ctx->dev.cursor_delta= sub_v2i(ctx->dev.cursor_pos, ctx->dev.prev_cursor_pos);
 
-	ctx->lmb.pressed= g_env.device->key_pressed[KEY_LMB];
-	ctx->lmb.down= g_env.device->key_down[KEY_LMB];
-	ctx->lmb.released= g_env.device->key_released[KEY_LMB];
+	ctx->dev.lmb.pressed= g_env.device->key_pressed[KEY_LMB];
+	ctx->dev.lmb.down= g_env.device->key_down[KEY_LMB];
+	ctx->dev.lmb.released= g_env.device->key_released[KEY_LMB];
 
-	ctx->rmb.pressed= g_env.device->key_pressed[KEY_RMB];
-	ctx->rmb.down= g_env.device->key_down[KEY_RMB];
-	ctx->rmb.released= g_env.device->key_released[KEY_RMB];
+	ctx->dev.rmb.pressed= g_env.device->key_pressed[KEY_RMB];
+	ctx->dev.rmb.down= g_env.device->key_down[KEY_RMB];
+	ctx->dev.rmb.released= g_env.device->key_released[KEY_RMB];
 
-	ctx->shift_down= g_env.device->key_down[KEY_LSHIFT];
-	ctx->g_pressed= g_env.device->key_pressed['g'];
+	ctx->dev.shift_down= g_env.device->key_down[KEY_LSHIFT];
+	ctx->dev.g_pressed= g_env.device->key_pressed['g'];
+	ctx->dev.r_pressed= g_env.device->key_pressed['r'];
 
 	ctx->last_hot_id= ctx->hot_id;
 	ctx->hot_id= 0;

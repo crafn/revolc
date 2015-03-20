@@ -12,16 +12,18 @@ typedef U32 GuiId;
 // Immediate gui context
 // (see Casey Muratori's video for more info: http://mollyrocket.com/861)
 typedef struct UiContext {
-	// Editor controls
-	V2i cursor_pos;
-	V2i prev_cursor_pos;
-	V2i cursor_delta;
-	ButtonState lmb;
-	ButtonState rmb;
-	bool shift_down;
-	bool g_pressed;
-
-	GuiId grabbing; // Set by editor controls
+	struct {
+		V2i cursor_pos;
+		V2i prev_cursor_pos;
+		V2i cursor_delta;
+		ButtonState lmb;
+		ButtonState rmb;
+		bool shift_down;
+		bool g_pressed;
+		bool r_pressed;
+		GuiId grabbing; // Set by editor elements
+		GuiId rotating; // Set by editor elements
+	} dev;
 
 	GuiId hot_id, last_hot_id;
 	GuiId active_id;

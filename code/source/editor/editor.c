@@ -24,8 +24,8 @@ internal
 V3d cursor_delta_in_tf_coords(T3d tf)
 {
 	UiContext *ctx= g_env.uicontext;
-	V3d cur_wp= v2d_to_v3d(screen_to_world_point(ctx->cursor_pos));
-	V3d prev_wp= v2d_to_v3d(screen_to_world_point(ctx->prev_cursor_pos));
+	V3d cur_wp= v2d_to_v3d(screen_to_world_point(ctx->dev.cursor_pos));
+	V3d prev_wp= v2d_to_v3d(screen_to_world_point(ctx->dev.prev_cursor_pos));
 	V3d cur= mul_t3d(	inv_t3d(tf),
 						(T3d) {	{1, 1, 1},
 								identity_qd(),
@@ -109,32 +109,36 @@ EditorBoxState gui_editorbox(const char *label, V2i pix_pos, V2i pix_size, bool 
 {
 	gui_wrap(&pix_pos, &pix_size);
 	UiContext *ctx= g_env.uicontext;
-	const V2i c_p= ctx->cursor_pos;
+	const V2i c_p= ctx->dev.cursor_pos;
 	const Color c= (Color) {0.25, 0.25, 0.3, 0.9};
 
 	EditorBoxState state= {};
 
 	if (gui_is_active(label)) {
 		state.pressed= false;
-		if (!ctx->rmb.down && !ctx->grabbing) {
+		if (!ctx->dev.rmb.down && !ctx->dev.grabbing && !ctx->dev.rotating) {
 			state.released= true;
 			gui_set_inactive(label);
-		} else if (ctx->rmb.down) {
+		} else if (ctx->dev.rmb.down) {
 			state.down= true;
 		}
 
-		if (ctx->lmb.pressed || ctx->g_pressed) {
-			ctx->grabbing= 0;
+		if (ctx->dev.rmb.pressed || ctx->dev.lmb.pressed) {
+			ctx->dev.grabbing= 0;
+			ctx->dev.rotating= 0;
 			gui_set_inactive(label);
 		}
 	} else if (gui_is_hot(label)) {
-		if (ctx->rmb.pressed) {
+		if (ctx->dev.rmb.pressed) {
 			state.pressed= true;
 			state.down= true;
 			gui_set_active(label);
 
-		} else if (ctx->g_pressed) {
-			ctx->grabbing= gui_id(label);
+		} else if (ctx->dev.g_pressed) {
+			ctx->dev.grabbing= gui_id(label);
+			gui_set_active(label);
+		} else if (ctx->dev.r_pressed) {
+			ctx->dev.rotating= gui_id(label);
 			gui_set_active(label);
 		}
 	}
@@ -262,7 +266,7 @@ void gui_uvbox(V2i pix_pos, V2i pix_size, ModelEntity *m)
 			TriMeshVertex *v= &m->vertices[i];
 			V2i pos= uv_to_pix(v->uv, pix_pos, pix_size);
 
-			F64 dist= dist_sqr_v2i(pos, ctx->cursor_pos);
+			F64 dist= dist_sqr_v2i(pos, ctx->dev.cursor_pos);
 			if (	closest_i == NULL_HANDLE ||
 					dist < closest_dist) {
 				closest_i= i;
@@ -270,7 +274,7 @@ void gui_uvbox(V2i pix_pos, V2i pix_size, ModelEntity *m)
 			}
 		}
 
-		if (!ctx->shift_down) {
+		if (!ctx->dev.shift_down) {
 			for (U32 i= 0; i < m->mesh_v_count; ++i)
 				m->vertices[i].selected= false;
 		}
@@ -281,10 +285,10 @@ void gui_uvbox(V2i pix_pos, V2i pix_size, ModelEntity *m)
 		}
 	}
 
-	if (ctx->grabbing == gui_id(box_label)) {
+	if (ctx->dev.grabbing == gui_id(box_label)) {
 		// Move selected uv coords
-		V3d cur= pix_to_uv(ctx->cursor_pos, pix_pos, pix_size);
-		V3d prev= pix_to_uv(ctx->prev_cursor_pos, pix_pos, pix_size);
+		V3d cur= pix_to_uv(ctx->dev.cursor_pos, pix_pos, pix_size);
+		V3d prev= pix_to_uv(ctx->dev.prev_cursor_pos, pix_pos, pix_size);
 		V3d delta= sub_v3d(cur, prev);
 		translate_mesh(m, delta, true);
 	}
@@ -333,7 +337,7 @@ internal
 void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 {
 	UiContext *ctx= g_env.uicontext;
-	V3d cur_wp= v2d_to_v3d(screen_to_world_point(ctx->cursor_pos));
+	V3d cur_wp= v2d_to_v3d(screen_to_world_point(ctx->dev.cursor_pos));
 	F64 v_size= editor_vertex_size();
 
 	const char *box_label= "mesh_overlay_box";
@@ -342,7 +346,7 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 
 	if (!*is_edit_mode) { // Mesh select mode
 		if (state.down)
-			*model_h= find_modelentity_at_pixel(ctx->cursor_pos);
+			*model_h= find_modelentity_at_pixel(ctx->dev.cursor_pos);
 	}
 
 	ModelEntity *m= NULL;
@@ -352,7 +356,7 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 		return;
 
 	if (*is_edit_mode) {
-		if (ctx->grabbing == gui_id(box_label)) {
+		if (ctx->dev.grabbing == gui_id(box_label)) {
 			translate_mesh(m, cursor_delta_in_tf_coords(m->tf), false);
 		}
 	}
@@ -372,7 +376,7 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 			}
 		}
 
-		if (!ctx->shift_down) {
+		if (!ctx->dev.shift_down) {
 			for (U32 i= 0; i < m->mesh_v_count; ++i)
 				m->vertices[i].selected= false;
 		}
@@ -418,12 +422,16 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 	}
 }
 
+F64 sign(F64 a)
+{ return (0 < a) - (a < 0); }
+
 // Armature editing on world
 internal
 void gui_armature_overlay(U32 *comp_h, bool *is_edit_mode)
 {
 	UiContext *ctx= g_env.uicontext;
-	V3d cur_wp= v2d_to_v3d(screen_to_world_point(ctx->cursor_pos));
+	V3d cur_wp= v2d_to_v3d(screen_to_world_point(ctx->dev.cursor_pos));
+	V3d prev_wp= v2d_to_v3d(screen_to_world_point(ctx->dev.prev_cursor_pos));
 	F64 v_size= editor_vertex_size();
 
 	const char *box_label= "armature_overlay_box";
@@ -432,7 +440,7 @@ void gui_armature_overlay(U32 *comp_h, bool *is_edit_mode)
 
 	if (!*is_edit_mode) { // Mesh select mode
 		if (state.down)
-			*comp_h= find_compentity_at_pixel(ctx->cursor_pos);
+			*comp_h= find_compentity_at_pixel(ctx->dev.cursor_pos);
 	}
 
 	CompEntity *entity= NULL;
@@ -444,18 +452,18 @@ void gui_armature_overlay(U32 *comp_h, bool *is_edit_mode)
 	T3d global_pose[MAX_ARMATURE_JOINT_COUNT];
 	calc_global_pose(global_pose, entity);
 
-	if (*is_edit_mode) {
-		if (ctx->grabbing == gui_id(box_label)) {
-			if (!a->res.is_runtime_res) {
-				a= create_rt_armature(a);
-				// Requery pointers to the new armature
-				recache_compentities();
-			}
+	if (*is_edit_mode && (ctx->dev.grabbing || ctx->dev.rotating)) {
+		if (!a->res.is_runtime_res) {
+			a= create_rt_armature(a);
+			// Requery pointers to the new armature
+			recache_compentities();
+		}
 
-			for (U32 i= 0; i < a->joint_count; ++i) {
-				if (!a->joints[i].selected)
-					continue;
+		for (U32 i= 0; i < a->joint_count; ++i) {
+			if (!a->joints[i].selected)
+				continue;
 
+			if (ctx->dev.grabbing == gui_id(box_label)) {
 				T3d coords= entity->tf;
 				U32 super_i= a->joints[i].super_id;
 				if (super_i != NULL_JOINT_ID)
@@ -470,13 +478,22 @@ void gui_armature_overlay(U32 *comp_h, bool *is_edit_mode)
 					translation= sub_v3f(b, a);
 				}
 
-				V3f *pos= &a->joints[i].bind_pose.pos;
-				*pos= add_v3f(*pos, translation);
-			}
-			a->res.needs_saving= true;
+				V3f *bind_pos= &a->joints[i].bind_pose.pos;
+				*bind_pos= add_v3f(*bind_pos, translation);
+			} else if (ctx->dev.rotating == gui_id(box_label)) {
+				V3d center= global_pose[i].pos;
+				V3f v1= v3d_to_v3f(sub_v3d(prev_wp, center));
+				V3f v2= v3d_to_v3f(sub_v3d(cur_wp, center));
+				Qf rot= qf_by_from_to(v1, v2);
 
-			calc_global_pose(global_pose, entity);
+				/// @todo Won't work with 3d animations (?)
+				Qf *bind_rot= &a->joints[i].bind_pose.rot;
+				*bind_rot= mul_qf(rot, *bind_rot);
+			}
 		}
+
+		a->res.needs_saving= true;
+		calc_global_pose(global_pose, entity);
 	}
 
 
@@ -495,7 +512,7 @@ void gui_armature_overlay(U32 *comp_h, bool *is_edit_mode)
 			}
 		}
 
-		if (!ctx->shift_down) {
+		if (!ctx->dev.shift_down) {
 			for (U32 i= 0; i < a->joint_count; ++i)
 				a->joints[i].selected= false;
 		}

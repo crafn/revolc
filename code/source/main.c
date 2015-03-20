@@ -125,8 +125,6 @@ int main(int argc, const char **argv)
 			if (d->key_down['e'])
 				spawn_entity(world, g_env.resblob, cursor_on_world);
 
-			if (d->key_pressed['r'])
-				free_node_group(world, 0);
 			if (d->key_pressed['t'])
 				free_node_group(world, 1);
 
