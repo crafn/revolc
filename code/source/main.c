@@ -164,9 +164,9 @@ int main(int argc, const char **argv)
 					reload_blob(&g_env.resblob, g_env.resblob, DEFAULT_BLOB_PATH);
 			}
 
-			if (d->key_pressed[KEY_ESC]) {
+			if (d->key_pressed['u']) {
 				if (!d->key_down[KEY_LSHIFT] && blob_has_modifications(g_env.resblob))
-					critical_print("Current resblob has unsaved modifications -- press shift + ESC to quit without saving");
+					critical_print("Current resblob has unsaved modifications -- press shift + u to quit without saving");
 				else
 					break;
 			}

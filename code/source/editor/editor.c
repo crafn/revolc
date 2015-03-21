@@ -573,19 +573,12 @@ void upd_editor()
 {
 	Editor *e= g_env.editor;
 
-	if (g_env.device->key_pressed[KEY_F1]) {
-		if (e->state != EditorState_mesh)
-			e->state= EditorState_mesh;
-		else
-			e->state= EditorState_invisible;
-	}
-
-	if (g_env.device->key_pressed[KEY_F2]) {
-		if (e->state != EditorState_armature)
-			e->state= EditorState_armature;
-		else
-			e->state= EditorState_invisible;
-	}
+	if (g_env.device->key_pressed[KEY_F1])
+		e->state= EditorState_mesh;
+	if (g_env.device->key_pressed[KEY_F2])
+		e->state= EditorState_armature;
+	if (g_env.device->key_pressed[KEY_ESC])
+		e->state= EditorState_invisible;
 
 	if (e->state == EditorState_invisible)
 		return;

@@ -35,5 +35,8 @@ code/codegen
 *.swp
 *.fuse*
 
+# Resources
+resources/gamedata
+
 # Generated
 gen_rtti.c
