@@ -13,6 +13,17 @@ typedef struct Editor {
 	U32 cur_model_h;
 	U32 cur_comp_h;
 
+	// Values restored when cancelling current action
+	struct {
+		TriMeshVertex *vertices;
+		MeshIndexType *indices;
+		U32 v_count;
+		U32 i_count;
+
+		JointPoseArray bind_pose;
+		U32 joint_count;
+	} stored;
+
 	bool is_edit_mode; // Edit or object mode
 
 	EditorState state;

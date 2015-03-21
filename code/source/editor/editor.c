@@ -17,6 +17,118 @@ void toggle_bool(bool *b)
 { *b = !*b; }
 
 internal
+void destroy_rt_mesh(Resource *res);
+
+// Creates modifiable substitute for static mesh resource
+internal
+Mesh *create_rt_mesh(Mesh *src)
+{
+	Mesh *rt_mesh= dev_malloc(sizeof(*rt_mesh));
+	*rt_mesh= *src;
+	substitute_res(&src->res, &rt_mesh->res, destroy_rt_mesh);
+
+	TriMeshVertex *verts= dev_malloc(sizeof(*verts)*src->v_count);
+	memcpy(verts, mesh_vertices(src), sizeof(*verts)*src->v_count);
+
+	MeshIndexType *inds= dev_malloc(sizeof(*inds)*src->i_count);
+	memcpy(inds, mesh_indices(src), sizeof(*inds)*src->i_count);
+
+	rt_mesh->v_offset= blob_offset(&rt_mesh->res, verts);
+	rt_mesh->i_offset= blob_offset(&rt_mesh->res, inds);
+
+	return rt_mesh;
+}
+
+internal
+void destroy_rt_mesh(Resource *res)
+{
+	Mesh *m= (Mesh*)res;
+	dev_free(blob_ptr(res, m->v_offset));
+	dev_free(blob_ptr(res, m->i_offset));
+	dev_free(m);
+}
+
+internal
+void editor_free_res_state()
+{
+	Editor *e= g_env.editor;
+	free(e->stored.vertices);
+	free(e->stored.indices);
+	e->stored.vertices= NULL;
+	e->stored.indices= NULL;
+}
+
+internal
+void editor_store_res_state()
+{
+	Editor *e= g_env.editor;
+	if (e->stored.vertices)
+		editor_free_res_state();
+
+	if (e->cur_model_h != NULL_HANDLE) {
+		ModelEntity *m= get_modelentity(e->cur_model_h);
+		Mesh *mesh= model_mesh((Model*)res_by_name(	g_env.resblob,
+													ResType_Model,
+													m->model_name));
+
+		const U32 v_size= sizeof(*e->stored.vertices)*mesh->v_count;
+		e->stored.vertices= dev_malloc(v_size);
+		memcpy(e->stored.vertices, mesh_vertices(mesh), v_size);
+		e->stored.v_count= mesh->v_count;
+
+		const U32 i_size= sizeof(*e->stored.indices)*mesh->i_count;
+		e->stored.indices= dev_malloc(i_size);
+		memcpy(e->stored.indices, mesh_indices(mesh), i_size);
+		e->stored.i_count= mesh->i_count;
+	}
+
+	if (e->cur_comp_h != NULL_HANDLE) {
+		CompEntity *c= get_compentity(e->cur_comp_h);
+		Armature *a= c->armature;
+
+		for (U32 i= 0; i < a->joint_count; ++i)
+			e->stored.bind_pose.tf[i]= a->joints[i].bind_pose;
+		e->stored.joint_count= a->joint_count;
+	}
+}
+
+internal
+void editor_revert_res_state()
+{
+	Editor *e= g_env.editor;
+	if (e->stored.vertices && e->cur_model_h != NULL_HANDLE) {
+		ModelEntity *m= get_modelentity(e->cur_model_h);
+		Mesh *mesh= model_mesh((Model*)res_by_name(	g_env.resblob,
+													ResType_Model,
+													m->model_name));
+		ensure(mesh->res.is_runtime_res); // Allowed to modify
+
+		// Free old mesh
+		dev_free(blob_ptr(&mesh->res, mesh->v_offset));
+		dev_free(blob_ptr(&mesh->res, mesh->i_offset));
+
+		// Move stored mesh
+		mesh->v_offset= blob_offset(&mesh->res, e->stored.vertices);
+		mesh->i_offset= blob_offset(&mesh->res, e->stored.indices);
+		mesh->v_count= e->stored.v_count;
+		mesh->i_count= e->stored.i_count;
+		e->stored.vertices= NULL;
+		e->stored.indices= NULL;
+
+		recache_ptrs_to_meshes();
+	}
+
+	if (e->cur_comp_h != NULL_HANDLE) {
+		CompEntity *c= get_compentity(e->cur_comp_h);
+		Armature *a= c->armature;
+
+		for (U32 i= 0; i < a->joint_count; ++i)
+			a->joints[i].bind_pose= e->stored.bind_pose.tf[i];
+		a->joint_count= e->stored.joint_count;
+	}
+}
+
+internal
 F64 editor_vertex_size()
 { return screen_to_world_size((V2i) {5, 0}).x; }
 
@@ -118,6 +230,7 @@ void gui_model_image(V2i pix_pos, V2i pix_size, ModelEntity *src_model)
 	e->scale_to_atlas_uv= src_model->scale_to_atlas_uv;
 }
 
+// Some common features with different resources
 internal
 EditorBoxState gui_editorbox(const char *label, V2i pix_pos, V2i pix_size, bool invisible)
 {
@@ -138,7 +251,17 @@ EditorBoxState gui_editorbox(const char *label, V2i pix_pos, V2i pix_size, bool 
 			state.down= true;
 		}
 
-		if (ctx->dev.rmb.pressed || ctx->dev.lmb.pressed) {
+		if (	ctx->dev.rmb.pressed &&
+				(ctx->dev.grabbing || ctx->dev.rotating || ctx->dev.scaling)) {
+			// Cancel
+			editor_revert_res_state();
+			ctx->dev.grabbing= 0;
+			ctx->dev.rotating= 0;
+			ctx->dev.scaling= 0;
+			gui_set_inactive(label);
+		}
+
+		if (ctx->dev.lmb.pressed) {
 			ctx->dev.grabbing= 0;
 			ctx->dev.rotating= 0;
 			ctx->dev.scaling= 0;
@@ -149,7 +272,6 @@ EditorBoxState gui_editorbox(const char *label, V2i pix_pos, V2i pix_size, bool 
 			state.pressed= true;
 			state.down= true;
 			gui_set_active(label);
-
 		} else if (ctx->dev.g_pressed) {
 			ctx->dev.grabbing= gui_id(label);
 			gui_set_active(label);
@@ -160,6 +282,9 @@ EditorBoxState gui_editorbox(const char *label, V2i pix_pos, V2i pix_size, bool 
 			ctx->dev.scaling= gui_id(label);
 			gui_set_active(label);
 		}
+
+		if (gui_is_active(label))
+			editor_store_res_state();
 	}
 
 	if (	c_p.x >= pix_pos.x &&
@@ -175,39 +300,6 @@ EditorBoxState gui_editorbox(const char *label, V2i pix_pos, V2i pix_size, bool 
 
 	return state;
 }
-
-internal
-void destroy_rt_mesh(Resource *res);
-
-// Creates modifiable substitute for static mesh resource
-internal
-Mesh *create_rt_mesh(Mesh *src)
-{
-	Mesh *rt_mesh= dev_malloc(sizeof(*rt_mesh));
-	*rt_mesh= *src;
-	substitute_res(&src->res, &rt_mesh->res, destroy_rt_mesh);
-
-	TriMeshVertex *verts= dev_malloc(sizeof(*verts)*src->v_count);
-	memcpy(verts, mesh_vertices(src), sizeof(*verts)*src->v_count);
-
-	MeshIndexType *inds= dev_malloc(sizeof(*inds)*src->i_count);
-	memcpy(inds, mesh_indices(src), sizeof(*inds)*src->i_count);
-
-	rt_mesh->v_offset= blob_offset(&rt_mesh->res, verts);
-	rt_mesh->i_offset= blob_offset(&rt_mesh->res, inds);
-
-	return rt_mesh;
-}
-
-internal
-void destroy_rt_mesh(Resource *res)
-{
-	Mesh *m= (Mesh*)res;
-	dev_free(blob_ptr(res, m->v_offset));
-	dev_free(blob_ptr(res, m->i_offset));
-	dev_free(m);
-}
-
 internal
 void transform_mesh(ModelEntity *m, T3f tf, bool uv)
 {
@@ -221,8 +313,7 @@ void transform_mesh(ModelEntity *m, T3f tf, bool uv)
 												m->model_name));
 	if (!mesh->res.is_runtime_res) {
 		mesh= create_rt_mesh(mesh);
-		// Requery pointers to the new mesh
-		recache_modelentities();
+		recache_ptrs_to_meshes();
 	}
 
 	for (U32 i= 0; i < mesh->v_count; ++i) {
@@ -379,8 +470,8 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 	else
 		return;
 
-	if (*is_edit_mode) {
-		if (ctx->dev.toggle_select_all) {
+	if (ctx->dev.toggle_select_all) {
+		if (*is_edit_mode) {
 			bool some_selected= false;
 			for (U32 i= 0; i < m->mesh_v_count; ++i) {
 				if (m->vertices[i].selected)
@@ -389,6 +480,9 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 			for (U32 i= 0; i < m->mesh_v_count; ++i) {
 				m->vertices[i].selected= !some_selected;
 			}
+		} else {
+			*model_h= NULL_HANDLE;
+			return;
 		}
 	}
 
@@ -474,8 +568,8 @@ void gui_armature_overlay(U32 *comp_h, bool *is_edit_mode)
 	T3d global_pose[MAX_ARMATURE_JOINT_COUNT];
 	calc_global_pose(global_pose, entity);
 
-	if (*is_edit_mode) {
-		if (ctx->dev.toggle_select_all) {
+	if (ctx->dev.toggle_select_all) {
+		if (*is_edit_mode) {
 			bool some_selected= false;
 			for (U32 i= 0; i < a->joint_count; ++i) {
 				if (a->joints[i].selected)
@@ -484,14 +578,16 @@ void gui_armature_overlay(U32 *comp_h, bool *is_edit_mode)
 			for (U32 i= 0; i < a->joint_count; ++i)
 				a->joints[i].selected= false;
 			a->joints[0].selected= !some_selected;
+		} else {
+			*comp_h= NULL_HANDLE;
+			return;
 		}
 	}
 
 	if (*is_edit_mode && (ctx->dev.grabbing || ctx->dev.rotating)) {
 		if (!a->res.is_runtime_res) {
 			a= create_rt_armature(a);
-			// Requery pointers to the new armature
-			recache_compentities();
+			recache_ptrs_to_armatures();
 		}
 
 		for (U32 i= 0; i < a->joint_count; ++i) {
@@ -565,6 +661,7 @@ void create_editor()
 
 void destroy_editor()
 {
+	editor_free_res_state();
 	free(g_env.editor);
 	g_env.editor= NULL;
 }

@@ -668,16 +668,7 @@ U32 find_compentity_at_pixel(V2i p)
 	return closest_h;
 }
 
-
-void renderer_on_res_reload()
-{
-	Renderer *r= g_env.renderer;
-
-	recreate_texture_atlas(r, g_env.resblob);
-	recache_modelentities();
-	recache_compentities();
-}
-
+internal
 void recache_modelentities()
 {
 	Renderer *r= g_env.renderer;
@@ -692,14 +683,43 @@ void recache_modelentities()
 	}
 }
 
-void recache_compentities()
+void renderer_on_res_reload()
 {
 	Renderer *r= g_env.renderer;
+
+	recreate_texture_atlas(r, g_env.resblob);
+	recache_modelentities();
+
 	for (U32 e_i= 0; e_i < MAX_COMPENTITY_COUNT; ++e_i) {
 		CompEntity *e= &r->c_entities[e_i];
 		if (!e->allocated)
 			continue;
 
 		recache_compentity(e);
+	}
+}
+
+void recache_ptrs_to_meshes()
+{
+	recache_modelentities();
+}
+
+void recache_ptrs_to_armatures()
+{
+	// Can't just use recache_compentity as it does too much:
+	// invalidates subentity handles
+
+	Renderer *r= g_env.renderer;
+	for (U32 e_i= 0; e_i < MAX_COMPENTITY_COUNT; ++e_i) {
+		CompEntity *e= &r->c_entities[e_i];
+		if (!e->allocated)
+			continue;
+
+		const CompDef *def= (CompDef*)res_by_name(	g_env.resblob,
+													ResType_CompDef,
+													e->def_name);
+		e->armature= (Armature*)res_by_name(g_env.resblob,
+											ResType_Armature,
+											def->armature_name);
 	}
 }
