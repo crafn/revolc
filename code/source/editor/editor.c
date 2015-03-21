@@ -36,6 +36,8 @@ Mesh *create_rt_mesh(Mesh *src)
 	rt_mesh->v_offset= blob_offset(&rt_mesh->res, verts);
 	rt_mesh->i_offset= blob_offset(&rt_mesh->res, inds);
 
+	recache_ptrs_to_meshes();
+
 	return rt_mesh;
 }
 
@@ -58,6 +60,7 @@ void editor_free_res_state()
 	e->stored.indices= NULL;
 }
 
+// Store currently selected resources for cancellation of edit
 internal
 void editor_store_res_state()
 {
@@ -92,6 +95,7 @@ void editor_store_res_state()
 	}
 }
 
+// Revert currenty select resources to state before edit action
 internal
 void editor_revert_res_state()
 {
@@ -161,6 +165,20 @@ Qf cursor_rot_delta_in_tf_coords(T3d tf)
 	V3f v1= v3d_to_v3f(sub_v3d(prev_wp, center));
 	V3f v2= v3d_to_v3f(sub_v3d(cur_wp, center));
 	return qf_by_from_to(v1, v2);
+}
+
+internal
+V3f cursor_scale_delta_in_tf_coords(T3d tf)
+{
+	V3d center= tf.pos;
+	UiContext *ctx= g_env.uicontext;
+	V3d cur_wp= v2d_to_v3d(screen_to_world_point(ctx->dev.cursor_pos));
+	V3d prev_wp= v2d_to_v3d(screen_to_world_point(ctx->dev.prev_cursor_pos));
+	V3f v1= v3d_to_v3f(sub_v3d(prev_wp, center));
+	V3f v2= v3d_to_v3f(sub_v3d(cur_wp, center));
+
+	F32 s= length_v3f(v2)/length_v3f(v1);
+	return (V3f) {s, s, s};
 }
 
 internal
@@ -311,10 +329,8 @@ void transform_mesh(ModelEntity *m, T3f tf, bool uv)
 	Mesh *mesh= model_mesh((Model*)res_by_name(	g_env.resblob,
 												ResType_Model,
 												m->model_name));
-	if (!mesh->res.is_runtime_res) {
+	if (!mesh->res.is_runtime_res)
 		mesh= create_rt_mesh(mesh);
-		recache_ptrs_to_meshes();
-	}
 
 	for (U32 i= 0; i < mesh->v_count; ++i) {
 		TriMeshVertex *v= &mesh_vertices(mesh)[i];
@@ -342,6 +358,7 @@ Armature *create_rt_armature(Armature *src)
 	Armature *rt_armature= dev_malloc(sizeof(*rt_armature));
 	*rt_armature= *src;
 	substitute_res(&src->res, &rt_armature->res, NULL);
+	recache_ptrs_to_armatures();
 	return rt_armature;
 }
 
@@ -407,6 +424,12 @@ void gui_uvbox(V2i pix_pos, V2i pix_size, ModelEntity *m)
 		debug_print("@todo Uv rotating");
 		ctx->dev.rotating= 0;
 	}
+
+	if (ctx->dev.scaling == gui_id(box_label)) {
+		debug_print("@todo Uv scaling");
+		ctx->dev.scaling= 0;
+	}
+
 
 	V2i padding= {20, 20};
 	pix_pos= add_v2i(pix_pos, padding);
@@ -486,12 +509,14 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 		}
 	}
 
-	if (*is_edit_mode && (ctx->dev.grabbing || ctx->dev.rotating)) {
+	if (*is_edit_mode && (ctx->dev.grabbing || ctx->dev.rotating || ctx->dev.scaling)) {
 		T3f delta= {{1, 1, 1}, identity_qf(), {0, 0, 0}};
 		if (ctx->dev.grabbing == gui_id(box_label)) {
 			delta.pos= cursor_delta_in_tf_coords(m->tf);
 		} else if (ctx->dev.rotating == gui_id(box_label)) {
 			delta.rot= cursor_rot_delta_in_tf_coords(m->tf);
+		} else if (ctx->dev.scaling == gui_id(box_label)) {
+			delta.scale= cursor_scale_delta_in_tf_coords(m->tf);
 		}
 		transform_mesh(m, delta, false);
 	}
@@ -584,11 +609,9 @@ void gui_armature_overlay(U32 *comp_h, bool *is_edit_mode)
 		}
 	}
 
-	if (*is_edit_mode && (ctx->dev.grabbing || ctx->dev.rotating)) {
-		if (!a->res.is_runtime_res) {
+	if (*is_edit_mode && (ctx->dev.grabbing || ctx->dev.rotating || ctx->dev.scaling)) {
+		if (!a->res.is_runtime_res)
 			a= create_rt_armature(a);
-			recache_ptrs_to_armatures();
-		}
 
 		for (U32 i= 0; i < a->joint_count; ++i) {
 			if (!a->joints[i].selected)
@@ -613,10 +636,12 @@ void gui_armature_overlay(U32 *comp_h, bool *is_edit_mode)
 				*bind_pos= add_v3f(*bind_pos, translation);
 			} else if (ctx->dev.rotating == gui_id(box_label)) {
 				Qf rot= cursor_rot_delta_in_tf_coords(global_pose[i]);
-
-				/// @todo Won't work with 3d animations (?)
 				Qf *bind_rot= &a->joints[i].bind_pose.rot;
 				*bind_rot= mul_qf(rot, *bind_rot);
+			} else if (ctx->dev.scaling == gui_id(box_label)) {
+				V3f s= cursor_scale_delta_in_tf_coords(global_pose[i]);
+				V3f *bind_scale= &a->joints[i].bind_pose.scale;
+				*bind_scale= mul_v3f(s, *bind_scale);
 			}
 		}
 
