@@ -21,7 +21,7 @@ F64 editor_vertex_size()
 { return screen_to_world_size((V2i) {5, 0}).x; }
 
 internal
-V3d cursor_delta_in_tf_coords(T3d tf)
+V3f cursor_delta_in_tf_coords(T3d tf)
 {
 	UiContext *ctx= g_env.uicontext;
 	V3d cur_wp= v2d_to_v3d(screen_to_world_point(ctx->dev.cursor_pos));
@@ -34,7 +34,21 @@ V3d cursor_delta_in_tf_coords(T3d tf)
 						(T3d) {	{1, 1, 1},
 								identity_qd(),
 								prev_wp}).pos;
-	return sub_v3d(cur, prev);
+	return v3d_to_v3f(sub_v3d(cur, prev));
+}
+
+internal
+Qf cursor_rot_delta_in_tf_coords(T3d tf)
+{
+	V3d center= tf.pos;
+	/// @todo Correct return with 3d rot
+
+	UiContext *ctx= g_env.uicontext;
+	V3d cur_wp= v2d_to_v3d(screen_to_world_point(ctx->dev.cursor_pos));
+	V3d prev_wp= v2d_to_v3d(screen_to_world_point(ctx->dev.prev_cursor_pos));
+	V3f v1= v3d_to_v3f(sub_v3d(prev_wp, center));
+	V3f v2= v3d_to_v3f(sub_v3d(cur_wp, center));
+	return qf_by_from_to(v1, v2);
 }
 
 internal
@@ -190,7 +204,7 @@ void destroy_rt_mesh(Resource *res)
 }
 
 internal
-void translate_mesh(ModelEntity *m, V3d delta, bool uv)
+void transform_mesh(ModelEntity *m, T3f tf, bool uv)
 {
 	if (m->has_own_mesh) {
 		debug_print("@todo Modify unique mesh");
@@ -211,11 +225,11 @@ void translate_mesh(ModelEntity *m, V3d delta, bool uv)
 		if (!v->selected)
 			continue;
 		if (uv) {
-			v->uv= add_v3f(v3d_to_v3f(delta), v->uv);
+			v->uv= transform_v3f(tf, v->uv);
 			v->uv.x= CLAMP(v->uv.x, 0.0, 1.0);
 			v->uv.y= CLAMP(v->uv.y, 0.0, 1.0);
 		} else {
-			v->pos= add_v3f(v3d_to_v3f(delta), v->pos);
+			v->pos= transform_v3f(tf, v->pos);
 		}
 	}
 
@@ -289,8 +303,13 @@ void gui_uvbox(V2i pix_pos, V2i pix_size, ModelEntity *m)
 		// Move selected uv coords
 		V3d cur= pix_to_uv(ctx->dev.cursor_pos, pix_pos, pix_size);
 		V3d prev= pix_to_uv(ctx->dev.prev_cursor_pos, pix_pos, pix_size);
-		V3d delta= sub_v3d(cur, prev);
-		translate_mesh(m, delta, true);
+		T3f delta= {{1, 1, 1}, identity_qf(), v3d_to_v3f(sub_v3d(cur, prev))};
+		transform_mesh(m, delta, true);
+	}
+
+	if (ctx->dev.rotating == gui_id(box_label)) {
+		debug_print("@todo Uv rotating");
+		ctx->dev.rotating= 0;
 	}
 
 	V2i padding= {20, 20};
@@ -356,10 +375,6 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 		return;
 
 	if (*is_edit_mode) {
-		if (ctx->dev.grabbing == gui_id(box_label)) {
-			translate_mesh(m, cursor_delta_in_tf_coords(m->tf), false);
-		}
-
 		if (ctx->dev.toggle_select_all) {
 			bool some_selected= false;
 			for (U32 i= 0; i < m->mesh_v_count; ++i) {
@@ -370,6 +385,16 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 				m->vertices[i].selected= !some_selected;
 			}
 		}
+	}
+
+	if (*is_edit_mode && (ctx->dev.grabbing || ctx->dev.rotating)) {
+		T3f delta= {{1, 1, 1}, identity_qf(), {0, 0, 0}};
+		if (ctx->dev.grabbing == gui_id(box_label)) {
+			delta.pos= cursor_delta_in_tf_coords(m->tf);
+		} else if (ctx->dev.rotating == gui_id(box_label)) {
+			delta.rot= cursor_rot_delta_in_tf_coords(m->tf);
+		}
+		transform_mesh(m, delta, false);
 	}
 
 	if (*is_edit_mode && state.pressed) {
@@ -425,13 +450,12 @@ void gui_armature_overlay(U32 *comp_h, bool *is_edit_mode)
 {
 	UiContext *ctx= g_env.uicontext;
 	V3d cur_wp= v2d_to_v3d(screen_to_world_point(ctx->dev.cursor_pos));
-	V3d prev_wp= v2d_to_v3d(screen_to_world_point(ctx->dev.prev_cursor_pos));
 
 	const char *box_label= "armature_overlay_box";
 	EditorBoxState state=
 		gui_editorbox(box_label, (V2i) {0, 0}, g_env.device->win_size, true);
 
-	if (!*is_edit_mode) { // Mesh select mode
+	if (!*is_edit_mode) {
 		if (state.down)
 			*comp_h= find_compentity_at_pixel(ctx->dev.cursor_pos);
 	}
@@ -444,6 +468,19 @@ void gui_armature_overlay(U32 *comp_h, bool *is_edit_mode)
 	Armature *a= entity->armature;
 	T3d global_pose[MAX_ARMATURE_JOINT_COUNT];
 	calc_global_pose(global_pose, entity);
+
+	if (*is_edit_mode) {
+		if (ctx->dev.toggle_select_all) {
+			bool some_selected= false;
+			for (U32 i= 0; i < a->joint_count; ++i) {
+				if (a->joints[i].selected)
+					some_selected= true;
+			}
+			for (U32 i= 0; i < a->joint_count; ++i)
+				a->joints[i].selected= false;
+			a->joints[0].selected= !some_selected;
+		}
+	}
 
 	if (*is_edit_mode && (ctx->dev.grabbing || ctx->dev.rotating)) {
 		if (!a->res.is_runtime_res) {
@@ -462,7 +499,7 @@ void gui_armature_overlay(U32 *comp_h, bool *is_edit_mode)
 				if (super_i != NULL_JOINT_ID)
 					coords= global_pose[super_i];
 
-				V3f translation= v3d_to_v3f(cursor_delta_in_tf_coords(coords));
+				V3f translation= cursor_delta_in_tf_coords(coords);
 
 				{ // `translation` from cur pose coords to bind pose coords
 					T3f to_bind= inv_t3f(entity->pose.tf[i]);
@@ -474,10 +511,7 @@ void gui_armature_overlay(U32 *comp_h, bool *is_edit_mode)
 				V3f *bind_pos= &a->joints[i].bind_pose.pos;
 				*bind_pos= add_v3f(*bind_pos, translation);
 			} else if (ctx->dev.rotating == gui_id(box_label)) {
-				V3d center= global_pose[i].pos;
-				V3f v1= v3d_to_v3f(sub_v3d(prev_wp, center));
-				V3f v2= v3d_to_v3f(sub_v3d(cur_wp, center));
-				Qf rot= qf_by_from_to(v1, v2);
+				Qf rot= cursor_rot_delta_in_tf_coords(global_pose[i]);
 
 				/// @todo Won't work with 3d animations (?)
 				Qf *bind_rot= &a->joints[i].bind_pose.rot;
@@ -545,13 +579,12 @@ void upd_editor()
 		return;
 
 	bool tab_pressed= g_env.device->key_pressed[KEY_TAB];
-	if (tab_pressed) {
+	if (tab_pressed)
 		toggle_bool(&e->is_edit_mode);
-		if (e->state == EditorState_mesh && e->cur_model_h == NULL_HANDLE)
-			e->is_edit_mode= false;
-		if (e->state == EditorState_armature && e->cur_comp_h == NULL_HANDLE)
-			e->is_edit_mode= false;
-	}
+	if (e->state == EditorState_mesh && e->cur_model_h == NULL_HANDLE)
+		e->is_edit_mode= false;
+	if (e->state == EditorState_armature && e->cur_comp_h == NULL_HANDLE)
+		e->is_edit_mode= false;
 
 	switch (e->state) {
 	case EditorState_mesh: {
