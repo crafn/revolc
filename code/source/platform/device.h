@@ -6,6 +6,7 @@
 
 #define KEYBOARD_KEY_COUNT 256
 #define KEY_LMB 0
+#define KEY_MMB 1
 #define KEY_RMB 2
 #define KEY_LSHIFT 10
 #define KEY_F1  127
@@ -22,6 +23,10 @@
 #define KEY_F12 138
 #define KEY_TAB 139
 #define KEY_ESC 140
+#define KEY_LEFT 141
+#define KEY_UP 142
+#define KEY_RIGHT 143
+#define KEY_DOWN 144
 
 struct DevicePlatformData;
 typedef struct Device {

@@ -33,6 +33,7 @@ void upd_uicontext()
 	ctx->dev.shift_down= g_env.device->key_down[KEY_LSHIFT];
 	ctx->dev.g_pressed= g_env.device->key_pressed['g'];
 	ctx->dev.r_pressed= g_env.device->key_pressed['r'];
+	ctx->dev.toggle_select_all= g_env.device->key_pressed['a'];
 
 	ctx->last_hot_id= ctx->hot_id;
 	ctx->hot_id= 0;

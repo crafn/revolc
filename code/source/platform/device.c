@@ -333,6 +333,14 @@ void plat_update(Device *d)
 				table_index= KEY_LSHIFT;
 			else if (*keysym == 65307)
 				table_index= KEY_ESC;
+			else if (*keysym == 65361)
+				table_index= KEY_LEFT;
+			else if (*keysym == 65362)
+				table_index= KEY_UP;
+			else if (*keysym == 65363)
+				table_index= KEY_RIGHT;
+			else if (*keysym == 65364)
+				table_index= KEY_DOWN;
 
 			d->key_down[table_index]= (xev.type == KeyPress);
 			d->key_pressed[table_index]= (xev.type == KeyPress);
@@ -343,6 +351,8 @@ void plat_update(Device *d)
 
 		if (xev.xbutton.type == ButtonPress || xev.xbutton.type == ButtonRelease) {
 			int key= KEY_LMB;
+			if (xev.xkey.keycode == 2)
+				key= KEY_MMB;
 			if (xev.xkey.keycode == 3)
 				key= KEY_RMB;
 

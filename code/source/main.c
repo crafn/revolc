@@ -105,17 +105,24 @@ int main(int argc, const char **argv)
 
 		{ // User input
 			V2d cursor_on_world= screen_to_world_point(g_env.device->cursor_pos);
+			V2d prev_cursor_on_world= screen_to_world_point(g_env.uicontext->dev.prev_cursor_pos);
+			V2d cursor_delta_on_world= sub_v2d(cursor_on_world, prev_cursor_on_world);
 
 			F32 dt= d->dt;
 			F32 spd= 25.0;
-			if (d->key_down['w'])
+			if (d->key_down[KEY_UP])
 				g_env.renderer->cam_pos.y += spd*dt;
-			if (d->key_down['a'])
+			if (d->key_down[KEY_LEFT])
 				g_env.renderer->cam_pos.x -= spd*dt;
-			if (d->key_down['s'])
+			if (d->key_down[KEY_DOWN])
 				g_env.renderer->cam_pos.y -= spd*dt;
-			if (d->key_down['d'])
+			if (d->key_down[KEY_RIGHT])
 				g_env.renderer->cam_pos.x += spd*dt;
+
+			if (d->key_down[KEY_MMB]) {
+				g_env.renderer->cam_pos.x -= cursor_delta_on_world.x;
+				g_env.renderer->cam_pos.y -= cursor_delta_on_world.y;
+			}
 
 			if (d->key_down['y'])
 				g_env.renderer->cam_pos.z -= spd*dt;

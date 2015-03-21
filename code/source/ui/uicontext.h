@@ -21,6 +21,8 @@ typedef struct UiContext {
 		bool shift_down;
 		bool g_pressed;
 		bool r_pressed;
+		bool toggle_select_all;
+
 		GuiId grabbing; // Set by editor elements
 		GuiId rotating; // Set by editor elements
 	} dev;

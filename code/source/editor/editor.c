@@ -359,6 +359,17 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 		if (ctx->dev.grabbing == gui_id(box_label)) {
 			translate_mesh(m, cursor_delta_in_tf_coords(m->tf), false);
 		}
+
+		if (ctx->dev.toggle_select_all) {
+			bool some_selected= false;
+			for (U32 i= 0; i < m->mesh_v_count; ++i) {
+				if (m->vertices[i].selected)
+					some_selected= true;
+			}
+			for (U32 i= 0; i < m->mesh_v_count; ++i) {
+				m->vertices[i].selected= !some_selected;
+			}
+		}
 	}
 
 	if (*is_edit_mode && state.pressed) {
