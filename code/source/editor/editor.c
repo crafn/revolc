@@ -130,7 +130,8 @@ EditorBoxState gui_editorbox(const char *label, V2i pix_pos, V2i pix_size, bool 
 
 	if (gui_is_active(label)) {
 		state.pressed= false;
-		if (!ctx->dev.rmb.down && !ctx->dev.grabbing && !ctx->dev.rotating) {
+		if (	!ctx->dev.rmb.down &&
+				!ctx->dev.grabbing && !ctx->dev.rotating && !ctx->dev.scaling) {
 			state.released= true;
 			gui_set_inactive(label);
 		} else if (ctx->dev.rmb.down) {
@@ -140,6 +141,7 @@ EditorBoxState gui_editorbox(const char *label, V2i pix_pos, V2i pix_size, bool 
 		if (ctx->dev.rmb.pressed || ctx->dev.lmb.pressed) {
 			ctx->dev.grabbing= 0;
 			ctx->dev.rotating= 0;
+			ctx->dev.scaling= 0;
 			gui_set_inactive(label);
 		}
 	} else if (gui_is_hot(label)) {
@@ -153,6 +155,9 @@ EditorBoxState gui_editorbox(const char *label, V2i pix_pos, V2i pix_size, bool 
 			gui_set_active(label);
 		} else if (ctx->dev.r_pressed) {
 			ctx->dev.rotating= gui_id(label);
+			gui_set_active(label);
+		} else if (ctx->dev.s_pressed) {
+			ctx->dev.scaling= gui_id(label);
 			gui_set_active(label);
 		}
 	}
@@ -608,6 +613,7 @@ void upd_editor()
 	// Draw selected things on world
 	const Color inactive_color= {0.5, 0.5, 0.5, 0.5};
 
+	// Draw mesh
 	if (e->cur_model_h != NULL_HANDLE) {
 		ModelEntity	*m= get_modelentity(e->cur_model_h);
 		Color fill_color= {0.6, 0.6, 0.8, 0.4};
@@ -629,6 +635,7 @@ void upd_editor()
 		}
 	}
 
+	// Draw armature
 	if (e->cur_comp_h != NULL_HANDLE){
 		CompEntity *entity= get_compentity(e->cur_comp_h);
 		Armature *a= entity->armature;
@@ -638,6 +645,7 @@ void upd_editor()
 		Color default_color= {0.6, 0.6, 0.8, 0.8};
 		Color selected_color= {1.0, 0.8, 0.5, 0.7};
 		Color line_color= {0.0, 0.0, 0.0, 1.0};
+		Color orientation_color= {1.0, 1.0, 1.0, 0.8};
 		if (!e->is_edit_mode)
 			line_color= selected_color;
 		if (e->state != EditorState_armature) {
@@ -646,7 +654,7 @@ void upd_editor()
 			line_color= inactive_color;
 		}
 
-		F64 v_size= editor_vertex_size();
+		F64 rad= editor_vertex_size()*3;
 		for (U32 i= 0; i < a->joint_count; ++i) {
 			V3d p= global_pose[i].pos;
 
@@ -654,8 +662,8 @@ void upd_editor()
 			V3d v[v_count];
 			for (U32 i= 0; i < v_count; ++i) {
 				F64 a= i*3.141*2.0/v_count;
-				v[i].x= p.x + cos(a)*v_size*3;
-				v[i].y= p.y + sin(a)*v_size*3;
+				v[i].x= p.x + cos(a)*rad;
+				v[i].y= p.y + sin(a)*rad;
 				v[i].z= 0.0;
 			}
 
@@ -663,6 +671,9 @@ void upd_editor()
 			if (a->joints[i].selected || !e->is_edit_mode)
 				c= selected_color;
 			ddraw_poly(c, v, v_count);
+
+			V3d end_p= transform_v3d(global_pose[i], (V3d) {rad, 0, 0});
+			ddraw_line(orientation_color, p, end_p);
 
 			if (a->joints[i].super_id != NULL_JOINT_ID) {
 				ddraw_line(	line_color,
