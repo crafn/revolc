@@ -12,7 +12,15 @@
 # When working with game, desired command usually is
 # `clbs -j8 dev mod`
 
+
 def buildInfo(env, tags):
+	def runCodegen(input_file, output_file, gen_also_math):
+		if gen_also_math:
+			last_arg= ""
+		else:
+			last_arg= "rtti_only"
+		os.system("./codegen " + input_file + " " + output_file + " " + last_arg)
+
 	if len(tags) == 0:
 		tags= [ "dev" ]
 
@@ -34,6 +42,20 @@ def buildInfo(env, tags):
 	build_deps= not only_revolc and not only_mod
 	build_revolc= only_revolc or not only_mod
 
+	### Codegen ##
+	codegen_dir= "./tools/codegen"
+	codegen= Project();
+	codegen.name= "codegen"
+	codegen.type= "exe"
+	codegen.targetDir= "."
+	codegen.includeDirs= [ codegen_dir ]
+	codegen.headers= findFiles(codegen_dir, ["*.h", "*.c"])
+	codegen.src= [ codegen_dir + "/unity.c" ]
+	codegen.flags= [ "O3" ]
+	codegen.defines= [ "GCC_BASE=NULL" ]
+	codegen.compiler= c_compiler
+	codegen.linker= linker
+
 	cfg= "" # debug or dev
 	target_defines= []
 	target_flags= [ "std=gnu99", "pipe", "ffast-math", "fvisibility=hidden" ]
@@ -45,13 +67,7 @@ def buildInfo(env, tags):
 		cfg= "dev"
 		target_flags += [ "g", "O2", "mtune=native", "march=native" ]
 	else:
-		fail("Invalid tags: " + tags)
-
-	system_links= [ "pthread", "m" ]
-	if env.os == "linux":
-		system_links += [ "portaudio", "GL", "GLU", "Xrandr", "Xxf86vm", "Xi", "X11", "dl" ]
-	elif env.os == "windows":
-		system_links += [ "glu32", "opengl32", "gdi32", "wsock32", "ws2_32", "winmm", "ole32", "kernel32" ]
+		fail("Invalid tags: " + str(tags))
 
 	deps_libname= "deps_" + cfg
 	if build_deps:
@@ -85,6 +101,12 @@ def buildInfo(env, tags):
 			revolc_libdirs += [ win_builds_bin_paths[0] + "/../lib" ]
 
 	if build_revolc:
+		system_links= [ "pthread", "m" ]
+		if env.os == "linux":
+			system_links += [ "portaudio", "GL", "GLU", "Xrandr", "Xxf86vm", "Xi", "X11", "dl" ]
+		elif env.os == "windows":
+			system_links += [ "glu32", "opengl32", "gdi32", "wsock32", "ws2_32", "winmm", "ole32", "kernel32" ]
+
 		build_dest_dir= "../builds/" + env.os + env.arch[1:]
 
 		revolc= Project()
@@ -93,14 +115,17 @@ def buildInfo(env, tags):
 		revolc.targetDir= build_dest_dir
 		revolc.includeDirs= revolc_includedirs
 		revolc.libDirs= revolc_libdirs
-		revolc.headers= findFiles(revolc_src_dir, ["*.h"]) 
+		revolc.headers= findFiles(revolc_src_dir, [ "*.h", "*.c" ]) 
 		revolc.src= [ revolc_src_dir + "/unity.c" ]
 		revolc.flags= revolc_flags
 		revolc.defines= revolc_defines
 		revolc.compiler= c_compiler
 		revolc.linker= linker
+		revolc.prebuild= lambda: runCodegen(revolc.src[0], revolc_src_dir + "/global/gen_rtti.c", True)
+
 		if build_deps:
 			revolc.deps += [ deps_proj ]
+		revolc.deps += [ codegen ]
 
 		if env.os == "linux":
 			revolc.links += [ "--export-dynamic" ]
@@ -112,18 +137,21 @@ def buildInfo(env, tags):
 	### Game DLL ###
 
 	resource_dir= "../resources/gamedata"
+	mod_src_dir= revolc_src_dir + "/mod"
 	mod= Project()
 	mod.name= "mod"
 	mod.type= "dll"
 	mod.targetDir= resource_dir
 	mod.includeDirs= revolc_includedirs
 	mod.libDirs= revolc_libdirs
-	mod.headers= findFiles(revolc_src_dir + "/mod", [ "*.h" ])
-	mod.src= [ revolc_src_dir + "/mod/unity.c" ]
+	mod.headers= findFiles(mod_src_dir, [ "*.h", "*.c" ])
+	mod.src= [ mod_src_dir + "/unity.c" ]
 	mod.flags= revolc_flags
 	mod.defines= revolc_defines
 	mod.compiler= c_compiler
 	mod.linker= linker
+	mod.deps += [ codegen ]
+	mod.prebuild= lambda: runCodegen(mod.src[0], mod_src_dir + "/gen_rtti.c", False)
 
 	if build_revolc:
 		mod.deps += [ revolc ]

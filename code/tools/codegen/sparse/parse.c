@@ -1663,9 +1663,9 @@ static enum kind which_func(struct token *token,
 		/* don't complain about those */
 		if (!n || match_op(next->next, ';'))
 			return Empty;
-		warning(next->pos,
+		/*warning(next->pos,
 			"non-ANSI function declaration of function '%s'",
-			show_ident(*n));
+			show_ident(*n));*/
 		return Empty;
 	}
 

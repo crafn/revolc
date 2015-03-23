@@ -108,6 +108,7 @@ static void write_rtti(const char *src_file, const char *dst_file)
 	/// @todo Don't hard-code
 	char *sparse_argv[]= {
 		"codegen",
+		"-std=c99",
 		"-I/usr/include/",
 		"-I/usr/include/x86_64-linux-gnu/",
 		"-I/usr/lib/gcc/x86_64-linux-gnu/4.8/include/",
