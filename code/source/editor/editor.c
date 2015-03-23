@@ -105,21 +105,21 @@ void editor_revert_res_state()
 		Mesh *mesh= model_mesh((Model*)res_by_name(	g_env.resblob,
 													ResType_Model,
 													m->model_name));
-		ensure(mesh->res.is_runtime_res); // Allowed to modify
+		if (mesh->res.is_runtime_res) {
+			// Free old mesh
+			dev_free(blob_ptr(&mesh->res, mesh->v_offset));
+			dev_free(blob_ptr(&mesh->res, mesh->i_offset));
 
-		// Free old mesh
-		dev_free(blob_ptr(&mesh->res, mesh->v_offset));
-		dev_free(blob_ptr(&mesh->res, mesh->i_offset));
+			// Move stored mesh
+			mesh->v_offset= blob_offset(&mesh->res, e->stored.vertices);
+			mesh->i_offset= blob_offset(&mesh->res, e->stored.indices);
+			mesh->v_count= e->stored.v_count;
+			mesh->i_count= e->stored.i_count;
+			e->stored.vertices= NULL;
+			e->stored.indices= NULL;
 
-		// Move stored mesh
-		mesh->v_offset= blob_offset(&mesh->res, e->stored.vertices);
-		mesh->i_offset= blob_offset(&mesh->res, e->stored.indices);
-		mesh->v_count= e->stored.v_count;
-		mesh->i_count= e->stored.i_count;
-		e->stored.vertices= NULL;
-		e->stored.indices= NULL;
-
-		recache_ptrs_to_meshes();
+			recache_ptrs_to_meshes();
+		}
 	}
 
 	if (e->cur_comp_h != NULL_HANDLE) {

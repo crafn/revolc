@@ -29,11 +29,13 @@
 *.hex
 builds/
 code/codegen
+code/obj
 
 # Temps
 *~
 *.swp
 *.fuse*
+*.cache
 
 # Resources
 resources/gamedata

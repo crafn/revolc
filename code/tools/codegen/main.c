@@ -142,17 +142,17 @@ static void write_rtti(const char *src_file, const char *dst_file)
 		StructInfo *s= &struct_infos[i];
 
 		// Struct size
-		fprintf(c, "const U32 %s_size= sizeof(%s);\n", s->sym->ident->name, s->sym->ident->name);
+		fprintf(c, "DLL_EXPORT const U32 %s_size= sizeof(%s);\n", s->sym->ident->name, s->sym->ident->name);
 
 		// Member names
-		fprintf(c, "const char *%s_member_names[]= {\n", s->sym->ident->name);
+		fprintf(c, "DLL_EXPORT const char *%s_member_names[]= {\n", s->sym->ident->name);
 		for (int k= 0; k < s->member_count; ++k) {
 			fprintf(c, "	\"%s\",\n", s->member_syms[k]->ident->name);
 		}
 		fprintf(c, "	0\n};\n");
 
 		// Member type names
-		fprintf(c, "const char *%s_member_type_names[]= {\n", s->sym->ident->name);
+		fprintf(c, "DLL_EXPORT const char *%s_member_type_names[]= {\n", s->sym->ident->name);
 		for (int k= 0; k < s->member_count; ++k) {
 			const struct symbol *type_sym= s->member_syms[k]->ctype.base_type;
 			if (type_sym->ident) {
@@ -184,7 +184,7 @@ static void write_rtti(const char *src_file, const char *dst_file)
 		fprintf(c, "	0\n};\n");
 
 		// Member sizes
-		fprintf(c, "const U32 %s_member_sizes[]= {", s->sym->ident->name);
+		fprintf(c, "DLL_EXPORT const U32 %s_member_sizes[]= {", s->sym->ident->name);
 		for (int k= 0; k < s->member_count; ++k) {
 			struct symbol *m= get_base_type(s->member_syms[k]);
 			int byte_size= m->bit_size/8;
@@ -195,7 +195,7 @@ static void write_rtti(const char *src_file, const char *dst_file)
 		fprintf(c, "};\n");
 
 		// Member offsets
-		fprintf(c, "const U32 %s_member_offsets[]= {\n", s->sym->ident->name);
+		fprintf(c, "DLL_EXPORT const U32 %s_member_offsets[]= {\n", s->sym->ident->name);
 		for (int k= 0; k < s->member_count; ++k) {
 			struct symbol *m= s->member_syms[k];
 			fprintf(c, "	offsetof(%s, %s),\n",

@@ -24,11 +24,16 @@ ParsedJsonFile malloc_parsed_json_file(const char *file)
 						file);
 				goto error;
 			break;
-			case JSMN_ERROR_INVAL:
-				critical_print("JSON syntax error: %s",
-						file);
+			case JSMN_ERROR_INVAL: {
+				U32 line= 0;
+				for (U32 i= 0; i < parser.pos; ++i) {
+					if (ret.json[i] == '\n')
+						++line;
+				}
+				critical_print(	"JSON syntax error at line %i in '%s'",
+								line, file);
 				goto error;
-			break;
+			} break;
 			case JSMN_ERROR_PART:
 				critical_print("Unexpected JSON end: %s",
 						file);

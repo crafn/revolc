@@ -1,0 +1,135 @@
+# Build instructions
+
+# `clbs -j4` - build with development configuration in 4 threads
+# `clbs debug`, `clbs dev` or `clbs release` - build everything with respective configuration
+# `clbs engine` or `clbs mod` - build certain parts of the codebase
+# `clbs <cfg> clean` - removes all objects, libraries and executables
+# Flag `-v` can be used to see actual compilation and linking commands
+
+# When working with engine, desired command usually is
+# `clbs -j8 dev revolc`
+
+# When working with game, desired command usually is
+# `clbs -j8 dev mod`
+
+def buildInfo(env, tags):
+	if len(tags) == 0:
+		tags= [ "dev" ]
+
+	c_compiler= "clang"
+	linker= "ld"
+	lib_dir= "./lib"
+	common_dep_dir= "./deps/common"
+	dep_include_paths= [
+		common_dep_dir,
+		common_dep_dir + "/chipmunk/include",
+		common_dep_dir + "/vorbis/include",
+		common_dep_dir + "/ogg/include",
+	]
+	dep_lib_paths= []
+	dep_libs= []
+	dep_defines= []
+	only_revolc= "revolc" in tags
+	only_mod= "mod" in tags
+	build_deps= not only_revolc and not only_mod
+	build_revolc= only_revolc or not only_mod
+
+	cfg= "" # debug or dev
+	target_defines= []
+	target_flags= [ "std=gnu99", "pipe", "ffast-math", "fvisibility=hidden" ]
+	if "debug" in tags:
+		cfg= "debug"
+		target_defines += [ "DEBUG" ]
+		target_flags += [ "g", "O0", "mtune=native", "march=native" ]
+	elif "dev" in tags:
+		cfg= "dev"
+		target_flags += [ "g", "O2", "mtune=native", "march=native" ]
+	else:
+		fail("Invalid tags: " + tags)
+
+	system_links= [ "pthread", "m" ]
+	if env.os == "linux":
+		system_links += [ "portaudio", "GL", "GLU", "Xrandr", "Xxf86vm", "Xi", "X11", "dl" ]
+	elif env.os == "windows":
+		system_links += [ "glu32", "opengl32", "gdi32", "wsock32", "ws2_32", "winmm", "ole32", "kernel32" ]
+
+	deps_libname= "deps_" + cfg
+	if build_deps:
+		deps_proj= Project()
+		deps_proj.name= deps_libname
+		deps_proj.type= "lib"
+		deps_proj.targetDir= lib_dir
+		deps_proj.includeDirs= dep_include_paths + [ common_dep_dir + "./chipmunk/src", common_dep_dir + "/vorbis/lib" ]
+		deps_proj.headers= findFiles(common_dep_dir, ["*.h"])
+		deps_proj.src= [ common_dep_dir + "/unity.c" ]
+		deps_proj.flags= target_flags + [ "O3" ]
+		deps_proj.defines= target_defines
+		deps_proj.compiler= c_compiler
+		deps_proj.linker= linker
+
+	### Clover engine ###
+
+	revolc_src_dir= "./source"
+	revolc_flags= target_flags + [
+		"Wall", "Werror",
+		"Wno-unused-function"
+	]
+	revolc_defines= target_defines + dep_defines
+	revolc_includedirs= [ revolc_src_dir ] + dep_include_paths
+	revolc_libdirs= [ lib_dir ]
+	if env.os == "windows":
+		# win-builds mingw is broken.
+		win_builds_bin_paths= \
+			[s for s in os.environ["PATH"].split(";") if "win-builds" in s]
+		if len(win_builds_bin_paths) > 0:
+			revolc_libdirs += [ win_builds_bin_paths[0] + "/../lib" ]
+
+	if build_revolc:
+		build_dest_dir= "../builds/" + env.os + env.arch[1:]
+
+		revolc= Project()
+		revolc.name= "revolc_" + cfg
+		revolc.type= "exe"
+		revolc.targetDir= build_dest_dir
+		revolc.includeDirs= revolc_includedirs
+		revolc.libDirs= revolc_libdirs
+		revolc.headers= findFiles(revolc_src_dir, ["*.h"]) 
+		revolc.src= [ revolc_src_dir + "/unity.c" ]
+		revolc.flags= revolc_flags
+		revolc.defines= revolc_defines
+		revolc.compiler= c_compiler
+		revolc.linker= linker
+		if build_deps:
+			revolc.deps += [ deps_proj ]
+
+		if env.os == "linux":
+			revolc.links += [ "--export-dynamic" ]
+		revolc.links += [ deps_libname ]
+		revolc.links += system_links
+		if env.os == "windows": # Create importlib to engine for dll's
+			revolc.links += [ "--out-implib," + lib_dir + "/librevolc_stubs.a" ]
+
+	### Game DLL ###
+
+	resource_dir= "../resources/gamedata"
+	mod= Project()
+	mod.name= "mod"
+	mod.type= "dll"
+	mod.targetDir= resource_dir
+	mod.includeDirs= revolc_includedirs
+	mod.libDirs= revolc_libdirs
+	mod.headers= findFiles(revolc_src_dir + "/mod", [ "*.h" ])
+	mod.src= [ revolc_src_dir + "/mod/unity.c" ]
+	mod.flags= revolc_flags
+	mod.defines= revolc_defines
+	mod.compiler= c_compiler
+	mod.linker= linker
+
+	if build_revolc:
+		mod.deps += [ revolc ]
+	if env.os == "linux":
+		pass # Linked at runtime
+	elif env.os == "windows":
+		# Undefined references not allowed in windows DLL
+		mod.links += [ "revolc_stubs" ]
+	return mod
