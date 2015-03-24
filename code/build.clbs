@@ -19,7 +19,10 @@ def buildInfo(env, tags):
 			last_arg= ""
 		else:
 			last_arg= "rtti_only"
-		os.system("codegen " + input_file + " " + output_file + " " + last_arg)
+		codegen_str= "./codegen"
+		if env.os == "windows":
+			codegen_str= "codegen"
+		os.system(codegen_str + " " + input_file + " " + output_file + " " + last_arg)
 	def filterStrs(strs, list):
 		for s in strs:
 			list= filter(lambda x: s not in x, list)
@@ -37,6 +40,13 @@ def buildInfo(env, tags):
 	common_dep_dir= "./deps/common"
 	dep_include_paths= []
 	dep_defines= []
+	# Common libs with unity build
+	dep_include_paths += [
+		common_dep_dir,
+		common_dep_dir + "/chipmunk/include",
+		common_dep_dir + "/vorbis/include",
+		common_dep_dir + "/ogg/include",
+	]
 	only_revolc= "revolc" in tags
 	only_mod= "mod" in tags
 	build_deps= not only_revolc and not only_mod
@@ -51,7 +61,7 @@ def buildInfo(env, tags):
 	codegen.includeDirs= [ codegen_dir ]
 	codegen.headers= [ codegen_dir + "/main.c" ]
 	codegen.src= [ codegen_dir + "/unity.c" ]
-	codegen.flags= [ "std=c99", "w", "O3" ]
+	codegen.flags= [ "std=gnu99", "w", "O3" ]
 	codegen.defines= [ "GCC_BASE=NULL" ]
 	codegen.compiler= c_compiler
 	codegen.linker= linker
@@ -73,13 +83,6 @@ def buildInfo(env, tags):
 	if build_deps:
 		dep_lib_paths= []
 		dep_libs= []
-		# Common libs with unity build
-		dep_include_paths += [
-			common_dep_dir,
-			common_dep_dir + "/chipmunk/include",
-			common_dep_dir + "/vorbis/include",
-			common_dep_dir + "/ogg/include",
-		]
 
 		# PortAudio
 		if env.os == "windows":
@@ -103,8 +106,6 @@ def buildInfo(env, tags):
 				pa.linker= linker
 				dep_libs.append(pa)
 			dep_include_paths.append(pa_dir + "/include")
-		elif env.os == "linux":
-			system_links += [ "portaudio" ]
 
 		deps_proj= Project()
 		deps_proj.name= deps_libname

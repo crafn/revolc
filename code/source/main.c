@@ -12,6 +12,7 @@
 #include "global/env.h"
 #include "physics/physworld.h"
 #include "platform/device.h"
+#include "platform/time.h"
 #include "resources/resblob.h"
 #include "ui/uicontext.h"
 #include "visual/model.h"

@@ -42,8 +42,6 @@
 #define CLAMP(v, a, b) (MAX(MIN(v, b), a))
 #define NULL_HANDLE ((U32)-1)
 
-#define CODEGEN_DUMMY_TYPE int
-
 #include "platform/types.h"
 
 #endif // REVOLC_BUILD_H

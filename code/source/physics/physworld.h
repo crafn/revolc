@@ -5,9 +5,7 @@
 #include "rigidbody.h"
 #include "rigidbodydef.h"
 
-#ifndef CODEGEN
-#	include <chipmunk/chipmunk.h>
-#endif
+#include <chipmunk/chipmunk.h>
 
 #define GRID_INDEX(x, y) \
 		((((U32)((floor(x + 0.5))*GRID_RESO_PER_UNIT + GRID_WIDTH_IN_CELLS/2)) + \

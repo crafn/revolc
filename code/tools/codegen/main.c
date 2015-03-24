@@ -121,7 +121,6 @@ static void write_rtti(const char *src_file, const char *dst_file)
 		"-I./deps/common/vorbis/include/",
 		"-I./deps/win/",
 		"-I./deps/win/portaudio-19/include/",
-		"-D_WIN32",
 		"-DCODEGEN",
 		(char*)src_file,
 		NULL

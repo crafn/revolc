@@ -5,9 +5,7 @@
 #include "resources/resblob.h"
 #include "texture.h"
 
-#ifndef CODEGEN
-#	include <lodepng/lodepng.h>
-#endif
+#include <lodepng/lodepng.h>
 
 int json_texture_to_blob(struct BlobBuf *buf, JsonTok j)
 {

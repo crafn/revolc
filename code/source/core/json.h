@@ -7,11 +7,7 @@
 #include "core/transform.h"
 #include "core/vector.h"
 
-#ifndef CODEGEN
-#	include <jsmn/jsmn.h>
-#else
-#	define jsmntok_t CODEGEN_DUMMY_TYPE
-#endif
+#include <jsmn/jsmn.h>
 
 typedef enum {
 	JsonType_object,

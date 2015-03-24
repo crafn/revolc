@@ -4,9 +4,7 @@
 #include "build.h"
 #include "core/vector.h"
 
-#ifndef CODEGEN
-#	include <chipmunk/chipmunk.h>
-#endif
+#include <chipmunk/chipmunk.h>
 
 static
 V2d from_cpv(cpVect v)
