@@ -7,7 +7,9 @@
 #include "physmat.h"
 #include "shapes.h"
 
-#include <chipmunk/chipmunk.h>
+#ifndef CODEGEN
+#	include <chipmunk/chipmunk.h>
+#endif
 
 typedef struct RigidBody {
 	/// @todo Mechanism for separating input variables

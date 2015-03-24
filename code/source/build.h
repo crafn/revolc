@@ -1,13 +1,17 @@
 #ifndef REVOLC_BUILD_H
 #define REVOLC_BUILD_H
 
-#include <stdbool.h>
-
 /// @todo Other operating systems
 /// @todo Other compilers
 
 #define PLATFORM_LINUX 1
-#define PLATFORM PLATFORM_LINUX
+#define PLATFORM_WINDOWS 2
+
+#if defined(__linux__)
+#	define PLATFORM PLATFORM_LINUX
+#else
+#	define PLATFORM PLATFORM_WINDOWS
+#endif
 
 #define DLL_EXPORT __attribute__((visibility ("default")))
 #define DLL_IMPORT __attribute__((visibility ("default")))
@@ -17,7 +21,7 @@
 #	define MOD_API DLL_EXPORT
 #else
 #	define REVOLC_API DLL_EXPORT
-#endif
+#endif  
 
 #define internal static
 #define local_persist static
@@ -36,23 +40,10 @@
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define CLAMP(v, a, b) (MAX(MIN(v, b), a))
-#define U8_MAX 255
-#define U32_MAX 4294967295
-#define S32_MAX 2147483647
-#define S32_MIN (-2147483648)
 #define NULL_HANDLE ((U32)-1)
 
-typedef unsigned char U8;
-typedef unsigned short U16;
-typedef unsigned int U32;
-typedef unsigned long long U64;
+#define CODEGEN_DUMMY_TYPE int
 
-typedef signed char S8;
-typedef signed short S16;
-typedef	signed int S32;
-typedef	signed long long S64;
-
-typedef float F32;
-typedef double F64;
+#include "platform/types.h"
 
 #endif // REVOLC_BUILD_H

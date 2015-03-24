@@ -19,7 +19,7 @@ def buildInfo(env, tags):
 			last_arg= ""
 		else:
 			last_arg= "rtti_only"
-		os.system("./codegen " + input_file + " " + output_file + " " + last_arg)
+		os.system("codegen " + input_file + " " + output_file + " " + last_arg)
 	def filterStrs(strs, list):
 		for s in strs:
 			list= filter(lambda x: s not in x, list)
@@ -35,14 +35,7 @@ def buildInfo(env, tags):
 	linker= "ld"
 	lib_dir= "./lib"
 	common_dep_dir= "./deps/common"
-	dep_include_paths= [
-		common_dep_dir,
-		common_dep_dir + "/chipmunk/include",
-		common_dep_dir + "/vorbis/include",
-		common_dep_dir + "/ogg/include",
-	]
-	dep_lib_paths= []
-	dep_libs= []
+	dep_include_paths= []
 	dep_defines= []
 	only_revolc= "revolc" in tags
 	only_mod= "mod" in tags
@@ -78,6 +71,41 @@ def buildInfo(env, tags):
 
 	deps_libname= "deps_" + cfg
 	if build_deps:
+		dep_lib_paths= []
+		dep_libs= []
+		# Common libs with unity build
+		dep_include_paths += [
+			common_dep_dir,
+			common_dep_dir + "/chipmunk/include",
+			common_dep_dir + "/vorbis/include",
+			common_dep_dir + "/ogg/include",
+		]
+
+		# PortAudio
+		if env.os == "windows":
+			pa_dir= "./deps/win/portaudio-19"
+			pa= Project()
+			if build_deps:
+				pa.name= "portaudio_" + cfg
+				pa.type= "obj"
+				pa.targetDir= lib_dir
+				pa.includeDirs= [
+					pa_dir + "/include",
+					pa_dir + "/src/common",
+					pa_dir + "/src/os/win" ]
+				pa.headers= findFiles(pa_dir, "*.h")
+				pa.src= findFiles(pa_dir + "/src/common", "*.c") +\
+						findFiles(pa_dir + "/src/os/win", "*.c") +\
+						findFiles(pa_dir + "/src/hostapi/dsound", "*.c") # Not sure
+				pa.flags= target_flags + ["w"]
+				pa.defines= target_defines + [ "PA_USE_DS" ]
+				pa.compiler= c_compiler
+				pa.linker= linker
+				dep_libs.append(pa)
+			dep_include_paths.append(pa_dir + "/include")
+		elif env.os == "linux":
+			system_links += [ "portaudio" ]
+
 		deps_proj= Project()
 		deps_proj.name= deps_libname
 		deps_proj.type= "lib"
@@ -89,6 +117,10 @@ def buildInfo(env, tags):
 		deps_proj.defines= target_defines
 		deps_proj.compiler= c_compiler
 		deps_proj.linker= linker
+
+		for d in dep_libs:
+			deps_proj.deps.append(d)
+			deps_proj.links.append(d)
 
 	### Clover engine ###
 

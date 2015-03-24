@@ -4,11 +4,9 @@
 #include "core/matrix.h"
 #include "core/vector.h"
 #include "model.h"
+#include "platform/stdlib.h"
 #include "renderer.h"
 #include "resources/resblob.h"
-
-#include <stdlib.h>
-#include <string.h>
 
 // Separated to function, because this switch in a loop
 // caused odd regression with -O0; fps was halved for some reason

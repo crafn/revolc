@@ -1,8 +1,6 @@
 #include "core/ensure.h"
-
-#include <stdarg.h>
-#include <stdlib.h>
-#include <stdio.h>
+#include "platform/io.h"
+#include "platform/stdlib.h"
 
 void fail(const char *format, ...)
 {

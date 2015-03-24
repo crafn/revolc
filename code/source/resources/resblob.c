@@ -4,14 +4,12 @@
 #include "core/file.h"
 #include "core/json.h"
 #include "resblob.h"
+#include "platform/stdlib.h"
+#include "platform/io.h"
 
 #define HEADERS
 #	include "resources/resources.def"
 #undef HEADERS
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 
 #define MISSING_RES_FILE "../../resources/gamedata/basic/missing"
 

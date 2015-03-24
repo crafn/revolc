@@ -1,11 +1,10 @@
 #include "device.h"
-#include "gl.h"
+#include "platform/gl.h"
+#include "platform/io.h"
+#include "platform/stdlib.h"
 #include "core/malloc.h"
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-
+#if PLATFORM == PLATFORM_LINUX
 #include <GL/glx.h>
 #include <X11/X.h>
 #include <X11/Xlib.h>
@@ -14,6 +13,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#endif
 
 typedef struct DevicePlatformData {
 	Display* dpy;

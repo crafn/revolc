@@ -5,10 +5,9 @@
 #include "global/cfg.h"
 #include "global/env.h"
 #include "platform/memory.h"
+#include "platform/stdlib.h"
 #include "resources/resblob.h"
 #include "sound.h"
-
-#include <string.h>
 
 internal inline
 void upd_smoothed(F32 *var, F32 target)

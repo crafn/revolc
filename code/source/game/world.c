@@ -2,8 +2,7 @@
 #include "core/malloc.h"
 #include "game/world.h"
 #include "global/env.h"
-
-#include <math.h>
+#include "platform/math.h"
 
 internal
 void * node_impl(World *w, U32 *size, NodeInfo *node)

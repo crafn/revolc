@@ -1,7 +1,5 @@
 #include "debug_print.h"
-
-#include <stdarg.h>
-#include <stdio.h>
+#include "platform/stdlib.h"
 
 void debug_print(const char *fmt, ...)
 {

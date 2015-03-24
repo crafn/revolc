@@ -3,10 +3,12 @@
 #include "resources/resblob.h"
 #include "sound.h"
 
+#ifndef CODEGEN
 // Ugggghh
-#undef internal
-#include <vorbis/codec.h>
-#define internal static
+#	undef internal
+#		include <vorbis/codec.h>
+#	define internal static
+#endif
 
 F32 *malloc_decoded_ogg_vorbis(U32 *frame_count, U32 *ch_count, U8 *ogg_data, U32 ogg_data_size)
 {
@@ -123,7 +125,6 @@ F32 *malloc_decoded_ogg_vorbis(U32 *frame_count, U32 *ch_count, U8 *ogg_data, U3
 		bool needsNewPage= true;
 		bool needsNewPacket= true;
 		bool needsNewBlock= true;
-		bool streamAllocated= true;
 		bool eos= false;
 
 		/// @todo Fix: changing this to bigger will make short sounds not to play
@@ -182,7 +183,6 @@ F32 *malloc_decoded_ogg_vorbis(U32 *frame_count, U32 *ch_count, U8 *ogg_data, U3
 					ensure(!ret);
 					ret= vorbis_block_init(&vorbisDspState, &vorbisBlock);
 					ensure(!ret);
-					streamAllocated= true;
 				}
 				ogg_stream_pagein(&oggStreamState, &oggPage);
 			}

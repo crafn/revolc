@@ -17,12 +17,6 @@
 #include "visual/model.h"
 #include "visual/renderer.h"
 
-#include <stdio.h>
-#include <string.h>
-#include <math.h>
-#include <stdlib.h>
-#include <time.h>
-
 #define DEFAULT_RES_ROOT "../../resources/gamedata/"
 
 internal

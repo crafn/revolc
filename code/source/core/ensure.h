@@ -2,8 +2,7 @@
 #define REVOLC_CORE_ENSURE_H
 
 #include "build.h"
-
-#include <assert.h>
+#include "platform/assert.h"
 
 /// @todo ensure
 #define ensure assert

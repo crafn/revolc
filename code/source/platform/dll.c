@@ -1,5 +1,6 @@
 #include "dll.h"
 
+#if PLATFORM == PLATFORM_LINUX
 #include <dlfcn.h>
 
 DllHandle load_dll(const char *path)
@@ -17,3 +18,5 @@ void* query_dll_sym(DllHandle dll, const char *sym)
 
 const char* dll_error()
 { return dlerror(); }
+
+#endif

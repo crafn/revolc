@@ -10,7 +10,7 @@
 #include <chipmunk/src/cpGearJoint.c>
 #include <chipmunk/src/cpGrooveJoint.c>
 #include <chipmunk/src/cpHashSet.c>
-#include <chipmunk/src/cpHastySpace.c>
+//#include <chipmunk/src/cpHastySpace.c> // Seems unnecessary, and uses pthreads :I
 #include <chipmunk/src/cpMarch.c>
 #include <chipmunk/src/cpPinJoint.c>
 #include <chipmunk/src/cpPivotJoint.c>

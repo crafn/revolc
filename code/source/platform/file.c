@@ -1,7 +1,9 @@
 #include "core/ensure.h"
 #include "file.h"
 
-#include <unistd.h>
+#if PLATFORM == PLATFORM_LINUX
+#	include <unistd.h>
+#endif
 
 void copy_file(const char *dst, const char *src)
 {

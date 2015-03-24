@@ -112,9 +112,16 @@ static void write_rtti(const char *src_file, const char *dst_file)
 		"-I/usr/include/",
 		"-I/usr/include/x86_64-linux-gnu/",
 		"-I/usr/lib/gcc/x86_64-linux-gnu/4.8/include/",
+		"-ID:/ohjelmat/mingw_win-builds64/x86_64-w64-mingw32/include/",
+		"-ID:/ohjelmat/mingw_win-builds64/lib64/gcc/x86_64-w64-mingw32/4.8.2/include/",
 		"-I./source/",
 		"-I./deps/common/",
 		"-I./deps/common/chipmunk/include/",
+		"-I./deps/common/ogg/include/",
+		"-I./deps/common/vorbis/include/",
+		"-I./deps/win/",
+		"-I./deps/win/portaudio-19/include/",
+		"-D_WIN32",
 		"-DCODEGEN",
 		(char*)src_file,
 		NULL
@@ -137,7 +144,7 @@ static void write_rtti(const char *src_file, const char *dst_file)
 	assert(c);
 
 	fprintf(c, "%s", CODEGEN_LINE);
-	fprintf(c, "\n#include <stddef.h> // offsetof\n\n");
+	fprintf(c, "\n#include \"platform/stdlib.h\" // offsetof\n\n");
 
 	for (int i= 0; i < struct_info_count; ++i) {
 		StructInfo *s= &struct_infos[i];
@@ -237,7 +244,7 @@ static void write_math()
 		fprintf(f, "#ifndef REVOLC_CORE_VECTOR_H\n");
 		fprintf(f, "#define REVOLC_CORE_VECTOR_H\n\n");
 		fprintf(f, "%s", CODEGEN_LINE);
-		fprintf(f, "#include <math.h>\n\n");
+		fprintf(f, "#include \"platform/math.h\"\n\n");
 
 		for (int i= 0; i < vec_count; ++i) {
 			VecType v= vecs[i];
@@ -405,9 +412,8 @@ static void write_math()
 		fprintf(f, "%s", CODEGEN_LINE);
 
 		fprintf(f, "#include \"math_constants.h\"\n");
+		fprintf(f, "#include \"platform/stdlib.h\" // abs\n\n");
 		fprintf(f, "#include \"vector.h\"\n\n");
-
-		fprintf(f, "#include <stdlib.h> // abs\n\n");
 
 		for (int i= 0; i < quat_count; ++i) {
 			QuatInfo q= quats[i];

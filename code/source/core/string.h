@@ -1,7 +1,8 @@
 #ifndef REVOLC_CORE_STRING_H
 #define REVOLC_CORE_STRING_H
 
-#include <string.h>
+#include "build.h"
+#include "platform/stdlib.h"
 
 /// e.g. ("../folder/", "foo/bar") == "../folder/foo/bar"
 /// e.g. ("../folder/file", "foo") == "../folder/foo"
