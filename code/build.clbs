@@ -13,7 +13,7 @@
 # `clbs -j8 dev mod`
 
 def buildInfo(env, tags):
-	def runCodegen(input_file, output_file, gen_also_math):
+	def runCodegen(p, input_file, output_file, gen_also_math):
 		log("running codegen")
 		if gen_also_math:
 			last_arg= ""
@@ -53,6 +53,7 @@ def buildInfo(env, tags):
 	build_revolc= only_revolc or not only_mod
 
 	### Codegen ##
+
 	codegen_dir= "./tools/codegen"
 	codegen= Project();
 	codegen.name= "codegen"
@@ -65,6 +66,7 @@ def buildInfo(env, tags):
 	codegen.defines= [ "GCC_BASE=NULL" ]
 	codegen.compiler= c_compiler
 	codegen.linker= linker
+
 
 	cfg= "" # debug or dev
 	target_defines= []
@@ -161,7 +163,7 @@ def buildInfo(env, tags):
 		revolc.defines= revolc_defines
 		revolc.compiler= c_compiler
 		revolc.linker= linker
-		revolc.prebuild= lambda: runCodegen(revolc.src[0], revolc_src_dir + "/global/gen_rtti.c", True)
+		revolc.prebuild= lambda p: runCodegen(p, revolc.src[0], revolc_src_dir + "/global/gen_rtti.c", True)
 
 		if build_deps:
 			revolc.deps += [ deps_proj ]
@@ -191,7 +193,7 @@ def buildInfo(env, tags):
 	mod.compiler= c_compiler
 	mod.linker= linker
 	mod.deps = [ codegen ]
-	mod.prebuild= lambda: runCodegen(mod.src[0], mod_src_dir + "/gen_rtti.c", False)
+	mod.prebuild= lambda p: runCodegen(p, mod.src[0], mod_src_dir + "/gen_rtti.c", False)
 
 	if build_revolc:
 		mod.deps += [ revolc ]

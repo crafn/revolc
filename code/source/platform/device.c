@@ -22,7 +22,6 @@ typedef struct DevicePlatformData {
 	struct timespec ts;
 } DevicePlatformData;
 
-/// @todo Think how debug_print and plat_print relate
 #define plat_print printf
 
 internal
