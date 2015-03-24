@@ -39,13 +39,13 @@ PolyCell* rasterized_poly(V2i *rect_ll, V2i *rect_size, const Poly *poly)
 	*rect_ll= ll;
 	*rect_size= sub_v2i(tr, ll);
 
-	typedef struct RowBounding {
+	struct RowBounding {
 		S32 min, max;
 		bool set;
-	} RowBounding;
+	} *bounds;
 
 	const U32 row_count= rect_size->y;
-	RowBounding *bounds= frame_alloc(sizeof(*bounds)*row_count);
+	bounds= frame_alloc(sizeof(*bounds)*row_count);
 	for (U32 i= 0; i < row_count; ++i) {
 		bounds[i].min= 0;
 		bounds[i].max= rect_size->x;
@@ -76,7 +76,7 @@ PolyCell* rasterized_poly(V2i *rect_ll, V2i *rect_size, const Poly *poly)
 
 			U32 row_i= y - ll.y;
 			ensure(row_i < row_count);
-			RowBounding *row= &bounds[row_i];
+			struct RowBounding *row= &bounds[row_i];
 			row->set= true;
 			if (is_horizontal_segment) {
 				S32 left_column= floor(cur_p.x + 0.5) - ll.x;
@@ -99,7 +99,7 @@ PolyCell* rasterized_poly(V2i *rect_ll, V2i *rect_size, const Poly *poly)
 
 	// Draw according to bounds
 	for (U32 y= 0; y < row_count; ++y) {
-		RowBounding *row= &bounds[y];
+		struct RowBounding *row= &bounds[y];
 		if (!row->set)
 			continue;
 		for (S32 x= row->min; x < row->max; ++x) {
