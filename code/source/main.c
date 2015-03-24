@@ -150,7 +150,7 @@ int main(int argc, const char **argv)
 			}
 
 			if (d->key_pressed[KEY_F9]) {
-				system("../../code/build_mod");
+				system("cd ../../code && clbs debug mod");
 				make_main_blob();
 
 				if (!d->key_down[KEY_LSHIFT] && blob_has_modifications(g_env.resblob))
@@ -161,7 +161,7 @@ int main(int argc, const char **argv)
 
 			if (d->key_pressed[KEY_F12]) {
 				/// @todo Reload only modules
-				system("../../code/build_mod");
+				system("cd ../../code && clbs debug mod");
 				if (!file_exists(DEFAULT_BLOB_PATH))
 					make_main_blob();
 

@@ -12,14 +12,20 @@
 # When working with game, desired command usually is
 # `clbs -j8 dev mod`
 
-
 def buildInfo(env, tags):
 	def runCodegen(input_file, output_file, gen_also_math):
+		log("running codegen")
 		if gen_also_math:
 			last_arg= ""
 		else:
 			last_arg= "rtti_only"
 		os.system("./codegen " + input_file + " " + output_file + " " + last_arg)
+	def filterStrs(strs, list):
+		for s in strs:
+			list= filter(lambda x: s not in x, list)
+		return list
+	def findCplFiles(dir, exts):
+		return filterStrs([ "unity.c" ], findFiles(dir, exts))
 
 	if len(tags) == 0:
 		tags= [ "dev" ]
@@ -49,7 +55,7 @@ def buildInfo(env, tags):
 	codegen.type= "exe"
 	codegen.targetDir= "."
 	codegen.includeDirs= [ codegen_dir ]
-	codegen.headers= findFiles(codegen_dir, ["*.h", "*.c"])
+	codegen.headers= [ codegen_dir + "/main.c" ]
 	codegen.src= [ codegen_dir + "/unity.c" ]
 	codegen.flags= [ "O3" ]
 	codegen.defines= [ "GCC_BASE=NULL" ]
@@ -76,7 +82,7 @@ def buildInfo(env, tags):
 		deps_proj.type= "lib"
 		deps_proj.targetDir= lib_dir
 		deps_proj.includeDirs= dep_include_paths + [ common_dep_dir + "./chipmunk/src", common_dep_dir + "/vorbis/lib" ]
-		deps_proj.headers= findFiles(common_dep_dir, ["*.h"])
+		deps_proj.headers= findCplFiles(common_dep_dir, ["*.h", "*.c"])
 		deps_proj.src= [ common_dep_dir + "/unity.c" ]
 		deps_proj.flags= target_flags + [ "O3" ]
 		deps_proj.defines= target_defines
@@ -115,7 +121,7 @@ def buildInfo(env, tags):
 		revolc.targetDir= build_dest_dir
 		revolc.includeDirs= revolc_includedirs
 		revolc.libDirs= revolc_libdirs
-		revolc.headers= findFiles(revolc_src_dir, [ "*.h", "*.c" ]) 
+		revolc.headers= filterStrs(["/mod/"], findCplFiles(revolc_src_dir, ["*.h", "*.def", "*.c"]))
 		revolc.src= [ revolc_src_dir + "/unity.c" ]
 		revolc.flags= revolc_flags
 		revolc.defines= revolc_defines
@@ -144,13 +150,13 @@ def buildInfo(env, tags):
 	mod.targetDir= resource_dir
 	mod.includeDirs= revolc_includedirs
 	mod.libDirs= revolc_libdirs
-	mod.headers= findFiles(mod_src_dir, [ "*.h", "*.c" ])
+	mod.headers= findCplFiles(mod_src_dir, ["*.h", "*.c"])
 	mod.src= [ mod_src_dir + "/unity.c" ]
 	mod.flags= revolc_flags
 	mod.defines= revolc_defines
 	mod.compiler= c_compiler
 	mod.linker= linker
-	mod.deps += [ codegen ]
+	mod.deps = [ codegen ]
 	mod.prebuild= lambda: runCodegen(mod.src[0], mod_src_dir + "/gen_rtti.c", False)
 
 	if build_revolc:
