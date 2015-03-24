@@ -2,7 +2,7 @@
 
 # `clbs -j4` - build with development configuration in 4 threads
 # `clbs debug`, `clbs dev` or `clbs release` - build everything with respective configuration
-# `clbs engine` or `clbs mod` - build certain parts of the codebase
+# `clbs revolc` or `clbs mod` - build certain parts of the codebase
 # `clbs <cfg> clean` - removes all objects, libraries and executables
 # Flag `-v` can be used to see actual compilation and linking commands
 
@@ -30,7 +30,8 @@ def buildInfo(env, tags):
 	if len(tags) == 0:
 		tags= [ "dev" ]
 
-	c_compiler= "clang"
+	# Clang is a lot faster than gcc, but windows support is still poor
+	c_compiler= { "linux": "clang", "windows": "gcc" }[env.os]
 	linker= "ld"
 	lib_dir= "./lib"
 	common_dep_dir= "./deps/common"
@@ -57,7 +58,7 @@ def buildInfo(env, tags):
 	codegen.includeDirs= [ codegen_dir ]
 	codegen.headers= [ codegen_dir + "/main.c" ]
 	codegen.src= [ codegen_dir + "/unity.c" ]
-	codegen.flags= [ "O3" ]
+	codegen.flags= [ "std=c99", "w", "O3" ]
 	codegen.defines= [ "GCC_BASE=NULL" ]
 	codegen.compiler= c_compiler
 	codegen.linker= linker

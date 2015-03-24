@@ -21,11 +21,10 @@
  * THE SOFTWARE.
  */	
 	
-	
-	
-#include <stdarg.h>	
-#include <windef.h>	
-#include <winbase.h>	
+
+//#include <stdarg.h>	
+//#include <windef.h>	
+//#include <winbase.h>	
 #include <stdlib.h>	
 #include <string.h>	
 	

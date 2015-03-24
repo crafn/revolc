@@ -1,3 +1,3 @@
 @echo off
-clbs dev -j8
+clbs debug -j8
 pause>nul
