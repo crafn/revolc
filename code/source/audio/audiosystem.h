@@ -4,7 +4,9 @@
 #include "build.h"
 #include "global/cfg.h"
 
-#include <portaudio.h>
+#ifndef CODEGEN
+#	include <portaudio.h>
+#endif
 
 typedef enum {
 	AC_free,  // No audio is assigned for this channel

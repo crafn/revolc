@@ -7,7 +7,7 @@
 #define PLATFORM_LINUX 1
 #define PLATFORM_WINDOWS 2
 
-#if defined(__linux__) || CODEGEN /// TEMPTEST
+#if defined(__linux__)
 #	define PLATFORM PLATFORM_LINUX
 #else
 #	define PLATFORM PLATFORM_WINDOWS

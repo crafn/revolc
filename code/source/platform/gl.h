@@ -3,7 +3,9 @@
 
 #include "build.h"
 
-#include <GL/gl.h>
+#ifndef CODEGEN
+#	include <GL/gl.h>
+#endif
 
 // Required GL 2.1 features
 
@@ -13,6 +15,12 @@
 #define GL_VERTEX_SHADER 0x8B31
 #define GL_COMPILE_STATUS 0x8B81
 #define GL_LINK_STATUS 0x8B82
+
+#if PLATFORM == PLATFORM_WINDOWS
+#	define GL_CLAMP_TO_EDGE 0x812F
+#	define GL_TEXTURE_BASE_LEVEL 0x813C
+#	define GL_TEXTURE_MAX_LEVEL 0x813D
+#endif
 
 typedef char GLchar;
 typedef intptr_t GLsizeiptr;

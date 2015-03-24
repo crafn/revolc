@@ -7,7 +7,9 @@
 #include "core/transform.h"
 #include "core/vector.h"
 
-#include <jsmn/jsmn.h>
+#ifndef CODEGEN
+#	include <jsmn/jsmn.h>
+#endif
 
 typedef enum {
 	JsonType_object,

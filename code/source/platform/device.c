@@ -5,15 +5,14 @@
 #include "core/malloc.h"
 
 #if PLATFORM == PLATFORM_LINUX
-#include <GL/glx.h>
-#include <X11/X.h>
-#include <X11/Xlib.h>
-#include <time.h>
-#include <unistd.h>
-#include <dirent.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#endif
+#	include <GL/glx.h>
+#	include <X11/X.h>
+#	include <X11/Xlib.h>
+#	include <time.h>
+#	include <unistd.h>
+#	include <dirent.h>
+#	include <sys/stat.h>
+#	include <sys/types.h>
 
 typedef struct DevicePlatformData {
 	Display* dpy;
@@ -21,6 +20,25 @@ typedef struct DevicePlatformData {
 	GLXContext ctx;
 	struct timespec ts;
 } DevicePlatformData;
+
+#define GLX_CONTEXT_MAJOR_VERSION_ARB       0x2091
+#define GLX_CONTEXT_MINOR_VERSION_ARB       0x2092
+typedef GLXContext (*glXCreateContextAttribsARBProc)(Display*, GLXFBConfig, GLXContext, Bool, const int*);
+
+internal
+Bool ctxErrorOccurred = false;
+internal
+int ctxErrorHandler( Display *dpy, XErrorEvent *ev )
+{
+    ctxErrorOccurred = true;
+    return 0;
+}
+
+#elif PLATFORM == PLATFORM_WINDOWS
+#	ifndef CODEGEN
+#		include <windows.h>
+#	endif
+#endif
 
 #define plat_print printf
 
@@ -39,7 +57,7 @@ VoidFunc plat_query_gl_func(const char *name)
 #if PLATFORM == PLATFORM_LINUX
 	f= glXGetProcAddressARB((const GLubyte*)name);
 #elif PLATFORM == PLATFORM_WINDOWS
-	f= (voidFunc)wglGetProcAddress(name);
+	f= (VoidFunc)wglGetProcAddress(name);
 #endif
 	if (!f) {
 		plat_print("Failed to query gl function: %s\n", name);
@@ -48,18 +66,6 @@ VoidFunc plat_query_gl_func(const char *name)
 	return f;
 }
 
-#define GLX_CONTEXT_MAJOR_VERSION_ARB       0x2091
-#define GLX_CONTEXT_MINOR_VERSION_ARB       0x2092
-typedef GLXContext (*glXCreateContextAttribsARBProc)(Display*, GLXFBConfig, GLXContext, Bool, const int*);
-
-internal
-Bool ctxErrorOccurred = false;
-internal
-int ctxErrorHandler( Display *dpy, XErrorEvent *ev )
-{
-    ctxErrorOccurred = true;
-    return 0;
-}
 
 Device * plat_init(const char* title, int width, int height)
 {
@@ -69,6 +75,8 @@ Device * plat_init(const char* title, int width, int height)
 		g_env.device= d;
 	d->data= zero_malloc(sizeof(*d->data));
 	memset(d->data, 0, sizeof(*d->data));
+
+#if PLATFORM == PLATFORM_LINUX
 
 	{
 		/// Original code from https://www.opengl.org/wiki/Tutorial:_OpenGL_3.0_Context_Creation_%28GLX%29
@@ -234,6 +242,8 @@ Device * plat_init(const char* title, int width, int height)
 		clock_gettime(CLOCK_MONOTONIC, &d->data->ts);
 	}
 
+#endif
+	
 	{
 		glCreateShader= (GlCreateShader)plat_query_gl_func("glCreateShader");
 		glShaderSource= (GlShaderSource)plat_query_gl_func("glShaderSource");
@@ -285,6 +295,8 @@ void plat_quit(Device *d)
 	if (g_env.device == d)
 		g_env.device= NULL;
 
+#if PLATFORM == PLATFORM_LINUX
+
 	glXMakeCurrent(d->data->dpy, None, NULL);
 	glXDestroyContext(d->data->dpy, d->data->ctx);
 	XDestroyWindow(d->data->dpy, d->data->win);
@@ -293,12 +305,14 @@ void plat_quit(Device *d)
 	free(d->data);
 	d->data= NULL;
 	free(d);
+#endif
 	
 	debug_print("plat_quit successful");
 }
 
 void plat_update(Device *d)
 {
+#if PLATFORM == PLATFORM_LINUX
 	glXSwapBuffers(d->data->dpy, d->data->win);
 
 	for (int i= 0; i < KEYBOARD_KEY_COUNT; ++i)
@@ -377,13 +391,17 @@ void plat_update(Device *d)
 	clock_gettime(CLOCK_MONOTONIC, &d->data->ts);
 	long new_us= d->data->ts.tv_nsec/1000 + d->data->ts.tv_sec*1000000;
 	d->dt= (new_us - old_us)/1000000.0;
+#endif
 }
 
 void plat_sleep(int ms)
 {
+#if PLATFORM == PLATFORM_LINUX
 	usleep(ms*1000);
+#endif
 }
 
+#if PLATFORM == PLATFORM_LINUX
 
 #define PATH_MAX_TABLE_SIZE 1024
 
@@ -439,3 +457,4 @@ char ** plat_find_paths_with_end(const char *path_to_dir, const char *end)
 	return path_table;
 }
 
+#endif

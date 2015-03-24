@@ -3,10 +3,12 @@
 #include "resources/resblob.h"
 #include "sound.h"
 
-// Ugggghh
-#undef internal
-#	include <vorbis/codec.h>
-#define internal static
+#ifndef CODEGEN
+	// Ugggghh
+#	undef internal
+#		include <vorbis/codec.h>
+#	define internal static
+#endif
 
 F32 *malloc_decoded_ogg_vorbis(U32 *frame_count, U32 *ch_count, U8 *ogg_data, U32 ogg_data_size)
 {

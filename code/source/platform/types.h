@@ -1,7 +1,9 @@
 #ifndef REVOLC_PLATFORM_TYPES_H
 #define REVOLC_PLATFORM_TYPES_H
 
-#include <stdbool.h>
+#ifndef CODEGEN
+#	include <stdbool.h>
+#endif
 
 typedef unsigned char U8;
 typedef unsigned short U16;

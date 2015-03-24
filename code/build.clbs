@@ -33,7 +33,7 @@ def buildInfo(env, tags):
 		# Really crappy struct member parsing code follows -- should be enough until jai arrives
 
 		def isWhitespace(ch):
-			return ch == ' ' or ch == '\t' or ch == '\n'
+			return ch == ' ' or ch == '\t' or ch == '\n' or ch == '\r'
 
 		def isIdentChar(ch):
 			return ch.isalpha() or ch == '_'
@@ -124,8 +124,6 @@ def buildInfo(env, tags):
 				if closing_brace_i > findNext(contents, brace_i + 1, '{'):
 					continue # @todo Allow nested structs
 
-				if struct_name[:4] == "Lode" or struct_name[:2] == "Pa":
-					continue
 
 				structs_and_members[struct_name]= parseMembers(contents, brace_i + 1, closing_brace_i)
 
