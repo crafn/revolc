@@ -43,7 +43,9 @@
 #include "visual/vao.c"
 
 
-#if PLATFORM == PLATFORM_WINDOWS
+#if PLATFORM == PLATFORM_LINUX
+#	include "platform/plat_linux.c"
+#elif PLATFORM == PLATFORM_WINDOWS
 #	include "platform/plat_windows.c"
 #endif
 

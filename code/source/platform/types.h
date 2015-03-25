@@ -18,6 +18,8 @@ typedef	signed long long S64;
 typedef float F32;
 typedef double F64;
 
+typedef void (*VoidFunc)();
+
 #define U8_MAX 255
 #define U32_MAX 4294967295
 #define S32_MAX 2147483647
