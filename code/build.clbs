@@ -277,9 +277,9 @@ def buildInfo(env, tags):
 			revolc_libdirs += [ win_builds_bin_paths[0] + "/../lib" ]
 
 	if build_revolc:
-		system_links= [ "pthread", "m" ]
+		system_links= [ "m" ]
 		if env.os == "linux":
-			system_links += [ "portaudio", "GL", "GLU", "Xrandr", "Xxf86vm", "Xi", "X11", "dl" ]
+			system_links += [ "pthread", "portaudio", "GL", "GLU", "Xrandr", "Xxf86vm", "Xi", "X11", "dl" ]
 		elif env.os == "windows":
 			system_links += [ "glu32", "opengl32", "gdi32", "wsock32", "ws2_32", "winmm", "ole32", "kernel32" ]
 
@@ -308,7 +308,7 @@ def buildInfo(env, tags):
 		revolc.links += [ deps_libname ]
 		revolc.links += system_links
 		if env.os == "windows": # Create importlib to engine for dll's
-			revolc.links += [ "--out-implib," + lib_dir + "/librevolc_stubs.a" ]
+			revolc.links += [ "--export-all-symbols", "--out-implib," + lib_dir + "/librevolc_stubs.a" ]
 
 	### Game DLL ###
 

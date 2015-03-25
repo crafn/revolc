@@ -7,7 +7,7 @@
 #	include <GL/gl.h>
 #endif
 
-// Required GL 2.1 features
+// Required GL 2 features
 
 #define GL_ARRAY_BUFFER 0x8892
 #define GL_DYNAMIC_DRAW 0x88E8
@@ -20,6 +20,11 @@
 #	define GL_CLAMP_TO_EDGE 0x812F
 #	define GL_TEXTURE_BASE_LEVEL 0x813C
 #	define GL_TEXTURE_MAX_LEVEL 0x813D
+#	define GL_TEXTURE_MIN_LOD 0x813A
+#	define GL_TEXTURE_MAX_LOD 0x813B
+#	define GL_TEXTURE0 0x84C0
+#	define GL_STATIC_DRAW 0x88E4
+#	define GL_ELEMENT_ARRAY_BUFFER 0x8893
 #endif
 
 typedef char GLchar;
@@ -110,9 +115,15 @@ typedef void (*GlBindVertexArray)(GLuint);
 GlBindVertexArray glBindVertexArray;
 typedef void (*GlTexStorage3D)(GLenum, GLsizei, GLenum, GLsizei, GLsizei, GLsizei);
 GlTexStorage3D glTexStorage3D;
-// Already in gl.h !?
-//typedef void (*GlTexSubImage3D)(GLenum, GLint, GLint, GLint, GLint, GLsizei, GLsizei, GLsizei, GLenum, GLenum, const GLvoid *);
-//GlTexSubImage3D glTexSubImage3D;
+
+#if PLATFORM == PLATFORM_WINDOWS
+	typedef void (*GlTexSubImage3D)(GLenum, GLint, GLint, GLint, GLint, GLsizei, GLsizei, GLsizei, GLenum, GLenum, const GLvoid *);
+	GlTexSubImage3D glTexSubImage3D;
+	typedef void (*GlActiveTexture)(GLenum);
+	GlActiveTexture glActiveTexture;
+	typedef void (*GlDrawRangeElements)(GLenum, GLuint, GLuint, GLsizei, GLenum, const GLvoid *);
+	GlDrawRangeElements glDrawRangeElements;
+#endif
 
 // Useful utilities wrapping multiple OpenGL commands
 

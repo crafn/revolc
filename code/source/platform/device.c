@@ -14,29 +14,34 @@
 #	include <sys/stat.h>
 #	include <sys/types.h>
 
-typedef struct DevicePlatformData {
-	Display* dpy;
-	Window win;
-	GLXContext ctx;
-	struct timespec ts;
-} DevicePlatformData;
+	typedef struct DevicePlatformData {
+		Display* dpy;
+		Window win;
+		GLXContext ctx;
+		struct timespec ts;
+	} DevicePlatformData;
 
-#define GLX_CONTEXT_MAJOR_VERSION_ARB       0x2091
-#define GLX_CONTEXT_MINOR_VERSION_ARB       0x2092
-typedef GLXContext (*glXCreateContextAttribsARBProc)(Display*, GLXFBConfig, GLXContext, Bool, const int*);
+#	define GLX_CONTEXT_MAJOR_VERSION_ARB       0x2091
+#	define GLX_CONTEXT_MINOR_VERSION_ARB       0x2092
+	typedef GLXContext (*glXCreateContextAttribsARBProc)(Display*, GLXFBConfig, GLXContext, Bool, const int*);
 
-internal
-Bool ctxErrorOccurred = false;
-internal
-int ctxErrorHandler( Display *dpy, XErrorEvent *ev )
-{
-    ctxErrorOccurred = true;
-    return 0;
-}
+	internal
+	Bool ctxErrorOccurred = false;
+	internal
+	int ctxErrorHandler( Display *dpy, XErrorEvent *ev )
+	{
+		ctxErrorOccurred = true;
+		return 0;
+	}
 
 #elif PLATFORM == PLATFORM_WINDOWS
+	typedef struct DevicePlatformData {
+	} DevicePlatformData;
+
 #	ifndef CODEGEN
 #		include <windows.h>
+#		undef near
+#		undef far
 #	endif
 #endif
 
@@ -284,7 +289,12 @@ Device * plat_init(const char* title, int width, int height)
 		glDeleteVertexArrays= (GlDeleteVertexArrays)plat_query_gl_func("glDeleteVertexArrays");
 		glBindVertexArray= (GlBindVertexArray)plat_query_gl_func("glBindVertexArray");
 		glTexStorage3D= (GlTexStorage3D)plat_query_gl_func("glTexStorage3D");
-		//glTexSubImage3D= (GlTexSubImage3D)plat_query_gl_func("glTexSubImage3D");
+
+#		if PLATFORM == PLATFORM_WINDOWS
+			glTexSubImage3D= (GlTexSubImage3D)plat_query_gl_func("glTexSubImage3D");
+			glActiveTexture= (GlActiveTexture)plat_query_gl_func("glActiveTexture");
+			glDrawRangeElements= (GlDrawRangeElements)plat_query_gl_func("glDrawRangeElements");
+#		endif
 	}
 
 	return d;
@@ -401,9 +411,9 @@ void plat_sleep(int ms)
 #endif
 }
 
-#if PLATFORM == PLATFORM_LINUX
-
 #define PATH_MAX_TABLE_SIZE 1024
+
+#if PLATFORM == PLATFORM_LINUX
 
 // Thanks lloydm: http://stackoverflow.com/questions/8436841/how-to-recursively-list-directories-in-c-on-linux 
 internal
@@ -448,6 +458,12 @@ void listdir(char **path_table, U32 *path_count, const char *name, int level, co
     closedir(dir);
 }
 
+#else
+internal
+void listdir(char **path_table, U32 *path_count, const char *name, int level, const char *end)
+{ fail("@todo listdir"); }
+#endif
+
 char ** plat_find_paths_with_end(const char *path_to_dir, const char *end)
 {
 	U32 path_count= 0;
@@ -456,5 +472,3 @@ char ** plat_find_paths_with_end(const char *path_to_dir, const char *end)
 	listdir(path_table, &path_count, path_to_dir, 0, end);
 	return path_table;
 }
-
-#endif

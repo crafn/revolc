@@ -30,6 +30,7 @@ typedef struct TriMeshVertex {
 	Color color;
 	F32 dev_highlight;
 	bool selected; // Editor
+	bool pad[19];
 } TriMeshVertex ALIGNED(64);
 
 typedef struct Mesh {

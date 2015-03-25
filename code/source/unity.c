@@ -42,6 +42,11 @@
 #include "visual/texture.c"
 #include "visual/vao.c"
 
+
+#if PLATFORM == PLATFORM_WINDOWS
+#	include "platform/plat_windows.c"
+#endif
+
 #ifndef CODEGEN
 #	include "global/gen_rtti.c"
 #endif
