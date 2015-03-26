@@ -28,14 +28,14 @@ SubEntity create_subentity(const Armature *a, CompDef_Sub sub)
 		ModelEntity init;
 		init_modelentity(&init);
 
-		snprintf(init.model_name, sizeof(init.model_name), "%s", sub.entity_name);
+		fmt_str(init.model_name, sizeof(init.model_name), "%s", sub.entity_name);
 		h= resurrect_modelentity(&init);
 	} else if (compdef_exists) {
 		type= VEntityType_comp;
 		CompEntity init;
 		init_compentity(&init);
 
-		snprintf(init.def_name, sizeof(init.def_name), "%s", sub.entity_name);
+		fmt_str(init.def_name, sizeof(init.def_name), "%s", sub.entity_name);
 		h= resurrect_compentity(&init);
 	}
 	ensure(h != NULL_HANDLE);

@@ -63,7 +63,7 @@ U32 alloc_node_without_impl(World *w, NodeType *type, U64 group_id)
 		.type= type,
 		.group_id= group_id,
 	};
-	snprintf(info.type_name, sizeof(info.type_name), "%s", type->res.name);
+	fmt_str(info.type_name, sizeof(info.type_name), "%s", type->res.name);
 
 	while (w->nodes[w->next_node].allocated)
 		w->next_node= (w->next_node + 1) % MAX_NODE_COUNT;
@@ -382,7 +382,7 @@ void save_world(World *w, const char *path)
 				SlotCmd *cmd= &node->cmds[i];
 				if (cmd->type != CmdType_call)
 					continue;
-				snprintf(savenode.cmds[i].func_name,
+				fmt_str(savenode.cmds[i].func_name,
 						sizeof(savenode.cmds[i].func_name),
 						"%s", rtti_sym_name(cmd->fptr));
 			}

@@ -320,7 +320,7 @@ void plat_find_paths_with_end_impl(char **path_table, U32 *path_count, U32 max_c
     do {
         if (entry->d_type == DT_DIR) {
             char path[MAX_PATH_SIZE];
-            int len= snprintf(path, sizeof(path)-1, "%s/%s", name, entry->d_name);
+            int len= fmt_str(path, sizeof(path)-1, "%s/%s", name, entry->d_name);
 			if (len + 1 >= 1024)
 				plat_fail(	"plat_find_paths_with_end: "
 							"Too long path (@todo Fix engine)");
@@ -336,9 +336,9 @@ void plat_find_paths_with_end_impl(char **path_table, U32 *path_count, U32 max_c
 				U32 path_size= strlen(name) + 1 + strlen(entry->d_name) + 1;
 				char *path= malloc(path_size);
 				if (name[strlen(name) - 1] == '/')
-					snprintf(path, path_size, "%s%s", name, entry->d_name);
+					fmt_str(path, path_size, "%s%s", name, entry->d_name);
 				else
-					snprintf(path, path_size, "%s/%s", name, entry->d_name);
+					fmt_str(path, path_size, "%s/%s", name, entry->d_name);
 				path_table[*path_count]= path;
 				++*path_count;
 			}
@@ -361,8 +361,11 @@ void unload_dll(DllHandle dll)
 void* query_dll_sym(DllHandle dll, const char *sym)
 { return dlsym(dll, sym); }
 
-const char* dll_error()
+const char * dll_error()
 { return dlerror(); }
+
+const char * plat_dll_ext()
+{ return "so"; }
 
 void plat_set_term_color(TermColor c)
 {
@@ -373,4 +376,13 @@ void plat_set_term_color(TermColor c)
 	default: fail("plat_set_term_color: Unknown color: %i", i);
 	}
 	printf(str);
+}
+
+int fmt_str(char *str, U32 size, const char *fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	int ret= vfmt_str(str, size, _TRUNCATE, fmt, args);
+	va_end(args);
+	return ret;
 }

@@ -27,7 +27,8 @@ int json_texture_to_blob(struct BlobBuf *buf, JsonTok j)
 	int err=
 		lodepng_decode32_file(&image, &width, &height, total_path);
 	if (err) {
-		critical_print("PNG load error: %s", lodepng_error_text(err));
+		critical_print(	"PNG load error for '%s': %s",
+						total_path, lodepng_error_text(err));
 		goto error;
 	}
 	ensure(width > 0 && height > 0);

@@ -219,7 +219,7 @@ void gui_quad(V2i pix_pos, V2i pix_size, Color c)
 	init.tf.pos= pos;
 	init.tf.scale= size;
 	init.free_after_draw= true;
-	snprintf(init.model_name, sizeof(init.model_name), "guibox_singular");
+	fmt_str(init.model_name, sizeof(init.model_name), "guibox_singular");
 
 	U32 handle= resurrect_modelentity(&init);
 	ModelEntity *e= get_modelentity(handle);
@@ -240,7 +240,7 @@ void gui_model_image(V2i pix_pos, V2i pix_size, ModelEntity *src_model)
 	init.tf.pos= pos;
 	init.tf.scale= size;
 	init.free_after_draw= true;
-	snprintf(init.model_name, sizeof(init.model_name), "guibox");
+	fmt_str(init.model_name, sizeof(init.model_name), "guibox");
 
 	U32 handle= resurrect_modelentity(&init);
 	ModelEntity *e= get_modelentity(handle);

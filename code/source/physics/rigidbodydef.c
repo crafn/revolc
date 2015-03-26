@@ -18,7 +18,7 @@ int json_rigidbodydef_to_blob(struct BlobBuf *buf, JsonTok j)
 	}
 
 	RigidBodyDef def= {};
-	snprintf(def.mat_name, sizeof(def.mat_name), "%s",
+	fmt_str(def.mat_name, sizeof(def.mat_name), "%s",
 			json_str(j_mat));
 	/// @todo Take density into account
 

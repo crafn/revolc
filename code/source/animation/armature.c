@@ -62,7 +62,7 @@ int json_armature_to_blob(struct BlobBuf *buf, JsonTok j)
 		Joint *joint= &a.joints[i];
 		JointDef *def= &defs[i];
 
-		snprintf(	a.joint_names[i], sizeof(a.joint_names[i]), "%s",
+		fmt_str(	a.joint_names[i], sizeof(a.joint_names[i]), "%s",
 					def->name);
 		joint->id= i;
 		joint->super_id= NULL_JOINT_ID;

@@ -281,7 +281,7 @@ void * wjson_init_string(WJson *j_str, const char *str)
 	j_str->type= JsonType_string;
 	U32 size= strlen(str) + 1;
 	j_str->string= dev_malloc(size);
-	snprintf(j_str->string, size, "%s", str);
+	fmt_str(j_str->string, size, "%s", str);
 	return j_str;
 }
 

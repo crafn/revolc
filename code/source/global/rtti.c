@@ -5,7 +5,7 @@ void * query_sym_concat(const char* a, const char *b)
 {
 	ensure(g_env.resblob && "Can't use RTTI before resources are loaded");
 	char name[strlen(a) + strlen(b) + 1];
-	snprintf(name, sizeof(name), "%s%s", a, b);
+	fmt_str(name, sizeof(name), "%s%s", a, b);
 
 	// Check first if symbol is already in use
 	/// @todo O(1) search
@@ -31,9 +31,9 @@ void * query_sym_concat(const char* a, const char *b)
 			// Add symbol to table
 			ensure(tbl->symbol_count < MAX_SYM_COUNT);
 			Symbol sym= {};
-			snprintf(	sym.module_name, sizeof(sym.module_name), "%s",
+			fmt_str(	sym.module_name, sizeof(sym.module_name), "%s",
 						mod->res.name);
-			snprintf(	sym.name, sizeof(sym.name), "%s",
+			fmt_str(	sym.name, sizeof(sym.name), "%s",
 						name);
 			sym.addr= addr;
 			tbl->symbols[tbl->symbol_count++]= sym;

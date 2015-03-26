@@ -185,7 +185,7 @@ Resource * res_by_name(ResBlob *blob, ResType type, const char *name)
 		critical_print("Creating MissingResource");
 
 		Resource res_header= {};
-		snprintf(res_header.name, RES_NAME_SIZE, "%s", name);
+		fmt_str(res_header.name, RES_NAME_SIZE, "%s", name);
 		res_header.type= type;
 		res_header.blob= blob;
 		res_header.is_runtime_res= true;
@@ -450,7 +450,7 @@ void make_blob(const char *dst_file_path, char **res_file_paths)
 			.res_file_count= res_file_count,
 		};
 		for (U32 i= 0; i < res_file_count; ++i) {
-			snprintf(	header.res_file_paths[i], sizeof(header.res_file_paths),
+			fmt_str(	header.res_file_paths[i], sizeof(header.res_file_paths),
 						"%s", parsed_jsons[i].json_path);
 		}
 		blob_write(&buf, &header, sizeof(header));

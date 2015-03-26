@@ -83,7 +83,7 @@
 	{
 		"type" : "Module",
 		"name" : "main_prog",
-		"file" : ""
+		"extless_file" : ""
 	},
 
 	{

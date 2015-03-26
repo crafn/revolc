@@ -15,7 +15,7 @@ char * malloc_joined_path(const char *a, const char *b)
 					strlen(b) +
 					strlen("/") + 1;
 	char *path= malloc(total_size);
-	snprintf(path, total_size, "%.*s/%s", stripped_a_len, a, b);
+	fmt_str(path, total_size, "%.*s/%s", stripped_a_len, a, b);
 	return path;
 }
 
@@ -31,7 +31,7 @@ char * malloc_path_to_dir(const char *path_to_file)
 
 	U32 total_size= stripped_path_len + 1;
 	char *path= malloc(total_size);
-	snprintf(path, total_size, "%.*s", stripped_path_len, path_to_file);
+	fmt_str(path, total_size, "%.*s", stripped_path_len, path_to_file);
 	return path;
 }
 

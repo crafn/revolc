@@ -9,7 +9,7 @@
 
 typedef struct Module {
 	Resource res;
-	char file[MAX_PATH_SIZE];
+	char extless_file[MAX_PATH_SIZE];
 	char tmp_file[MAX_PATH_SIZE];
 	bool is_main_prog_module; // If true, dll == g_main_program_dll
 	DllHandle dll;

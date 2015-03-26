@@ -11,7 +11,7 @@ int json_compdef_to_blob(struct BlobBuf *buf, JsonTok j)
 		RES_ATTRIB_MISSING("subs");
 
 	CompDef def= {};
-	snprintf(def.armature_name, sizeof(def.armature_name), "%s",
+	fmt_str(def.armature_name, sizeof(def.armature_name), "%s",
 			json_str(j_armature));
 	if (json_member_count(j_subs) > MAX_SUBENTITY_COUNT) {
 		critical_print("Too many subs: %i > %i",
@@ -33,9 +33,9 @@ int json_compdef_to_blob(struct BlobBuf *buf, JsonTok j)
 			RES_ATTRIB_MISSING("offset");
 
 		CompDef_Sub *sub= &def.subs[sub_i];
-		snprintf(sub->entity_name, sizeof(sub->entity_name), "%s",
+		fmt_str(sub->entity_name, sizeof(sub->entity_name), "%s",
 				json_str(j_entity));
-		snprintf(sub->joint_name, sizeof(sub->joint_name), "%s",
+		fmt_str(sub->joint_name, sizeof(sub->joint_name), "%s",
 				json_str(j_joint));
 		sub->offset= t3d_to_t3f(json_t3(j_offset));
 		++def.sub_count;

@@ -80,7 +80,7 @@ void commit(	TokState *state,
 		U32 size= e - b + 1;
 		if (size > sizeof(tok.str))
 			fail("Too long token");
-		snprintf(tok.str, size, "%s", b);
+		fmt_str(tok.str, size, "%s", b);
 		add_tok(tokens, next_tok, max_token_count, tok);
 		*state= TokState_none;
 	}
@@ -167,12 +167,13 @@ internal
 U32 node_i_by_name(const NodeGroupDef *def, const char *name)
 {
 	for (U32 i= 0; i < def->node_count; ++i) {
+		debug_print("NODE %i: %s", i, def->nodes[i].name);
 		if (!strcmp(def->nodes[i].name, name))
 			return i;
 	}
 
+	debug_print("NODE COUNT: %i", def->node_count);
 	fail("Node not found: %s", name);
-	return 0;
 }
 
 // Finds offset and size of the sub-member in "foo.bar.asdfg.hsdg"
@@ -274,7 +275,7 @@ void parse_cmd(NodeGroupDef_Cmd *cmd, const Token *toks, U32 tok_count, const No
 
 		const char *func_name= toks[0].str;
 		cmd->type= CmdType_call;
-		snprintf(cmd->func_name, sizeof(cmd->func_name), "%s", func_name);
+		fmt_str(cmd->func_name, sizeof(cmd->func_name), "%s", func_name);
 
 		/// @todo	Check that there's correct number of params,
 		///			and that they're correct type!!!
@@ -360,11 +361,11 @@ int json_nodegroupdef_to_blob(struct BlobBuf *buf, JsonTok j)
 		if (json_is_null(j_name))
 			RES_ATTRIB_MISSING("name");
 
-		snprintf(	node->type_name,
+		fmt_str(	node->type_name,
 					sizeof(def.nodes[node_i].type_name),
 					"%s", json_str(j_type_name));
 
-		snprintf(	node->name,
+		fmt_str(	node->name,
 					sizeof(def.nodes[node_i].name),
 					"%s", json_str(j_name));
 
@@ -383,8 +384,8 @@ int json_nodegroupdef_to_blob(struct BlobBuf *buf, JsonTok j)
 
 			NodeGroupDef_Node_Defaults *defaults=
 				&node->defaults[node->defaults_count++];
-			snprintf(defaults->dst, sizeof(defaults->dst), "%s", field_str);
-			snprintf(defaults->src, sizeof(defaults->src), "%s", value_str);
+			fmt_str(defaults->dst, sizeof(defaults->dst), "%s", field_str);
+			fmt_str(defaults->src, sizeof(defaults->src), "%s", value_str);
 		}
 
 		++def.node_count;
@@ -395,7 +396,7 @@ int json_nodegroupdef_to_blob(struct BlobBuf *buf, JsonTok j)
 		JsonTok j_cmd= json_member(j_cmds, cmd_i);
 		const char *cmd_str= json_str(j_cmd);
 		NodeGroupDef_Cmd *cmd= &def.cmds[def.cmd_count];
-		snprintf(cmd->str, sizeof(cmd->str), "%s", cmd_str);
+		fmt_str(cmd->str, sizeof(cmd->str), "%s", cmd_str);
 		++def.cmd_count;
 	}
 

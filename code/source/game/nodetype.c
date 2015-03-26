@@ -93,17 +93,17 @@ int json_nodetype_to_blob(struct BlobBuf *buf, JsonTok j)
 		.auto_impl_mgmt= auto_impl_mgmt,
 		.auto_impl_max_count= auto_impl_max_count,
 	};
-	snprintf(
+	fmt_str(
 		n.init_func_name, sizeof(n.init_func_name), "%s", json_str(j_init));
-	snprintf(
+	fmt_str(
 		n.resurrect_func_name, sizeof(n.resurrect_func_name), "%s", json_str(j_resurrect));
-	snprintf(
+	fmt_str(
 		n.upd_func_name, sizeof(n.upd_func_name), "%s", json_str(j_upd));
-	snprintf(
+	fmt_str(
 		n.free_func_name, sizeof(n.free_func_name), "%s", json_str(j_free));
 
 	if (n.auto_impl_mgmt == false) {
-		snprintf(
+		fmt_str(
 			n.storage_func_name, sizeof(n.storage_func_name), "%s", json_str(j_storage));
 	}
 

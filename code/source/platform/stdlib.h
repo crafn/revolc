@@ -11,4 +11,9 @@
 #define MEMBER_SIZE(st, m) (sizeof(((st*)0)->m))
 #define MEMBER_OFFSET(st, m) (offsetof(st, m))
 
+// Format string
+// Will always (when size > 0) insert '\0' at the end of `str`
+// Use instead of snprintf which is horribly broken on mingw (due to microsoft CRT)
+int fmt_str(char *str, U32 size, const char *fmt, ...);
+
 #endif // REVOLC_PLATFORM_STDLIB_H

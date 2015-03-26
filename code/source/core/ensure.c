@@ -15,5 +15,6 @@ void fail(const char *format, ...)
 
 	plat_set_term_color(TermColor_default);
 
+	asm("int $3"); // For mingw breakpoint problems when b exit doesn't work
 	abort();
 }

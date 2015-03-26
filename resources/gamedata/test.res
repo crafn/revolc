@@ -433,6 +433,6 @@
 	{
 		"type" : "Module",
 		"name" : "mod",
-		"file" : "./mod.so",
+		"extless_file" : "./mod",
 	},
 ]

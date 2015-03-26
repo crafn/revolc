@@ -4,6 +4,7 @@
 #include "global/env.h"
 
 #include <windows.h>
+#include <tchar.h>
 
 typedef struct DevicePlatformData {
 	HDC hDC;
@@ -102,7 +103,7 @@ void plat_find_paths_with_end_impl(	char **path_table, U32 *path_count, U32 max_
 					const char *name, int level, const char *end)
 {
 	char path[MAX_PATH_SIZE];
-	snprintf(path, sizeof(path), "%s*", name);
+	fmt_str(path, sizeof(path), "%s*", name);
 	if (strlen(path) >= MAX_PATH_SIZE - 1)
 		fail("Too long path: %s", name);
 
@@ -117,7 +118,7 @@ void plat_find_paths_with_end_impl(	char **path_table, U32 *path_count, U32 max_
 			continue;
 
 		if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-			snprintf(path, sizeof(path), "%s%s/", name, ffd.cFileName);
+			fmt_str(path, sizeof(path), "%s%s/", name, ffd.cFileName);
 			plat_find_paths_with_end_impl(path_table, path_count, max_count, path, level + 1, end);
 		} else {
 			if (is_str_end(ffd.cFileName, end)) {
@@ -127,9 +128,9 @@ void plat_find_paths_with_end_impl(	char **path_table, U32 *path_count, U32 max_
 				U32 path_size= strlen(name) + 1 + strlen(ffd.cFileName) + 1;
 				char *path= malloc(path_size);
 				if (name[strlen(name) - 1] == '/')
-					snprintf(path, path_size, "%s%s", name, ffd.cFileName);
+					fmt_str(path, path_size, "%s%s", name, ffd.cFileName);
 				else
-					snprintf(path, path_size, "%s/%s", name, ffd.cFileName);
+					fmt_str(path, path_size, "%s/%s", name, ffd.cFileName);
 				path_table[*path_count]= path;
 				++*path_count;
 			}
@@ -139,19 +140,19 @@ void plat_find_paths_with_end_impl(	char **path_table, U32 *path_count, U32 max_
 }
 
 DllHandle load_dll(const char *path)
-{
-	fail("@todo load_dll");
-}
+{ return LoadLibrary(path); }
 
 void unload_dll(DllHandle dll)
-{ fail("@todo unload_dll"); }
+{ FreeLibrary((HMODULE)dll); }
 
 void* query_dll_sym(DllHandle dll, const char *sym)
-{ fail("@todo query_dll_sym"); }
+{ return (void*)GetProcAddress((HMODULE)dll, sym); }
 
-const char* dll_error()
-{ fail("@todo dll_error"); }
+const char * dll_error()
+{ return "@todo dllError on windows"; }
 
+const char * plat_dll_ext()
+{ return "dll"; }
 
 void plat_set_term_color(TermColor c)
 {
@@ -168,5 +169,22 @@ void plat_set_term_color(TermColor c)
 
 	HANDLE h= GetStdHandle(STD_OUTPUT_HANDLE);
 	SetConsoleTextAttribute(h, i);
+}
+
+int fmt_str(char *str, U32 size, const char *fmt, ...)
+{
+	if (size == 0)
+		return 0;
+
+	va_list args;
+	va_start(args, fmt);
+	// For some reason this mingw distro doesn't have vsnprintf_s. Must terminate manually
+	int ret= vsnprintf(str, size, fmt, args);
+	if (ret >= size) {
+		str[size - 1]= 0;
+		ret= size - 1;
+	}
+	va_end(args);
+	return ret;
 }
 
