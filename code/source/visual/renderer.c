@@ -45,18 +45,18 @@ M44f view_matrix(const Renderer *r)
 internal
 M44f cam_matrix(const Renderer *r)
 {
-	F32 near= 0.1;
-	F32 far= 1.0;
+	F32 n= 0.1;
+	F32 f= 1.0;
 	F32 fov= r->cam_fov;
-	F32 h= tan(fov/2)*near;
+	F32 h= tan(fov/2)*n;
 	/// @todo Aspect ratio
 	F32 w= h; // 1:1
 
 	M44f p_matrix= {{
-		near/w, 0, 0, 0,
-		0, near/h, 0, 0,
-		0, 0, (far + near)/(near - far), -1,
-		0, 0, 2*far*near/(near - far), 0,
+		n/w, 0, 0, 0,
+		0, n/h, 0, 0,
+		0, 0, (f + n)/(n - f), -1,
+		0, 0, 2*f*n/(n - f), 0,
 	}};
 
 	return mul_m44f(view_matrix(r), p_matrix);

@@ -26,7 +26,6 @@
 #include "physics/rigidbody.c"
 #include "physics/rigidbodydef.c"
 #include "platform/device.c"
-#include "platform/dll.c"
 #include "platform/file.c"
 #include "platform/gl.c"
 #include "resources/resblob.c"
@@ -43,12 +42,14 @@
 #include "visual/vao.c"
 
 
-#if PLATFORM == PLATFORM_LINUX
-#	include "platform/plat_linux.c"
-#elif PLATFORM == PLATFORM_WINDOWS
-#	include "platform/plat_windows.c"
-#endif
 
 #ifndef CODEGEN
+#	if PLATFORM == PLATFORM_LINUX
+#		include "platform/linux.c"
+#	elif PLATFORM == PLATFORM_WINDOWS
+#		include "platform/windows.c"
+#	else
+#		error "Unknown platform"
+#	endif
 #	include "global/gen_rtti.c"
 #endif

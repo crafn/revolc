@@ -39,11 +39,11 @@ typedef struct Device {
 	bool key_pressed[KEYBOARD_KEY_COUNT];
 	bool key_released[KEYBOARD_KEY_COUNT];
 
-	struct DevicePlatformData* data;
+	struct DevicePlatformData* impl;
 } Device;
 
 /// @note Sets g_env.device
-REVOLC_API Device * plat_init(const char* title, int width, int height);
+REVOLC_API Device * plat_init(const char* title, V2i reso);
 REVOLC_API void plat_quit(Device *d);
 
 REVOLC_API void plat_update(Device *d);

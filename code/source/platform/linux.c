@@ -1,4 +1,7 @@
+#include "core/vector.h"
+#include "platform/dll.h"
 
+#include <dlfcn.h>
 #include <GL/glx.h>
 #include <X11/X.h>
 #include <X11/Xlib.h>
@@ -32,13 +35,12 @@ int ctxErrorHandler( Display *dpy, XErrorEvent *ev )
 #define plat_print debug_print
 #define plat_fail fail
 
-VoidFunc linux_plat_query_gl_func(const char *name)
+VoidFunc plat_query_gl_func_impl(const char *name)
 { return glXGetProcAddressARB((const GLubyte*)name); }
 
-void linux_plat_init(Device* d, const char* title, int width, int height)
+void plat_init_impl(Device* d, const char* title, V2i reso)
 {
-	d->data= zero_malloc(sizeof(*d->data));
-	memset(d->data, 0, sizeof(*d->data));
+	d->impl= zero_malloc(sizeof(*d->impl));
 	{
 		/// Original code from https://www.opengl.org/wiki/Tutorial:_OpenGL_3.0_Context_Creation_%28GLX%29
 		Display *display = XOpenDisplay(NULL);
@@ -115,7 +117,7 @@ void linux_plat_init(Device* d, const char* title, int width, int height)
 		swa.event_mask= ExposureMask | KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask;
 
 		Window win = XCreateWindow( display, RootWindow( display, vi->screen ), 
-					  0, 0, width, height, 0, vi->depth, InputOutput, 
+					  0, 0, reso.x, reso.y, 0, vi->depth, InputOutput, 
 					  vi->visual, 
 					  CWBorderPixel|CWColormap|CWEventMask, &swa );
 		if ( !win )
@@ -150,10 +152,11 @@ void linux_plat_init(Device* d, const char* title, int width, int height)
 		int (*oldHandler)(Display*, XErrorEvent*) =
 		XSetErrorHandler(&ctxErrorHandler);
 
-		if (!glXCreateContextAttribsARB)
+		if (!glXCreateContextAttribsARB) {
 			plat_fail( "glXCreateContextAttribsARB() not found");
 
 		// If it does, try to get a GL 3.2 context!
+		}
 		else
 		{
 			int context_attribs[] =
@@ -194,45 +197,45 @@ void linux_plat_init(Device* d, const char* title, int width, int height)
 
 		glXMakeCurrent(display, win, ctx);
 
-		d->data->dpy= display;
-		d->data->win= win;
-		d->data->ctx= ctx;
+		d->impl->dpy= display;
+		d->impl->win= win;
+		d->impl->ctx= ctx;
 	}
 
 	{
-		clock_gettime(CLOCK_MONOTONIC, &d->data->ts);
+		clock_gettime(CLOCK_MONOTONIC, &d->impl->ts);
 	}
 }
 
-void linux_plat_quit(Device *d)
+void plat_quit_impl(Device *d)
 {
-	glXMakeCurrent(d->data->dpy, None, NULL);
-	glXDestroyContext(d->data->dpy, d->data->ctx);
-	XDestroyWindow(d->data->dpy, d->data->win);
-	XCloseDisplay(d->data->dpy);
+	glXMakeCurrent(d->impl->dpy, None, NULL);
+	glXDestroyContext(d->impl->dpy, d->impl->ctx);
+	XDestroyWindow(d->impl->dpy, d->impl->win);
+	XCloseDisplay(d->impl->dpy);
 
-	free(d->data);
-	d->data= NULL;
+	free(d->impl);
+	d->impl= NULL;
 	free(d);
 }
 
-void linux_plat_update(Device *d)
+void plat_update_impl(Device *d)
 {
-	glXSwapBuffers(d->data->dpy, d->data->win);
+	glXSwapBuffers(d->impl->dpy, d->impl->win);
 
 	for (int i= 0; i < KEYBOARD_KEY_COUNT; ++i)
 		d->key_pressed[i]= d->key_released[i]= false;
 	d->quit_requested= false;
 
-	while(XPending(d->data->dpy)) {
+	while(XPending(d->impl->dpy)) {
 		XEvent xev;
-        XNextEvent(d->data->dpy, &xev);
+        XNextEvent(d->impl->dpy, &xev);
 
 		if (	xev.type == KeyPress ||
 				xev.type == KeyRelease) {
 			int keys_ret;
 			KeySym* keysym=
-				XGetKeyboardMapping(d->data->dpy, xev.xkey.keycode, 1, &keys_ret);
+				XGetKeyboardMapping(d->impl->dpy, xev.xkey.keycode, 1, &keys_ret);
 
 			if(xev.type == KeyPress) {
 				if (*keysym == XK_Escape)
@@ -281,30 +284,30 @@ void linux_plat_update(Device *d)
 	}
 
 	XWindowAttributes gwa;
-	XGetWindowAttributes(d->data->dpy, d->data->win, &gwa);
+	XGetWindowAttributes(d->impl->dpy, d->impl->win, &gwa);
 	d->win_size.x= gwa.width;
 	d->win_size.y= gwa.height;
 
 	int root_x= 0, root_y= 0;
 	Window w;
 	unsigned int mask;
-	XQueryPointer(	d->data->dpy, d->data->win, &w,
+	XQueryPointer(	d->impl->dpy, d->impl->win, &w,
 					&w, &root_x, &root_y, &d->cursor_pos.x, &d->cursor_pos.y,
 					&mask);
 
-	long old_us= d->data->ts.tv_nsec/1000 + d->data->ts.tv_sec*1000000;
-	clock_gettime(CLOCK_MONOTONIC, &d->data->ts);
-	long new_us= d->data->ts.tv_nsec/1000 + d->data->ts.tv_sec*1000000;
+	long old_us= d->impl->ts.tv_nsec/1000 + d->impl->ts.tv_sec*1000000;
+	clock_gettime(CLOCK_MONOTONIC, &d->impl->ts);
+	long new_us= d->impl->ts.tv_nsec/1000 + d->impl->ts.tv_sec*1000000;
 	d->dt= (new_us - old_us)/1000000.0;
 }
 
-void linux_plat_sleep(int ms)
+void plat_sleep_impl(int ms)
 {
 	usleep(ms*1000);
 }
 
 // Thanks lloydm: http://stackoverflow.com/questions/8436841/how-to-recursively-list-directories-in-c-on-linux 
-void linux_listdir(char **path_table, U32 *path_count, U32 max_count, const char *name, int level, const char *end)
+void plat_find_paths_with_end_impl(char **path_table, U32 *path_count, U32 max_count, const char *name, int level, const char *end)
 {
     DIR *dir;
     struct dirent *entry;
@@ -316,7 +319,7 @@ void linux_listdir(char **path_table, U32 *path_count, U32 max_count, const char
 
     do {
         if (entry->d_type == DT_DIR) {
-            char path[1024]; /// @todo Dynamic allocation
+            char path[MAX_PATH_SIZE];
             int len= snprintf(path, sizeof(path)-1, "%s/%s", name, entry->d_name);
 			if (len + 1 >= 1024)
 				plat_fail(	"plat_find_paths_with_end: "
@@ -324,7 +327,7 @@ void linux_listdir(char **path_table, U32 *path_count, U32 max_count, const char
             path[len] = 0;
             if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
                 continue;
-            linux_listdir(path_table, path_count, max_count, path, level + 1, end);
+            plat_find_paths_with_end_impl(path_table, path_count, max_count, path, level + 1, end);
         } else {
 			if (is_str_end(entry->d_name, end)) {
 				if (*path_count + 1 >= max_count)
@@ -345,3 +348,29 @@ void linux_listdir(char **path_table, U32 *path_count, U32 max_count, const char
     closedir(dir);
 }
 
+DllHandle load_dll(const char *path)
+{
+	if (dlopen(path, RTLD_NOLOAD))
+		fail("DLL already opened: %s", path);
+	return dlopen(path, RTLD_NOW);
+}
+
+void unload_dll(DllHandle dll)
+{ dlclose(dll); }
+
+void* query_dll_sym(DllHandle dll, const char *sym)
+{ return dlsym(dll, sym); }
+
+const char* dll_error()
+{ return dlerror(); }
+
+void plat_set_term_color(TermColor c)
+{
+	const char *str;
+	switch (c) {
+	case TermColor_default: str= "\033[0m"; break;
+	case TermColor_red: str= "\033[0;31m"; break;
+	default: fail("plat_set_term_color: Unknown color: %i", i);
+	}
+	printf(str);
+}

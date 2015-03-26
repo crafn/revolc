@@ -53,13 +53,12 @@ void spawn_entity(World *world, ResBlob *blob, V2d pos)
 #define SAVEFILE_PATH "save.bin"
 #define DEFAULT_BLOB_PATH "main.blob"
 
+
 int main(int argc, const char **argv)
 {
-	ensure(sizeof(bool) == 1 && "Codegen relies on this");
-
 	init_env();
 
-	Device *d= plat_init("Revolc engine", 800, 600);
+	Device *d= plat_init("Revolc engine", (V2i) {800, 600});
 
 	if (!file_exists(DEFAULT_BLOB_PATH))
 		make_main_blob();

@@ -1,9 +1,6 @@
 #ifndef REVOLC_BUILD_H
 #define REVOLC_BUILD_H
 
-/// @todo Other operating systems
-/// @todo Other compilers
-
 #define PLATFORM_LINUX 1
 #define PLATFORM_WINDOWS 2
 

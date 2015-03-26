@@ -39,7 +39,7 @@ def buildInfo(env, tags):
 			return ch.isalpha() or ch == '_'
 
 		# "  dfdsk,  "
-		#    ^ -> ^
+		#    ^ ->  ^
 		def tokEnd(str, index):
 			i= index
 			while i < len(str) and not isWhitespace(str[i]):

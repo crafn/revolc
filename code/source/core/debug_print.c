@@ -1,5 +1,6 @@
 #include "debug_print.h"
 #include "platform/stdlib.h"
+#include "platform/term.h"
 
 void debug_print(const char *fmt, ...)
 {
@@ -13,11 +14,13 @@ void debug_print(const char *fmt, ...)
 
 void critical_print(const char *fmt, ...)
 {
-	printf("\033[0;31m"); // Red
+	plat_set_term_color(TermColor_red);
+
 	va_list a;
 	va_start(a, fmt);
     vprintf(fmt, a);
     va_end(a);
+	printf("\n");
 
-	printf("\033[0m\n");
+	plat_set_term_color(TermColor_default);
 }

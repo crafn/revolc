@@ -4,46 +4,32 @@
 #include "platform/stdlib.h"
 #include "core/malloc.h"
 
-#if PLATFORM == PLATFORM_LINUX
-	VoidFunc linux_plat_query_gl_func(const char *name);
-	void linux_plat_init(Device* d, const char* title, int width, int height);
-	void linux_plat_quit(Device *d);
-	void linux_plat_update(Device *d);
-	void linux_plat_sleep(int ms);
-	void linux_listdir(	char **path_table, U32 *path_count, U32 max_count,
-						const char *name, int level, const char *end);
-#endif
-
+// Define these functions in platform dependent code
+VoidFunc plat_query_gl_func_impl(const char *name);
+void plat_init_impl(Device* d, const char* title, V2i reso);
+void plat_quit_impl(Device *d);
+void plat_update_impl(Device *d);
+void plat_sleep_impl(int ms);
+void plat_find_paths_with_end_impl(	char **path_table, U32 *path_count, U32 max_count,
+									const char *name, int level, const char *end);
 
 VoidFunc plat_query_gl_func(const char *name)
 {
 	VoidFunc f= NULL;
-#if PLATFORM == PLATFORM_LINUX
-	f= linux_plat_query_gl_func(name);
-#endif
+	f= plat_query_gl_func_impl(name);
 	if (!f)
 		fail("Failed to query gl function: %s\n", name);
 	return f;
 }
 
-void listdir(	char **path_table, U32 *path_count, U32 max_count,
-				const char *name, int level, const char *end)
-{
-#if PLATFORM == PLATFORM_LINUX
-	linux_listdir(path_table, path_count, max_count, name, level, end);
-#endif
-}
-
-Device * plat_init(const char* title, int width, int height)
+Device * plat_init(const char* title, V2i reso)
 {
 	debug_print("plat_init");
 	Device *d= zero_malloc(sizeof(*d));
 	if (g_env.device == NULL)
 		g_env.device= d;
 
-#if PLATFORM == PLATFORM_LINUX
-	linux_plat_init(d, title, width, height);
-#endif
+	plat_init_impl(d, title, reso);
 
 	{
 		glCreateShader= (GlCreateShader)plat_query_gl_func("glCreateShader");
@@ -101,26 +87,16 @@ void plat_quit(Device *d)
 	if (g_env.device == d)
 		g_env.device= NULL;
 
-#if PLATFORM == PLATFORM_LINUX
-	linux_plat_quit(d);
-#endif
+	plat_quit_impl(d);
 
 	debug_print("plat_quit successful");
 }
 
 void plat_update(Device *d)
-{
-#if PLATFORM == PLATFORM_LINUX
-	linux_plat_update(d);
-#endif
-}
+{ plat_update_impl(d); }
 
 void plat_sleep(int ms)
-{
-#if PLATFORM == PLATFORM_LINUX
-	linux_plat_sleep(ms);
-#endif
-}
+{ plat_sleep_impl(ms); }
 
 #define PATH_MAX_TABLE_SIZE 1024
 char ** plat_find_paths_with_end(const char *path_to_dir, const char *end)
@@ -128,6 +104,6 @@ char ** plat_find_paths_with_end(const char *path_to_dir, const char *end)
 	U32 path_count= 0;
 	char **path_table= zero_malloc(sizeof(*path_table)*PATH_MAX_TABLE_SIZE);
 
-	listdir(path_table, &path_count, PATH_MAX_TABLE_SIZE, path_to_dir, 0, end);
+	plat_find_paths_with_end_impl(path_table, &path_count, PATH_MAX_TABLE_SIZE, path_to_dir, 0, end);
 	return path_table;
 }
