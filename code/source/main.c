@@ -128,6 +128,8 @@ int main(int argc, const char **argv)
 			if (d->key_down['h'])
 				g_env.renderer->cam_pos.z += spd*dt;
 
+			g_env.renderer->cam_pos.z -= g_env.device->mwheel_delta;
+
 			if (d->key_down['e'])
 				spawn_entity(world, g_env.resblob, cursor_on_world);
 

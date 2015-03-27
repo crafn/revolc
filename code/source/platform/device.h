@@ -41,6 +41,8 @@ typedef struct Device {
 	bool key_pressed[KEY_COUNT];
 	bool key_released[KEY_COUNT];
 
+	F64 mwheel_delta;
+
 	struct DevicePlatformData* impl;
 } Device;
 

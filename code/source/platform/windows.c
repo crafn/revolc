@@ -23,17 +23,21 @@ LRESULT CALLBACK wndproc(
 	HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message) {
-		case WM_DESTROY:
-			PostQuitMessage(0);
-		break;
-		case WM_CLOSE:
-			g_env.device->impl->closeMessage= true;
-		break;
-		case WM_MOUSEMOVE:
-			SetCursor(LoadCursor(NULL, IDC_ARROW));
-		break;
-		default:
-			return DefWindowProc(hWnd, message, wParam, lParam);
+	case WM_DESTROY:
+		PostQuitMessage(0);
+	break;
+	case WM_CLOSE:
+		g_env.device->impl->closeMessage= true;
+	break;
+	case WM_MOUSEMOVE:
+		SetCursor(LoadCursor(NULL, IDC_ARROW));
+	break;
+	case WM_MOUSEWHEEL:
+		g_env.device->mwheel_delta=
+			(F64)GET_WHEEL_DELTA_WPARAM(wParam)/WHEEL_DELTA;
+	break;
+	default:
+		return DefWindowProc(hWnd, message, wParam, lParam);
 	}
 	return 0;
 }
@@ -90,6 +94,8 @@ void plat_update_impl(Device *d)
 {
 	Sleep(1);
 	SwapBuffers(d->impl->hDC);
+
+	d->mwheel_delta= 0.0;
 
 	MSG msg;
 	while(PeekMessage(&msg, d->impl->hWnd, 0, 0, PM_REMOVE) > 0) {
