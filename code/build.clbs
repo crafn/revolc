@@ -277,6 +277,8 @@ def buildInfo(env, tags):
 			revolc_libdirs += [ win_builds_bin_paths[0] + "/../lib" ]
 		# mingw ignores __attribute__((packed)) by default, silently. This fixes it.
 		revolc_flags += [ "mno-ms-bitfields" ]
+		# mingw generates totally bogus "may be uninitialized" warnings in dev build
+		revolc_flags += [ "Wno-maybe-uninitialized" ]
 
 	if build_revolc:
 		system_links= [ "m" ]
