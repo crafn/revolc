@@ -32,9 +32,6 @@ LRESULT CALLBACK wndproc(
 		case WM_MOUSEMOVE:
 			SetCursor(LoadCursor(NULL, IDC_ARROW));
 		break;
-		case WM_LBUTTONDOWN: 
-			g_env.device->impl->lbuttondownMessage= true;
-		break;
 		default:
 			return DefWindowProc(hWnd, message, wParam, lParam);
 	}
@@ -94,19 +91,102 @@ void plat_update_impl(Device *d)
 	Sleep(1);
 	SwapBuffers(d->impl->hDC);
 
-	d->impl->lbuttondownMessage= false;
-
 	MSG msg;
-	while(PeekMessage(&msg, d->impl->hWnd, 0, 0, PM_REMOVE) > 0) { 
+	while(PeekMessage(&msg, d->impl->hWnd, 0, 0, PM_REMOVE) > 0) {
 		TranslateMessage(&msg); 
 		DispatchMessage(&msg); 
 	}
 
-	if (d->impl->lbuttondownMessage)
-		d->key_down[KEY_LMB]= true;
-	// Release can happen outside window
-	if ((GetKeyState(VK_LBUTTON) & 0x8000) == 0)
-		d->key_down[KEY_LMB]= false;
+	const U32 keycode_to_vkcode[KEY_COUNT]= {
+		VK_LBUTTON, VK_MBUTTON, VK_RBUTTON, 0,
+		0, 0, 0, 0,
+		0, VK_TAB, VK_LSHIFT, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+
+		// 64
+
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+
+		0, 0x41, 0x42, 0x43,
+		0x44, 0x45, 0x46, 0x47,
+		0x48, 0x49, 0x4A, 0x4B,
+		0x4C, 0x4D, 0x4E, 0x4F,
+		0x50, 0x51, 0x52, 0x53,
+		0x54, 0x55, 0x56, 0x57,
+		0x58, 0x59, 0x5A, 0,
+		0, 0, 0, 0,
+
+		// 128
+
+		VK_F1, VK_F2, VK_F3, VK_F4,
+		VK_F5, VK_F6, VK_F7, VK_F8,
+		VK_F9, VK_F10, VK_F11, VK_F12,
+		VK_ESCAPE, 0, 0, 0,
+		VK_LEFT, VK_UP, VK_RIGHT, VK_DOWN,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+
+		// 192
+
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+	};
+
+	bool has_focus= GetFocus() == d->impl->hWnd;
+	for (U32 i= 0; i < KEY_COUNT; ++i) {
+		int vk= keycode_to_vkcode[i];
+		if (vk == 0)
+			continue;
+		bool was_down= d->key_down[i];
+		d->key_down[i]= (GetKeyState(vk) & 0x8000) && has_focus;
+		d->key_pressed[i]= !was_down && d->key_down[i];
+		d->key_released[i]= was_down && !d->key_down[i];
+	}
 
 	if (g_env.device->impl->closeMessage)
 		d->quit_requested= true;
@@ -119,8 +199,8 @@ void plat_update_impl(Device *d)
 	POINT cursor;
 	GetCursorPos(&cursor);
 	ScreenToClient(d->impl->hWnd, &cursor);
-	d->cursor_pos.x= 2.0*cursor.x/(rect.right - rect.left) - 1.0;
-	d->cursor_pos.y= 1.0 - 2.0*cursor.y/(rect.bottom - rect.top);
+	d->cursor_pos.x= cursor.x;
+	d->cursor_pos.y= cursor.y;
 
 	DWORD old_ticks= d->impl->ticks;
 	d->impl->ticks= GetTickCount();

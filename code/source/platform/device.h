@@ -4,29 +4,31 @@
 #include "build.h"
 #include "core/vector.h"
 
-#define KEYBOARD_KEY_COUNT 256
+#define KEY_COUNT 256
 #define KEY_LMB 0
 #define KEY_MMB 1
 #define KEY_RMB 2
+#define KEY_TAB 9
 #define KEY_LSHIFT 10
-#define KEY_F1  127
-#define KEY_F2  128
-#define KEY_F3  129
-#define KEY_F4  130
-#define KEY_F5  131
-#define KEY_F6  132
-#define KEY_F7  133
-#define KEY_F8  134
-#define KEY_F9  135
-#define KEY_F10 136
-#define KEY_F11 137
-#define KEY_F12 138
-#define KEY_TAB 139
+#define KEY_A 97 // 'a'
+//  ...
+#define KEY_F1  128
+#define KEY_F2  129
+#define KEY_F3  130
+#define KEY_F4  131
+#define KEY_F5  132
+#define KEY_F6  133
+#define KEY_F7  134
+#define KEY_F8  135
+#define KEY_F9  136
+#define KEY_F10 137
+#define KEY_F11 138
+#define KEY_F12 139
 #define KEY_ESC 140
-#define KEY_LEFT 141
-#define KEY_UP 142
-#define KEY_RIGHT 143
-#define KEY_DOWN 144
+#define KEY_LEFT 144
+#define KEY_UP 145
+#define KEY_RIGHT 146
+#define KEY_DOWN 147
 
 struct DevicePlatformData;
 typedef struct Device {
@@ -35,9 +37,9 @@ typedef struct Device {
 	bool quit_requested;
 	F32 dt;
 
-	bool key_down[KEYBOARD_KEY_COUNT];
-	bool key_pressed[KEYBOARD_KEY_COUNT];
-	bool key_released[KEYBOARD_KEY_COUNT];
+	bool key_down[KEY_COUNT];
+	bool key_pressed[KEY_COUNT];
+	bool key_released[KEY_COUNT];
 
 	struct DevicePlatformData* impl;
 } Device;

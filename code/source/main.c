@@ -63,7 +63,7 @@ int main(int argc, const char **argv)
 
 	init_env();
 
-	Device *d= plat_init("Revolc engine", (V2i) {800, 600});
+	Device *d= plat_init("Revolc engine", (V2i) {800, 800});
 
 	if (!file_exists(DEFAULT_BLOB_PATH))
 		make_main_blob();
