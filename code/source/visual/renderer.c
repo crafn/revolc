@@ -221,6 +221,8 @@ void recache_modelentity(ModelEntity *e)
 	e->scale_to_atlas_uv= scale_to_atlas_uv(tex->reso);
 	e->vertices= (TriMeshVertex*)mesh_vertices(model_mesh(model));
 	e->indices= (MeshIndexType*)mesh_indices(model_mesh(model));
+	if (e->vertices[0].pos.x == 0)
+		debug_print("woot");
 	e->mesh_v_count= model_mesh(model)->v_count;
 	e->mesh_i_count= model_mesh(model)->i_count;
 }

@@ -82,7 +82,7 @@ void plat_init_impl(Device* d, const char* title, V2i reso)
 
 void plat_quit_impl(Device *d)
 {
-	fail("@todo quit");
+	wglDeleteContext(d->impl->hGlrc);
 
 	free(d->impl);
 	d->impl= NULL;
@@ -91,12 +91,47 @@ void plat_quit_impl(Device *d)
 
 void plat_update_impl(Device *d)
 {
-	fail("@todo update");
+	Sleep(1);
+	SwapBuffers(d->impl->hDC);
+
+	d->impl->lbuttondownMessage= false;
+
+	MSG msg;
+	while(PeekMessage(&msg, d->impl->hWnd, 0, 0, PM_REMOVE) > 0) { 
+		TranslateMessage(&msg); 
+		DispatchMessage(&msg); 
+	}
+
+	if (d->impl->lbuttondownMessage)
+		d->key_down[KEY_LMB]= true;
+	// Release can happen outside window
+	if ((GetKeyState(VK_LBUTTON) & 0x8000) == 0)
+		d->key_down[KEY_LMB]= false;
+
+	if (g_env.device->impl->closeMessage)
+		d->quit_requested= true;
+
+	RECT rect;
+	if(GetClientRect(d->impl->hWnd, &rect)) {
+		d->win_size.x= rect.right - rect.left;
+		d->win_size.y= rect.bottom - rect.top;
+	}
+	POINT cursor;
+	GetCursorPos(&cursor);
+	ScreenToClient(d->impl->hWnd, &cursor);
+	d->cursor_pos.x= 2.0*cursor.x/(rect.right - rect.left) - 1.0;
+	d->cursor_pos.y= 1.0 - 2.0*cursor.y/(rect.bottom - rect.top);
+
+	DWORD old_ticks= d->impl->ticks;
+	d->impl->ticks= GetTickCount();
+	DWORD new_ticks= d->impl->ticks;
+	d->dt= (new_ticks - old_ticks)/1000.0;
+
 }
 
 void plat_sleep_impl(int ms)
 {
-	fail("@todo sleep");
+	Sleep(ms);
 }
 
 void plat_find_paths_with_end_impl(	char **path_table, U32 *path_count, U32 max_count,

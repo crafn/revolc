@@ -275,6 +275,8 @@ def buildInfo(env, tags):
 			[s for s in os.environ["PATH"].split(";") if "win-builds" in s]
 		if len(win_builds_bin_paths) > 0:
 			revolc_libdirs += [ win_builds_bin_paths[0] + "/../lib" ]
+		# mingw ignores __attribute__((packed)) by default, silently. This fixes it.
+		revolc_flags += [ "mno-ms-bitfields" ]
 
 	if build_revolc:
 		system_links= [ "m" ]

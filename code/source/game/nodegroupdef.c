@@ -167,12 +167,10 @@ internal
 U32 node_i_by_name(const NodeGroupDef *def, const char *name)
 {
 	for (U32 i= 0; i < def->node_count; ++i) {
-		debug_print("NODE %i: %s", i, def->nodes[i].name);
 		if (!strcmp(def->nodes[i].name, name))
 			return i;
 	}
 
-	debug_print("NODE COUNT: %i", def->node_count);
 	fail("Node not found: %s", name);
 }
 
