@@ -10,10 +10,11 @@
 
 typedef struct Renderer {
 	V3d cam_pos; // Directly written
-	F32 cam_fov; // Directly written
+	V2d cam_fov;
 
 	ModelEntity m_entities[MAX_MODELENTITY_COUNT];
-	ModelEntity m_entities_sort_space[MAX_MODELENTITY_COUNT];
+	ModelEntity
+		m_entities_sort_space[MAX_MODELENTITY_COUNT];
 	U32 next_m_entity;
 	U32 m_entity_count; // Statistics
 
@@ -26,7 +27,8 @@ typedef struct Renderer {
 	U32 ddraw_v_count;
 	U32 ddraw_i_count;
 
-	Texel grid_ddraw_data[GRID_CELL_COUNT]; // Directly written
+	// Directly written
+	Texel grid_ddraw_data[GRID_CELL_COUNT];
 	bool draw_grid;
 
 	U32 atlas_gl_id;
@@ -37,7 +39,7 @@ typedef struct Renderer {
 REVOLC_API void create_renderer();
 REVOLC_API void destroy_renderer();
 
-REVOLC_API U32 resurrect_modelentity(const ModelEntity *dead);
+REVOLC_API U32 resurrect_modelentity(const ModelEntity *d);
 REVOLC_API void free_modelentity(ModelEntity *m);
 REVOLC_API void * storage_modelentity();
 

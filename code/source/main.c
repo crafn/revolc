@@ -63,7 +63,7 @@ int main(int argc, const char **argv)
 
 	init_env();
 
-	Device *d= plat_init("Revolc engine", (V2i) {800, 800});
+	Device *d= plat_init("Revolc engine", (V2i) {1024, 768});
 
 	if (!file_exists(DEFAULT_BLOB_PATH))
 		make_main_blob();
@@ -129,6 +129,15 @@ int main(int argc, const char **argv)
 				g_env.renderer->cam_pos.z += spd*dt;
 
 			g_env.renderer->cam_pos.z -= g_env.device->mwheel_delta;
+
+			{ // Fov which cuts stuff away with non-square window
+				V2i win_size= g_env.device->win_size;
+				F64 fov_scale= MAX(win_size.x, win_size.y);
+				g_env.renderer->cam_fov= (V2d) {
+					2*atan(g_env.device->win_size.x/fov_scale),
+					2*atan(g_env.device->win_size.y/fov_scale)
+				};
+			}
 
 			if (d->key_down['e'])
 				spawn_entity(world, g_env.resblob, cursor_on_world);

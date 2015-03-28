@@ -47,10 +47,9 @@ M44f cam_matrix(const Renderer *r)
 {
 	F32 n= 0.1;
 	F32 f= 1.0;
-	F32 fov= r->cam_fov;
-	F32 h= tan(fov/2)*n;
-	/// @todo Aspect ratio
-	F32 w= h; // 1:1
+	V2d fov= r->cam_fov;
+	F32 h= tan(fov.y/2)*n;
+	F32 w= tan(fov.x/2)*n;
 
 	M44f p_matrix= {{
 		n/w, 0, 0, 0,
@@ -178,7 +177,7 @@ void create_renderer()
 
 	r->cam_pos.y= 5.0;
 	r->cam_pos.z= 10.0;
-	r->cam_fov= 3.141/2.0;
+	r->cam_fov= (V2d) {3.141/2.0, 3.0141/2.0};
 
 	r->vao= create_vao(MeshType_tri, MAX_DRAW_VERTEX_COUNT, MAX_DRAW_INDEX_COUNT);
 
@@ -219,8 +218,10 @@ void recache_modelentity(ModelEntity *e)
 	e->color= model->color;
 	e->atlas_uv= tex->atlas_uv;
 	e->scale_to_atlas_uv= scale_to_atlas_uv(tex->reso);
-	e->vertices= (TriMeshVertex*)mesh_vertices(model_mesh(model));
-	e->indices= (MeshIndexType*)mesh_indices(model_mesh(model));
+	e->vertices=
+		(TriMeshVertex*)mesh_vertices(model_mesh(model));
+	e->indices=
+		(MeshIndexType*)mesh_indices(model_mesh(model));
 	e->mesh_v_count= model_mesh(model)->v_count;
 	e->mesh_i_count= model_mesh(model)->i_count;
 }
@@ -233,7 +234,8 @@ U32 resurrect_modelentity(const ModelEntity *dead)
 		fail("Too many ModelEntities");
 
 	while (r->m_entities[r->next_m_entity].allocated)
-		r->next_m_entity= (r->next_m_entity + 1) % MAX_MODELENTITY_COUNT;
+		r->next_m_entity=
+			(r->next_m_entity + 1) % MAX_MODELENTITY_COUNT;
 
 	ModelEntity *e= &r->m_entities[r->next_m_entity];
 	*e= (ModelEntity) { .allocated= true };
@@ -283,15 +285,17 @@ void recache_compentity(CompEntity *e)
 		destroy_subentity(e->subs[i]);
 	e->sub_count= 0;
 
-	const CompDef *def= (CompDef*)res_by_name(	g_env.resblob,
-												ResType_CompDef,
-												e->def_name);
+	const CompDef *def=
+		(CompDef*)res_by_name(	g_env.resblob,
+								ResType_CompDef,
+								e->def_name);
 	e->armature= (Armature*)res_by_name(g_env.resblob,
 										ResType_Armature,
 										def->armature_name);
 
 	for (U32 i= 0; i < def->sub_count; ++i) {
-		e->subs[i]= create_subentity(e->armature, def->subs[i]);
+		e->subs[i]=
+			create_subentity(e->armature, def->subs[i]);
 		++e->sub_count;
 	}
 }
@@ -304,7 +308,8 @@ U32 resurrect_compentity(const CompEntity *dead)
 		fail("Too many CompEntities");
 
 	while (r->c_entities[r->next_c_entity].allocated)
-		r->next_c_entity= (r->next_c_entity + 1) % MAX_COMPENTITY_COUNT;
+		r->next_c_entity=
+			(r->next_c_entity + 1) % MAX_COMPENTITY_COUNT;
 	++r->c_entity_count;
 
 	const U32 h= r->next_c_entity;
@@ -337,31 +342,33 @@ int entity_cmp(const void *e1, const void *e2)
 {
 	// Smallest Z first (furthest away from camera)
 	// Uglier but faster than using temp vars with -O0
-	return	( ((ModelEntity*)e1)->tf.pos.z > ((ModelEntity*)e2)->tf.pos.z ) -
-			( ((ModelEntity*)e1)->tf.pos.z < ((ModelEntity*)e2)->tf.pos.z );
+	return	(	((ModelEntity*)e1)->tf.pos.z >
+				((ModelEntity*)e2)->tf.pos.z )
+			-
+			( ((ModelEntity*)e1)->tf.pos.z <
+				((ModelEntity*)e2)->tf.pos.z );
 }
 
 void render_frame()
 {
 	Renderer *r= g_env.renderer;
 
-	{ // Update CompEntities
-		for (U32 e_i= 0; e_i < MAX_COMPENTITY_COUNT; ++e_i) {
-			CompEntity *e= &r->c_entities[e_i];
-			if (!e->allocated)
-				continue;
-			ensure(e->armature);
+	// Update CompEntities
+	for (U32 e_i= 0; e_i < MAX_COMPENTITY_COUNT; ++e_i) {
+		CompEntity *e= &r->c_entities[e_i];
+		if (!e->allocated)
+			continue;
+		ensure(e->armature);
 
-			T3d global_pose[MAX_ARMATURE_JOINT_COUNT];
-			calc_global_pose(global_pose, e);
+		T3d global_pose[MAX_ARMATURE_JOINT_COUNT];
+		calc_global_pose(global_pose, e);
 
-			// Position subentities by global_pose
-			for (U32 s_i= 0; s_i < e->sub_count; ++s_i) {
-				const SubEntity *sub= &e->subs[s_i];
-				T3d tf= mul_t3d(global_pose[sub->joint_id],
-								t3f_to_t3d(sub->offset));
-				set_ventity_tf(sub->handle, sub->type, tf);
-			}
+		// Position subentities by global_pose
+		for (U32 s_i= 0; s_i < e->sub_count; ++s_i) {
+			const SubEntity *sub= &e->subs[s_i];
+			T3d tf= mul_t3d(global_pose[sub->joint_id],
+							t3f_to_t3d(sub->offset));
+			set_ventity_tf(sub->handle, sub->type, tf);
 		}
 	}
 
@@ -601,10 +608,9 @@ V2d screen_to_world_point(V2i p)
 		-2.0*p.y/g_env.device->win_size.y + 1.0
 	};
 
-	/// @todo Aspect ratio
 	V2d view_p= {
-		gl_p.x*tan(r->cam_fov*0.5)*r->cam_pos.z,
-		gl_p.y*tan(r->cam_fov*0.5)*r->cam_pos.z,
+		gl_p.x*tan(r->cam_fov.x*0.5)*r->cam_pos.z,
+		gl_p.y*tan(r->cam_fov.y*0.5)*r->cam_pos.z,
 	};
 
 	M44f m= inverted_m44f(view_matrix(r));
@@ -633,7 +639,8 @@ U32 find_modelentity_at_pixel(V2i p)
 		if (!g_env.renderer->m_entities[i].allocated)
 			continue;
 
-		V3d entity_pos= g_env.renderer->m_entities[i].tf.pos;
+		V3d entity_pos=
+			g_env.renderer->m_entities[i].tf.pos;
 		F64 dist= dist_sqr_v3d(entity_pos, wp);
 		if (	closest_h == NULL_HANDLE ||
 				dist < closest_dist) {
@@ -713,11 +720,13 @@ void recache_ptrs_to_armatures()
 		if (!e->allocated)
 			continue;
 
-		const CompDef *def= (CompDef*)res_by_name(	g_env.resblob,
-													ResType_CompDef,
-													e->def_name);
-		e->armature= (Armature*)res_by_name(g_env.resblob,
-											ResType_Armature,
-											def->armature_name);
+		const CompDef *def=
+			(CompDef*)res_by_name(	g_env.resblob,
+									ResType_CompDef,
+									e->def_name);
+		e->armature=
+			(Armature*)res_by_name(	g_env.resblob,
+									ResType_Armature,
+									def->armature_name);
 	}
 }
