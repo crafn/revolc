@@ -223,7 +223,8 @@ void plat_update_impl(Device *d)
 {
 	glXSwapBuffers(d->impl->dpy, d->impl->win);
 
-	for (int i= 0; i < KEYBOARD_KEY_COUNT; ++i)
+	d->mwheel_delta= 0.0;
+	for (int i= 0; i < KEY_COUNT; ++i)
 		d->key_pressed[i]= d->key_released[i]= false;
 	d->quit_requested= false;
 
@@ -244,7 +245,7 @@ void plat_update_impl(Device *d)
 			//debug_print("keysym: %i", *keysym);
 
 			int table_index= 0;
-			if (*keysym < KEYBOARD_KEY_COUNT)
+			if (*keysym < KEY_COUNT)
 				table_index= *keysym;
 			else if (*keysym >= 65470 && *keysym <= 65481)
 				table_index= KEY_F1 + (*keysym - 65470);
@@ -270,7 +271,10 @@ void plat_update_impl(Device *d)
 			XFree(keysym);
 		}
 
-		if (xev.xbutton.type == ButtonPress || xev.xbutton.type == ButtonRelease) {
+		// Mouse buttons
+		if (	xev.xkey.keycode >= 1 && xev.xkey.keycode <= 3 &&
+				(xev.xbutton.type == ButtonPress ||
+				 xev.xbutton.type == ButtonRelease)) {
 			int key= KEY_LMB;
 			if (xev.xkey.keycode == 2)
 				key= KEY_MMB;
@@ -281,6 +285,12 @@ void plat_update_impl(Device *d)
 			d->key_down[key]= (xev.xbutton.type == ButtonPress);
 			d->key_released[key]= (xev.xbutton.type == ButtonRelease);
 		}
+
+		// Scroll
+		if (xev.xbutton.type == ButtonPress && xev.xkey.keycode == 4)
+			d->mwheel_delta= 1.0;
+		if (xev.xbutton.type == ButtonPress && xev.xkey.keycode == 5)
+			d->mwheel_delta= -1.0;
 	}
 
 	XWindowAttributes gwa;
@@ -373,16 +383,16 @@ void plat_set_term_color(TermColor c)
 	switch (c) {
 	case TermColor_default: str= "\033[0m"; break;
 	case TermColor_red: str= "\033[0;31m"; break;
-	default: fail("plat_set_term_color: Unknown color: %i", i);
+	default: fail("plat_set_term_color: Unknown color: %i", c);
 	}
-	printf(str);
+	printf("%s", str);
 }
 
 int fmt_str(char *str, U32 size, const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
-	int ret= vfmt_str(str, size, _TRUNCATE, fmt, args);
+	int ret= vsnprintf(str, size, fmt, args);
 	va_end(args);
 	return ret;
 }
