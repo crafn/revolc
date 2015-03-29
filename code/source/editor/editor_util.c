@@ -1,4 +1,5 @@
 #include "editor_util.h"
+#include "visual/font.h"
 
 void gui_wrap(V2i *p, V2i *s)
 {
@@ -168,6 +169,42 @@ void gui_model_image(V2i pix_pos, V2i pix_size, ModelEntity *src_model)
 	ModelEntity *e= get_modelentity(handle);
 	e->atlas_uv= src_model->atlas_uv;
 	e->scale_to_atlas_uv= src_model->scale_to_atlas_uv;
+}
+
+void gui_text(V2i pix_pos, const char *text)
+{
+	Font *font=
+		(Font*)res_by_name(	g_env.resblob,
+							ResType_Font,
+							"dev");
+	V3d pos= v2d_to_v3d(screen_to_world_point(pix_pos)); 
+	V3d size=
+		v2d_to_v3d(screen_to_world_size((V2i) {1, 1}));
+
+	ModelEntity init;
+	init_modelentity(&init);
+	U32 handle= resurrect_modelentity(&init);
+	ModelEntity *e= get_modelentity(handle);
+	e->tf.pos= pos;
+	e->tf.scale= size;
+	e->free_after_draw= true;
+	e->atlas_uv= font->atlas_uv;
+	e->scale_to_atlas_uv= font->scale_to_atlas_uv;
+
+	const U32 max_quad_count= strlen(text);
+	const U32 max_vert_count= 4*max_quad_count;
+	const U32 max_ind_count= 6*max_quad_count;
+	e->vertices=
+		frame_alloc(sizeof(*e->vertices)*max_vert_count);
+	e->indices=
+		frame_alloc(sizeof(*e->indices)*max_ind_count);
+	U32 quad_count= text_mesh(	e->vertices,
+								e->indices,
+								font,
+								pix_pos,
+								text);
+	e->mesh_v_count= 4*quad_count;
+	e->mesh_i_count= 6*quad_count;
 }
 
 EditorBoxState gui_editorbox(	const char *label,

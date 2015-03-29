@@ -8,6 +8,16 @@
 #include "renderer.h"
 #include "resources/resblob.h"
 
+internal
+V2f scale_to_atlas_uv(V2i reso)
+{
+	return (V2f) {
+		(F32)reso.x/TEXTURE_ATLAS_WIDTH,
+		(F32)reso.y/TEXTURE_ATLAS_WIDTH,
+	};
+}
+
+
 // Separated to function, because this switch in a loop
 // caused odd regression with -O0; fps was halved for some reason
 // even though the code was run only once per frame
@@ -63,10 +73,14 @@ M44f cam_matrix(const Renderer *r)
 
 /// Helper in `recreate_texture_atlas`
 typedef struct TexInfo {
-	Texture *tex;
+	const char *name;
 	V2i reso;
+
 	V3f *atlas_uv;
+	V2f *scale_to_atlas_uv;
+
 	Texel *texels;
+	bool free_texels;
 } TexInfo;
 
 internal
@@ -106,39 +120,68 @@ void recreate_texture_atlas(Renderer *r, ResBlob *blob)
 
 	// Gather TexInfos
 	/// @todo MissingResource
-	U32 tex_count= 0;
-	TexInfo *texs= NULL;
+	U32 tex_info_count= 0;
+	TexInfo *tex_infos= NULL;
 	{
-		U32 first_res;
-		all_res_by_type(&first_res, &tex_count, blob, ResType_Texture);
-		texs= malloc(sizeof(*texs)*tex_count);
-		for (	U32 cur_res= first_res, i= 0;
-				i < tex_count;
-				++cur_res, ++i) {
-			Texture *tex= (Texture*)res_by_index(blob, cur_res);
-			texs[i]= (TexInfo) {
-				.tex= tex,
+		U32 first_tex_res, tex_count;
+		U32 first_font_res, font_count;
+		all_res_by_type(&first_tex_res,
+						&tex_count,
+						blob,
+						ResType_Texture);
+		all_res_by_type(&first_font_res,
+						&font_count,
+						blob,
+						ResType_Font);
+
+		tex_info_count= tex_count + font_count;
+		tex_infos=
+			malloc(sizeof(*tex_infos)*(tex_info_count));
+		U32 i= 0;
+		for (	U32 cur_res= first_tex_res;
+				cur_res < first_tex_res + tex_count;
+				++cur_res) {
+			Texture *tex=
+				(Texture*)res_by_index(blob, cur_res);
+			tex_infos[i++]= (TexInfo) {
+				.name= tex->res.name,
 				.reso= tex->reso,
 				.atlas_uv= &tex->atlas_uv,
 				.texels= tex->texels,
 			};
 		}
-		qsort(texs, tex_count, sizeof(*texs), texinfo_cmp);
+		for (	U32 cur_res= first_font_res;
+				cur_res < first_font_res + font_count;
+				++cur_res) {
+			Font *font=
+				(Font*)res_by_index(blob, cur_res);
+			tex_infos[i++]= (TexInfo) {
+				.name= font->res.name,
+				.reso= font->bitmap_reso,
+				.atlas_uv= &font->atlas_uv,
+				.scale_to_atlas_uv= &font->scale_to_atlas_uv,
+				.texels= malloc_rgba_font_bitmap(font),
+			};
+		}
+
+		qsort(	tex_infos, tex_info_count,
+				sizeof(*tex_infos), texinfo_cmp);
 	}
 
 	// Blit to atlas
 	int x= 0, y= 0, z= 0;
 	int last_row_height= 0;
-	for (U32 i= 0; i < tex_count; ++i) {
-		TexInfo *tex= &texs[i];
+	const int margin= 1;
+	for (U32 i= 0; i < tex_info_count; ++i) {
+		TexInfo *tex= &tex_infos[i];
 
 		if (	tex->reso.x > TEXTURE_ATLAS_WIDTH ||
 				tex->reso.y > TEXTURE_ATLAS_WIDTH)
 			fail("Too large texture (max %i): %s",
-					TEXTURE_ATLAS_WIDTH, tex->tex->res.name);
+					TEXTURE_ATLAS_WIDTH, tex->name);
 
 		if (x + tex->reso.x > TEXTURE_ATLAS_WIDTH) {
-			y += last_row_height;
+			y += last_row_height + margin;
 			x= 0;
 			last_row_height= 0;
 		}
@@ -150,24 +193,33 @@ void recreate_texture_atlas(Renderer *r, ResBlob *blob)
 		}
 
 		if (z > layers)
-			critical_print("Texture atlas full!");
+			fail("Texture atlas full!");
 
 		glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0,
 				x, y, z,
 				tex->reso.x, tex->reso.y, 1,
 				GL_RGBA, GL_UNSIGNED_BYTE, tex->texels);
+		if (tex->free_texels) {
+			free(tex->texels);
+			tex->texels= NULL;
+		}
+
 		*tex->atlas_uv= (V3f) {
 			(F32)x/TEXTURE_ATLAS_WIDTH,
 			(F32)y/TEXTURE_ATLAS_WIDTH,
 			z
 		};
+		if (tex->scale_to_atlas_uv) {
+			*tex->scale_to_atlas_uv=
+				scale_to_atlas_uv(tex->reso);
+		}
 
-		x += tex->reso.x + 1; // Prevent bleeding due to floating point errors
+		x += tex->reso.x + margin;
 		if (tex->reso.y > last_row_height)
 			last_row_height= tex->reso.y;
 	}
 
-	free(texs);
+	free(tex_infos);
 	gl_check_errors("recreate_texture_atlas: end");
 }
 
@@ -198,17 +250,11 @@ void destroy_renderer()
 }
 
 internal
-V2f scale_to_atlas_uv(V2i reso)
-{
-	return (V2f) {
-		(F32)reso.x/TEXTURE_ATLAS_WIDTH,
-		(F32)reso.y/TEXTURE_ATLAS_WIDTH,
-	};
-}
-
-internal
 void recache_modelentity(ModelEntity *e)
 {
+	if (e->model_name[0] == '\0')
+		return;
+
 	const Model *model=
 		(Model*)res_by_name(
 					g_env.resblob,

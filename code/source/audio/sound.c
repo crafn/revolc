@@ -287,7 +287,6 @@ F32 *malloc_decoded_ogg_vorbis(U32 *frame_count, U32 *ch_count, U8 *ogg_data, U3
 
 int json_sound_to_blob(struct BlobBuf *buf, JsonTok j)
 {
-	char *total_path= NULL;
 	U8 *file_contents= NULL;
 	F32 *samples= NULL;
 	int return_value= 0;
@@ -298,7 +297,8 @@ int json_sound_to_blob(struct BlobBuf *buf, JsonTok j)
 		goto error;
 	}
 
-	total_path= malloc_joined_path(j.json_path, json_str(j_file));
+	char total_path[MAX_PATH_SIZE];
+	joined_path(total_path, j.json_path, json_str(j_file));
 
 	U32 file_size;
 	file_contents= malloc_file(total_path, &file_size);
@@ -315,7 +315,6 @@ int json_sound_to_blob(struct BlobBuf *buf, JsonTok j)
 cleanup:
 	free(samples);
 	free(file_contents);
-	free(total_path);
 	return return_value;
 
 error:

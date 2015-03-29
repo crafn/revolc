@@ -37,6 +37,7 @@
 #include "visual/compdef.c"
 #include "visual/compentity.c"
 #include "visual/ddraw.c"
+#include "visual/font.c"
 #include "visual/mesh.c"
 #include "visual/model.c"
 #include "visual/modelentity.c"

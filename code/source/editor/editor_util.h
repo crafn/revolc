@@ -28,6 +28,8 @@ REVOLC_API void gui_quad(V2i pix_pos, V2i pix_size, Color c);
 REVOLC_API void gui_model_image(	V2i pix_pos,
 									V2i pix_size, ModelEntity *src_model);
 
+REVOLC_API void gui_text(V2i pix_pos, const char *text);
+
 // Some common functionality, like scale/grab/rotate
 EditorBoxState gui_editorbox(	const char *label,
 								V2i pix_pos,

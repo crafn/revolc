@@ -43,6 +43,8 @@ void gui_armature_overlay(U32 *comp_h, bool *is_edit_mode)
 	T3d global_pose[MAX_ARMATURE_JOINT_COUNT];
 	calc_global_pose(global_pose, entity);
 
+	gui_text((V2i) {100, 100}, a->res.name);
+
 	if (ctx->dev.toggle_select_all) {
 		if (*is_edit_mode) {
 			bool some_selected= false;

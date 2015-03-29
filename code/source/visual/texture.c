@@ -14,13 +14,13 @@ int json_texture_to_blob(struct BlobBuf *buf, JsonTok j)
 	int return_value= 0;
 	U8 *image= NULL;
 	U8 *flipped_image= NULL;
-	char *total_path= NULL;
 
 	JsonTok j_file= json_value_by_key(j, "file");
 	if (json_is_null(j_file))
 		RES_ATTRIB_MISSING("file");
 
-	total_path= malloc_joined_path(j.json_path, json_str(j_file));
+	char total_path[MAX_PATH_SIZE];
+	joined_path(total_path, j.json_path, json_str(j_file));
 
 	const int comps= 4;
 	U32 width, height;
@@ -52,7 +52,6 @@ int json_texture_to_blob(struct BlobBuf *buf, JsonTok j)
 cleanup:
 	free(image);
 	free(flipped_image);
-	free(total_path);
 	return return_value;
 
 error:

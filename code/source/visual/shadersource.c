@@ -73,8 +73,6 @@ int json_shadersource_to_blob(struct BlobBuf *buf, JsonTok j)
 	int return_value= 0;
 	char *vs_src= NULL; /// @warning Not null-terminated!
 	char *fs_src= NULL; /// @warning Not null-terminated!
-	char *vs_total_path= NULL;
-	char *fs_total_path= NULL;
 
 	JsonTok j_vs_file= json_value_by_key(j, "vs_file");
 	JsonTok j_fs_file= json_value_by_key(j, "fs_file");
@@ -89,8 +87,14 @@ int json_shadersource_to_blob(struct BlobBuf *buf, JsonTok j)
 		goto error;
 	}
 
-	vs_total_path= malloc_joined_path(j.json_path, json_str(j_vs_file));
-	fs_total_path= malloc_joined_path(j.json_path, json_str(j_fs_file));
+	char vs_total_path[MAX_PATH_SIZE];
+	char fs_total_path[MAX_PATH_SIZE];
+	joined_path(	vs_total_path,
+					j.json_path,
+					json_str(j_vs_file));
+	joined_path(	fs_total_path,
+					j.json_path,
+					json_str(j_fs_file));
 
 	U32 vs_src_len;
 	U32 fs_src_len;
@@ -118,8 +122,6 @@ int json_shadersource_to_blob(struct BlobBuf *buf, JsonTok j)
 	blob_write(buf, &null_byte, 1);
 
 cleanup:
-	free(vs_total_path);
-	free(fs_total_path);
 	free(vs_src);
 	free(fs_src);
 	return return_value;

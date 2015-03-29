@@ -36,6 +36,9 @@
 #include <ogg/src/bitwise.c>
 #include <ogg/src/framing.c>
 
+#define STB_TRUETYPE_IMPLEMENTATION
+#include <stb/stb_truetype.h>
+
 #include <vorbis/lib/analysis.c>
 #include <vorbis/lib/bitrate.c>
 #include <vorbis/lib/block.c>

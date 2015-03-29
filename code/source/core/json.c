@@ -47,7 +47,11 @@ ParsedJsonFile malloc_parsed_json_file(const char *file)
 		}
 
 		ret.root.json_path= file;
-		ret.root.json_dir= malloc_path_to_dir(file);
+
+		char *path= malloc(MAX_PATH_SIZE);
+		ret.root.json_dir= path;
+		path_to_dir(path, file);
+
 		ret.root.json= ret.json;
 		ret.root.null_json= ret.null_json;
 		ret.root.tok= ret.tokens;
