@@ -31,6 +31,7 @@
 #include "platform/device.c"
 #include "platform/file.c"
 #include "platform/gl.c"
+#include "platform/stdlib.c"
 #include "resources/resblob.c"
 #include "resources/resource.c"
 #include "ui/uicontext.c"

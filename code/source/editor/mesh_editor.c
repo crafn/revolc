@@ -277,6 +277,11 @@ void do_mesh_editor(U32 *model_h, bool *is_edit_mode, bool active)
 		if (*model_h != NULL_HANDLE)
 			m= get_modelentity(*model_h);
 
+		gui_res_info(	ResType_Model,
+						m ? res_by_name(g_env.resblob,
+										ResType_Model,
+										m->model_name) : NULL);
+
 		const S32 box_size= 400;
 		gui_uvbox(	(V2i) {-box_size, 0},
 					(V2i) {box_size, box_size},

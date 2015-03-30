@@ -33,8 +33,7 @@ void gui_armature_overlay(U32 *comp_h, bool *is_edit_mode)
 		if (state.down)
 			*comp_h= find_compentity_at_pixel(ctx->dev.cursor_pos);
 	}
-	gui_text((V2i) {100, 100}, "Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Sed posuere interdum sem. Quisque ligula eros ullamcorper quis, lacinia quis facilisis sed sapien.\n Mauris varius diam vitae arcu. Sed arcu lectus auctor vitae, consectetuer et venenatis eget velit. Sed augue orci, lacinia eu tincidunt et eleifend nec lacus. Donec ultricies nisl ut felis, suspendisse potenti.\n Lorem ipsum ligula ut hendrerit mollis, ipsum erat vehicula risus, eu suscipit sem libero nec erat. Aliquam erat volutpat. Sed congue augue vitae neque. Nulla consectetuer porttitor pede. Fusce purus morbi\n tortor magna condimentum vel, placerat id blandit sit amet tortor.");
-
+	
 	CompEntity *entity= NULL;
 	if (*comp_h != NULL_HANDLE)
 		entity= get_compentity(*comp_h);
@@ -43,8 +42,6 @@ void gui_armature_overlay(U32 *comp_h, bool *is_edit_mode)
 	Armature *a= entity->armature;
 	T3d global_pose[MAX_ARMATURE_JOINT_COUNT];
 	calc_global_pose(global_pose, entity);
-
-	gui_text((V2i) {100, 120}, a->res.name);
 
 	if (ctx->dev.toggle_select_all) {
 		if (*is_edit_mode) {
@@ -130,8 +127,32 @@ void do_armature_editor(	U32 *comp_h,
 							bool *is_edit_mode,
 							bool active)
 {
-	if (active)
+	if (active) {
 		gui_armature_overlay(comp_h, is_edit_mode);
+
+		CompEntity *entity= NULL;
+		Armature *a= NULL;
+		if (*comp_h != NULL_HANDLE) {
+			entity= get_compentity(*comp_h);
+			a= entity->armature;	
+		}
+
+		gui_res_info(ResType_Armature, a ? &a->res : NULL);
+
+		{ // Timeline
+			V2i px_pos= {0, -100};
+			V2i px_size= {g_env.device->win_size.x, 100};
+
+			gui_quad(px_pos, px_size, gui_dev_panel_color());
+
+			bool btn_down;
+			gui_text(px_pos, "Clip: ");
+			gui_button(add_v2i(px_pos, (V2i) {40, 0}), "Nappi", &btn_down);
+			if (btn_down) {
+				debug_print("PRESS");
+			}
+		}
+	}
 
 	// Draw armature
 	if (*comp_h != NULL_HANDLE){

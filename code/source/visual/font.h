@@ -31,12 +31,12 @@ int json_font_to_blob(struct BlobBuf *buf, JsonTok j);
 
 Texel * malloc_rgba_font_bitmap(const Font *font);
 
-// Returns written char count
+// Mesh is in OpenGL-like coordinates (but px sized)
+// Origin is at upper left corner of the text
 REVOLC_API WARN_UNUSED
 U32 text_mesh(	TriMeshVertex *verts, // len(text)*4
 				MeshIndexType *inds, // len(text)*6
 				const Font *font,
-				V2i p,
 				const char *text);
 
 #endif // REVOLC_VISUAL_FONT_H

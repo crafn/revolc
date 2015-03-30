@@ -388,11 +388,5 @@ void plat_set_term_color(TermColor c)
 	printf("%s", str);
 }
 
-int fmt_str(char *str, U32 size, const char *fmt, ...)
-{
-	va_list args;
-	va_start(args, fmt);
-	int ret= vsnprintf(str, size, fmt, args);
-	va_end(args);
-	return ret;
-}
+int v_fmt_str(char *str, U32 size, const char *fmt, va_list args)
+{ return vsnprintf(str, size, fmt, args); }

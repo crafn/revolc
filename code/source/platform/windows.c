@@ -292,20 +292,17 @@ void plat_set_term_color(TermColor c)
 	SetConsoleTextAttribute(h, i);
 }
 
-int fmt_str(char *str, U32 size, const char *fmt, ...)
+int v_fmt_str(char *str, U32 size, const char *fmt, va_list args)
 {
-	if (size == 0)
+	if (size == 0 && str)
 		return 0;
 
-	va_list args;
-	va_start(args, fmt);
 	// For some reason this mingw distro doesn't have vsnprintf_s. Must terminate manually
 	int ret= vsnprintf(str, size, fmt, args);
-	if (ret >= size) {
+	if (str && ret >= size) {
 		str[size - 1]= 0;
 		ret= size - 1;
 	}
-	va_end(args);
 	return ret;
 }
 
