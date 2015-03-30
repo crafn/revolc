@@ -33,6 +33,7 @@ void gui_armature_overlay(U32 *comp_h, bool *is_edit_mode)
 		if (state.down)
 			*comp_h= find_compentity_at_pixel(ctx->dev.cursor_pos);
 	}
+	gui_text((V2i) {100, 100}, "Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Sed posuere interdum sem. Quisque ligula eros ullamcorper quis, lacinia quis facilisis sed sapien.\n Mauris varius diam vitae arcu. Sed arcu lectus auctor vitae, consectetuer et venenatis eget velit. Sed augue orci, lacinia eu tincidunt et eleifend nec lacus. Donec ultricies nisl ut felis, suspendisse potenti.\n Lorem ipsum ligula ut hendrerit mollis, ipsum erat vehicula risus, eu suscipit sem libero nec erat. Aliquam erat volutpat. Sed congue augue vitae neque. Nulla consectetuer porttitor pede. Fusce purus morbi\n tortor magna condimentum vel, placerat id blandit sit amet tortor.");
 
 	CompEntity *entity= NULL;
 	if (*comp_h != NULL_HANDLE)
@@ -43,7 +44,7 @@ void gui_armature_overlay(U32 *comp_h, bool *is_edit_mode)
 	T3d global_pose[MAX_ARMATURE_JOINT_COUNT];
 	calc_global_pose(global_pose, entity);
 
-	gui_text((V2i) {100, 100}, a->res.name);
+	gui_text((V2i) {100, 120}, a->res.name);
 
 	if (ctx->dev.toggle_select_all) {
 		if (*is_edit_mode) {

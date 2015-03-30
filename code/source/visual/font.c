@@ -20,12 +20,17 @@ int json_font_to_blob(struct BlobBuf *buf, JsonTok j)
 	bitmap= malloc(reso*reso);
 	Font font= {
 		.bitmap_reso= {reso, reso},
+		.px_height= 13*16.0/12.0,
 	};
-	// @todo Don't ship with this they say
-	stbtt_BakeFontBitmap(	ttf_data, 0, 32.0,
-							bitmap, reso, reso,
-							32, 96,
-							font.chars);
+
+	stbtt_pack_context ctx;
+	stbtt_PackBegin(&ctx, bitmap, reso, reso, 0, 0, NULL);
+	stbtt_PackSetOversampling(&ctx, 1, 1);
+	stbtt_PackFontRange(&ctx, ttf_data, 0, font.px_height,
+						FONT_CHAR_BEGIN,
+						FONT_CHAR_COUNT,
+						font.chars);
+	stbtt_PackEnd(&ctx);
 
 	U32 res_size= sizeof(font) - sizeof(Resource);
 	font.bitmap_offset= buf->offset + res_size;
@@ -67,21 +72,25 @@ U32 text_mesh(	TriMeshVertex *verts,
 				V2i p,
 				const char *text)
 {
+	F32 x= p.x, y= p.y;
 	U32 count= 0;
 	U32 v_i= 0;
 	while (*text) {
-		if (*text >= 32 && *text < 128) {
-			F32 x= p.x, y= p.y;
+		if (*text == '\n') {
+			x= p.x;
+			y += font->px_height;
+		}
+
+		if (	*text >= FONT_CHAR_BEGIN &&
+				*text < FONT_CHAR_END) {
 			stbtt_aligned_quad q;
-			stbtt_GetBakedQuad(	(void *)font->chars,
-								512, 512,
-								*text-32,
+			stbtt_GetPackedQuad((void *)font->chars,
+								font->bitmap_reso.x,
+								font->bitmap_reso.y,
+								*text - FONT_CHAR_BEGIN,
 								&x, &y,
 								&q,
 								1);
-			p.x= x;
-			p.y= y;
-
 			verts[v_i + 0].pos= (V3f) {q.x0, q.y0};
 			verts[v_i + 1].pos= (V3f) {q.x1, q.y0};
 			verts[v_i + 2].pos= (V3f) {q.x1, q.y1};

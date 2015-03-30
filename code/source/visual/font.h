@@ -7,7 +7,9 @@
 
 #include <stb/stb_truetype.h>
 
-#define FONT_BAKEDCHAR_COUNT 96 // ASCII 32..126
+#define FONT_CHAR_BEGIN 32
+#define FONT_CHAR_COUNT 96 // ASCII 32..126
+#define FONT_CHAR_END (FONT_CHAR_BEGIN + FONT_CHAR_COUNT)
 
 typedef struct Font {
 	Resource res;
@@ -16,11 +18,12 @@ typedef struct Font {
 	V3f atlas_uv;
 	V2f scale_to_atlas_uv;
 
-	stbtt_bakedchar chars[FONT_BAKEDCHAR_COUNT];
+	stbtt_packedchar chars[FONT_CHAR_COUNT];
 	// @todo Should probably have rgba bitmap, or ttf data.
 	//       Monochrome bitmap is no good for anyone.
 	BlobOffset bitmap_offset; // U8
 	V2i bitmap_reso;
+	F32 px_height;
 } PACKED Font;
 
 REVOLC_API WARN_UNUSED
