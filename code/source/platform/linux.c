@@ -1,6 +1,9 @@
 #include "core/vector.h"
 #include "platform/dll.h"
 
+// Prevent X11 header from typedeffing `Font`
+#define _XTYPEDEF_FONT
+
 #include <dlfcn.h>
 #include <GL/glx.h>
 #include <X11/X.h>
