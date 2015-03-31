@@ -5,9 +5,8 @@ void init_compentity(CompEntity *data)
 {
 	*data= (CompEntity) {
 		.tf= identity_t3d(),
+		.pose= identity_pose(),
 	};
-	for (U32 i= 0; i < MAX_ARMATURE_JOINT_COUNT; ++i)
-		data->pose.tf[i]= identity_t3f();
 }
 
 SubEntity create_subentity(const Armature *a, CompDef_Sub sub)

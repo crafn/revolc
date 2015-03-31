@@ -32,7 +32,7 @@ REVOLC_API void gui_model_image(	V2i px_pos,
 
 REVOLC_API void gui_text(V2i px_pos, const char *fmt, ...);
 
-REVOLC_API bool gui_button(V2i px_pos, const char *label, bool *is_down);
+REVOLC_API bool gui_button(V2i px_pos, const char *label, bool *is_down, bool *hovered);
 
 // Top-left box
 REVOLC_API void gui_res_info(ResType t, const Resource *res);

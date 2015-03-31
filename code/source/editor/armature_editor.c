@@ -20,7 +20,7 @@ Armature *create_rt_armature(Armature *src)
 
 // Armature editing on world
 internal
-void gui_armature_overlay(U32 *comp_h, bool *is_edit_mode)
+void gui_armature_overlay(U32 *comp_h, bool is_edit_mode)
 {
 	UiContext *ctx= g_env.uicontext;
 	V3d cur_wp= v2d_to_v3d(screen_to_world_point(ctx->dev.cursor_pos));
@@ -29,7 +29,7 @@ void gui_armature_overlay(U32 *comp_h, bool *is_edit_mode)
 	EditorBoxState state=
 		gui_editorbox(box_label, (V2i) {0, 0}, g_env.device->win_size, true);
 
-	if (!*is_edit_mode) {
+	if (!is_edit_mode) {
 		if (state.down)
 			*comp_h= find_compentity_at_pixel(ctx->dev.cursor_pos);
 	}
@@ -44,7 +44,7 @@ void gui_armature_overlay(U32 *comp_h, bool *is_edit_mode)
 	calc_global_pose(global_pose, entity);
 
 	if (ctx->dev.toggle_select_all) {
-		if (*is_edit_mode) {
+		if (is_edit_mode) {
 			bool some_selected= false;
 			for (U32 i= 0; i < a->joint_count; ++i) {
 				if (a->joints[i].selected)
@@ -59,7 +59,7 @@ void gui_armature_overlay(U32 *comp_h, bool *is_edit_mode)
 		}
 	}
 
-	if (*is_edit_mode) {
+	if (is_edit_mode) {
 		for (U32 i= 0; i < a->joint_count; ++i) {
 			if (!a->joints[i].selected)
 				continue;
@@ -96,7 +96,7 @@ void gui_armature_overlay(U32 *comp_h, bool *is_edit_mode)
 
 	}
 
-	if (*is_edit_mode && state.pressed) {
+	if (is_edit_mode && state.pressed) {
 		// Control joint selection
 		F64 closest_dist= 0;
 		U32 closest_i= NULL_HANDLE;
@@ -123,23 +123,24 @@ void gui_armature_overlay(U32 *comp_h, bool *is_edit_mode)
 	}
 }
 
-void do_armature_editor(	U32 *comp_h,
-							bool *is_edit_mode,
+void do_armature_editor(	ArmatureEditor *state,
+							bool is_edit_mode,
 							bool active)
 {
 	if (active) {
-		gui_armature_overlay(comp_h, is_edit_mode);
+		gui_armature_overlay(&state->comp_h, is_edit_mode);
 
 		CompEntity *entity= NULL;
 		Armature *a= NULL;
-		if (*comp_h != NULL_HANDLE) {
-			entity= get_compentity(*comp_h);
+		if (state->comp_h != NULL_HANDLE) {
+			entity= get_compentity(state->comp_h);
 			a= entity->armature;	
 		}
 
 		gui_res_info(ResType_Armature, a ? &a->res : NULL);
 
 		{ // Timeline
+			// @todo Layouting to gui -- no more pixel calcs here!
 			V2i px_pos= {0, -100};
 			V2i px_size= {g_env.device->win_size.x, 100};
 
@@ -147,16 +148,70 @@ void do_armature_editor(	U32 *comp_h,
 
 			bool btn_down;
 			gui_text(px_pos, "Clip: ");
-			gui_button(add_v2i(px_pos, (V2i) {40, 0}), "Nappi", &btn_down);
-			if (btn_down) {
-				debug_print("PRESS");
+			if (strlen(state->clip_name) == 0)
+				fmt_str(state->clip_name, RES_NAME_SIZE,
+						"%s", "bind_pose");
+
+			U32 clip_begin, clip_count;
+			all_res_by_type(&clip_begin, &clip_count,
+							g_env.resblob, ResType_Clip);
+
+			V2i button_pos= add_v2i(px_pos, (V2i) {40, 0});
+			bool released=
+				gui_button(button_pos, state->clip_name, &btn_down, NULL);
+			if (btn_down || released) {
+				for (int i= clip_begin - 1; i < clip_begin + clip_count; ++i) {
+					button_pos.y -= 20;
+					const char *name= "bind_pose";
+					if (i >= clip_begin) {
+						Clip *clip= (Clip*)res_by_index(g_env.resblob, i);
+						name= clip->res.name;
+					}
+					bool hovered;
+					gui_button(button_pos, name, NULL, &hovered);
+					if (released && hovered) {
+						fmt_str(state->clip_name, RES_NAME_SIZE, "%s", name);
+					}
+				}
+			}
+
+			V2i play_pos= add_v2i(px_pos, (V2i) {100, 0});
+			const char *play_str= state->is_playing ? "Stop" : "Play";
+			if (gui_button(play_pos, play_str, NULL, NULL))
+				toggle_bool(&state->is_playing);
+
+			if (entity && a) {
+				if (strcmp(state->clip_name, "bind_pose") != 0) {
+					// View current pose from timeline
+					const Clip *clip=
+						(Clip*)res_by_name(	g_env.resblob,
+											ResType_Clip,
+											state->clip_name);
+
+					if (state->is_playing)
+						state->clip_time += g_env.device->dt;
+					while (state->clip_time > clip->duration)
+						state->clip_time -= clip->duration;
+					entity->pose= calc_clip_pose(clip, state->clip_time);
+
+					F64 lerp= state->clip_time/clip->duration;
+					V2i time_cursor_pos= {px_size.x*lerp, px_pos.y};
+					gui_quad(	time_cursor_pos, (V2i){2, px_size.y},
+								(Color) {1, 1, 0, 0.8});
+				}
+
+				if (!strcmp(state->clip_name, "bind_pose")) {
+					// Set bind pose
+					entity->pose= identity_pose();
+					state->is_playing= false;
+				}
 			}
 		}
 	}
 
 	// Draw armature
-	if (*comp_h != NULL_HANDLE){
-		CompEntity *entity= get_compentity(*comp_h);
+	if (state->comp_h != NULL_HANDLE){
+		CompEntity *entity= get_compentity(state->comp_h);
 		Armature *a= entity->armature;
 		T3d global_pose[MAX_ARMATURE_JOINT_COUNT];
 		calc_global_pose(global_pose, entity);
@@ -165,7 +220,7 @@ void do_armature_editor(	U32 *comp_h,
 		Color selected_color= {1.0, 0.8, 0.5, 0.7};
 		Color line_color= {0.0, 0.0, 0.0, 1.0};
 		Color orientation_color= {1.0, 1.0, 1.0, 0.8};
-		if (!*is_edit_mode)
+		if (!is_edit_mode)
 			line_color= selected_color;
 		if (!active) {
 			default_color= inactive_color();
@@ -187,7 +242,7 @@ void do_armature_editor(	U32 *comp_h,
 			}
 
 			Color c= default_color;
-			if (a->joints[i].selected || !*is_edit_mode)
+			if (a->joints[i].selected || !is_edit_mode)
 				c= selected_color;
 			ddraw_poly(c, v, v_count);
 

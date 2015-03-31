@@ -24,7 +24,7 @@ REVOLC_API Resource * res_by_index(const ResBlob *blob, U32 index);
 REVOLC_API Resource * res_by_name(ResBlob *b, ResType t, const char *n);
 REVOLC_API bool res_exists(const ResBlob *blob, ResType t, const char *n);
 REVOLC_API Resource * find_res_by_name(const ResBlob *b, ResType t, const char *n);
-/// @todo Should take substitutes account somehow
+/// @todo Should take substitutes/dynamic account somehow
 REVOLC_API void all_res_by_type(U32 *start_index, U32 *count,
 								const ResBlob *blob, ResType t);
 

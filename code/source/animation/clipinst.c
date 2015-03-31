@@ -19,9 +19,6 @@ U32 resurrect_clipinst(ClipInst *dead)
 void upd_clipinst(ClipInst *inst, ClipInst *e)
 {
 	F32 dt= g_env.world->dt;
-
-	// -1's are in the calculations because last frame
-	// is only for interpolation target.
 	for (; inst != e; ++inst) {
 		const Clip *c= inst->clip;
 
@@ -29,21 +26,6 @@ void upd_clipinst(ClipInst *inst, ClipInst *e)
 		while(inst->t > c->duration)
 			inst->t -= c->duration;
 
-		const U32 frame_i=
-			(U32)(inst->t/c->duration*(c->frame_count - 1)) % c->frame_count;
-		const U32 next_frame_i= (frame_i + 1) % c->frame_count;
-
-		double int_part;
-		const F32 lerp= modf(inst->t/c->duration*(c->frame_count - 1), &int_part);
-
-		for (U32 j_i= 0; j_i < c->joint_count; ++j_i) {
-			U32 sample_i= frame_i*c->joint_count + j_i;
-			U32 next_sample_i= next_frame_i*c->joint_count + j_i;
-
-			inst->pose.tf[j_i]=
-				lerp_t3f(	c->local_samples[sample_i],
-							c->local_samples[next_sample_i],
-							lerp);
-		}
+		inst->pose= calc_clip_pose(c, inst->t);
 	}
 }

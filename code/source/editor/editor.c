@@ -44,8 +44,8 @@ void editor_store_res_state()
 		e->stored.i_count= mesh->i_count;
 	}
 
-	if (e->cur_comp_h != NULL_HANDLE) {
-		CompEntity *c= get_compentity(e->cur_comp_h);
+	if (e->ae_state.comp_h != NULL_HANDLE) {
+		CompEntity *c= get_compentity(e->ae_state.comp_h);
 		Armature *a= c->armature;
 
 		for (U32 i= 0; i < a->joint_count; ++i)
@@ -81,8 +81,8 @@ void editor_revert_res_state()
 		}
 	}
 
-	if (e->cur_comp_h != NULL_HANDLE) {
-		CompEntity *c= get_compentity(e->cur_comp_h);
+	if (e->ae_state.comp_h != NULL_HANDLE) {
+		CompEntity *c= get_compentity(e->ae_state.comp_h);
 		Armature *a= c->armature;
 
 		for (U32 i= 0; i < a->joint_count; ++i)
@@ -96,7 +96,7 @@ void create_editor()
 {
 	Editor* e= zero_malloc(sizeof(*e));
 	e->cur_model_h= NULL_HANDLE;
-	e->cur_comp_h= NULL_HANDLE;
+	e->ae_state.comp_h= NULL_HANDLE;
 
 	g_env.editor= e;
 }
@@ -127,15 +127,16 @@ void upd_editor()
 		toggle_bool(&e->is_edit_mode);
 	if (e->state == EditorState_mesh && e->cur_model_h == NULL_HANDLE)
 		e->is_edit_mode= false;
-	if (e->state == EditorState_armature && e->cur_comp_h == NULL_HANDLE)
+	if (	e->state == EditorState_armature &&
+			e->ae_state.comp_h == NULL_HANDLE)
 		e->is_edit_mode= false;
 
 	bool mesh_editor_active= e->state == EditorState_mesh;
 	bool armature_editor_active= e->state == EditorState_armature;
 
 	do_mesh_editor(&e->cur_model_h, &e->is_edit_mode, mesh_editor_active);
-	do_armature_editor(	&e->cur_comp_h,
-						&e->is_edit_mode,
+	do_armature_editor(	&e->ae_state,
+						e->is_edit_mode,
 						armature_editor_active);
 
 }

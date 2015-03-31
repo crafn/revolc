@@ -11,7 +11,7 @@ typedef enum {
 
 typedef struct Editor {
 	U32 cur_model_h;
-	U32 cur_comp_h;
+	ArmatureEditor ae_state;
 
 	// Values restored when cancelling current action
 	struct {

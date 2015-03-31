@@ -230,7 +230,7 @@ void gui_text(V2i px_pos, const char *fmt, ...)
 	e->mesh_i_count= 6*quad_count;
 }
 
-bool gui_button(V2i px_pos, const char *label, bool *is_down)
+bool gui_button(V2i px_pos, const char *label, bool *is_down, bool *is_hovered)
 {
 	UiContext *ctx= g_env.uicontext;
 	const V2i c_p= ctx->dev.cursor_pos;
@@ -265,7 +265,9 @@ bool gui_button(V2i px_pos, const char *label, bool *is_down)
 	}
 
 	Color bg_color= darken_color(gui_dev_panel_color());
-	if (hover)
+	if (down)
+		bg_color= darken_color(bg_color);
+	else if (hover)
 		bg_color= highlight_color(bg_color);
 
 	gui_quad(px_pos, px_size, bg_color);
@@ -273,6 +275,8 @@ bool gui_button(V2i px_pos, const char *label, bool *is_down)
 
 	if (is_down)
 		*is_down= down;
+	if (is_hovered)
+		*is_hovered= hover;
 	return pressed;
 }
 

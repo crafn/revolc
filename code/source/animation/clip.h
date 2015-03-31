@@ -16,4 +16,6 @@ typedef struct Clip {
 REVOLC_API WARN_UNUSED
 int json_clip_to_blob(struct BlobBuf *buf, JsonTok j);
 
+REVOLC_API JointPoseArray calc_clip_pose(const Clip *c, F64 t);
+
 #endif // REVOLC_ANIMATION_CLIP_H

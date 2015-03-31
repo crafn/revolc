@@ -1,6 +1,7 @@
 #include "animation/armature.c"
 #include "animation/clip.c"
 #include "animation/clipinst.c"
+#include "animation/joint.c"
 #include "audio/audiosystem.c"
 #include "audio/sound.c"
 #include "core/array.c"

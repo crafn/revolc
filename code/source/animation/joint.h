@@ -14,6 +14,8 @@ typedef struct JointPoseArray {
 	T3f tf[MAX_ARMATURE_JOINT_COUNT];
 } JointPoseArray;
 
+REVOLC_API JointPoseArray identity_pose();
+
 typedef struct Joint {
 	JointId id;
 	JointId super_id;
