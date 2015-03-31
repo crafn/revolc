@@ -175,7 +175,7 @@ void do_armature_editor(	ArmatureEditor *state,
 				}
 			}
 
-			V2i play_pos= add_v2i(px_pos, (V2i) {100, 0});
+			V2i play_pos= add_v2i(px_pos, (V2i) {150, 0});
 			const char *play_str= state->is_playing ? "Stop" : "Play";
 			if (gui_button(play_pos, play_str, NULL, NULL))
 				toggle_bool(&state->is_playing);

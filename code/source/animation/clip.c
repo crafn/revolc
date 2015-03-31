@@ -3,6 +3,9 @@
 #include "core/malloc.h"
 #include "resources/resblob.h"
 
+T3f * local_samples(const Clip *c)
+{ return blob_ptr(&c->res, c->local_samples_offset); }
+
 int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 {
 	int return_value= 0;
@@ -151,9 +154,15 @@ int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 		}
 	}
 
-	blob_write(buf, &duration, sizeof(duration));
-	blob_write(buf, &joint_count, sizeof(joint_count));
-	blob_write(buf, &frame_count, sizeof(frame_count));
+	const U32 samples_offset= buf->offset + sizeof(Clip) - sizeof(Resource);
+	Clip clip= {
+		.duration= duration,
+		.joint_count= joint_count,
+		.frame_count= frame_count,
+		.local_samples_offset= samples_offset,
+	};
+
+	blob_write(buf, (U8*)&clip + sizeof(Resource), sizeof(clip) - sizeof(Resource));
 	blob_write(buf, samples, sizeof(*samples)*sample_count);
 
 cleanup:
@@ -184,8 +193,8 @@ JointPoseArray calc_clip_pose(const Clip *c, F64 t)
 		U32 next_sample_i= next_frame_i*c->joint_count + j_i;
 
 		pose.tf[j_i]=
-			lerp_t3f(	c->local_samples[sample_i],
-						c->local_samples[next_sample_i],
+			lerp_t3f(	local_samples(c)[sample_i],
+						local_samples(c)[next_sample_i],
 						lerp);
 	}
 	return pose;
