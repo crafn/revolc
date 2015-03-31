@@ -145,8 +145,10 @@ void do_armature_editor(	ArmatureEditor *state,
 			V2i px_size= {g_env.device->win_size.x, 100};
 			gui_quad(px_pos, px_size, gui_dev_panel_color());
 
+			gui_begin((V2i) {1, 0});
+			gui_set_turtle_pos(px_pos);
+
 			bool btn_down;
-			gui_text(px_pos, "Clip: ");
 			if (strlen(state->clip_name) == 0)
 				fmt_str(state->clip_name, RES_NAME_SIZE,
 						"%s", "bind_pose");
@@ -155,32 +157,37 @@ void do_armature_editor(	ArmatureEditor *state,
 			all_res_by_type(&clip_begin, &clip_count,
 							g_env.resblob, ResType_Clip);
 
-			V2i button_pos= add_v2i(px_pos, (V2i) {40, 0});
+			// Listbox
+			V2i listbox_pos= gui_turtle_pos();
 			bool released=
-				gui_button(button_pos, state->clip_name, &btn_down, NULL);
+				gui_button(	frame_str("Clip: %s", state->clip_name),
+							&btn_down, NULL);
+			gui_begin((V2i) {0, -1});
+			gui_set_turtle_pos(listbox_pos);
+			gui_readvance_turtle();
+
 			if (btn_down || released) {
 				for (int i= clip_begin - 1; i < clip_begin + clip_count; ++i) {
-					button_pos.y -= 20;
 					const char *name= "bind_pose";
 					if (i >= clip_begin) {
 						Clip *clip= (Clip*)res_by_index(g_env.resblob, i);
 						name= clip->res.name;
 					}
 					bool hovered;
-					gui_button(button_pos, name, NULL, &hovered);
+					gui_button(name, NULL, &hovered);
 					if (released && hovered) {
 						fmt_str(state->clip_name, RES_NAME_SIZE, "%s", name);
 					}
 				}
 			}
+			gui_end();
 
 			{ // Play/stop button
-				V2i play_pos= add_v2i(px_pos, (V2i) {150, 0});
-				const char *play_str= state->is_playing ? "Stop" : "Play";
-				if (gui_button(play_pos, play_str, NULL, NULL))
+				if (gui_button(	state->is_playing ? "Stop" : "Play",
+								NULL, NULL)) {
 					toggle_bool(&state->is_playing);
+				}
 			}
-
 
 			// Interior of timeline
 			px_pos.x += 10;
@@ -229,6 +236,8 @@ void do_armature_editor(	ArmatureEditor *state,
 								(Color) {1, 1, 0, 0.8});
 				}
 			}
+
+			gui_end();
 		}
 	}
 

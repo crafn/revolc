@@ -12,10 +12,17 @@ typedef struct EditorBoxState {
 	bool released;
 } EditorBoxState;
 
+// Creates a string which exists only this frame
+REVOLC_API char * frame_str(const char *fmt, ...);
+
+// @todo Move to ui/*
 REVOLC_API void gui_wrap(V2i *p, V2i *s);
 REVOLC_API Color gui_dev_panel_color();
 REVOLC_API Color inactive_color();
 REVOLC_API Color darken_color(Color c);
+REVOLC_API void gui_text(const char *text);
+REVOLC_API bool gui_button(const char *label, bool *is_down, bool *hovered);
+
 REVOLC_API F64 editor_vertex_size();
 REVOLC_API bool cursor_transform_delta_world(	T3f *out,
 												const char *label,
@@ -30,9 +37,6 @@ REVOLC_API void gui_quad(V2i px_pos, V2i px_size, Color c);
 REVOLC_API void gui_model_image(	V2i px_pos,
 									V2i px_size, ModelEntity *src_model);
 
-REVOLC_API void gui_text(V2i px_pos, const char *fmt, ...);
-
-REVOLC_API bool gui_button(V2i px_pos, const char *label, bool *is_down, bool *hovered);
 
 // Top-left box
 REVOLC_API void gui_res_info(ResType t, const Resource *res);

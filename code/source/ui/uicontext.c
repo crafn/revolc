@@ -36,8 +36,69 @@ void upd_uicontext()
 	ctx->dev.s_pressed= g_env.device->key_pressed['s'];
 	ctx->dev.toggle_select_all= g_env.device->key_pressed['a'];
 
+	ensure(ctx->turtle_i == 0);
+	ctx->turtles[0].pos= (V2i) {0, 0};
+	ctx->turtles[0].last_size= (V2i) {0, 0};
+	ctx->turtles[0].dir= (V2i) {0, 1};
+
 	ctx->last_hot_id= ctx->hot_id;
 	ctx->hot_id= 0;
+}
+
+void gui_set_turtle_pos(V2i pos)
+{
+	UiContext *ctx= g_env.uicontext;
+	ctx->turtles[ctx->turtle_i].pos= pos;
+}
+
+V2i gui_turtle_pos()
+{
+	UiContext *ctx= g_env.uicontext;
+	return ctx->turtles[ctx->turtle_i].pos;
+}
+
+void gui_advance_turtle(V2i elem_size)
+{
+	UiContext *ctx= g_env.uicontext;
+	UiContext_Turtle *turtle= &ctx->turtles[ctx->turtle_i];
+
+	const int margin= 2;
+	const V2i total_size= add_v2i(elem_size, (V2i) {margin, margin});
+	const V2i adv= mul_v2i(turtle->dir, total_size);
+
+	turtle->last_size= elem_size;
+	turtle->pos= add_v2i(turtle->pos, adv);
+}
+
+void gui_readvance_turtle()
+{
+	UiContext *ctx= g_env.uicontext;
+	UiContext_Turtle *turtle= &ctx->turtles[ctx->turtle_i];
+	gui_advance_turtle(turtle->last_size);
+}
+
+void gui_begin(V2i turtle_dir)
+{
+	UiContext *ctx= g_env.uicontext;
+	ensure(ctx->turtle_i < MAX_GUI_STACK_SIZE);
+
+	UiContext_Turtle *prev= &ctx->turtles[ctx->turtle_i];
+	UiContext_Turtle *cur= &ctx->turtles[ctx->turtle_i + 1];
+
+	++ctx->turtle_i;
+	*cur= (UiContext_Turtle) {
+		.pos= prev->pos,
+		.last_size= prev->last_size,
+		.dir= turtle_dir,
+	};
+}
+
+void gui_end()
+{
+	UiContext *ctx= g_env.uicontext;
+
+	ensure(ctx->turtle_i > 0);
+	--ctx->turtle_i;
 }
 
 internal

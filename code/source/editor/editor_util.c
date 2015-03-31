@@ -1,18 +1,21 @@
 #include "editor_util.h"
 #include "visual/font.h"
 
-Color gui_dev_panel_color()
-{ return (Color) {0.25, 0.25, 0.3, 0.9}; }
+char * frame_str(const char *fmt, ...)
+{
+	char *text= NULL;
+	va_list args;
+	va_list args_copy;
 
-Color inactive_color()
-{ return (Color) {0.5, 0.5, 0.5, 0.5}; }
-
-Color darken_color(Color c)
-{ return (Color) {c.r*0.6, c.g*0.6, c.b*0.6, c.a}; }
-
-internal
-Color highlight_color(Color c)
-{ return (Color) {c.r + 0.2, c.g + 0.2, c.b + 0.1, c.a}; }
+	va_start(args, fmt);
+	va_copy(args_copy, args);
+	U32 size= v_fmt_str(NULL, 0, fmt, args) + 1; 
+	text= frame_alloc(size);
+	v_fmt_str(text, size, fmt, args_copy);
+	va_end(args_copy);
+	va_end(args);
+	return text;
+}
 
 void gui_wrap(V2i *p, V2i *s)
 {
@@ -26,6 +29,114 @@ void gui_wrap(V2i *p, V2i *s)
 		p->y += win_size.y;
 	while (p->y > win_size.y)
 		p->y -= win_size.y;
+}
+
+Color gui_dev_panel_color()
+{ return (Color) {0.25, 0.25, 0.3, 0.9}; }
+
+Color inactive_color()
+{ return (Color) {0.5, 0.5, 0.5, 0.5}; }
+
+Color darken_color(Color c)
+{ return (Color) {c.r*0.6, c.g*0.6, c.b*0.6, c.a}; }
+
+internal
+Color highlight_color(Color c)
+{ return (Color) {c.r + 0.2, c.g + 0.2, c.b + 0.1, c.a}; }
+
+void gui_text(const char *text)
+{
+	V2i px_pos= gui_turtle_pos();
+	gui_wrap(&px_pos, NULL);
+
+	Font *font=
+		(Font*)res_by_name(	g_env.resblob,
+							ResType_Font,
+							"dev");
+	V3d pos= v2d_to_v3d(screen_to_world_point(px_pos)); 
+	V3d scale=
+		v2d_to_v3d(screen_to_world_size((V2i) {1, 1}));
+
+	ModelEntity init;
+	init_modelentity(&init);
+	U32 handle= resurrect_modelentity(&init);
+	ModelEntity *e= get_modelentity(handle);
+	e->tf.pos= pos;
+	e->tf.scale= scale;
+	e->free_after_draw= true;
+	e->atlas_uv= font->atlas_uv;
+	e->scale_to_atlas_uv= font->scale_to_atlas_uv;
+
+	const U32 max_quad_count= strlen(text);
+	const U32 max_vert_count= 4*max_quad_count;
+	const U32 max_ind_count= 6*max_quad_count;
+	e->vertices=
+		frame_alloc(sizeof(*e->vertices)*max_vert_count);
+	e->indices=
+		frame_alloc(sizeof(*e->indices)*max_ind_count);
+	U32 quad_count= text_mesh(	e->vertices,
+								e->indices,
+								font,
+								text);
+	e->mesh_v_count= 4*quad_count;
+	e->mesh_i_count= 6*quad_count;
+
+	// @todo Advance turtle
+}
+
+bool gui_button(const char *label, bool *is_down, bool *is_hovered)
+{
+	V2i px_pos= gui_turtle_pos();
+	V2i px_size= {50, 20}; // @todo
+	gui_wrap(&px_pos, &px_size);
+
+	gui_begin((V2i) {1, 0});
+	UiContext *ctx= g_env.uicontext;
+	const V2i c_p= ctx->dev.cursor_pos;
+
+	bool pressed= false;
+	bool down= false;
+	bool hover= false;
+
+	if (gui_is_active(label)) {
+		if (ctx->dev.lmb.down) {
+			down= true;
+		} else {
+			pressed= true;
+			gui_set_inactive(label);
+		}
+	} else if (gui_is_hot(label)) {
+		if (ctx->dev.lmb.pressed) {
+			down= true;
+			gui_set_active(label);
+		}
+	}
+
+	if (	c_p.x >= px_pos.x &&
+			c_p.y >= px_pos.y &&
+			c_p.x < px_pos.x + px_size.x &&
+			c_p.y < px_pos.y + px_size.y) {
+		hover= true;
+		gui_set_hot(label);
+	}
+
+	Color bg_color= darken_color(gui_dev_panel_color());
+	if (down)
+		bg_color= darken_color(bg_color);
+	else if (hover)
+		bg_color= highlight_color(bg_color);
+
+	gui_quad(px_pos, px_size, bg_color);
+	gui_text(frame_str("%s", label));
+	gui_end();
+
+	gui_advance_turtle(px_size);
+
+	if (is_down)
+		*is_down= down;
+	if (is_hovered)
+		*is_hovered= hover;
+	return pressed;
 }
 
 F64 editor_vertex_size()
@@ -180,112 +291,13 @@ void gui_model_image(V2i px_pos, V2i px_size, ModelEntity *src_model)
 	e->scale_to_atlas_uv= src_model->scale_to_atlas_uv;
 }
 
-void gui_text(V2i px_pos, const char *fmt, ...)
-{
-	gui_wrap(&px_pos, NULL);
-	char *text= NULL;
-	{
-		va_list args;
-		va_list args_copy;
-
-		va_start(args, fmt);
-		va_copy(args_copy, args);
-		U32 size= v_fmt_str(NULL, 0, fmt, args) + 1; 
-		text= frame_alloc(size);
-		v_fmt_str(text, size, fmt, args_copy);
-		va_end(args_copy);
-		va_end(args);
-	}
-
-	Font *font=
-		(Font*)res_by_name(	g_env.resblob,
-							ResType_Font,
-							"dev");
-	V3d pos= v2d_to_v3d(screen_to_world_point(px_pos)); 
-	V3d scale=
-		v2d_to_v3d(screen_to_world_size((V2i) {1, 1}));
-
-	ModelEntity init;
-	init_modelentity(&init);
-	U32 handle= resurrect_modelentity(&init);
-	ModelEntity *e= get_modelentity(handle);
-	e->tf.pos= pos;
-	e->tf.scale= scale;
-	e->free_after_draw= true;
-	e->atlas_uv= font->atlas_uv;
-	e->scale_to_atlas_uv= font->scale_to_atlas_uv;
-
-	const U32 max_quad_count= strlen(text);
-	const U32 max_vert_count= 4*max_quad_count;
-	const U32 max_ind_count= 6*max_quad_count;
-	e->vertices=
-		frame_alloc(sizeof(*e->vertices)*max_vert_count);
-	e->indices=
-		frame_alloc(sizeof(*e->indices)*max_ind_count);
-	U32 quad_count= text_mesh(	e->vertices,
-								e->indices,
-								font,
-								text);
-	e->mesh_v_count= 4*quad_count;
-	e->mesh_i_count= 6*quad_count;
-}
-
-bool gui_button(V2i px_pos, const char *label, bool *is_down, bool *is_hovered)
-{
-	UiContext *ctx= g_env.uicontext;
-	const V2i c_p= ctx->dev.cursor_pos;
-
-	bool pressed= false;
-	bool down= false;
-	bool hover= false;
-
-	V2i px_size= {50, 20}; // @todo
-	gui_wrap(&px_pos, &px_size);
-
-	if (gui_is_active(label)) {
-		if (ctx->dev.lmb.down) {
-			down= true;
-		} else {
-			pressed= true;
-			gui_set_inactive(label);
-		}
-	} else if (gui_is_hot(label)) {
-		if (ctx->dev.lmb.pressed) {
-			down= true;
-			gui_set_active(label);
-		}
-	}
-
-	if (	c_p.x >= px_pos.x &&
-			c_p.y >= px_pos.y &&
-			c_p.x < px_pos.x + px_size.x &&
-			c_p.y < px_pos.y + px_size.y) {
-		hover= true;
-		gui_set_hot(label);
-	}
-
-	Color bg_color= darken_color(gui_dev_panel_color());
-	if (down)
-		bg_color= darken_color(bg_color);
-	else if (hover)
-		bg_color= highlight_color(bg_color);
-
-	gui_quad(px_pos, px_size, bg_color);
-	gui_text(px_pos, "%s", label);
-
-	if (is_down)
-		*is_down= down;
-	if (is_hovered)
-		*is_hovered= hover;
-	return pressed;
-}
-
 void gui_res_info(ResType t, const Resource *res)
 {
+	gui_set_turtle_pos((V2i) {0, 0});
 	gui_quad((V2i) {0, 0}, (V2i) {200, 20}, gui_dev_panel_color());
-	gui_text((V2i) {0, 0}, "%s: %s",
-		restype_to_str(t),
-		res ? res->name : "<none>");
+	gui_text(frame_str(	"%s: %s",
+						restype_to_str(t),
+						res ? res->name : "<none>"));
 }
 
 EditorBoxState gui_editorbox(	const char *label,
