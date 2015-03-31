@@ -143,7 +143,6 @@ void do_armature_editor(	ArmatureEditor *state,
 			// @todo Layouting to gui -- no more pixel calcs here!
 			V2i px_pos= {0, -100};
 			V2i px_size= {g_env.device->win_size.x, 100};
-
 			gui_quad(px_pos, px_size, gui_dev_panel_color());
 
 			bool btn_down;
@@ -175,35 +174,59 @@ void do_armature_editor(	ArmatureEditor *state,
 				}
 			}
 
-			V2i play_pos= add_v2i(px_pos, (V2i) {150, 0});
-			const char *play_str= state->is_playing ? "Stop" : "Play";
-			if (gui_button(play_pos, play_str, NULL, NULL))
-				toggle_bool(&state->is_playing);
+			{ // Play/stop button
+				V2i play_pos= add_v2i(px_pos, (V2i) {150, 0});
+				const char *play_str= state->is_playing ? "Stop" : "Play";
+				if (gui_button(play_pos, play_str, NULL, NULL))
+					toggle_bool(&state->is_playing);
+			}
+
+
+			// Interior of timeline
+			px_pos.x += 10;
+			px_pos.y += 25;
+			px_size.x -= 20;
+			px_size.y -= 25;
+			gui_quad(px_pos, px_size, darken_color(gui_dev_panel_color()));
 
 			if (entity && a) {
-				if (strcmp(state->clip_name, "bind_pose") != 0) {
-					// View current pose from timeline
+				const bool bind_pose_selected=
+					!strcmp(state->clip_name, "bind_pose");
+				if (bind_pose_selected) {
+					entity->pose= identity_pose();
+					state->is_playing= false;
+				} else {
 					const Clip *clip=
 						(Clip*)res_by_name(	g_env.resblob,
 											ResType_Clip,
 											state->clip_name);
 
+					// Show keys
+					for (U32 key_i= 0; key_i < clip->key_count; ++key_i) {
+						Clip_Key key= clip_keys(clip)[key_i];
+
+						F64 lerp_x= key.time/clip->duration;
+						F64 lerp_y= (F64)key.joint_id/clip->joint_count;
+						V2i pos= {
+							px_pos.x + px_size.x*lerp_x - 3,
+							px_pos.y + px_size.y*lerp_y - 3
+						};
+						gui_quad(	pos, (V2i){6, 6},
+									(Color) {0.3, 0.7, 1, 0.8});
+					}
+
+					// Update animation to CompEntity
+					entity->pose= calc_clip_pose(clip, state->clip_time);
 					if (state->is_playing)
 						state->clip_time += g_env.device->dt;
 					while (state->clip_time > clip->duration)
 						state->clip_time -= clip->duration;
-					entity->pose= calc_clip_pose(clip, state->clip_time);
 
+					// Show timeline cursor
 					F64 lerp= state->clip_time/clip->duration;
-					V2i time_cursor_pos= {px_size.x*lerp, px_pos.y};
+					V2i time_cursor_pos= {px_pos.x + px_size.x*lerp, px_pos.y};
 					gui_quad(	time_cursor_pos, (V2i){2, px_size.y},
 								(Color) {1, 1, 0, 0.8});
-				}
-
-				if (!strcmp(state->clip_name, "bind_pose")) {
-					// Set bind pose
-					entity->pose= identity_pose();
-					state->is_playing= false;
 				}
 			}
 		}

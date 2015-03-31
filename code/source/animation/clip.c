@@ -1,10 +1,14 @@
 #include "armature.h"
 #include "clip.h"
+#include "core/array.h"
 #include "core/malloc.h"
 #include "resources/resblob.h"
 
-T3f * local_samples(const Clip *c)
+T3f * clip_local_samples(const Clip *c)
 { return blob_ptr(&c->res, c->local_samples_offset); }
+
+Clip_Key * clip_keys(const Clip *c)
+{ return blob_ptr(&c->res, c->keys_offset); }
 
 int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 {
@@ -41,6 +45,10 @@ int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 	for (U32 i= 0; i < sample_count; ++i)
 		samples[i]= identity_t3f();
 
+	Clip_Key *keys= NULL;
+	U32 keys_capacity= 0;
+	U32 total_key_count= 0;
+
 	for (U32 ch_i= 0; ch_i < json_member_count(j_channels); ++ch_i) {
 		JsonTok j_ch= json_member(j_channels, ch_i);
 
@@ -58,17 +66,13 @@ int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 		const char *type_str= json_str(j_type);
 		JointId joint_id= joint_id_by_name(a, json_str(j_joint));
 
-		enum {
-			ChType_pos,
-			ChType_rot,
-			ChType_scale,
-		} type;
+		Clip_Key_Type type;
 		if (!strcmp(type_str, "pos"))
-			type= ChType_pos;
+			type= Clip_Key_Type_pos;
 		else if (!strcmp(type_str, "rot"))
-			type= ChType_rot;
+			type= Clip_Key_Type_rot;
 		else if (!strcmp(type_str, "scale"))
-			type= ChType_scale;
+			type= Clip_Key_Type_scale;
 		else
 			fail("Unknown Clip channel type: %s", type_str);
 
@@ -76,15 +80,40 @@ int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 		if (key_count == 0)
 			continue;
 
+		// Gather keys of the channel
+		const U32 ch_begin_key_i= total_key_count;
+		for (U32 key_i= 0; key_i < key_count; ++key_i) {
+			JsonTok j_key= json_member(j_keys, key_i);
+			JsonTok j_value= json_value_by_key(j_key, "v");
+			Clip_Key key= {
+				.joint_id= joint_id,
+				.type= type,
+			};
+			key.time= json_real(json_value_by_key(j_key, "t"));
+
+			switch (type) {
+				case Clip_Key_Type_pos:
+					key.value.pos= v3d_to_v3f(json_v3(j_value));
+				break;
+				case Clip_Key_Type_rot:
+					key.value.rot= qd_to_qf(json_q(j_value));
+				break;
+				case Clip_Key_Type_scale:
+					key.value.scale= v3d_to_v3f(json_v3(j_value));
+				break;
+				default: fail("Unhandled ChType: %i", type);
+			}
+
+			keys= push_dyn_array(	keys, &keys_capacity, &total_key_count,
+									sizeof(*keys), &key);
+		}
+
+		// Interpolate samples from keys
 		U32 key_i= 0;
 		U32 next_key_i= 0;
 		F32 key_t= 0.0;
 		F32 next_key_t= 0.0;
-		union {
-			V3f pos;
-			Qf rot;
-			V3f scale;
-		} key_value, next_key_value;
+		Clip_Key_Value key_value, next_key_value;
 		bool first= true;
 		for (U32 frame_i= 0; frame_i < frame_count; ++frame_i) {
 			const F32 frame_t= frame_i*duration/(frame_count - 1);
@@ -104,30 +133,10 @@ int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 				if (next_key_i >= key_count)
 					next_key_i= key_count - 1;
 
-				JsonTok j_key= json_member(j_keys, key_i);
-				JsonTok j_next_key= json_member(j_keys, next_key_i);
-
-				JsonTok j_value= json_value_by_key(j_key, "v");
-				JsonTok j_next_value= json_value_by_key(j_next_key, "v");
-
-				key_t= json_real(json_value_by_key(j_key, "t"));
-				next_key_t= json_real(json_value_by_key(j_next_key, "t"));
-
-				switch (type) {
-					case ChType_pos:
-						key_value.pos= v3d_to_v3f(json_v3(j_value));
-						next_key_value.pos= v3d_to_v3f(json_v3(j_next_value));
-					break;
-					case ChType_rot:
-						key_value.rot= qd_to_qf(json_q(j_value));
-						next_key_value.rot= qd_to_qf(json_q(j_next_value));
-					break;
-					case ChType_scale:
-						key_value.scale= v3d_to_v3f(json_v3(j_value));
-						next_key_value.scale= v3d_to_v3f(json_v3(j_next_value));
-					break;
-					default: fail("Unhandled ChType: %i", type);
-				}
+				key_value=		keys[ch_begin_key_i + key_i].value;
+				next_key_value=	keys[ch_begin_key_i + next_key_i].value;
+				key_t=			keys[ch_begin_key_i + key_i].time;
+				next_key_t=		keys[ch_begin_key_i + next_key_i].time;
 			}
 
 			// Write samples
@@ -135,17 +144,17 @@ int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 			ensure(s_i < sample_count);
 			const F32 lerp= (frame_t - key_t)/(next_key_t - key_t);
 			switch (type) {
-				case ChType_pos:
+				case Clip_Key_Type_pos:
 					samples[s_i].pos=
 						lerp_v3f(key_value.pos, next_key_value.pos, lerp);
 				break;
-				case ChType_rot:
+				case Clip_Key_Type_rot:
 					/// @todo qlerp?
 					samples[s_i].rot=
 						normalized_qf(
 								lerp_qf(key_value.rot, next_key_value.rot, lerp));
 				break;
-				case ChType_scale:
+				case Clip_Key_Type_scale:
 					samples[s_i].scale=
 						lerp_v3f(key_value.scale, next_key_value.scale, lerp);
 				break;
@@ -155,18 +164,28 @@ int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 	}
 
 	const U32 samples_offset= buf->offset + sizeof(Clip) - sizeof(Resource);
+	const U32 samples_size= sizeof(*samples)*sample_count;
+
+	const U32 keys_offset= samples_offset + samples_size;
+	const U32 keys_size= sizeof(*keys)*total_key_count;
+
 	Clip clip= {
 		.duration= duration,
+		.keys_offset= keys_offset,
+		.key_count= total_key_count,
 		.joint_count= joint_count,
 		.frame_count= frame_count,
 		.local_samples_offset= samples_offset,
 	};
 
-	blob_write(buf, (U8*)&clip + sizeof(Resource), sizeof(clip) - sizeof(Resource));
-	blob_write(buf, samples, sizeof(*samples)*sample_count);
+	blob_write(buf, (U8*)&clip + sizeof(clip.res),
+					sizeof(clip) - sizeof(clip.res));
+	blob_write(buf, samples, samples_size);
+	blob_write(buf, keys, keys_size);
 
 cleanup:
 	free(samples);
+	free(keys);
 	return return_value;
 
 error:
@@ -193,8 +212,8 @@ JointPoseArray calc_clip_pose(const Clip *c, F64 t)
 		U32 next_sample_i= next_frame_i*c->joint_count + j_i;
 
 		pose.tf[j_i]=
-			lerp_t3f(	local_samples(c)[sample_i],
-						local_samples(c)[next_sample_i],
+			lerp_t3f(	clip_local_samples(c)[sample_i],
+						clip_local_samples(c)[next_sample_i],
 						lerp);
 	}
 	return pose;

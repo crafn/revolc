@@ -6,31 +6,31 @@
 #include "joint.h"
 #include "resources/resource.h"
 
-// For editor
 typedef enum {
-	Clip_Key_Ch_scale,
-	Clip_Key_Ch_rot,
-	Clip_Key_Ch_pos,
-} Clip_Key_Ch;
+	Clip_Key_Type_scale,
+	Clip_Key_Type_rot,
+	Clip_Key_Type_pos,
+} Clip_Key_Type;
 
-// For editor
-struct Clip_Key {
+typedef union Clip_Key_Value {
+	V3f scale;
+	Qf rot;
+	V3f pos;
+} Clip_Key_Value;
+
+typedef struct Clip_Key {
 	JointId joint_id;
 	F64 time;
 
-	Clip_Key_Ch ch;
-	union {
-		V3f scale;
-		Qf rot;
-		V3f pos;
-	} value;
-};
+	Clip_Key_Type type;
+	Clip_Key_Value value;
+} Clip_Key;
 
 typedef struct Clip {
 	Resource res;
 	F32 duration; // A the beginning of the last frame
 
-	// @todo #if away from release build
+	// @todo #if away from release build -- only for editor
 	BlobOffset keys_offset; // Clip_Key[]
 	U32 key_count;
 
@@ -39,7 +39,8 @@ typedef struct Clip {
 	BlobOffset local_samples_offset; // joint_count*frame_count elements, T3f
 } PACKED Clip;
 
-REVOLC_API T3f * local_samples(const Clip *c);
+REVOLC_API T3f * clip_local_samples(const Clip *c);
+REVOLC_API Clip_Key * clip_keys(const Clip *c);
 
 REVOLC_API WARN_UNUSED
 int json_clip_to_blob(struct BlobBuf *buf, JsonTok j);
