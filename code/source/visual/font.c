@@ -75,13 +75,13 @@ U32 text_mesh(	TriMeshVertex *verts,
 	U32 count= 0;
 	U32 v_i= 0;
 	while (*text) {
-		if (*text == '\n') {
+		U32 ch= *text;
+		if (ch == '\n') {
 			x= 0;
 			y += font->px_height;
 		}
 
-		if (	*text >= FONT_CHAR_BEGIN &&
-				*text < FONT_CHAR_END) {
+		if (ch >= FONT_CHAR_BEGIN && ch < FONT_CHAR_END) {
 			stbtt_aligned_quad q;
 			stbtt_GetPackedQuad((void *)font->chars,
 								font->bitmap_reso.x,
