@@ -38,8 +38,8 @@ void upd_uicontext()
 
 	ensure(ctx->turtle_i == 0);
 	ctx->turtles[0].pos= (V2i) {0, 0};
-	ctx->turtles[0].last_size= (V2i) {0, 0};
 	ctx->turtles[0].dir= (V2i) {0, 1};
+	ctx->turtles[0].last_adv_size= (V2i) {0, 1};
 
 	ctx->last_hot_id= ctx->hot_id;
 	ctx->hot_id= 0;
@@ -62,19 +62,16 @@ void gui_advance_turtle(V2i elem_size)
 	UiContext *ctx= g_env.uicontext;
 	UiContext_Turtle *turtle= &ctx->turtles[ctx->turtle_i];
 
-	const int margin= 2;
-	const V2i total_size= add_v2i(elem_size, (V2i) {margin, margin});
-	const V2i adv= mul_v2i(turtle->dir, total_size);
-
-	turtle->last_size= elem_size;
+	const V2i adv= mul_v2i(turtle->dir, elem_size);
+	turtle->last_adv_size= elem_size;
 	turtle->pos= add_v2i(turtle->pos, adv);
 }
 
-void gui_readvance_turtle()
+V2i gui_last_adv_size()
 {
 	UiContext *ctx= g_env.uicontext;
 	UiContext_Turtle *turtle= &ctx->turtles[ctx->turtle_i];
-	gui_advance_turtle(turtle->last_size);
+	return turtle->last_adv_size;
 }
 
 void gui_begin(V2i turtle_dir)
@@ -88,7 +85,6 @@ void gui_begin(V2i turtle_dir)
 	++ctx->turtle_i;
 	*cur= (UiContext_Turtle) {
 		.pos= prev->pos,
-		.last_size= prev->last_size,
 		.dir= turtle_dir,
 	};
 }

@@ -76,8 +76,7 @@ typedef struct TexInfo {
 	const char *name;
 	V2i reso;
 
-	V3f *atlas_uv;
-	V2f *scale_to_atlas_uv;
+	AtlasUv *atlas_uv;
 
 	Texel *texels;
 	bool free_texels;
@@ -159,7 +158,6 @@ void recreate_texture_atlas(Renderer *r, ResBlob *blob)
 				.name= font->res.name,
 				.reso= font->bitmap_reso,
 				.atlas_uv= &font->atlas_uv,
-				.scale_to_atlas_uv= &font->scale_to_atlas_uv,
 				.texels= malloc_rgba_font_bitmap(font),
 			};
 		}
@@ -204,15 +202,14 @@ void recreate_texture_atlas(Renderer *r, ResBlob *blob)
 			tex->texels= NULL;
 		}
 
-		*tex->atlas_uv= (V3f) {
-			(F32)x/TEXTURE_ATLAS_WIDTH,
-			(F32)y/TEXTURE_ATLAS_WIDTH,
-			z
+		*tex->atlas_uv= (AtlasUv) {
+			.uv= {
+				(F32)x/TEXTURE_ATLAS_WIDTH,
+				(F32)y/TEXTURE_ATLAS_WIDTH,
+				z,
+			},
+			.scale= scale_to_atlas_uv(tex->reso),
 		};
-		if (tex->scale_to_atlas_uv) {
-			*tex->scale_to_atlas_uv=
-				scale_to_atlas_uv(tex->reso);
-		}
 
 		x += tex->reso.x + margin;
 		if (tex->reso.y > last_row_height)
@@ -249,6 +246,36 @@ void destroy_renderer()
 	free(r);
 }
 
+void push_model(	T3d tf,
+					TriMeshVertex *v, U32 v_count,
+					MeshIndexType *i, U32 i_count,
+					Color c,
+					AtlasUv uv)
+{
+	ModelEntity init;
+	init_modelentity(&init);
+	U32 handle= resurrect_modelentity(&init);
+	ModelEntity *e= get_modelentity(handle);
+	e->tf= tf;
+	e->free_after_draw= true;
+	e->atlas_uv= uv.uv;
+	e->scale_to_atlas_uv= uv.scale;
+
+	e->vertices= v;
+	e->mesh_v_count= v_count;
+
+	e->indices= i;
+	e->mesh_i_count= i_count;
+}
+
+T3d px_tf(V2i px_pos, V2i px_size)
+{
+	T3d tf= identity_t3d();
+	tf.pos= v2d_to_v3d(screen_to_world_point(px_pos)); 
+	tf.scale= v2d_to_v3d(screen_to_world_size(px_size));
+	return tf;
+}
+
 internal
 void recache_modelentity(ModelEntity *e)
 {
@@ -262,8 +289,8 @@ void recache_modelentity(ModelEntity *e)
 					e->model_name);
 	Texture *tex= model_texture(model, 0);
 	e->color= model->color;
-	e->atlas_uv= tex->atlas_uv;
-	e->scale_to_atlas_uv= scale_to_atlas_uv(tex->reso);
+	e->atlas_uv= tex->atlas_uv.uv;
+	e->scale_to_atlas_uv= tex->atlas_uv.scale;
 	e->vertices=
 		(TriMeshVertex*)mesh_vertices(model_mesh(model));
 	e->indices=

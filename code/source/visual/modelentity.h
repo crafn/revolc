@@ -1,6 +1,7 @@
 #ifndef REVOLC_VISUAL_ENTITY_MODEL_H
 #define REVOLC_VISUAL_ENTITY_MODEL_H
 
+#include "atlas.h"
 #include "build.h"
 #include "core/json.h"
 #include "core/transform.h"
@@ -11,6 +12,7 @@
 typedef struct ModelEntity {
 	char model_name[RES_NAME_SIZE];
 	T3d tf;
+	S32 layer; // Overrides z-sorting
 	bool allocated;
 	bool has_own_mesh; // If true, vertices and indices are free'd along this
 	bool free_after_draw;

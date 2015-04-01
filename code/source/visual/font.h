@@ -15,8 +15,7 @@ typedef struct Font {
 	Resource res;
 
 	// Renderer sets
-	V3f atlas_uv;
-	V2f scale_to_atlas_uv;
+	AtlasUv atlas_uv;
 
 	stbtt_packedchar chars[FONT_CHAR_COUNT];
 	// @todo Should probably have rgba bitmap, or ttf data.
@@ -34,9 +33,12 @@ Texel * malloc_rgba_font_bitmap(const Font *font);
 // Mesh is in OpenGL-like coordinates (but px sized)
 // Origin is at upper left corner of the text
 REVOLC_API WARN_UNUSED
-U32 text_mesh(	TriMeshVertex *verts, // len(text)*4
+U32 text_mesh(	V2i *size,
+				TriMeshVertex *verts, // len(text)*4
 				MeshIndexType *inds, // len(text)*6
 				const Font *font,
 				const char *text);
+
+V2i calc_text_mesh_size(const Font *font, const char *text);
 
 #endif // REVOLC_VISUAL_FONT_H

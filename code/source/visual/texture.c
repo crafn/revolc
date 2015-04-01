@@ -43,7 +43,7 @@ int json_texture_to_blob(struct BlobBuf *buf, JsonTok j)
 	}	
 
 	V2i reso= {width, height};
-	V3f atlas_uv= {};
+	AtlasUv atlas_uv= {};
 
 	blob_write(buf, &reso, sizeof(reso));
 	blob_write(buf, &atlas_uv, sizeof(atlas_uv));

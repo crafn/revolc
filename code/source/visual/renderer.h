@@ -13,8 +13,7 @@ typedef struct Renderer {
 	V2d cam_fov;
 
 	ModelEntity m_entities[MAX_MODELENTITY_COUNT];
-	ModelEntity
-		m_entities_sort_space[MAX_MODELENTITY_COUNT];
+	ModelEntity m_entities_sort_space[MAX_MODELENTITY_COUNT];
 	U32 next_m_entity;
 	U32 m_entity_count; // Statistics
 
@@ -38,6 +37,17 @@ typedef struct Renderer {
 // Sets g_env.renderer
 REVOLC_API void create_renderer();
 REVOLC_API void destroy_renderer();
+
+// @todo This should be The interface to renderer
+//       So remove ModelEntities from renderer and have them call this
+REVOLC_API void push_model(	T3d tf,
+							TriMeshVertex *v, U32 v_count,
+							MeshIndexType *i, U32 i_count,
+							Color c,
+							AtlasUv uv);
+
+// Valid for only a frame (because camera can move)
+REVOLC_API T3d px_tf(V2i px_pos, V2i px_size);
 
 REVOLC_API U32 resurrect_modelentity(const ModelEntity *d);
 REVOLC_API void free_modelentity(ModelEntity *m);

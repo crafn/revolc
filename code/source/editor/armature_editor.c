@@ -162,9 +162,11 @@ void do_armature_editor(	ArmatureEditor *state,
 			bool released=
 				gui_button(	frame_str("Clip: %s", state->clip_name),
 							&btn_down, NULL);
+			V2i list_start_pos= {
+				listbox_pos.x, listbox_pos.y - gui_last_adv_size().y
+			};
 			gui_begin((V2i) {0, -1});
-			gui_set_turtle_pos(listbox_pos);
-			gui_readvance_turtle();
+			gui_set_turtle_pos(list_start_pos);
 
 			if (btn_down || released) {
 				for (int i= clip_begin - 1; i < clip_begin + clip_count; ++i) {
@@ -190,10 +192,11 @@ void do_armature_editor(	ArmatureEditor *state,
 			}
 
 			// Interior of timeline
+			const S32 shift= gui_last_adv_size().y;
 			px_pos.x += 10;
-			px_pos.y += 25;
+			px_pos.y += shift;
 			px_size.x -= 20;
-			px_size.y -= 25;
+			px_size.y -= shift;
 			gui_quad(px_pos, px_size, darken_color(gui_dev_panel_color()));
 
 			if (entity && a) {

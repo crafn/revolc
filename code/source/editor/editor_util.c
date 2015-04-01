@@ -1,6 +1,14 @@
 #include "editor_util.h"
 #include "visual/font.h"
 
+internal
+const Font *gui_font()
+{
+	return (Font*)res_by_name(	g_env.resblob,
+								ResType_Font,
+								"dev");
+}
+
 char * frame_str(const char *fmt, ...)
 {
 	char *text= NULL;
@@ -48,46 +56,36 @@ void gui_text(const char *text)
 {
 	V2i px_pos= gui_turtle_pos();
 	gui_wrap(&px_pos, NULL);
-
-	Font *font=
-		(Font*)res_by_name(	g_env.resblob,
-							ResType_Font,
-							"dev");
-	V3d pos= v2d_to_v3d(screen_to_world_point(px_pos)); 
-	V3d scale=
-		v2d_to_v3d(screen_to_world_size((V2i) {1, 1}));
-
-	ModelEntity init;
-	init_modelentity(&init);
-	U32 handle= resurrect_modelentity(&init);
-	ModelEntity *e= get_modelentity(handle);
-	e->tf.pos= pos;
-	e->tf.scale= scale;
-	e->free_after_draw= true;
-	e->atlas_uv= font->atlas_uv;
-	e->scale_to_atlas_uv= font->scale_to_atlas_uv;
+	gui_begin((V2i) {1, 0});
 
 	const U32 max_quad_count= strlen(text);
 	const U32 max_vert_count= 4*max_quad_count;
 	const U32 max_ind_count= 6*max_quad_count;
-	e->vertices=
-		frame_alloc(sizeof(*e->vertices)*max_vert_count);
-	e->indices=
-		frame_alloc(sizeof(*e->indices)*max_ind_count);
-	U32 quad_count= text_mesh(	e->vertices,
-								e->indices,
-								font,
-								text);
-	e->mesh_v_count= 4*quad_count;
-	e->mesh_i_count= 6*quad_count;
+	TriMeshVertex *verts= frame_alloc(sizeof(*verts)*max_vert_count);
+	MeshIndexType *inds= frame_alloc(sizeof(*inds)*max_ind_count);
+	V2i size;
+	U32 quad_count= text_mesh(&size, verts, inds, gui_font(), text);
+	const U32 v_count= 4*quad_count;
+	const U32 i_count= 6*quad_count;
 
-	// @todo Advance turtle
+	push_model(	px_tf(px_pos, (V2i) {1, 1}),
+				verts, v_count,
+				inds, i_count,
+				(Color) {1, 1, 1, 1},
+				gui_font()->atlas_uv);
+
+
+	gui_advance_turtle(size);
+	gui_end();
 }
 
 bool gui_button(const char *label, bool *is_down, bool *is_hovered)
 {
 	V2i px_pos= gui_turtle_pos();
-	V2i px_size= {50, 20}; // @todo
+	V2i px_size= calc_text_mesh_size(gui_font(), label);
+	px_size.x += 12;
+	px_size.y += 5;
+
 	gui_wrap(&px_pos, &px_size);
 
 	gui_begin((V2i) {1, 0});
@@ -126,8 +124,15 @@ bool gui_button(const char *label, bool *is_down, bool *is_hovered)
 	else if (hover)
 		bg_color= highlight_color(bg_color);
 
-	gui_quad(px_pos, px_size, bg_color);
+	{ // Leave margin
+		V2i p= add_v2i(px_pos, (V2i) {1, 1});
+		V2i s= sub_v2i(px_size, (V2i) {2, 2});
+		gui_quad(p, s, bg_color);
+	}
+
+	gui_set_turtle_pos(add_v2i(px_pos, (V2i) {5, 1}));
 	gui_text(frame_str("%s", label));
+
 	gui_end();
 
 	gui_advance_turtle(px_size);
@@ -256,13 +261,10 @@ bool cursor_transform_delta_pixels(	T3f *out,
 void gui_quad(V2i px_pos, V2i px_size, Color c)
 {
 	gui_wrap(&px_pos, &px_size);
-	V3d pos= v2d_to_v3d(screen_to_world_point(px_pos)); 
-	V3d size= v2d_to_v3d(screen_to_world_size(px_size));
 
 	ModelEntity init;
 	init_modelentity(&init);
-	init.tf.pos= pos;
-	init.tf.scale= size;
+	init.tf= px_tf(px_pos, px_size);
 	init.free_after_draw= true;
 	fmt_str(init.model_name, sizeof(init.model_name), "guibox_singular");
 
@@ -294,10 +296,13 @@ void gui_model_image(V2i px_pos, V2i px_size, ModelEntity *src_model)
 void gui_res_info(ResType t, const Resource *res)
 {
 	gui_set_turtle_pos((V2i) {0, 0});
-	gui_quad((V2i) {0, 0}, (V2i) {200, 20}, gui_dev_panel_color());
-	gui_text(frame_str(	"%s: %s",
-						restype_to_str(t),
-						res ? res->name : "<none>"));
+	char *str= frame_str(	"%s: %s",
+							restype_to_str(t),
+							res ? res->name : "<none>");
+	V2i size= calc_text_mesh_size(gui_font(), str);
+	size.y += 3;
+	gui_quad((V2i) {0, 0}, size, gui_dev_panel_color());
+	gui_text(str);
 }
 
 EditorBoxState gui_editorbox(	const char *label,

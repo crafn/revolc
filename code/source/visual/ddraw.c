@@ -16,7 +16,7 @@ void ddraw_poly(Color c, V3d *poly, U32 count)
 			g_env.resblob,
 			ResType_Texture,
 			"white");
-	V3f atlas_uv= white->atlas_uv;
+	V3f atlas_uv= white->atlas_uv.uv;
 	atlas_uv.x += 0.5*white->reso.x/TEXTURE_ATLAS_WIDTH;
 	atlas_uv.y += 0.5*white->reso.y/TEXTURE_ATLAS_WIDTH;
 

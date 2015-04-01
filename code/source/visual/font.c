@@ -66,7 +66,8 @@ Texel * malloc_rgba_font_bitmap(const Font *font)
 	return texels;
 }
 
-U32 text_mesh(	TriMeshVertex *verts,
+U32 text_mesh(	V2i *size,
+				TriMeshVertex *verts,
 				MeshIndexType *inds,
 				const Font *font,
 				const char *text)
@@ -90,6 +91,9 @@ U32 text_mesh(	TriMeshVertex *verts,
 								&x, &y,
 								&q,
 								1);
+			size->x = MAX(size->x, MAX(q.x0, q.x1));
+			size->y = MAX(size->y, MAX(q.y0, q.y1));
+
 			verts[v_i + 0].pos= (V3f) {q.x0, q.y1};
 			verts[v_i + 1].pos= (V3f) {q.x1, q.y1};
 			verts[v_i + 2].pos= (V3f) {q.x1, q.y0};
@@ -115,4 +119,32 @@ U32 text_mesh(	TriMeshVertex *verts,
 		++text;
 	}
 	return count;
+}
+
+V2i calc_text_mesh_size(const Font *font, const char *text)
+{
+	V2i size= {};
+	F32 x= 0, y= font->px_height;
+	while (*text) {
+		U32 ch= *text;
+		if (ch == '\n') {
+			x= 0;
+			y += font->px_height;
+		}
+
+		if (ch >= FONT_CHAR_BEGIN && ch < FONT_CHAR_END) {
+			stbtt_aligned_quad q;
+			stbtt_GetPackedQuad((void *)font->chars,
+								font->bitmap_reso.x,
+								font->bitmap_reso.y,
+								*text - FONT_CHAR_BEGIN,
+								&x, &y,
+								&q,
+								1);
+			size.x = MAX(size.x, MAX(q.x0, q.x1));
+			size.y = MAX(size.y, MAX(q.y0, q.y1));
+		}
+		++text;
+	}
+	return size;
 }

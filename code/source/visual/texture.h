@@ -1,6 +1,7 @@
 #ifndef REVOLC_VISUAL_TEXTURE_H
 #define REVOLC_VISUAL_TEXTURE_H
 
+#include "atlas.h"
 #include "build.h"
 #include "core/json.h"
 #include "core/vector.h"
@@ -15,7 +16,7 @@ typedef struct Texture {
 	V2i reso;
 
 	// Renderer sets
-	V3f atlas_uv;
+	AtlasUv atlas_uv;
 
 	/// @todo Mipmaps
 	Texel texels[];
