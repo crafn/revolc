@@ -12,7 +12,7 @@
 typedef struct ModelEntity {
 	char model_name[RES_NAME_SIZE];
 	T3d tf;
-	S32 layer; // Overrides z-sorting
+	S32 layer; // Overrides z-sorting. 0 for world stuff
 	bool allocated;
 	bool has_own_mesh; // If true, vertices and indices are free'd along this
 	bool free_after_draw;

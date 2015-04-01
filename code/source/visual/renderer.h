@@ -44,7 +44,8 @@ REVOLC_API void push_model(	T3d tf,
 							TriMeshVertex *v, U32 v_count,
 							MeshIndexType *i, U32 i_count,
 							Color c,
-							AtlasUv uv);
+							AtlasUv uv,
+							S32 layer);
 
 // Valid for only a frame (because camera can move)
 REVOLC_API T3d px_tf(V2i px_pos, V2i px_size);

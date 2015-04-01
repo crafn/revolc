@@ -13,6 +13,7 @@ typedef struct UiContext_Turtle {
 	V2i pos; // Output "cursor
 	V2i last_adv_size;
 	V2i dir; // Direction which `turtle` will move
+	U32 draw_i;
 } UiContext_Turtle;
 
 // Immediate gui context
@@ -56,6 +57,7 @@ REVOLC_API V2i gui_turtle_pos();
 // Move turtle according to current layout
 REVOLC_API void gui_advance_turtle(V2i element_size);
 REVOLC_API V2i gui_last_adv_size();
+REVOLC_API S32 gui_next_draw_layer();
 
 REVOLC_API void gui_begin(V2i turtle_dir);
 REVOLC_API void gui_end();

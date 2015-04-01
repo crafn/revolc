@@ -72,11 +72,12 @@ void gui_text(const char *text)
 				verts, v_count,
 				inds, i_count,
 				(Color) {1, 1, 1, 1},
-				gui_font()->atlas_uv);
+				gui_font()->atlas_uv,
+				gui_next_draw_layer());
 
 
-	gui_advance_turtle(size);
 	gui_end();
+	gui_advance_turtle(size);
 }
 
 bool gui_button(const char *label, bool *is_down, bool *is_hovered)
@@ -271,6 +272,7 @@ void gui_quad(V2i px_pos, V2i px_size, Color c)
 	U32 handle= resurrect_modelentity(&init);
 	ModelEntity *e= get_modelentity(handle);
 	e->color= c;
+	e->layer= gui_next_draw_layer();
 }
 
 void gui_model_image(V2i px_pos, V2i px_size, ModelEntity *src_model)
@@ -291,6 +293,7 @@ void gui_model_image(V2i px_pos, V2i px_size, ModelEntity *src_model)
 	ModelEntity *e= get_modelentity(handle);
 	e->atlas_uv= src_model->atlas_uv;
 	e->scale_to_atlas_uv= src_model->scale_to_atlas_uv;
+	e->layer= gui_next_draw_layer();
 }
 
 void gui_res_info(ResType t, const Resource *res)

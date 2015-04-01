@@ -250,7 +250,8 @@ void push_model(	T3d tf,
 					TriMeshVertex *v, U32 v_count,
 					MeshIndexType *i, U32 i_count,
 					Color c,
-					AtlasUv uv)
+					AtlasUv uv,
+					S32 layer)
 {
 	ModelEntity init;
 	init_modelentity(&init);
@@ -260,6 +261,7 @@ void push_model(	T3d tf,
 	e->free_after_draw= true;
 	e->atlas_uv= uv.uv;
 	e->scale_to_atlas_uv= uv.scale;
+	e->layer= layer;
 
 	e->vertices= v;
 	e->mesh_v_count= v_count;
@@ -413,13 +415,16 @@ internal
 inline
 int entity_cmp(const void *e1, const void *e2)
 {
+#define E1 ((ModelEntity*)e1)
+#define E2 ((ModelEntity*)e2)
+	if (E1->layer != E2->layer)
+		return (E1->layer > E2->layer) - (E1->layer < E2->layer);
+
 	// Smallest Z first (furthest away from camera)
 	// Uglier but faster than using temp vars with -O0
-	return	(	((ModelEntity*)e1)->tf.pos.z >
-				((ModelEntity*)e2)->tf.pos.z )
-			-
-			( ((ModelEntity*)e1)->tf.pos.z <
-				((ModelEntity*)e2)->tf.pos.z );
+	return	(E1->tf.pos.z > E2->tf.pos.z) - (E1->tf.pos.z < E2->tf.pos.z);
+#undef E1
+#undef E2
 }
 
 void render_frame()

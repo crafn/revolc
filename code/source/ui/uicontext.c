@@ -37,9 +37,9 @@ void upd_uicontext()
 	ctx->dev.toggle_select_all= g_env.device->key_pressed['a'];
 
 	ensure(ctx->turtle_i == 0);
-	ctx->turtles[0].pos= (V2i) {0, 0};
-	ctx->turtles[0].dir= (V2i) {0, 1};
-	ctx->turtles[0].last_adv_size= (V2i) {0, 1};
+	ctx->turtles[0]= (UiContext_Turtle) {
+		.dir= (V2i) {0, 1},
+	};
 
 	ctx->last_hot_id= ctx->hot_id;
 	ctx->hot_id= 0;
@@ -74,6 +74,15 @@ V2i gui_last_adv_size()
 	return turtle->last_adv_size;
 }
 
+S32 gui_next_draw_layer()
+{
+	UiContext *ctx= g_env.uicontext;
+	UiContext_Turtle *turtle= &ctx->turtles[ctx->turtle_i];
+
+	// Should return something > 0, as zero is the world layer
+	return (turtle->draw_i++) + 1337;
+}
+
 void gui_begin(V2i turtle_dir)
 {
 	UiContext *ctx= g_env.uicontext;
@@ -86,6 +95,7 @@ void gui_begin(V2i turtle_dir)
 	*cur= (UiContext_Turtle) {
 		.pos= prev->pos,
 		.dir= turtle_dir,
+		.draw_i= prev->draw_i,
 	};
 }
 
