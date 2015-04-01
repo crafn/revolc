@@ -14,6 +14,8 @@ int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 {
 	int return_value= 0;
 	T3f *samples= NULL;
+	const Armature *a= NULL;
+	Clip_Key *keys= NULL;
 
 	JsonTok j_armature= json_value_by_key(j, "armature");
 	JsonTok j_duration= json_value_by_key(j, "duration");
@@ -26,8 +28,7 @@ int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 	if (json_is_null(j_channels))
 		RES_ATTRIB_MISSING("channels");
 
-	const Armature *a=
-		(Armature*)find_res_by_name_from_blobbuf(	buf,
+	a= (Armature*)find_res_by_name_from_blobbuf(	buf,
 													ResType_Armature,
 													json_str(j_armature));
 	if (!a) {
@@ -45,7 +46,6 @@ int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 	for (U32 i= 0; i < sample_count; ++i)
 		samples[i]= identity_t3f();
 
-	Clip_Key *keys= NULL;
 	U32 keys_capacity= 0;
 	U32 total_key_count= 0;
 
