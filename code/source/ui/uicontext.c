@@ -40,6 +40,7 @@ void upd_uicontext()
 	ctx->turtles[0]= (UiContext_Turtle) {
 		.dir= (V2i) {0, 1},
 	};
+	ctx->listbox_released= false;
 
 	ctx->last_hot_id= ctx->hot_id;
 	ctx->hot_id= 0;

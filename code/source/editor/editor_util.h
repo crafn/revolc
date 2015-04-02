@@ -23,6 +23,10 @@ REVOLC_API Color darken_color(Color c);
 REVOLC_API void gui_text(const char *text);
 REVOLC_API bool gui_button(const char *label, bool *is_down, bool *hovered);
 
+REVOLC_API bool gui_begin_listbox(const char *label);
+REVOLC_API bool gui_listbox_item(const char *label);
+// void gui_end(); <- use this to end listbox
+
 REVOLC_API F64 editor_vertex_size();
 REVOLC_API bool cursor_transform_delta_world(	T3f *out,
 												const char *label,

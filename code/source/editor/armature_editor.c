@@ -140,7 +140,6 @@ void do_armature_editor(	ArmatureEditor *state,
 		gui_res_info(ResType_Armature, a ? &a->res : NULL);
 
 		{ // Timeline
-			// @todo Layouting to gui -- no more pixel calcs here!
 			V2i px_pos= {0, -100};
 			V2i px_size= {g_env.device->win_size.x, 100};
 			gui_quad(px_pos, px_size, gui_dev_panel_color());
@@ -148,7 +147,6 @@ void do_armature_editor(	ArmatureEditor *state,
 			gui_begin((V2i) {1, 0});
 			gui_set_turtle_pos(px_pos);
 
-			bool btn_down;
 			if (strlen(state->clip_name) == 0)
 				fmt_str(state->clip_name, RES_NAME_SIZE,
 						"%s", "bind_pose");
@@ -157,38 +155,29 @@ void do_armature_editor(	ArmatureEditor *state,
 			all_res_by_type(&clip_begin, &clip_count,
 							g_env.resblob, ResType_Clip);
 
-			// Listbox
-			V2i listbox_pos= gui_turtle_pos();
-			bool released=
-				gui_button(	frame_str("Clip: %s", state->clip_name),
-							&btn_down, NULL);
-			V2i list_start_pos= {
-				listbox_pos.x, listbox_pos.y - gui_last_adv_size().y
-			};
-			gui_begin((V2i) {0, -1});
-			gui_set_turtle_pos(list_start_pos);
-
-			if (btn_down || released) {
+			// Listbox containing all animation clips
+			if (gui_begin_listbox(frame_str("Clip: %s", state->clip_name))) {
 				for (int i= clip_begin - 1; i < clip_begin + clip_count; ++i) {
 					const char *name= "bind_pose";
-					if (i >= clip_begin) {
-						Clip *clip= (Clip*)res_by_index(g_env.resblob, i);
-						name= clip->res.name;
-					}
-					bool hovered;
-					gui_button(name, NULL, &hovered);
-					if (released && hovered) {
+					if (i >= clip_begin)
+						name= res_by_index(g_env.resblob, i)->name;
+					if (gui_listbox_item(name))
 						fmt_str(state->clip_name, RES_NAME_SIZE, "%s", name);
-					}
 				}
 			}
 			gui_end();
 
-			{ // Play/stop button
-				if (gui_button(	state->is_playing ? "Stop" : "Play",
-								NULL, NULL)) {
-					toggle_bool(&state->is_playing);
-				}
+			if (gui_button("New key <i>", NULL, NULL)) {
+				debug_print("@todo new keyframe");
+			}
+
+			if (gui_button("Delete key <del>", NULL, NULL)) {
+				debug_print("@todo del keyframe");
+			}
+
+			if (gui_button(	state->is_playing ? "Stop" : "Play",
+							NULL, NULL)) {
+				toggle_bool(&state->is_playing);
 			}
 
 			// Interior of timeline

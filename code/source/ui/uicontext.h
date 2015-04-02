@@ -33,12 +33,13 @@ typedef struct UiContext {
 
 		GuiId grabbing; // Set by editor elements
 		GuiId rotating; // Set by editor elements
-		GuiId scaling; // Set b editor elements
+		GuiId scaling; // Set by editor elements
 	} dev;
 
 	// Stack of turtles
 	UiContext_Turtle turtles[MAX_GUI_STACK_SIZE];
 	U32 turtle_i;
+	bool listbox_released;
 
 	GuiId hot_id, last_hot_id;
 	GuiId active_id;

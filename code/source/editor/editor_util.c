@@ -145,6 +145,33 @@ bool gui_button(const char *label, bool *is_down, bool *is_hovered)
 	return pressed;
 }
 
+bool gui_begin_listbox(const char *label)
+{
+	UiContext *ctx= g_env.uicontext;
+
+	bool btn_down;
+	V2i listbox_pos= gui_turtle_pos();
+	ctx->listbox_released=
+		gui_button(	label, &btn_down, NULL);
+	V2i list_start_pos= {
+		listbox_pos.x, listbox_pos.y - gui_last_adv_size().y
+	};
+	gui_begin((V2i) {0, -1}); // User calls gui_end()
+	gui_set_turtle_pos(list_start_pos);
+
+	return btn_down || ctx->listbox_released;
+}
+
+bool gui_listbox_item(const char *label)
+{
+	UiContext *ctx= g_env.uicontext;
+
+	bool hovered;
+	gui_button(label, NULL, &hovered);
+
+	return ctx->listbox_released && hovered;
+}
+
 F64 editor_vertex_size()
 { return screen_to_world_size((V2i) {5, 0}).x; }
 
