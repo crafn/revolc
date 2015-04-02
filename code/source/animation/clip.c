@@ -4,6 +4,9 @@
 #include "core/malloc.h"
 #include "resources/resblob.h"
 
+U32 clip_sample_count(const Clip *c)
+{ return c->joint_count*c->frame_count; }
+
 T3f * clip_local_samples(const Clip *c)
 { return blob_ptr(&c->res, c->local_samples_offset); }
 
@@ -217,4 +220,53 @@ JointPoseArray calc_clip_pose(const Clip *c, F64 t)
 						lerp);
 	}
 	return pose;
+}
+
+internal
+void destroy_rt_clip(Resource *res)
+{
+	Clip *c= (Clip*)res;
+	dev_free(blob_ptr(res, c->keys_offset));
+	dev_free(blob_ptr(res, c->local_samples_offset));
+	dev_free(c);
+}
+
+Clip *create_rt_clip(Clip *src)
+{
+	Clip *rt_clip= dev_malloc(sizeof(*rt_clip));
+	*rt_clip= *src;
+
+	substitute_res(&src->res, &rt_clip->res, destroy_rt_clip);
+
+	rt_clip->keys_offset=
+		alloc_substitute_res_member(	&rt_clip->res, &src->res,
+										src->keys_offset,
+										sizeof(Clip_Key)*src->key_count);
+
+	rt_clip->local_samples_offset=
+		alloc_substitute_res_member(	&rt_clip->res, &src->res,
+										src->local_samples_offset,
+										sizeof(T3f)*clip_sample_count(src));
+
+	// Nobody stores pointers to Clips (yet) so no need for recaching any ptrs
+	return rt_clip;
+}
+
+void rt_clip_add_key(Clip *c, F64 time)
+{
+	ensure(c->res.is_runtime_res);
+	const U32 old_count= c->key_count;
+	const U32 new_count= old_count + 1;
+
+	Clip_Key *keys= blob_ptr(&c->res, c->keys_offset);
+	keys= dev_realloc(keys, sizeof(*keys)*new_count);
+	
+	keys[old_count]= (Clip_Key) {
+		.time= time,
+	};
+
+	c->keys_offset= blob_offset(&c->res, keys);
+	c->key_count= new_count;
+
+	// @todo Update samples
 }

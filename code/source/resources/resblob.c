@@ -263,25 +263,41 @@ Resource * find_res_by_name_from_blobbuf(	const BlobBuf *buf,
 	return NULL;
 }
 
-void all_res_by_type(	U32 *start_index, U32 *count,
-						const ResBlob *blob, ResType t)
+Resource ** all_res_by_type(	U32 *count,
+								const ResBlob *blob,
+								ResType t)
 {
-	U32 placeholder_start_index;
-	if (!start_index)
-		start_index= &placeholder_start_index;
-
-	*start_index= 0;
 	*count= 0;
-	while (	*start_index < blob->res_count &&
-			res_by_index(blob, *start_index)->type != t)
-		++*start_index;
-	while (	*start_index + *count < blob->res_count &&
-			res_by_index(blob, *start_index + *count)->type == t) {
-		ensure(	res_by_index(blob, *start_index + *count)->substitute == NULL &&
-				"Known problem, just waited it to happen. "
-				"Resources with substitutes shouldn't be accessible.");
-		++*count;
+	{ // Find count
+		for (U32 i= 0; i < blob->res_count; ++i) {
+			Resource *res= res_by_index(blob, i);
+			if (res->type == t && !res->substitute)
+				++*count;
+		}
+		RuntimeResource *res= blob->first_runtime_res;
+		while (res) {
+			if (res->res->type == t)
+				++*count;
+			res= res->next;
+		}
 	}
+
+	Resource **res_list= frame_alloc(sizeof(*res_list)*(*count));
+	Resource **res_it= res_list;
+	{
+		for (U32 i= 0; i < blob->res_count; ++i) {
+			Resource *res= res_by_index(blob, i);
+			if (res->type == t && !res->substitute)
+				*(res_it++)= res;
+		}
+		RuntimeResource *res= blob->first_runtime_res;
+		while (res) {
+			if (res->res->type == t)
+				*(res_it++)= res->res;
+			res= res->next;
+		}
+	}
+	return res_list;
 }
 
 void* blob_ptr(const Resource *who_asks, BlobOffset offset)
@@ -533,6 +549,17 @@ void substitute_res(Resource *stale, Resource *new_res, RtResFree rt_free)
 	stale->blob->first_runtime_res= rt_res;
 
 	stale->substitute= new_res;
+}
+
+BlobOffset alloc_substitute_res_member(	Resource *dst,
+										const Resource *src,
+										BlobOffset member,
+										U32 size)
+{
+	ensure(dst->is_runtime_res);
+	void *data= dev_malloc(size);
+	memcpy(data, blob_ptr(src, member), size);
+	return blob_offset(dst, data);
 }
 
 // Mirror possibly modified resource to json

@@ -7,16 +7,6 @@
 #include "visual/ddraw.h"
 #include "visual/renderer.h"
 
-// Creates modifiable substitute for static armature resource
-internal
-Armature *create_rt_armature(Armature *src)
-{
-	Armature *rt_armature= dev_malloc(sizeof(*rt_armature));
-	*rt_armature= *src;
-	substitute_res(&src->res, &rt_armature->res, NULL);
-	recache_ptrs_to_armatures();
-	return rt_armature;
-}
 
 // Armature editing on world
 internal
@@ -139,7 +129,7 @@ void do_armature_editor(	ArmatureEditor *state,
 
 		gui_res_info(ResType_Armature, a ? &a->res : NULL);
 
-		{ // Timeline
+		{ // Timeline box
 			V2i px_pos= {0, -100};
 			V2i px_size= {g_env.device->win_size.x, 100};
 			gui_quad(px_pos, px_size, gui_dev_panel_color());
@@ -151,29 +141,41 @@ void do_armature_editor(	ArmatureEditor *state,
 				fmt_str(state->clip_name, RES_NAME_SIZE,
 						"%s", "bind_pose");
 
-			U32 clip_begin, clip_count;
-			all_res_by_type(&clip_begin, &clip_count,
-							g_env.resblob, ResType_Clip);
+			U32 clip_count;
+			Clip **clips= (Clip **)all_res_by_type(	&clip_count,
+													g_env.resblob,
+													ResType_Clip);
 
 			// Listbox containing all animation clips
 			if (gui_begin_listbox(frame_str("Clip: %s", state->clip_name))) {
-				for (int i= clip_begin - 1; i < clip_begin + clip_count; ++i) {
+				for (U32 i= 0; i < clip_count + 1; ++i) {
 					const char *name= "bind_pose";
-					if (i >= clip_begin)
-						name= res_by_index(g_env.resblob, i)->name;
+					if (i < clip_count)
+						name= clips[i]->res.name;
 					if (gui_listbox_item(name))
 						fmt_str(state->clip_name, RES_NAME_SIZE, "%s", name);
 				}
 			}
 			gui_end();
 
-			if (gui_button("New key <i>", NULL, NULL)) {
-				debug_print("@todo new keyframe");
-			}
 
-			if (gui_button("Delete key <del>", NULL, NULL)) {
-				debug_print("@todo del keyframe");
+			if (gui_begin_listbox("Keyframes")) {
+				if (gui_listbox_item("Delete <del>")) {
+					debug_print("@todo del keyframe");
+				}
+
+				if (gui_listbox_item("Add <i>")) {
+					Clip *clip=
+							(Clip*)res_by_name(	g_env.resblob,
+												ResType_Clip,
+												state->clip_name);
+					if (!clip->res.is_runtime_res)
+						clip= create_rt_clip(clip);
+
+					rt_clip_add_key(clip, state->clip_time);
+				}
 			}
+			gui_end();
 
 			if (gui_button(	state->is_playing ? "Stop" : "Play",
 							NULL, NULL)) {

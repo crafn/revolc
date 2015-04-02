@@ -18,13 +18,14 @@ void * query_sym_concat(const char* a, const char *b)
 		}
 	}
 
-	U32 mod_start_i;
 	U32 mod_count;
-	all_res_by_type(&mod_start_i, &mod_count,
-					g_env.resblob, ResType_Module);
+	Module **modules=
+		(Module **)all_res_by_type(	&mod_count,
+									g_env.resblob,
+									ResType_Module);
 
-	for (U32 i= mod_start_i; i < mod_start_i + mod_count; ++i) {
-		const Module *mod= (Module*)res_by_index(g_env.resblob, i);
+	for (U32 i= 0; i < mod_count; ++i) {
+		const Module *mod= modules[i];
 		DllHandle h= mod->dll;
 		void *addr= query_dll_sym(h, name);
 		if (addr) {

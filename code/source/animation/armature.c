@@ -1,6 +1,7 @@
 #include "armature.h"
 #include "core/debug_print.h"
 #include "core/ensure.h"
+#include "core/malloc.h"
 #include "resources/resblob.h"
 #include "platform/io.h"
 #include "platform/stdlib.h"
@@ -115,4 +116,15 @@ JointId joint_id_by_name(const Armature *a, const char *name)
 			return i;
 	}
 	return NULL_JOINT_ID;
+}
+
+
+void recache_ptrs_to_armatures();
+Armature *create_rt_armature(Armature *src)
+{
+	Armature *rt_armature= dev_malloc(sizeof(*rt_armature));
+	*rt_armature= *src;
+	substitute_res(&src->res, &rt_armature->res, NULL);
+	recache_ptrs_to_armatures();
+	return rt_armature;
 }

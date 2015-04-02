@@ -2,40 +2,6 @@
 #include "editor_util.h"
 
 internal
-void destroy_rt_mesh(Resource *res);
-
-// Creates modifiable substitute for static mesh resource
-internal
-Mesh *create_rt_mesh(Mesh *src)
-{
-	Mesh *rt_mesh= dev_malloc(sizeof(*rt_mesh));
-	*rt_mesh= *src;
-	substitute_res(&src->res, &rt_mesh->res, destroy_rt_mesh);
-
-	TriMeshVertex *verts= dev_malloc(sizeof(*verts)*src->v_count);
-	memcpy(verts, mesh_vertices(src), sizeof(*verts)*src->v_count);
-
-	MeshIndexType *inds= dev_malloc(sizeof(*inds)*src->i_count);
-	memcpy(inds, mesh_indices(src), sizeof(*inds)*src->i_count);
-
-	rt_mesh->v_offset= blob_offset(&rt_mesh->res, verts);
-	rt_mesh->i_offset= blob_offset(&rt_mesh->res, inds);
-
-	recache_ptrs_to_meshes();
-
-	return rt_mesh;
-}
-
-internal
-void destroy_rt_mesh(Resource *res)
-{
-	Mesh *m= (Mesh*)res;
-	dev_free(blob_ptr(res, m->v_offset));
-	dev_free(blob_ptr(res, m->i_offset));
-	dev_free(m);
-}
-
-internal
 V3d vertex_world_pos(ModelEntity *m, U32 i)
 {
 	TriMeshVertex *v= &m->vertices[i];

@@ -123,3 +123,33 @@ void mesh_to_json(WJson *j, const Mesh *m)
 						wjson_number(mesh_indices(m)[i]));
 	}
 }
+
+internal
+void destroy_rt_mesh(Resource *res)
+{
+	Mesh *m= (Mesh*)res;
+	dev_free(blob_ptr(res, m->v_offset));
+	dev_free(blob_ptr(res, m->i_offset));
+	dev_free(m);
+}
+
+Mesh *create_rt_mesh(Mesh *src)
+{
+	Mesh *rt_mesh= dev_malloc(sizeof(*rt_mesh));
+	*rt_mesh= *src;
+	substitute_res(&src->res, &rt_mesh->res, destroy_rt_mesh);
+
+	rt_mesh->v_offset=
+		alloc_substitute_res_member(	&rt_mesh->res, &src->res,
+										src->v_offset,
+										sizeof(TriMeshVertex)*src->v_count);
+	rt_mesh->i_offset=
+		alloc_substitute_res_member(	&rt_mesh->res, &src->res,
+										src->i_offset,
+										sizeof(MeshIndexType)*src->i_count);
+
+	recache_ptrs_to_meshes();
+
+	return rt_mesh;
+}
+

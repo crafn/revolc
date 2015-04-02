@@ -50,4 +50,7 @@ int json_mesh_to_blob(struct BlobBuf *buf, JsonTok j);
 REVOLC_API
 void mesh_to_json(WJson *j, const Mesh *m);
 
+// Creates modifiable substitute for static mesh resource
+Mesh *create_rt_mesh(Mesh *src);
+
 #endif // REVOLC_VISUAL_MESH_H

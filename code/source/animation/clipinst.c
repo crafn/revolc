@@ -12,7 +12,6 @@ void init_clipinst(ClipInst *data)
 
 U32 resurrect_clipinst(ClipInst *dead)
 {
-	dead->clip= (Clip*)res_by_name(g_env.resblob, ResType_Clip, dead->clip_name);
 	return NULL_HANDLE;
 }
 
@@ -20,7 +19,9 @@ void upd_clipinst(ClipInst *inst, ClipInst *e)
 {
 	F32 dt= g_env.world->dt;
 	for (; inst != e; ++inst) {
-		const Clip *c= inst->clip;
+		// This hurts!
+		const Clip *c=
+			(Clip*)res_by_name(g_env.resblob, ResType_Clip, inst->clip_name);
 
 		inst->t += dt;
 		while(inst->t > c->duration)

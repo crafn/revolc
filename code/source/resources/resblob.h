@@ -24,9 +24,9 @@ REVOLC_API Resource * res_by_index(const ResBlob *blob, U32 index);
 REVOLC_API Resource * res_by_name(ResBlob *b, ResType t, const char *n);
 REVOLC_API bool res_exists(const ResBlob *blob, ResType t, const char *n);
 REVOLC_API Resource * find_res_by_name(const ResBlob *b, ResType t, const char *n);
-/// @todo Should take substitutes/dynamic account somehow
-REVOLC_API void all_res_by_type(U32 *start_index, U32 *count,
-								const ResBlob *blob, ResType t);
+REVOLC_API Resource ** all_res_by_type(	U32 *count,
+										const ResBlob *blob,
+										ResType t);
 
 REVOLC_API void * blob_ptr(const Resource *who_asks, BlobOffset offset);
 REVOLC_API BlobOffset blob_offset(const Resource *who_asks, const void *ptr);
@@ -43,6 +43,12 @@ REVOLC_API void make_blob(const char *dst_file, char **res_file_paths);
 // ^ is due to unified handling of modified/created resources
 // It's up to user to get pointers to the stale res requeried
 void substitute_res(Resource *stale, Resource *new_res, RtResFree rt_free);
+
+// Free with dev_free
+BlobOffset alloc_substitute_res_member(	Resource *dst,
+										const Resource *src,
+										BlobOffset member,
+										U32 size);
 
 // Saves changes to original, unpacked resource files
 REVOLC_API U32 mirror_blob_modifications(ResBlob *blob);

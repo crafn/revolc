@@ -122,26 +122,23 @@ void recreate_texture_atlas(Renderer *r, ResBlob *blob)
 	U32 tex_info_count= 0;
 	TexInfo *tex_infos= NULL;
 	{
-		U32 first_tex_res, tex_count;
-		U32 first_font_res, font_count;
-		all_res_by_type(&first_tex_res,
-						&tex_count,
-						blob,
-						ResType_Texture);
-		all_res_by_type(&first_font_res,
-						&font_count,
-						blob,
-						ResType_Font);
+		U32 tex_count;
+		U32 font_count;
+		Texture **textures=
+			(Texture **)all_res_by_type(	&tex_count,
+											blob,
+											ResType_Texture);
+		Font **fonts=
+			(Font **)all_res_by_type(	&font_count,
+										blob,
+										ResType_Font);
 
 		tex_info_count= tex_count + font_count;
 		tex_infos=
 			malloc(sizeof(*tex_infos)*(tex_info_count));
 		U32 i= 0;
-		for (	U32 cur_res= first_tex_res;
-				cur_res < first_tex_res + tex_count;
-				++cur_res) {
-			Texture *tex=
-				(Texture*)res_by_index(blob, cur_res);
+		for (U32 tex_i= 0; tex_i < tex_count; ++tex_i) {
+			Texture *tex= textures[tex_i];
 			tex_infos[i++]= (TexInfo) {
 				.name= tex->res.name,
 				.reso= tex->reso,
@@ -149,11 +146,8 @@ void recreate_texture_atlas(Renderer *r, ResBlob *blob)
 				.texels= tex->texels,
 			};
 		}
-		for (	U32 cur_res= first_font_res;
-				cur_res < first_font_res + font_count;
-				++cur_res) {
-			Font *font=
-				(Font*)res_by_index(blob, cur_res);
+		for (U32 font_i= 0; font_i < font_count; ++font_i) {
+			Font *font= fonts[font_i];
 			tex_infos[i++]= (TexInfo) {
 				.name= font->res.name,
 				.reso= font->bitmap_reso,

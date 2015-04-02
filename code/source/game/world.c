@@ -81,16 +81,15 @@ World * create_world()
 
 	// Initialize storage for automatically allocated node impls
 
-	U32 ntypes_begin;
 	U32 ntypes_count;
-	all_res_by_type(&ntypes_begin, &ntypes_count,
-					g_env.resblob, ResType_NodeType);
+	NodeType **ntypes=
+		(NodeType **)all_res_by_type(	&ntypes_count,
+										g_env.resblob,
+										ResType_NodeType);
 
 	U32 ntype_count_with_auto_mgmt= 0;
-	for (	U32 i= ntypes_begin;
-			i < ntypes_begin + ntypes_count;
-			++i) {
-		const NodeType *type= (NodeType*)res_by_index(g_env.resblob, i);
+	for (U32 i= 0; i < ntypes_count; ++i) {
+		const NodeType *type= ntypes[i];
 		if (type->auto_impl_mgmt)
 			++ntype_count_with_auto_mgmt;
 	}
@@ -100,11 +99,8 @@ World * create_world()
 	w->auto_storage_count= ntype_count_with_auto_mgmt;
 
 	U32 st_i= 0;
-	for (	U32 ntype_i= ntypes_begin;
-			ntype_i < ntypes_begin + ntypes_count;
-			++ntype_i) {
-		NodeType *type=
-			(NodeType*)res_by_index(g_env.resblob, ntype_i);
+	for (U32 i= 0; i < ntypes_count; ++i) {
+		NodeType *type= ntypes[i];
 		if (!type->auto_impl_mgmt)
 			continue;
 
@@ -571,12 +567,15 @@ void world_on_res_reload(ResBlob *old)
 
 
 	U32 old_ntypes_count;
-	all_res_by_type(NULL, &old_ntypes_count,
+	all_res_by_type(&old_ntypes_count,
 					g_env.resblob, ResType_NodeType);
-	U32 ntypes_begin;
+
 	U32 ntypes_count;
-	all_res_by_type(&ntypes_begin, &ntypes_count,
-					g_env.resblob, ResType_NodeType);
+	NodeType **ntypes=
+		(NodeType **)all_res_by_type(	&ntypes_count,
+										g_env.resblob,
+										ResType_NodeType);
+
 	// Not a rigorous solution, but probably catches 99% of bad cases
 	// For a new NodeTypes during runtime one would need to
 	// resize w->auto_storages, possibly reordering some handles
@@ -584,8 +583,8 @@ void world_on_res_reload(ResBlob *old)
 		fail("@todo Runtime load/unload for NodeTypes");
 
 	U32 next_auto_storage_handle= 0;
-	for (U32 i= ntypes_begin; i < ntypes_begin + ntypes_count; ++i) {
-		NodeType *ntype= (NodeType*)res_by_index(g_env.resblob, i);
+	for (U32 i= 0; i < ntypes_count; ++i) {
+		NodeType *ntype= ntypes[i];
 		if (!ntype->auto_impl_mgmt)
 			continue;
 		// This is gonna break horribly some day.
@@ -619,3 +618,4 @@ void world_on_res_reload(ResBlob *old)
 		}
 	}
 }
+

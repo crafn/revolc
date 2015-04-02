@@ -7,13 +7,11 @@
 
 // Animation clip being played
 typedef struct ClipInst {
+	// @todo Use some hash instead
 	char clip_name[RES_NAME_SIZE];
 
 	JointPoseArray pose; // Interpolated straight from Clip
 	F32 t;
-
-	// Cached
-	const Clip *clip;
 } ClipInst;
 
 REVOLC_API

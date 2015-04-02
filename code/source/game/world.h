@@ -91,7 +91,6 @@ REVOLC_API void free_node(World *w, U32 handle);
 REVOLC_API void free_node_group(World *w, U64 group_id);
 REVOLC_API U32 node_impl_handle(World *w, U32 node_handle);
 
-internal
 void world_on_res_reload(struct ResBlob *old);
 
 #endif // REVOLC_GAME_WORLD_H

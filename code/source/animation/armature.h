@@ -21,4 +21,7 @@ REVOLC_API void armature_to_json(WJson *j, const Armature *a);
 REVOLC_API
 JointId joint_id_by_name(const Armature *a, const char *name);
 
+// Creates modifiable substitute for static armature resource
+Armature *create_rt_armature(Armature *src);
+
 #endif // REVOLC_ANIMATION_ARMATURE_H
