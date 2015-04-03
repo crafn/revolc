@@ -248,14 +248,18 @@ void plat_update_impl(Device *d)
 			//debug_print("keysym: %i", *keysym);
 
 			int table_index= 0;
-			if (*keysym < KEY_COUNT)
-				table_index= *keysym;
-			else if (*keysym >= 65470 && *keysym <= 65481)
+			if (*keysym >= 65470 && *keysym <= 65481)
 				table_index= KEY_F1 + (*keysym - 65470);
 			else if (*keysym == 65289)
 				table_index= KEY_TAB;
 			else if (*keysym == 65505)
 				table_index= KEY_LSHIFT;
+			else if (*keysym == 65507)
+				table_index= KEY_LCTRL;
+			else if (*keysym == 32)
+				table_index= KEY_SPACE;
+			else if (*keysym == 65535)
+				table_index= KEY_DEL;
 			else if (*keysym == 65307)
 				table_index= KEY_ESC;
 			else if (*keysym == 65361)
@@ -266,6 +270,8 @@ void plat_update_impl(Device *d)
 				table_index= KEY_RIGHT;
 			else if (*keysym == 65364)
 				table_index= KEY_DOWN;
+			else if (*keysym < KEY_COUNT)
+				table_index= *keysym;
 
 			d->key_down[table_index]= (xev.type == KeyPress);
 			d->key_pressed[table_index]= (xev.type == KeyPress);

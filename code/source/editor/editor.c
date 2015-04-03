@@ -29,8 +29,7 @@ internal
 void editor_store_res_state()
 {
 	Editor *e= g_env.editor;
-	if (e->stored.vertices)
-		editor_free_res_state();
+	editor_free_res_state();
 
 	if (e->cur_model_h != NULL_HANDLE) {
 		ModelEntity *m= get_modelentity(e->cur_model_h);
@@ -112,7 +111,7 @@ void editor_revert_res_state()
 		a->joint_count= e->stored.joint_count;
 	}
 
-	if (e->stored.keys) {
+	if (e->stored.keys && e->stored.samples) {
 		Clip *clip=
 				(Clip*)res_by_name(	g_env.resblob,
 									ResType_Clip,

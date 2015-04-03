@@ -63,6 +63,7 @@ Texel * malloc_rgba_font_bitmap(const Font *font)
 		texels[i].r= texels[i].g= texels[i].b= 255;
 		texels[i].a= bitmap[i];
 	}
+	free(texels);
 	return texels;
 }
 
@@ -75,6 +76,7 @@ U32 text_mesh(	V2i *size,
 	F32 x= 0, y= font->px_height;
 	U32 count= 0;
 	U32 v_i= 0;
+	*size= (V2i) {};
 	while (*text) {
 		U32 ch= *text;
 		if (ch == '\n') {
