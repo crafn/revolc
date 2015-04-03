@@ -2407,6 +2407,8 @@ int stbtt_PackFontRanges(stbtt_pack_context *spc, unsigned char *fontdata, int f
       }
    }
 
+   STBTT_free(rects, spc->user_allocator_context);
+
    return return_value;
 }
 

@@ -63,7 +63,6 @@ Texel * malloc_rgba_font_bitmap(const Font *font)
 		texels[i].r= texels[i].g= texels[i].b= 255;
 		texels[i].a= bitmap[i];
 	}
-	free(texels);
 	return texels;
 }
 

@@ -153,6 +153,7 @@ void recreate_texture_atlas(Renderer *r, ResBlob *blob)
 				.reso= font->bitmap_reso,
 				.atlas_uv= &font->atlas_uv,
 				.texels= malloc_rgba_font_bitmap(font),
+				.free_texels= true,
 			};
 		}
 
