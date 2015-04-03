@@ -6,6 +6,7 @@
 typedef struct ArmatureEditor {
 	U32 comp_h; // Initialize to NULL_HANDLE
 	char clip_name[RES_NAME_SIZE];
+	bool clip_is_bind_pose;
 	bool is_playing;
 	F64 clip_time;
 } ArmatureEditor;

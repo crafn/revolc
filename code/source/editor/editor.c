@@ -52,6 +52,8 @@ void editor_store_res_state()
 			e->stored.bind_pose.tf[i]= a->joints[i].bind_pose;
 		e->stored.joint_count= a->joint_count;
 	}
+
+	// @todo Clip resource
 }
 
 // Revert currenty select resources to state before edit action

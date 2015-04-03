@@ -13,6 +13,106 @@ T3f * clip_local_samples(const Clip *c)
 Clip_Key * clip_keys(const Clip *c)
 { return blob_ptr(&c->res, c->keys_offset); }
 
+
+#define QSORT_CMP_INC(a, b) (((a) > (b)) - ((a) < (b)))
+
+int clip_key_cmp(const void *a_, const void *b_)
+{
+	const Clip_Key *a= a_;
+	const Clip_Key *b= b_;
+
+	if (a->joint_id != b->joint_id)
+		return QSORT_CMP_INC(a->joint_id, b->joint_id);
+
+	if (a->type != b->type)
+		return QSORT_CMP_INC(a->type, b->type);
+
+	return QSORT_CMP_INC(a->time, b->time);
+}
+
+internal
+void sort_clip_keys(Clip_Key *keys, U32 key_count)
+{
+	qsort(keys, key_count, sizeof(*keys), clip_key_cmp);
+}
+
+// `keys` should be sorted with sort_clip_keys
+internal
+void calc_samples_for_clip(	T3f *samples, U32 joint_count, U32 frame_count,
+							const Clip_Key *keys, U32 key_count,
+							F64 duration)
+{
+	const U32 sample_count= joint_count*frame_count;
+	// Each joint has three channels: scale, rot and pos which may or may not
+	// be specified by the `keys` array
+	U32 ch_key_begin_i= 0;
+	U32 ch_key_end_i= 0;
+	for (;	ch_key_begin_i < key_count;
+			ch_key_begin_i= ch_key_end_i) {
+		const Clip_Key_Type ch_type= keys[ch_key_begin_i].type;
+		const JointId joint_id= keys[ch_key_begin_i].joint_id;
+
+		while (	ch_key_end_i < key_count &&
+				keys[ch_key_end_i].type == ch_type &&
+				keys[ch_key_end_i].joint_id == joint_id)
+			++ch_key_end_i;
+
+		// Interpolate samples from sorted keys
+		U32 key_i= 0;
+		U32 next_key_i= 0;
+		F32 key_t= 0.0;
+		F32 next_key_t= 0.0;
+		Clip_Key_Value key_value, next_key_value;
+		bool first= true;
+		for (U32 frame_i= 0; frame_i < frame_count; ++frame_i) {
+			const F32 frame_t= frame_i*duration/(frame_count - 1);
+
+			// Update cur/next keys
+			if (first || frame_t > next_key_t) {
+				if (first) {
+					first= false;
+					key_i= ch_key_begin_i;
+					next_key_i= key_i + 1;
+				} else {
+					++key_i;
+					++next_key_i;
+				}
+				if (key_i >= ch_key_end_i)
+					key_i= ch_key_end_i - 1;
+				if (next_key_i >= ch_key_end_i)
+					next_key_i= ch_key_end_i - 1;
+
+				key_value=		keys[key_i].value;
+				next_key_value=	keys[next_key_i].value;
+				key_t=			keys[key_i].time;
+				next_key_t=		keys[next_key_i].time;
+			}
+
+			// Write samples
+			const U32 s_i= frame_i*joint_count + joint_id;
+			ensure(s_i < sample_count);
+			const F32 lerp= CLAMP((frame_t - key_t)/(next_key_t - key_t), 0, 1);
+			switch (ch_type) {
+				case Clip_Key_Type_pos:
+					samples[s_i].pos=
+						lerp_v3f(key_value.pos, next_key_value.pos, lerp);
+				break;
+				case Clip_Key_Type_rot:
+					/// @todo qlerp?
+					samples[s_i].rot=
+						normalized_qf(
+								lerp_qf(key_value.rot, next_key_value.rot, lerp));
+				break;
+				case Clip_Key_Type_scale:
+					samples[s_i].scale=
+						lerp_v3f(key_value.scale, next_key_value.scale, lerp);
+				break;
+				default: fail("Unhandled Clip_Key_Type: %i", ch_type);
+			}
+		}
+	}
+}
+
 int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 {
 	int return_value= 0;
@@ -84,7 +184,6 @@ int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 			continue;
 
 		// Gather keys of the channel
-		const U32 ch_begin_key_i= total_key_count;
 		for (U32 key_i= 0; key_i < key_count; ++key_i) {
 			JsonTok j_key= json_member(j_keys, key_i);
 			JsonTok j_value= json_value_by_key(j_key, "v");
@@ -110,61 +209,12 @@ int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 			keys= push_dyn_array(	keys, &keys_capacity, &total_key_count,
 									sizeof(*keys), &key);
 		}
-
-		// Interpolate samples from keys
-		U32 key_i= 0;
-		U32 next_key_i= 0;
-		F32 key_t= 0.0;
-		F32 next_key_t= 0.0;
-		Clip_Key_Value key_value, next_key_value;
-		bool first= true;
-		for (U32 frame_i= 0; frame_i < frame_count; ++frame_i) {
-			const F32 frame_t= frame_i*duration/(frame_count - 1);
-
-			// Update cur/next keys
-			if (first || frame_t > next_key_t) {
-				if (first) {
-					first= false;
-					key_i= 0;
-					next_key_i= 1;
-				} else {
-					++key_i;
-					++next_key_i;
-				}
-				if (key_i >= key_count)
-					key_i= key_count - 1;
-				if (next_key_i >= key_count)
-					next_key_i= key_count - 1;
-
-				key_value=		keys[ch_begin_key_i + key_i].value;
-				next_key_value=	keys[ch_begin_key_i + next_key_i].value;
-				key_t=			keys[ch_begin_key_i + key_i].time;
-				next_key_t=		keys[ch_begin_key_i + next_key_i].time;
-			}
-
-			// Write samples
-			const U32 s_i= frame_i*joint_count + joint_id;
-			ensure(s_i < sample_count);
-			const F32 lerp= (frame_t - key_t)/(next_key_t - key_t);
-			switch (type) {
-				case Clip_Key_Type_pos:
-					samples[s_i].pos=
-						lerp_v3f(key_value.pos, next_key_value.pos, lerp);
-				break;
-				case Clip_Key_Type_rot:
-					/// @todo qlerp?
-					samples[s_i].rot=
-						normalized_qf(
-								lerp_qf(key_value.rot, next_key_value.rot, lerp));
-				break;
-				case Clip_Key_Type_scale:
-					samples[s_i].scale=
-						lerp_v3f(key_value.scale, next_key_value.scale, lerp);
-				break;
-				default: fail("Unhandled ChType: %i", type);
-			}
-		}
 	}
+
+	sort_clip_keys(keys, total_key_count);
+	calc_samples_for_clip(	samples, joint_count, frame_count,
+							keys, total_key_count,
+							duration);
 
 	const U32 samples_offset= buf->offset + sizeof(Clip) - sizeof(Resource);
 	const U32 samples_size= sizeof(*samples)*sample_count;
@@ -252,7 +302,8 @@ Clip *create_rt_clip(Clip *src)
 	return rt_clip;
 }
 
-void rt_clip_add_key(Clip *c, F64 time)
+internal
+void add_rt_clip_key(Clip *c, Clip_Key key)
 {
 	ensure(c->res.is_runtime_res);
 	const U32 old_count= c->key_count;
@@ -261,12 +312,35 @@ void rt_clip_add_key(Clip *c, F64 time)
 	Clip_Key *keys= blob_ptr(&c->res, c->keys_offset);
 	keys= dev_realloc(keys, sizeof(*keys)*new_count);
 	
-	keys[old_count]= (Clip_Key) {
-		.time= time,
-	};
+	keys[old_count]= key;
 
 	c->keys_offset= blob_offset(&c->res, keys);
 	c->key_count= new_count;
+}
 
-	// @todo Update samples
+void update_rt_clip_key(Clip *c, Clip_Key key)
+{
+	ensure(c->res.is_runtime_res);
+
+	Clip_Key *edit_key= NULL;
+	for (U32 i= 0; i < c->key_count; ++i) {
+		Clip_Key *cmp= &clip_keys(c)[i];
+		if (	cmp->time == key.time &&
+				cmp->joint_id == key.joint_id &&
+				cmp->type == key.type) {
+			edit_key= cmp;
+			break;
+		}
+	}
+
+	if (edit_key)
+		*edit_key= key;
+	else
+		add_rt_clip_key(c, key);
+
+	sort_clip_keys(clip_keys(c), c->key_count);
+	calc_samples_for_clip(	clip_local_samples(c),
+							c->joint_count, c->frame_count,
+							clip_keys(c), c->key_count,
+							c->duration);
 }

@@ -156,10 +156,14 @@ bool gui_begin_listbox(const char *label)
 	V2i list_start_pos= {
 		listbox_pos.x, listbox_pos.y - gui_last_adv_size().y
 	};
-	gui_begin((V2i) {0, -1}); // User calls gui_end()
-	gui_set_turtle_pos(list_start_pos);
+	const bool open= btn_down || ctx->listbox_released;
 
-	return btn_down || ctx->listbox_released;
+	if (open) {
+		gui_begin((V2i) {0, -1}); // User calls gui_end()
+		gui_set_turtle_pos(list_start_pos);
+	}
+
+	return open;
 }
 
 bool gui_listbox_item(const char *label)
@@ -220,32 +224,34 @@ V3f cursor_scale_delta_in_tf_coords(T3d tf)
 	return (V3f) {s, s, s};
 }
 
-bool cursor_transform_delta_world(T3f *out, const char *label, T3d coords)
+CursorDeltaMode cursor_transform_delta_world(	T3f *out,
+												const char *label,
+												T3d coords)
 {
 	UiContext *ctx= g_env.uicontext;
 	*out= identity_t3f();
 
 	if (ctx->dev.grabbing == gui_id(label)) {
 		out->pos= cursor_delta_in_tf_coords(coords);
-		return true;
+		return CursorDeltaMode_translate;
 	}
 
 	if (ctx->dev.rotating == gui_id(label)) {
 		out->rot= cursor_rot_delta_in_tf_coords(coords);
-		return true;
+		return CursorDeltaMode_rotate;
 	}
 
 	if (ctx->dev.scaling == gui_id(label)) {
 		out->scale= cursor_scale_delta_in_tf_coords(coords);
-		return true;
+		return CursorDeltaMode_scale;
 	}
 
-	return false;
+	return CursorDeltaMode_none;
 }
 
-bool cursor_transform_delta_pixels(	T3f *out,
-									const char *label,
-									T3d coords)
+CursorDeltaMode cursor_transform_delta_pixels(	T3f *out,
+												const char *label,
+												T3d coords)
 {
 	UiContext *ctx= g_env.uicontext;
 	*out= identity_t3f();
@@ -264,14 +270,14 @@ bool cursor_transform_delta_pixels(	T3f *out,
 									identity_qd(),
 									prev_p}).pos;
 		out->pos= v3d_to_v3f(sub_v3d(cur, prev));
-		return true;
+		return CursorDeltaMode_translate;
 	} 
 
 	if (ctx->dev.rotating == gui_id(label)) {
 		V3f v1= v3d_to_v3f(sub_v3d(prev_p, center));
 		V3f v2= v3d_to_v3f(sub_v3d(cur_p, center));
 		out->rot= qf_by_from_to(v1, v2);
-		return true;
+		return CursorDeltaMode_rotate;
 	}
 
 	if (ctx->dev.scaling == gui_id(label)) {
@@ -280,10 +286,10 @@ bool cursor_transform_delta_pixels(	T3f *out,
 
 		F32 s= length_v3f(w2)/length_v3f(w1);
 		out->scale= (V3f) {s, s, s};
-		return true;
+		return CursorDeltaMode_scale;
 	}
 
-	return false;
+	return CursorDeltaMode_translate;
 }
 
 void gui_quad(V2i px_pos, V2i px_size, Color c)

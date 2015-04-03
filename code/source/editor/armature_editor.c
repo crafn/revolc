@@ -10,23 +10,23 @@
 
 // Armature editing on world
 internal
-void gui_armature_overlay(U32 *comp_h, bool is_edit_mode)
+void gui_armature_overlay(ArmatureEditor *state, bool is_edit_mode)
 {
 	UiContext *ctx= g_env.uicontext;
 	V3d cur_wp= v2d_to_v3d(screen_to_world_point(ctx->dev.cursor_pos));
 
 	const char *box_label= "armature_overlay_box";
-	EditorBoxState state=
+	EditorBoxState bstate=
 		gui_editorbox(box_label, (V2i) {0, 0}, g_env.device->win_size, true);
 
 	if (!is_edit_mode) {
-		if (state.down)
-			*comp_h= find_compentity_at_pixel(ctx->dev.cursor_pos);
+		if (bstate.down)
+			state->comp_h= find_compentity_at_pixel(ctx->dev.cursor_pos);
 	}
 	
 	CompEntity *entity= NULL;
-	if (*comp_h != NULL_HANDLE)
-		entity= get_compentity(*comp_h);
+	if (state->comp_h != NULL_HANDLE)
+		entity= get_compentity(state->comp_h);
 	else
 		return;
 	Armature *a= entity->armature;
@@ -44,7 +44,7 @@ void gui_armature_overlay(U32 *comp_h, bool is_edit_mode)
 				a->joints[i].selected= false;
 			a->joints[0].selected= !some_selected;
 		} else {
-			*comp_h= NULL_HANDLE;
+			state->comp_h= NULL_HANDLE;
 			return;
 		}
 	}
@@ -62,31 +62,66 @@ void gui_armature_overlay(U32 *comp_h, bool is_edit_mode)
 			}
 
 			T3f delta;
-			if (cursor_transform_delta_world(&delta, box_label, coords)) {
+			CursorDeltaMode m=
+				cursor_transform_delta_world(&delta, box_label, coords);
+			if (m) {
 				if (!a->res.is_runtime_res)
 					a= create_rt_armature(a);
-
-				V3f translation= delta.pos;
-				{ // `translation` from cur pose coords to bind pose coords
-					T3f to_bind= inv_t3f(entity->pose.tf[i]);
-					V3f a= transform_v3f(to_bind, (V3f) {0, 0, 0});
-					V3f b= transform_v3f(to_bind, translation);
-					translation= sub_v3f(b, a);
-				}
-				delta.pos= translation;
-
-				T3f *bind_tf= &a->joints[i].bind_pose;
-				bind_tf->pos= add_v3f(bind_tf->pos, delta.pos);
-				bind_tf->rot= mul_qf(delta.rot, bind_tf->rot);
-				bind_tf->scale= mul_v3f(delta.scale, bind_tf->scale);
-
 				a->res.needs_saving= true;
+
+				if (state->clip_is_bind_pose) {
+					// Modify bind pose
+					V3f translation= delta.pos;
+					{ // `translation` from cur pose coords to bind pose coords
+						T3f to_bind= inv_t3f(entity->pose.tf[i]);
+						V3f a= transform_v3f(to_bind, (V3f) {0, 0, 0});
+						V3f b= transform_v3f(to_bind, translation);
+						translation= sub_v3f(b, a);
+					}
+					delta.pos= translation;
+
+					T3f *bind_tf= &a->joints[i].bind_pose;
+					bind_tf->pos= add_v3f(delta.pos, bind_tf->pos);
+					bind_tf->rot= mul_qf(delta.rot, bind_tf->rot);
+					bind_tf->scale= mul_v3f(delta.scale, bind_tf->scale);
+				} else {
+					// Modify/create keyframe
+					T3f base= entity->pose.tf[i];
+
+					Clip_Key key= {
+						.joint_id= i,
+						.time= state->clip_time,
+					};
+					switch (m) {
+					case CursorDeltaMode_scale:
+						key.type= Clip_Key_Type_scale;
+						key.value.scale= mul_v3f(delta.scale, base.scale);
+					break;
+					case CursorDeltaMode_rotate:
+						key.type= Clip_Key_Type_rot;
+						key.value.rot= mul_qf(delta.rot, base.rot);
+					break;
+					case CursorDeltaMode_translate:
+						key.type= Clip_Key_Type_pos;
+						key.value.pos= add_v3f(delta.pos, base.pos);
+					break;
+					default: fail("Unknown CursorDeltaMode: %i", m);
+					}
+
+					Clip *clip=
+							(Clip*)res_by_name(	g_env.resblob,
+												ResType_Clip,
+												state->clip_name);
+					if (!clip->res.is_runtime_res)
+						clip= create_rt_clip(clip);
+
+					update_rt_clip_key(clip, key);
+				}
 			}
 		}
-
 	}
 
-	if (is_edit_mode && state.pressed) {
+	if (is_edit_mode && bstate.pressed) {
 		// Control joint selection
 		F64 closest_dist= 0;
 		U32 closest_i= NULL_HANDLE;
@@ -118,7 +153,7 @@ void do_armature_editor(	ArmatureEditor *state,
 							bool active)
 {
 	if (active) {
-		gui_armature_overlay(&state->comp_h, is_edit_mode);
+		gui_armature_overlay(state, is_edit_mode);
 
 		CompEntity *entity= NULL;
 		Armature *a= NULL;
@@ -130,8 +165,8 @@ void do_armature_editor(	ArmatureEditor *state,
 		gui_res_info(ResType_Armature, a ? &a->res : NULL);
 
 		{ // Timeline box
-			V2i px_pos= {0, -100};
-			V2i px_size= {g_env.device->win_size.x, 100};
+			V2i px_pos= {0, -150};
+			V2i px_size= {g_env.device->win_size.x, 150};
 			gui_quad(px_pos, px_size, gui_dev_panel_color());
 
 			gui_begin((V2i) {1, 0});
@@ -155,29 +190,20 @@ void do_armature_editor(	ArmatureEditor *state,
 					if (gui_listbox_item(name))
 						fmt_str(state->clip_name, RES_NAME_SIZE, "%s", name);
 				}
+				gui_end();
 			}
-			gui_end();
 
+			state->clip_is_bind_pose=
+				!strcmp(state->clip_name, "bind_pose");
 
-			if (gui_begin_listbox("Keyframes")) {
-				if (gui_listbox_item("Delete <del>")) {
+			if (!state->clip_is_bind_pose) {
+				if (gui_button("Delete", NULL, NULL)) {
 					debug_print("@todo del keyframe");
 				}
-
-				if (gui_listbox_item("Add <i>")) {
-					Clip *clip=
-							(Clip*)res_by_name(	g_env.resblob,
-												ResType_Clip,
-												state->clip_name);
-					if (!clip->res.is_runtime_res)
-						clip= create_rt_clip(clip);
-
-					rt_clip_add_key(clip, state->clip_time);
-				}
 			}
-			gui_end();
 
-			if (gui_button(	state->is_playing ? "Stop" : "Play",
+			if (	!state->clip_is_bind_pose &&
+					gui_button(	state->is_playing ? "Stop" : "Play",
 							NULL, NULL)) {
 				toggle_bool(&state->is_playing);
 			}
@@ -191,9 +217,7 @@ void do_armature_editor(	ArmatureEditor *state,
 			gui_quad(px_pos, px_size, darken_color(gui_dev_panel_color()));
 
 			if (entity && a) {
-				const bool bind_pose_selected=
-					!strcmp(state->clip_name, "bind_pose");
-				if (bind_pose_selected) {
+				if (state->clip_is_bind_pose) {
 					entity->pose= identity_pose();
 					state->is_playing= false;
 				} else {
@@ -210,10 +234,16 @@ void do_armature_editor(	ArmatureEditor *state,
 						F64 lerp_y= (F64)key.joint_id/clip->joint_count;
 						V2i pos= {
 							px_pos.x + px_size.x*lerp_x - 3,
-							px_pos.y + px_size.y*lerp_y - 3
+							px_pos.y + px_size.y*lerp_y - 6 + 4*key.type
 						};
-						gui_quad(	pos, (V2i){6, 6},
-									(Color) {0.3, 0.7, 1, 0.8});
+						V2i size= {6, 3};
+
+						Color color= (Color [3]) {
+							{1.0, 0.2, 0.0, 1.0}, // scale
+							{0.2, 1.0, 0.5, 1.0}, // rot
+							{0.0, 0.6, 1.0, 1.0}, // pos
+						}[key.type];
+						gui_quad(pos, size, color);
 					}
 
 					// Update animation to CompEntity

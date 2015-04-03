@@ -23,17 +23,27 @@ REVOLC_API Color darken_color(Color c);
 REVOLC_API void gui_text(const char *text);
 REVOLC_API bool gui_button(const char *label, bool *is_down, bool *hovered);
 
+//	if (gui_begin_listbox("foo")) {
+//		gui_listbox_item("bar");
+//		gui_end(); // Inside if!
+//	}
 REVOLC_API bool gui_begin_listbox(const char *label);
 REVOLC_API bool gui_listbox_item(const char *label);
-// void gui_end(); <- use this to end listbox
 
 REVOLC_API F64 editor_vertex_size();
-REVOLC_API bool cursor_transform_delta_world(	T3f *out,
-												const char *label,
-												T3d coords);
-REVOLC_API bool cursor_transform_delta_pixels(	T3f *out,
-												const char *label,
-												T3d coords);
+
+typedef enum {
+	CursorDeltaMode_none,
+	CursorDeltaMode_scale,
+	CursorDeltaMode_rotate,
+	CursorDeltaMode_translate,
+} CursorDeltaMode;
+REVOLC_API CursorDeltaMode cursor_transform_delta_world(	T3f *out,
+															const char *label,
+															T3d coords);
+REVOLC_API CursorDeltaMode cursor_transform_delta_pixels(	T3f *out,
+															const char *label,
+															T3d coords);
 // Draws single-color quad
 REVOLC_API void gui_quad(V2i px_pos, V2i px_size, Color c);
 
