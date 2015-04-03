@@ -224,6 +224,18 @@ V3f cursor_scale_delta_in_tf_coords(T3d tf)
 	return (V3f) {s, s, s};
 }
 
+CursorDeltaMode cursor_delta_mode(const char *label)
+{
+	UiContext *ctx= g_env.uicontext;
+	if (ctx->dev.grabbing == gui_id(label))
+		return CursorDeltaMode_translate;
+	if (ctx->dev.rotating == gui_id(label))
+		return CursorDeltaMode_rotate;
+	if (ctx->dev.scaling == gui_id(label))
+		return CursorDeltaMode_scale;
+	return CursorDeltaMode_none;
+}
+
 CursorDeltaMode cursor_transform_delta_world(	T3f *out,
 												const char *label,
 												T3d coords)

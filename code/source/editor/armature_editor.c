@@ -9,9 +9,11 @@
 
 
 // Armature editing on world
+// Returns true if editing is actively happening 
 internal
-void gui_armature_overlay(ArmatureEditor *state, bool is_edit_mode)
+bool gui_armature_overlay(ArmatureEditor *state, bool is_edit_mode)
 {
+	bool editing_happening= false;
 	UiContext *ctx= g_env.uicontext;
 	V3d cur_wp= v2d_to_v3d(screen_to_world_point(ctx->dev.cursor_pos));
 
@@ -28,7 +30,7 @@ void gui_armature_overlay(ArmatureEditor *state, bool is_edit_mode)
 	if (state->comp_h != NULL_HANDLE)
 		entity= get_compentity(state->comp_h);
 	else
-		return;
+		return editing_happening;
 	Armature *a= entity->armature;
 	T3d global_pose[MAX_ARMATURE_JOINT_COUNT];
 	calc_global_pose(global_pose, entity);
@@ -45,7 +47,7 @@ void gui_armature_overlay(ArmatureEditor *state, bool is_edit_mode)
 			a->joints[0].selected= !some_selected;
 		} else {
 			state->comp_h= NULL_HANDLE;
-			return;
+			return editing_happening;
 		}
 	}
 
@@ -54,69 +56,85 @@ void gui_armature_overlay(ArmatureEditor *state, bool is_edit_mode)
 			if (!a->joints[i].selected)
 				continue;
 
-			T3d coords= entity->tf;
-			U32 super_i= a->joints[i].super_id;
-			if (super_i != NULL_JOINT_ID) {
-				coords= global_pose[super_i];
-				coords.pos= global_pose[i].pos; 
-			}
+			CursorDeltaMode m= cursor_delta_mode(box_label);
+			if (!m)
+				continue;
 
-			T3f delta;
-			CursorDeltaMode m=
-				cursor_transform_delta_world(&delta, box_label, coords);
-			if (m) {
-				if (!a->res.is_runtime_res)
-					a= create_rt_armature(a);
-				a->res.needs_saving= true;
+			editing_happening= true;
+			if (!a->res.is_runtime_res)
+				a= create_rt_armature(a);
+			a->res.needs_saving= true;
 
-				if (state->clip_is_bind_pose) {
-					// Modify bind pose
-					V3f translation= delta.pos;
-					{ // `translation` from cur pose coords to bind pose coords
-						T3f to_bind= inv_t3f(entity->pose.tf[i]);
-						V3f a= transform_v3f(to_bind, (V3f) {0, 0, 0});
-						V3f b= transform_v3f(to_bind, translation);
-						translation= sub_v3f(b, a);
-					}
-					delta.pos= translation;
-
-					T3f *bind_tf= &a->joints[i].bind_pose;
-					bind_tf->pos= add_v3f(delta.pos, bind_tf->pos);
-					bind_tf->rot= mul_qf(delta.rot, bind_tf->rot);
-					bind_tf->scale= mul_v3f(delta.scale, bind_tf->scale);
-				} else {
-					// Modify/create keyframe
-					T3f base= entity->pose.tf[i];
-
-					Clip_Key key= {
-						.joint_id= i,
-						.time= state->clip_time,
-					};
-					switch (m) {
-					case CursorDeltaMode_scale:
-						key.type= Clip_Key_Type_scale;
-						key.value.scale= mul_v3f(delta.scale, base.scale);
-					break;
-					case CursorDeltaMode_rotate:
-						key.type= Clip_Key_Type_rot;
-						key.value.rot= mul_qf(delta.rot, base.rot);
-					break;
-					case CursorDeltaMode_translate:
-						key.type= Clip_Key_Type_pos;
-						key.value.pos= add_v3f(delta.pos, base.pos);
-					break;
-					default: fail("Unknown CursorDeltaMode: %i", m);
-					}
-
-					Clip *clip=
-							(Clip*)res_by_name(	g_env.resblob,
-												ResType_Clip,
-												state->clip_name);
-					if (!clip->res.is_runtime_res)
-						clip= create_rt_clip(clip);
-
-					update_rt_clip_key(clip, key);
+			if (state->clip_is_bind_pose) {
+				// Modify bind pose
+				T3d coords= entity->tf;
+				U32 super_i= a->joints[i].super_id;
+				if (super_i != NULL_JOINT_ID) {
+					coords= global_pose[super_i];
+					coords.pos= global_pose[i].pos; 
 				}
+
+				T3f delta;
+				cursor_transform_delta_world(&delta, box_label, coords);
+				V3f translation= delta.pos;
+				{ // `translation` from cur pose coords to bind pose coords
+					T3f to_bind= inv_t3f(entity->pose.tf[i]);
+					V3f a= transform_v3f(to_bind, (V3f) {0, 0, 0});
+					V3f b= transform_v3f(to_bind, translation);
+					translation= sub_v3f(b, a);
+				}
+				delta.pos= translation;
+
+				T3f *bind_tf= &a->joints[i].bind_pose;
+				bind_tf->pos= add_v3f(delta.pos, bind_tf->pos);
+				bind_tf->rot= mul_qf(delta.rot, bind_tf->rot);
+				bind_tf->scale= mul_v3f(delta.scale, bind_tf->scale);
+			} else {
+				// Modify/create keyframe
+
+				T3d coords= global_pose[i];
+				{ // cur pose coords -> bind pose coords
+					T3f to_bind= inv_t3f(entity->pose.tf[i]);
+					// @todo Figure out why transforming whole `coords` causes
+					// problems with rotation (.pos goes somewhere?)
+					coords.rot= mul_t3d(t3f_to_t3d(to_bind), coords).rot;
+				}
+				T3f delta;
+				cursor_transform_delta_world(&delta, box_label, coords);
+
+				const T3f base= entity->pose.tf[i];
+
+				Clip_Key key= {
+					.joint_id= i,
+					.time= state->clip_time,
+				};
+				switch (m) {
+				case CursorDeltaMode_scale:
+					key.type= Clip_Key_Type_scale;
+					key.value.scale= mul_v3f(delta.scale, base.scale);
+					entity->pose.tf[i].scale= key.value.scale;
+				break;
+				case CursorDeltaMode_rotate:
+					key.type= Clip_Key_Type_rot;
+					key.value.rot= mul_qf(delta.rot, base.rot);
+					entity->pose.tf[i].rot= key.value.rot;
+				break;
+				case CursorDeltaMode_translate:
+					key.type= Clip_Key_Type_pos;
+					key.value.pos= add_v3f(delta.pos, base.pos);
+					entity->pose.tf[i].pos= key.value.pos;
+				break;
+				default: fail("Unknown CursorDeltaMode: %i", m);
+				}
+
+				Clip *clip=
+						(Clip*)res_by_name(	g_env.resblob,
+											ResType_Clip,
+											state->clip_name);
+				if (!clip->res.is_runtime_res)
+					clip= create_rt_clip(clip);
+
+				update_rt_clip_key(clip, key);
 			}
 		}
 	}
@@ -146,6 +164,7 @@ void gui_armature_overlay(ArmatureEditor *state, bool is_edit_mode)
 			toggle_bool(&a->joints[closest_i].selected);
 		}
 	}
+	return editing_happening;
 }
 
 void do_armature_editor(	ArmatureEditor *state,
@@ -153,7 +172,7 @@ void do_armature_editor(	ArmatureEditor *state,
 							bool active)
 {
 	if (active) {
-		gui_armature_overlay(state, is_edit_mode);
+		bool editing_happening= gui_armature_overlay(state, is_edit_mode);
 
 		CompEntity *entity= NULL;
 		Armature *a= NULL;
@@ -246,8 +265,11 @@ void do_armature_editor(	ArmatureEditor *state,
 						gui_quad(pos, size, color);
 					}
 
-					// Update animation to CompEntity
-					entity->pose= calc_clip_pose(clip, state->clip_time);
+					// Update animation to CompEntity when not actively editing
+					// This because calculated pose doesn't exactly match
+					// with keys (discretization error) and causes feedback loop
+					if (!editing_happening)
+						entity->pose= calc_clip_pose(clip, state->clip_time);
 					if (state->is_playing)
 						state->clip_time += g_env.device->dt;
 					while (state->clip_time > clip->duration)

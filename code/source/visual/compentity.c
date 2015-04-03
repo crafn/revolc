@@ -67,9 +67,8 @@ void calc_global_pose(T3d *global_pose, const CompEntity *e)
 	const Joint *joints= e->armature->joints;
 	for (U32 j_i= 0; j_i < e->armature->joint_count; ++j_i) {
 		T3f joint_pose=
-			mul_t3f(e->pose.tf[j_i],
-					joints[j_i].bind_pose);
-
+			mul_t3f(joints[j_i].bind_pose,
+					e->pose.tf[j_i]);
 		JointId super_id= joints[j_i].super_id;
 		if (super_id != NULL_JOINT_ID) {
 			joint_pose=
@@ -80,3 +79,4 @@ void calc_global_pose(T3d *global_pose, const CompEntity *e)
 		global_pose[j_i]= mul_t3d(e->tf, t3f_to_t3d(joint_pose));
 	}
 }
+

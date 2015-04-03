@@ -38,6 +38,7 @@ typedef enum {
 	CursorDeltaMode_rotate,
 	CursorDeltaMode_translate,
 } CursorDeltaMode;
+REVOLC_API CursorDeltaMode cursor_delta_mode(const char *label);
 REVOLC_API CursorDeltaMode cursor_transform_delta_world(	T3f *out,
 															const char *label,
 															T3d coords);
