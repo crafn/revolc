@@ -31,10 +31,13 @@ void upd_uicontext()
 	ctx->dev.rmb.released= g_env.device->key_released[KEY_RMB];
 
 	ctx->dev.shift_down= g_env.device->key_down[KEY_LSHIFT];
+	ctx->dev.snap_to_closest= g_env.device->key_down[KEY_LCTRL];
 	ctx->dev.g_pressed= g_env.device->key_pressed['g'];
 	ctx->dev.r_pressed= g_env.device->key_pressed['r'];
 	ctx->dev.s_pressed= g_env.device->key_pressed['s'];
 	ctx->dev.toggle_select_all= g_env.device->key_pressed['a'];
+	ctx->dev.toggle_play= g_env.device->key_pressed[KEY_SPACE];
+	ctx->dev.delete= g_env.device->key_pressed[KEY_DEL];
 
 	ensure(ctx->turtle_i == 0);
 	ctx->turtles[0]= (UiContext_Turtle) {

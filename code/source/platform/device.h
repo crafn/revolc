@@ -10,6 +10,9 @@
 #define KEY_RMB 2
 #define KEY_TAB 9
 #define KEY_LSHIFT 10
+#define KEY_LCTRL 11
+#define KEY_SPACE 12
+#define KEY_DEL 13
 #define KEY_A 97 // 'a'
 //  ...
 #define KEY_F1  128

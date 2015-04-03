@@ -52,6 +52,7 @@ REVOLC_API JointPoseArray calc_clip_pose(const Clip *c, F64 t);
 REVOLC_API Clip *create_rt_clip(Clip *src);
 // Add or update
 REVOLC_API void update_rt_clip_key(Clip *c, Clip_Key key);
+REVOLC_API void delete_rt_clip_key(Clip *c, U32 del_i);
 
 REVOLC_API void recache_ptrs_to_clips();
 

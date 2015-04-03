@@ -43,6 +43,12 @@ void calc_samples_for_clip(	T3f *samples, U32 joint_count, U32 frame_count,
 							F64 duration)
 {
 	const U32 sample_count= joint_count*frame_count;
+	// Reset samples to bind pose, so that if (every) key is removed in
+	// the editor the samples will reset to identity instead of this function
+	// being NOP
+	for (U32 i= 0; i < sample_count; ++i)
+		samples[i]= identity_t3f();
+
 	// Each joint has three channels: scale, rot and pos which may or may not
 	// be specified by the `keys` array
 	U32 ch_key_begin_i= 0;
@@ -339,6 +345,20 @@ void update_rt_clip_key(Clip *c, Clip_Key key)
 		add_rt_clip_key(c, key);
 
 	sort_clip_keys(clip_keys(c), c->key_count);
+	calc_samples_for_clip(	clip_local_samples(c),
+							c->joint_count, c->frame_count,
+							clip_keys(c), c->key_count,
+							c->duration);
+}
+
+void delete_rt_clip_key(Clip *c, U32 del_i)
+{
+	for (U32 i= del_i; i + 1 < c->key_count; ++i)
+		clip_keys(c)[i]= clip_keys(c)[i + 1];
+
+	--c->key_count;
+
+	// No need for sorting
 	calc_samples_for_clip(	clip_local_samples(c),
 							c->joint_count, c->frame_count,
 							clip_keys(c), c->key_count,

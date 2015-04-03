@@ -106,8 +106,8 @@ void plat_update_impl(Device *d)
 	const U32 keycode_to_vkcode[KEY_COUNT]= {
 		VK_LBUTTON, VK_MBUTTON, VK_RBUTTON, 0,
 		0, 0, 0, 0,
-		0, VK_TAB, VK_LSHIFT, 0,
-		0, 0, 0, 0,
+		0, VK_TAB, VK_LSHIFT, VK_LCONTROL,
+		VK_SPACE, VK_DELETE, 0, 0,
 		0, 0, 0, 0,
 		0, 0, 0, 0,
 		0, 0, 0, 0,

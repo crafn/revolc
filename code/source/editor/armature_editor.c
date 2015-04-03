@@ -43,8 +43,7 @@ bool gui_armature_overlay(ArmatureEditor *state, bool is_edit_mode)
 					some_selected= true;
 			}
 			for (U32 i= 0; i < a->joint_count; ++i)
-				a->joints[i].selected= false;
-			a->joints[0].selected= !some_selected;
+				a->joints[i].selected= !some_selected;
 		} else {
 			state->comp_h= NULL_HANDLE;
 			return editing_happening;
@@ -171,6 +170,7 @@ void do_armature_editor(	ArmatureEditor *state,
 							bool is_edit_mode,
 							bool active)
 {
+	UiContext *ctx= g_env.uicontext;
 	if (active) {
 		bool editing_happening= gui_armature_overlay(state, is_edit_mode);
 
@@ -215,16 +215,41 @@ void do_armature_editor(	ArmatureEditor *state,
 			state->clip_is_bind_pose=
 				!strcmp(state->clip_name, "bind_pose");
 
+			// Delete and Play button
 			if (!state->clip_is_bind_pose) {
-				if (gui_button("Delete", NULL, NULL)) {
-					debug_print("@todo del keyframe");
-				}
-			}
+				if (	gui_button("Delete key <del>", NULL, NULL)
+						|| ctx->dev.delete) {
 
-			if (	!state->clip_is_bind_pose &&
-					gui_button(	state->is_playing ? "Stop" : "Play",
-							NULL, NULL)) {
-				toggle_bool(&state->is_playing);
+					Clip *clip=
+						(Clip*)res_by_name(	g_env.resblob,
+											ResType_Clip,
+											state->clip_name);
+					if (!clip->res.is_runtime_res)
+						clip= create_rt_clip(clip);
+
+					// Delete all keys of selected joints at current time
+					bool key_deleted;
+					do {
+						key_deleted= false;
+						for (U32 i= 0; i < clip->key_count; ++i) {
+							Clip_Key key= clip_keys(clip)[i];
+							if (	key.time == state->clip_time &&
+									a->joints[key.joint_id].selected) {
+								delete_rt_clip_key(clip, i);
+								key_deleted= true;
+								break;
+							}
+						}
+						if (key_deleted)
+							clip->res.needs_saving= true;
+					} while (key_deleted);
+				}
+
+				if (	gui_button(	state->is_playing ?
+										"Pause <space>" : "Play <space>",
+									NULL, NULL)
+						|| ctx->dev.toggle_play)
+					toggle_bool(&state->is_playing);
 			}
 
 			// Interior of timeline
@@ -233,12 +258,9 @@ void do_armature_editor(	ArmatureEditor *state,
 			px_pos.y += shift;
 			px_size.x -= 20;
 			px_size.y -= shift;
-			gui_begin((V2i){0, 0});
 			gui_quad(px_pos, px_size, darken_color(gui_dev_panel_color()));
 			EditorBoxState bstate=
 				gui_editorbox("clip_timeline", px_pos, px_size, true);
-			gui_end();
-
 			if (entity && a) {
 				if (state->clip_is_bind_pose) {
 					entity->pose= identity_pose();
@@ -249,11 +271,22 @@ void do_armature_editor(	ArmatureEditor *state,
 											ResType_Clip,
 											state->clip_name);
 
-					if (bstate.ldown) {
+					if (bstate.ldown) { // LMB
 						// Set time
 						F64 lerp= (F64)(g_env.uicontext->dev.cursor_pos.x -
 										px_pos.x)/px_size.x;
-						state->clip_time= CLAMP(lerp, 0, 1)*clip->duration;
+						F64 t= lerp*clip->duration;
+						if (ctx->dev.snap_to_closest) {
+							F64 closest_t= -1000000;
+							for (U32 i= 0; i < clip->key_count; ++i) {
+								F64 key_t= clip_keys(clip)[i].time;
+								if (	ABS(t - key_t) <
+										ABS(t - closest_t))
+									closest_t= key_t;
+							}
+							t= closest_t;
+						}
+						state->clip_time= CLAMP(t, 0, clip->duration);
 					}
 
 					// Show keys
@@ -273,6 +306,10 @@ void do_armature_editor(	ArmatureEditor *state,
 							{0.2, 1.0, 0.5, 1.0}, // rot
 							{0.0, 0.6, 1.0, 1.0}, // pos
 						}[key.type];
+						if (key.time == state->clip_time) {
+							color= (Color) {1.0, 1.0, 1.0, 1.0};
+							size.y += 5;
+						}
 						gui_quad(pos, size, color);
 					}
 
@@ -288,7 +325,9 @@ void do_armature_editor(	ArmatureEditor *state,
 
 					// Show timeline cursor
 					F64 lerp= state->clip_time/clip->duration;
-					V2i time_cursor_pos= {px_pos.x + px_size.x*lerp, px_pos.y};
+					V2i time_cursor_pos= {
+						px_pos.x + px_size.x*lerp - 1, px_pos.y
+					};
 					gui_quad(	time_cursor_pos, (V2i){2, px_size.y},
 								(Color) {1, 1, 0, 0.8});
 				}

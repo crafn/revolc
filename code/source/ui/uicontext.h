@@ -26,10 +26,13 @@ typedef struct UiContext {
 		ButtonState lmb;
 		ButtonState rmb;
 		bool shift_down;
+		bool snap_to_closest;
 		bool g_pressed;
 		bool r_pressed;
 		bool s_pressed;
 		bool toggle_select_all;
+		bool toggle_play;
+		bool delete;
 
 		GuiId grabbing; // Set by editor elements
 		GuiId rotating; // Set by editor elements

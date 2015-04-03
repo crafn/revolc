@@ -37,6 +37,7 @@
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define CLAMP(v, a, b) (MAX(MIN(v, b), a))
+#define ABS(v) ((v) > 0 ? (v) : -(v))
 #define NULL_HANDLE ((U32)-1)
 
 #include "platform/types.h"
