@@ -13,10 +13,15 @@ internal
 void editor_free_res_state()
 {
 	Editor *e= g_env.editor;
-	free(e->stored.vertices);
-	free(e->stored.indices);
+	dev_free(e->stored.vertices);
+	dev_free(e->stored.indices);
 	e->stored.vertices= NULL;
 	e->stored.indices= NULL;
+
+	dev_free(e->stored.keys);
+	dev_free(e->stored.samples);
+	e->stored.keys= NULL;
+	e->stored.samples= NULL;
 }
 
 // Store currently selected resources for cancellation of edit
@@ -53,7 +58,22 @@ void editor_store_res_state()
 		e->stored.joint_count= a->joint_count;
 	}
 
-	// @todo Clip resource
+	if (	!e->ae_state.clip_is_bind_pose &&
+			e->ae_state.clip_name[0] != '\0') {
+		Clip *clip=
+				(Clip*)res_by_name(	g_env.resblob,
+									ResType_Clip,
+									e->ae_state.clip_name);
+		const U32 keys_size= sizeof(*e->stored.keys)*clip->key_count;
+		e->stored.keys= dev_malloc(keys_size);
+		memcpy(e->stored.keys, clip_keys(clip), keys_size);
+		e->stored.key_count= clip->key_count;
+
+		const U32 samples_size=
+			sizeof(*e->stored.samples)*clip_sample_count(clip);
+		e->stored.samples= dev_malloc(samples_size);
+		memcpy(e->stored.samples, clip_local_samples(clip), samples_size);
+	}
 }
 
 // Revert currenty select resources to state before edit action
@@ -90,6 +110,26 @@ void editor_revert_res_state()
 		for (U32 i= 0; i < a->joint_count; ++i)
 			a->joints[i].bind_pose= e->stored.bind_pose.tf[i];
 		a->joint_count= e->stored.joint_count;
+	}
+
+	if (e->stored.keys) {
+		Clip *clip=
+				(Clip*)res_by_name(	g_env.resblob,
+									ResType_Clip,
+									e->ae_state.clip_name);
+		// Free old
+		dev_free(blob_ptr(&clip->res, clip->keys_offset));
+		dev_free(blob_ptr(&clip->res, clip->local_samples_offset));
+
+		// Move stored
+		clip->keys_offset= blob_offset(&clip->res, e->stored.keys);
+		clip->key_count= e->stored.key_count;
+		e->stored.keys= NULL;
+
+		clip->local_samples_offset= blob_offset(&clip->res, e->stored.samples);
+		e->stored.samples= NULL;
+
+		recache_ptrs_to_clips();
 	}
 }
 

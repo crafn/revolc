@@ -22,6 +22,10 @@ typedef struct Editor {
 
 		JointPoseArray bind_pose;
 		U32 joint_count;
+
+		Clip_Key *keys;
+		T3f *samples; // Sample count doesn't change (?)
+		U32 key_count;
 	} stored;
 
 	bool is_edit_mode; // Edit or object mode

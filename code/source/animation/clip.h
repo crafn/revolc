@@ -49,8 +49,10 @@ int json_clip_to_blob(struct BlobBuf *buf, JsonTok j);
 REVOLC_API JointPoseArray calc_clip_pose(const Clip *c, F64 t);
 
 // Creates modifiable substitute for Clip resource
-Clip *create_rt_clip(Clip *src);
+REVOLC_API Clip *create_rt_clip(Clip *src);
 // Add or update
-void update_rt_clip_key(Clip *c, Clip_Key key);
+REVOLC_API void update_rt_clip_key(Clip *c, Clip_Key key);
+
+REVOLC_API void recache_ptrs_to_clips();
 
 #endif // REVOLC_ANIMATION_CLIP_H

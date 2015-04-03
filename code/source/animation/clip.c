@@ -298,7 +298,7 @@ Clip *create_rt_clip(Clip *src)
 										src->local_samples_offset,
 										sizeof(T3f)*clip_sample_count(src));
 
-	// Nobody stores pointers to Clips (yet) so no need for recaching any ptrs
+	recache_ptrs_to_clips();
 	return rt_clip;
 }
 
@@ -343,4 +343,9 @@ void update_rt_clip_key(Clip *c, Clip_Key key)
 							c->joint_count, c->frame_count,
 							clip_keys(c), c->key_count,
 							c->duration);
+}
+
+void recache_ptrs_to_clips()
+{
+	// Nobody stores pointers yet
 }
