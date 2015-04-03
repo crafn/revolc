@@ -233,7 +233,11 @@ void do_armature_editor(	ArmatureEditor *state,
 			px_pos.y += shift;
 			px_size.x -= 20;
 			px_size.y -= shift;
+			gui_begin((V2i){0, 0});
 			gui_quad(px_pos, px_size, darken_color(gui_dev_panel_color()));
+			EditorBoxState bstate=
+				gui_editorbox("clip_timeline", px_pos, px_size, true);
+			gui_end();
 
 			if (entity && a) {
 				if (state->clip_is_bind_pose) {
@@ -244,6 +248,13 @@ void do_armature_editor(	ArmatureEditor *state,
 						(Clip*)res_by_name(	g_env.resblob,
 											ResType_Clip,
 											state->clip_name);
+
+					if (bstate.ldown) {
+						// Set time
+						F64 lerp= (F64)(g_env.uicontext->dev.cursor_pos.x -
+										px_pos.x)/px_size.x;
+						state->clip_time= CLAMP(lerp, 0, 1)*clip->duration;
+					}
 
 					// Show keys
 					for (U32 key_i= 0; key_i < clip->key_count; ++key_i) {

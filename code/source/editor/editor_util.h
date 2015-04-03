@@ -6,10 +6,14 @@
 
 /// @todo Remove unused fields
 typedef struct EditorBoxState {
+	// RMB
 	bool hover;
 	bool down;
 	bool pressed;
 	bool released;
+
+	// LMB
+	bool ldown;
 } EditorBoxState;
 
 // Creates a string which exists only this frame

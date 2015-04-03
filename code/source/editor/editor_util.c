@@ -367,10 +367,13 @@ EditorBoxState gui_editorbox(	const char *label,
 
 	if (gui_is_active(label)) {
 		state.pressed= false;
-		if (	!ctx->dev.rmb.down &&
+		if (	!ctx->dev.lmb.down &&
+				!ctx->dev.rmb.down &&
 				!ctx->dev.grabbing && !ctx->dev.rotating && !ctx->dev.scaling) {
 			state.released= true;
 			gui_set_inactive(label);
+		} else if (ctx->dev.lmb.down) {
+			state.ldown= true;
 		} else if (ctx->dev.rmb.down) {
 			state.down= true;
 		}
@@ -392,7 +395,10 @@ EditorBoxState gui_editorbox(	const char *label,
 			gui_set_inactive(label);
 		}
 	} else if (gui_is_hot(label)) {
-		if (ctx->dev.rmb.pressed) {
+		if (ctx->dev.lmb.pressed) {
+			state.ldown= true;
+			gui_set_active(label);
+		} else if (ctx->dev.rmb.pressed) {
 			state.pressed= true;
 			state.down= true;
 			gui_set_active(label);
