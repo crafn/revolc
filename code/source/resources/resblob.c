@@ -54,6 +54,12 @@ void init_res(Resource *res)
 #undef RESOURCE
 }
 
+Resource * res_by_index(const ResBlob *blob, U32 index)
+{
+	ensure(index < blob->res_count);
+	return (Resource*)((U8*)blob + blob->res_offsets[index]);
+}
+
 void load_blob(ResBlob **blob, const char *path)
 {
 	*blob= NULL;
@@ -154,12 +160,6 @@ void reload_blob(ResBlob **new_blob, ResBlob *old_blob, const char *path)
 	free_blob(old_blob);
 }
 
-Resource * res_by_index(const ResBlob *blob, U32 index)
-{
-	ensure(index < blob->res_count);
-	return (Resource*)((U8*)blob + blob->res_offsets[index]);
-}
-
 Resource * res_by_name(ResBlob *blob, ResType type, const char *name)
 {
 	Resource *res= find_res_by_name(blob, type, name);
@@ -228,6 +228,20 @@ Resource * res_by_name(ResBlob *blob, ResType type, const char *name)
 		blob->first_runtime_res= new_res;
 		return new_res->res;
 	}
+}
+
+Resource * res_by_id(ResId id)
+{
+	return res_by_name(g_env.resblob, id.type, id.name);
+}
+
+ResId res_id(ResType t, const char *n)
+{
+	ResId id= {
+		.type= t
+	};
+	fmt_str(id.name, sizeof(id.name), "%s", n);
+	return id;
 }
 
 bool res_exists(const ResBlob *blob, ResType t, const char *n)

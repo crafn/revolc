@@ -414,6 +414,9 @@ void free_rigidbody(RigidBody *b)
 void * storage_rigidbody()
 { return g_env.physworld->bodies; }
 
+RigidBody * get_rigidbody(U32 h)
+{ return g_env.physworld->bodies + h; }
+
 internal
 void phys_draw_circle(
 		cpVect pos, cpFloat angle, cpFloat radius,

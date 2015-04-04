@@ -20,8 +20,10 @@ REVOLC_API void load_blob(ResBlob **blob, const char *path);
 REVOLC_API void unload_blob(ResBlob *blob);
 REVOLC_API void reload_blob(ResBlob **new, ResBlob *old, const char *path);
 
-REVOLC_API Resource * res_by_index(const ResBlob *blob, U32 index);
 REVOLC_API Resource * res_by_name(ResBlob *b, ResType t, const char *n);
+REVOLC_API Resource * res_by_id(ResId id);
+REVOLC_API ResId res_id(ResType t, const char *n);
+
 REVOLC_API bool res_exists(const ResBlob *blob, ResType t, const char *n);
 REVOLC_API Resource * find_res_by_name(const ResBlob *b, ResType t, const char *n);
 REVOLC_API Resource ** all_res_by_type(	U32 *count,

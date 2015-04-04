@@ -62,6 +62,7 @@ typedef struct AutoNodeImplStorage {
 } AutoNodeImplStorage;
 
 typedef struct World {
+	F64 time;
 	F64 dt;
 
 	NodeInfo nodes[MAX_NODE_COUNT];

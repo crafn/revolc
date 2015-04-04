@@ -51,8 +51,8 @@ F64 ground_surf_y(F64 x)
 internal
 void try_spawn_ground(World *world, V2d pos)
 {
-	F64 l_g_y= ground_surf_y(pos.x - 0.5);
-	F64 r_g_y= ground_surf_y(pos.x + 0.5);
+	F64 l_g_y= ground_surf_y(pos.x - 0.0) - 0.5;
+	F64 r_g_y= ground_surf_y(pos.x + 1.0) - 0.5;
 	if (pos.y - 0.5 > l_g_y &&
 		pos.y - 0.5 > r_g_y)
 		return; // Both lower corners over ground
@@ -180,19 +180,20 @@ void generate_world(World *w, U64 seed)
 		spawn_phys_prop(w, pos, "rollbot", false);
 		spawn_phys_prop(w, pos, "wbox", false);
 	}
-	for (int i= -50; i < 50; ++i) {
-		V3d p_front= {i, ground_surf_y(i) + 0.5, 0.01 + random_f64(-0.05, 0.05, &seed)};
-		V3d p_back= {i, ground_surf_y(i) + 0.55, -0.1 + random_f64(-0.05, 0.05, &seed)};
+	for (int i= -100; i < 100; ++i) {
+		F64 x= i/2.0;
+		V3d p_front= {x, ground_surf_y(x) - 0.02, 0.01 + random_f64(0.0, 0.1, &seed)};
+		V3d p_back= {x, ground_surf_y(x) + 0.02, -0.1 + random_f64(-0.1, 0.0, &seed)};
 
-		V2d a= {i - 0.2, ground_surf_y(i - 0.2)};
-		V2d b= {i + 0.2, ground_surf_y(i + 0.2)};
+		V2d a= {i - 0.2, ground_surf_y(x - 0.2)};
+		V2d b= {i + 0.2, ground_surf_y(x + 0.2)};
 		V2d tangent= sub_v2d(b, a);
-		F64 rot= atan2(tangent.y, tangent.x) + random_f64(-0.1, 0.1, &seed);
+		F64 rot= atan2(tangent.y, tangent.x) + random_f64(-0.3, 0.3, &seed);
 
-		F64 scale= random_f64(0.9, 1.3, &seed);
+		F64 scale= random_f64(0.75, 1.5, &seed);
 
-		spawn_visual_prop(w, p_front, rot, scaled_v3d(scale, (V3d) {1.2, 1, 1}), "grassclump_f");
-		spawn_visual_prop(w, p_back, rot, scaled_v3d(scale, (V3d) {1.1, 1, 1}), "grassclump_b");
+		spawn_visual_prop(w, p_front, rot, (V3d) {scale, scale, scale}, "grassclump_f");
+		spawn_visual_prop(w, p_back, rot, (V3d) {scale, scale, scale}, "grassclump_b");
 	}
 
 	// Compound test
@@ -207,9 +208,9 @@ void generate_world(World *w, U64 seed)
 	}
 
 	{ // Player test
-		T3d tf= {(V3d) {1, 1, 1}, identity_qd(), {0, 15, 0}};
+		V3d pos= {0, 15};
 		SlotVal init_vals[]= {
-			{"body", "tf", WITH_DEREF_SIZEOF(&tf)},
+			{"char", "pos", WITH_DEREF_SIZEOF(&pos)},
 		};
 		NodeGroupDef *def=
 			(NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, "playerch");

@@ -16,6 +16,10 @@ typedef struct JointPoseArray {
 
 REVOLC_API JointPoseArray identity_pose();
 
+REVOLC_API JointPoseArray lerp_pose(	JointPoseArray p1,
+										JointPoseArray p2,
+										F64 t);
+
 typedef struct Joint {
 	JointId id;
 	JointId super_id;

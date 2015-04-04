@@ -20,6 +20,14 @@ typedef enum {
 ResType str_to_restype(const char *str);
 const char * restype_to_str(ResType type);
 
+// @todo Should be hash of resource name and type for extremely fast lookup &
+//       small memory footprint
+typedef struct ResId {
+	char name[RES_NAME_SIZE];
+	ResType type;
+} ResId;
+
+
 struct ResBlob;
 struct BlobBuf;
 

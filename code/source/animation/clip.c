@@ -325,8 +325,15 @@ void clip_to_json(WJson *j, const Clip *c)
 	}
 }
 
+internal
+F64 wrap_float(F64 t, const F64 max)
+{
+	return fmod(t, max);
+}
+
 JointPoseArray calc_clip_pose(const Clip *c, F64 t)
 {
+	t= wrap_float(t, c->duration);
 	ensure(t >= 0 && t <= c->duration);
 
 	JointPoseArray pose;

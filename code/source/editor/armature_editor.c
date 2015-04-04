@@ -352,12 +352,12 @@ void do_armature_editor(	ArmatureEditor *state,
 					// Update animation to CompEntity when not actively editing
 					// This because calculated pose doesn't exactly match
 					// with keys (discretization error) and causes feedback loop
-					if (!editing_happening)
-						entity->pose= calc_clip_pose(clip, state->clip_time);
 					if (state->is_playing)
 						state->clip_time += g_env.device->dt;
 					while (state->clip_time > clip->duration)
 						state->clip_time -= clip->duration;
+					if (!editing_happening)
+						entity->pose= calc_clip_pose(clip, state->clip_time);
 
 					// Show timeline cursor
 					F64 lerp= state->clip_time/clip->duration;
