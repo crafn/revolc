@@ -251,6 +251,7 @@ T3d json_t3(JsonTok j)
 // wjson
 //
 
+internal
 WJson *wjson_create(JsonType type)
 {
 	WJson *new_member= dev_malloc(sizeof(*new_member));
@@ -258,24 +259,30 @@ WJson *wjson_create(JsonType type)
 	return new_member;
 }
 
-void wjson_destroy(WJson *j)
+WJson * wjson_object()
+{ return wjson_create(JsonType_object); }
+
+WJson * wjson_array()
+{ return wjson_create(JsonType_array); }
+
+void wjson_destroy(WJson *root)
 {
-	if (!j)
+	if (!root)
 		return;
 
-	WJson *member= j->last_member;
+	WJson *member= root->last_member;
 	while (member) {
 		WJson* prev= member->prev;
 		wjson_destroy(member);
 		member= prev;
 	}
 
-	if (j->type == JsonType_string) {
-		dev_free(j->string);
-		j->string= NULL;
+	if (root->type == JsonType_string) {
+		dev_free(root->string);
+		root->string= NULL;
 	}
 
-	dev_free(j);
+	dev_free(root);
 }
 
 internal
@@ -309,6 +316,14 @@ WJson * wjson_new_member(WJson *j)
 	WJson *new_member= wjson_create(JsonType_object);
 	wjson_append(j, new_member);
 	return new_member;
+}
+
+WJson * wjson_add_named_member(WJson *j, const char *name, WJson *member)
+{
+	WJson *j_str= wjson_new_member(j);
+	wjson_init_string(j_str, name);
+	wjson_append(j_str, member);
+	return member;
 }
 
 WJson * wjson_named_member(WJson *j, JsonType t, const char *name)
@@ -429,15 +444,27 @@ void wjson_add_sub(	JsonSubs *subs, U32 *count, U32 max_count,
 {
 	ensure(max_count > *count);
 
+	int begin_offset= 0;
 	int end_offset= 0;
-	if (in.tok->end < in.json_size && in.json[in.tok->end] == ',') {
-		end_offset= 1; // Chomp `,` as commas are always written with substs
-		if (in.tok->end + 1 < in.json_size && in.json[in.tok->end + 1] == ' ')
-			end_offset= 2; // Chomp `, `, as spaces are added too
+
+	if (json_is_string(in)) {
+		// "asdfg",
+		//  ^    ^ change to
+		// ^      ^
+		begin_offset -= 1;
+		end_offset += 1;
+	}
+
+	if (	in.tok->end + end_offset < in.json_size &&
+			in.json[in.tok->end + end_offset] == ',') {
+		end_offset += 1; // Chomp `,` as commas are always written with substs
+		if (	in.tok->end + end_offset + 1 < in.json_size &&
+				in.json[in.tok->end + end_offset + 1] == ' ')
+			end_offset += 1; // Chomp `, `, as spaces are added too
 	}
 
 	JsonSubs s= {
-		.dst_begin= in.tok->start,
+		.dst_begin= in.tok->start + begin_offset,
 		.dst_end= in.tok->end + end_offset,
 		.src= upd,
 	};

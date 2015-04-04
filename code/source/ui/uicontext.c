@@ -37,7 +37,7 @@ void upd_uicontext()
 	ctx->dev.s_pressed= g_env.device->key_pressed['s'];
 	ctx->dev.toggle_select_all= g_env.device->key_pressed['a'];
 	ctx->dev.toggle_play= g_env.device->key_pressed[KEY_SPACE];
-	ctx->dev.delete= g_env.device->key_pressed[KEY_DEL];
+	ctx->dev.delete= g_env.device->key_pressed['x'];
 
 	ensure(ctx->turtle_i == 0);
 	ctx->turtles[0]= (UiContext_Turtle) {

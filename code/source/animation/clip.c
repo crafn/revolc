@@ -123,7 +123,7 @@ int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 {
 	int return_value= 0;
 	T3f *samples= NULL;
-	const Armature *a= NULL;
+	const Armature *armature= NULL;
 	Clip_Key *keys= NULL;
 
 	JsonTok j_armature= json_value_by_key(j, "armature");
@@ -137,16 +137,16 @@ int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 	if (json_is_null(j_channels))
 		RES_ATTRIB_MISSING("channels");
 
-	a= (Armature*)find_res_by_name_from_blobbuf(	buf,
-													ResType_Armature,
-													json_str(j_armature));
-	if (!a) {
+	armature= (Armature*)find_res_by_name_from_blobbuf(	buf,
+														ResType_Armature,
+														json_str(j_armature));
+	if (!armature) {
 		critical_print("Couldn't find armature %s", json_str(j_armature));
 		goto error;
 	}
 
 	const U32 fps= 30.0;
-	const U32 joint_count= a->joint_count;
+	const U32 joint_count= armature->joint_count;
 	const F32 duration= json_real(j_duration);
 	const U32 frame_count= floor(duration*fps + 0.5) + 1; // +1 for end lerp target
 
@@ -173,7 +173,7 @@ int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 			RES_ATTRIB_MISSING("keys");
 
 		const char *type_str= json_str(j_type);
-		JointId joint_id= joint_id_by_name(a, json_str(j_joint));
+		JointId joint_id= joint_id_by_name(armature, json_str(j_joint));
 
 		Clip_Key_Type type;
 		if (!strcmp(type_str, "pos"))
@@ -209,7 +209,7 @@ int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 				case Clip_Key_Type_scale:
 					key.value.scale= v3d_to_v3f(json_v3(j_value));
 				break;
-				default: fail("Unhandled ChType: %i", type);
+				default: fail("Unhandled Clip_Key_Type: %i", type);
 			}
 
 			keys= push_dyn_array(	keys, &keys_capacity, &total_key_count,
@@ -236,6 +236,8 @@ int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 		.frame_count= frame_count,
 		.local_samples_offset= samples_offset,
 	};
+	fmt_str(clip.armature_name, sizeof(clip.armature_name),
+			"%s", armature->res.name);
 
 	blob_write(buf, (U8*)&clip + sizeof(clip.res),
 					sizeof(clip) - sizeof(clip.res));
@@ -250,6 +252,76 @@ cleanup:
 error:
 	return_value= 1;
 	goto cleanup;
+}
+
+internal
+const char * clip_key_type_to_str(Clip_Key_Type t)
+{
+	switch (t) {
+	case Clip_Key_Type_scale: return "scale";
+	case Clip_Key_Type_rot: return "rot";
+	case Clip_Key_Type_pos: return "pos";
+	default: fail("Unhandled Clip_Key_Type: %i", t);
+	}
+}
+
+void clip_to_json(WJson *j, const Clip *c)
+{
+	const Armature *a=
+		(Armature*)res_by_name(	c->res.blob,
+								ResType_Armature, 
+								c->armature_name);
+	const Clip_Key *keys= clip_keys(c);
+	// @todo armature field
+	WJson *j_channels= wjson_named_member(j, JsonType_array, "channels");
+
+	U32 ch_key_begin_i= 0;
+	U32 ch_key_end_i= 0;
+	for (;	ch_key_begin_i < c->key_count;
+			ch_key_begin_i= ch_key_end_i) {
+		const Clip_Key_Type ch_type= keys[ch_key_begin_i].type;
+		const JointId joint_id= keys[ch_key_begin_i].joint_id;
+
+		while (	ch_key_end_i < c->key_count &&
+				keys[ch_key_end_i].type == ch_type &&
+				keys[ch_key_end_i].joint_id == joint_id)
+			++ch_key_end_i;
+
+		WJson *j_ch= wjson_object();
+		wjson_append(j_channels, j_ch);
+
+		wjson_add_named_member(	j_ch,
+								"joint",
+								wjson_str(a->joint_names[joint_id]));
+
+		wjson_add_named_member(	j_ch,
+								"type",
+								wjson_str(clip_key_type_to_str(ch_type)));
+
+		WJson *j_keys= wjson_add_named_member(j_ch, "keys", wjson_array());
+		for (U32 i= ch_key_begin_i; i < ch_key_end_i; ++i) {
+			WJson *j_key= wjson_object();
+			wjson_append(j_keys, j_key);
+
+			wjson_add_named_member(j_key, "t", wjson_number(keys[i].time));
+
+			WJson *j_v= NULL;
+			switch (ch_type) {
+			case Clip_Key_Type_pos:
+				j_v= wjson_v3(v3f_to_v3d(keys[i].value.pos));
+			break;
+			case Clip_Key_Type_rot:
+				j_v= wjson_q(qf_to_qd(keys[i].value.rot));
+			break;
+			case Clip_Key_Type_scale:
+				j_v= wjson_v3(v3f_to_v3d(keys[i].value.scale));
+			break;
+			default: fail("Unhandled Clip_Key_Type: %i", ch_type);
+			}
+
+			wjson_add_named_member(j_key, "v", j_v);
+		}
+	}
 }
 
 JointPoseArray calc_clip_pose(const Clip *c, F64 t)

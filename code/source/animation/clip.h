@@ -28,9 +28,11 @@ typedef struct Clip_Key {
 
 typedef struct Clip {
 	Resource res;
+
 	F32 duration; // A the beginning of the last frame
 
-	// @todo #if away from release build -- only for editor
+	// @todo #if away from release build -- only for editor/saving
+	char armature_name[RES_NAME_SIZE];
 	BlobOffset keys_offset; // Clip_Key[]
 	U32 key_count;
 
@@ -45,6 +47,8 @@ REVOLC_API Clip_Key * clip_keys(const Clip *c);
 
 REVOLC_API WARN_UNUSED
 int json_clip_to_blob(struct BlobBuf *buf, JsonTok j);
+REVOLC_API
+void clip_to_json(WJson *j, const Clip *c);
 
 REVOLC_API JointPoseArray calc_clip_pose(const Clip *c, F64 t);
 

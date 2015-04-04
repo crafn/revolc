@@ -78,10 +78,14 @@ typedef struct WJson {
 	char *string; // Owns
 } WJson;
 
-REVOLC_API WJson *wjson_create(JsonType type);
-REVOLC_API void wjson_destroy(WJson *j);
+REVOLC_API WJson * wjson_object();
+REVOLC_API WJson * wjson_array();
+REVOLC_API void wjson_destroy(WJson *root);
 
 REVOLC_API void wjson_append(WJson *j, WJson *item);
+REVOLC_API WJson * wjson_add_named_member(WJson *j, const char *name, WJson *member);
+// Use wjson_add_named_member instead as it works correctly with strings and numbers
+// @todo Remove
 REVOLC_API WJson * wjson_named_member(WJson *j, JsonType t, const char *name);
 REVOLC_API WJson * wjson_str(const char *str);
 REVOLC_API WJson * wjson_number(F64 n);

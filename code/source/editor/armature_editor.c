@@ -7,6 +7,17 @@
 #include "visual/ddraw.h"
 #include "visual/renderer.h"
 
+internal
+Clip *get_or_create_rt_clip(const char *name)
+{
+	Clip *clip=
+		(Clip*)res_by_name(	g_env.resblob,
+							ResType_Clip,
+							name);
+	if (!clip->res.is_runtime_res)
+		clip= create_rt_clip(clip);
+	return clip;
+}
 
 // Armature editing on world
 // Returns true if editing is actively happening 
@@ -60,11 +71,12 @@ bool gui_armature_overlay(ArmatureEditor *state, bool is_edit_mode)
 				continue;
 
 			editing_happening= true;
-			if (!a->res.is_runtime_res)
-				a= create_rt_armature(a);
-			a->res.needs_saving= true;
 
 			if (state->clip_is_bind_pose) {
+				if (!a->res.is_runtime_res)
+					a= create_rt_armature(a);
+				a->res.needs_saving= true;
+
 				// Modify bind pose
 				T3d coords= entity->tf;
 				U32 super_i= a->joints[i].super_id;
@@ -126,12 +138,8 @@ bool gui_armature_overlay(ArmatureEditor *state, bool is_edit_mode)
 				default: fail("Unknown CursorDeltaMode: %i", m);
 				}
 
-				Clip *clip=
-						(Clip*)res_by_name(	g_env.resblob,
-											ResType_Clip,
-											state->clip_name);
-				if (!clip->res.is_runtime_res)
-					clip= create_rt_clip(clip);
+				Clip *clip= get_or_create_rt_clip(state->clip_name);
+				clip->res.needs_saving= true;
 
 				update_rt_clip_key(clip, key);
 			}
@@ -215,17 +223,17 @@ void do_armature_editor(	ArmatureEditor *state,
 			state->clip_is_bind_pose=
 				!strcmp(state->clip_name, "bind_pose");
 
-			// Delete and Play button
+			// "Make looping", "Delete" and "Play" -buttons
 			if (!state->clip_is_bind_pose) {
-				if (	gui_button("Delete key <del>", NULL, NULL)
+				if (gui_button("Make looping", NULL, NULL)) {
+					//Clip *clip= get_or_create_rt_clip(state->clip_name);
+					// @todo Copy keys from beginning to end
+				}
+
+				if (	gui_button("Delete key <x>", NULL, NULL)
 						|| ctx->dev.delete) {
 
-					Clip *clip=
-						(Clip*)res_by_name(	g_env.resblob,
-											ResType_Clip,
-											state->clip_name);
-					if (!clip->res.is_runtime_res)
-						clip= create_rt_clip(clip);
+					Clip *clip= get_or_create_rt_clip(state->clip_name);
 
 					// Delete all keys of selected joints at current time
 					bool key_deleted;

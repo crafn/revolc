@@ -103,7 +103,7 @@ void armature_to_json(WJson *j, const Armature *a)
 		wjson_append(	j_offset,
 						wjson_t3(t3f_to_t3d(a->joints[i].bind_pose)));
 
-		WJson *j_joint= wjson_create(JsonType_object);
+		WJson *j_joint= wjson_object();
 		wjson_append(j_joint, j_offset);
 		wjson_append(j_joints, j_joint);
 	}
