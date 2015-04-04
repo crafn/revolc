@@ -198,6 +198,7 @@ int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 				.type= type,
 			};
 			key.time= json_real(json_value_by_key(j_key, "t"));
+			key.time= CLAMP(key.time, 0, duration);
 
 			switch (type) {
 				case Clip_Key_Type_pos:
@@ -435,6 +436,31 @@ void delete_rt_clip_key(Clip *c, U32 del_i)
 							c->joint_count, c->frame_count,
 							clip_keys(c), c->key_count,
 							c->duration);
+}
+
+void make_rt_clip_looping(Clip *c)
+{
+
+	Clip_Key *keys= dev_malloc(sizeof(*keys)*c->key_count);
+	U32 key_count= 0;
+
+	// Find keys to-be-appended
+	JointId last_key_joint= NULL_JOINT_ID;
+	for (U32 i= 0; i < c->key_count; ++i) {
+		Clip_Key key= clip_keys(c)[i];
+		if (key.joint_id != last_key_joint) {
+			keys[key_count]= key;
+			keys[key_count].time= c->duration;
+			++key_count;
+			last_key_joint= key.joint_id;
+		}
+	}
+
+	// Append keys
+	for (U32 i= 0; i < key_count; ++i)
+		update_rt_clip_key(c, keys[i]);
+
+	dev_free(keys);
 }
 
 void recache_ptrs_to_clips()

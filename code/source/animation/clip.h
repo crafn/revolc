@@ -57,6 +57,8 @@ REVOLC_API Clip *create_rt_clip(Clip *src);
 // Add or update
 REVOLC_API void update_rt_clip_key(Clip *c, Clip_Key key);
 REVOLC_API void delete_rt_clip_key(Clip *c, U32 del_i);
+// Copy first keys of every channel to end
+REVOLC_API void make_rt_clip_looping(Clip *c);
 
 REVOLC_API void recache_ptrs_to_clips();
 

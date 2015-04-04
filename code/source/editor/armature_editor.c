@@ -226,8 +226,8 @@ void do_armature_editor(	ArmatureEditor *state,
 			// "Make looping", "Delete" and "Play" -buttons
 			if (!state->clip_is_bind_pose) {
 				if (gui_button("Make looping", NULL, NULL)) {
-					//Clip *clip= get_or_create_rt_clip(state->clip_name);
-					// @todo Copy keys from beginning to end
+					Clip *clip= get_or_create_rt_clip(state->clip_name);
+					make_rt_clip_looping(clip);
 				}
 
 				if (	gui_button("Delete key <x>", NULL, NULL)
