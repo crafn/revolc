@@ -208,9 +208,9 @@ void generate_world(World *w, U64 seed)
 	}
 
 	{ // Player test
-		V3d pos= {0, 15};
+		T3d tf= {{1, 1, 1}, identity_qd(), {0, 15}};
 		SlotVal init_vals[]= {
-			{"char", "pos", WITH_DEREF_SIZEOF(&pos)},
+			{"char", "tf", WITH_DEREF_SIZEOF(&tf)},
 		};
 		NodeGroupDef *def=
 			(NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, "playerch");

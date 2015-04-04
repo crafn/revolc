@@ -466,7 +466,8 @@ void upd_physworld(F64 dt)
 {
 	PhysWorld *w= g_env.physworld;
 
-	dt= 1.0/60.0;
+	//dt= 1.0/60.0;
+	dt= CLAMP(dt, 1.0/120.0, 1.0/30.0);
 
 	for (U32 i= 0; i < MAX_RIGIDBODY_COUNT; ++i) {
 		RigidBody *b= &w->bodies[i];
