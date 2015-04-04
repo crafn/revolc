@@ -10,7 +10,8 @@ typedef struct DevicePlatformData {
 	HDC hDC;
 	HWND hWnd;
 	HGLRC hGlrc;
-	DWORD ticks;
+	U64 ticks; // Ticks from QueryPerformanceCounter -- not ms
+	U64 timer_reso;
 	bool closeMessage;
 	bool lbuttondownMessage;
 } DevicePlatformData;
@@ -77,8 +78,14 @@ void plat_init_impl(Device* d, const char* title, V2i reso)
 	SetPixelFormat(d->impl->hDC, choose, &pfd);
 	d->impl->hGlrc= wglCreateContext(d->impl->hDC);
 	wglMakeCurrent(d->impl->hDC, d->impl->hGlrc);
-	
-	d->impl->ticks= GetTickCount();
+
+	U64 ticks;
+	if(!QueryPerformanceFrequency((LARGE_INTEGER *)&ticks))
+		fail("QueryPerformanceFrequency failed!");
+	d->impl->timer_reso= ticks;
+
+	QueryPerformanceCounter((LARGE_INTEGER *)&ticks);
+	d->impl->ticks= ticks;
 }
 
 void plat_quit_impl(Device *d)
@@ -92,7 +99,6 @@ void plat_quit_impl(Device *d)
 
 void plat_update_impl(Device *d)
 {
-	Sleep(1);
 	SwapBuffers(d->impl->hDC);
 
 	d->mwheel_delta= 0.0;
@@ -182,7 +188,6 @@ void plat_update_impl(Device *d)
 		0, 0, 0, 0,
 		0, 0, 0, 0,
 	};
-
 	bool has_focus= GetFocus() == d->impl->hWnd;
 	for (U32 i= 0; i < KEY_COUNT; ++i) {
 		int vk= keycode_to_vkcode[i];
@@ -208,11 +213,13 @@ void plat_update_impl(Device *d)
 	d->cursor_pos.x= cursor.x;
 	d->cursor_pos.y= cursor.y;
 
-	DWORD old_ticks= d->impl->ticks;
-	d->impl->ticks= GetTickCount();
-	DWORD new_ticks= d->impl->ticks;
-	d->dt= (new_ticks - old_ticks)/1000.0;
 
+	const U64 old_ticks= d->impl->ticks;
+	U64 new_ticks;
+	QueryPerformanceCounter((LARGE_INTEGER *)&new_ticks);
+
+	d->dt= (new_ticks - old_ticks)*1.0/d->impl->timer_reso;
+	d->impl->ticks= new_ticks;
 }
 
 void plat_sleep_impl(int ms)

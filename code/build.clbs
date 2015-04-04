@@ -204,7 +204,11 @@ def buildInfo(env, tags):
 
 	cfg= "" # debug or dev
 	target_defines= []
-	target_flags= [ "std=gnu99", "pipe", "ffast-math", "fvisibility=hidden" ]
+	target_flags= [ "std=gnu99", "pipe", "fvisibility=hidden" ]
+
+	if env.os != "windows":
+		target_flags += "ffast-math" # Caused at problems at least in Chipmunk (High EPA warning)
+
 	if "debug" in tags:
 		cfg= "debug"
 		target_defines += [ "DEBUG" ]

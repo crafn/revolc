@@ -328,7 +328,7 @@ EPARecurse(const struct SupportContext *ctx, const int count, const struct Minko
 	} else {
 		// Could not find a new point to insert, so we have found the closest edge of the minkowski difference.
 		// REVOLC EDIT: warning fires very often on windows o_O
-		//cpAssertWarn(iteration < WARN_EPA_ITERATIONS, "High EPA iterations: %d", iteration);
+		cpAssertWarn(iteration < WARN_EPA_ITERATIONS, "High EPA iterations: %d", iteration);
 		return ClosestPointsNew(v0, v1);
 	}
 }
