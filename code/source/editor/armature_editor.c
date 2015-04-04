@@ -256,12 +256,25 @@ void do_armature_editor(	ArmatureEditor *state,
 					toggle_bool(&state->is_playing);
 			}
 
+			// Selected joints
+			if (a && is_edit_mode) {
+				gui_text(" Selected joints: ");
+				int count= 0;
+				for (U32 i= 0; i < a->joint_count; ++i) {
+					if (!a->joints[i].selected)
+						continue;
+					if (count > 0)
+						gui_text(", ");
+					gui_text(a->joint_names[i]);
+					++count;
+				}
+			}
+
 			// Interior of timeline
-			const S32 shift= gui_last_adv_size().y;
 			px_pos.x += 10;
-			px_pos.y += shift;
+			px_pos.y += 27;
 			px_size.x -= 20;
-			px_size.y -= shift;
+			px_size.y -= 27;
 			gui_quad(px_pos, px_size, darken_color(gui_dev_panel_color()));
 			const char *clip_timeline_label= "clip_timeline";
 			EditorBoxState bstate=

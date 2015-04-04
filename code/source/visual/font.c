@@ -92,8 +92,10 @@ U32 text_mesh(	V2i *size,
 								&x, &y,
 								&q,
 								1);
-			size->x = MAX(size->x, MAX(q.x0, q.x1));
-			size->y = MAX(size->y, MAX(q.y0, q.y1));
+			size->x= MAX(size->x, MAX(q.x0, q.x1));
+			size->y= MAX(size->y, MAX(q.y0, q.y1));
+			size->x= MAX(size->x, x);
+			size->y= MAX(size->y, y);
 
 			verts[v_i + 0].pos= (V3f) {q.x0, q.y1};
 			verts[v_i + 1].pos= (V3f) {q.x1, q.y1};
@@ -142,8 +144,10 @@ V2i calc_text_mesh_size(const Font *font, const char *text)
 								&x, &y,
 								&q,
 								1);
-			size.x = MAX(size.x, MAX(q.x0, q.x1));
-			size.y = MAX(size.y, MAX(q.y0, q.y1));
+			size.x= MAX(size.x, MAX(q.x0, q.x1));
+			size.y= MAX(size.y, MAX(q.y0, q.y1));
+			size.x= MAX(size.x, x);
+			size.y= MAX(size.y, y);
 		}
 		++text;
 	}
