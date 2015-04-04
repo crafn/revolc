@@ -139,8 +139,6 @@ bool gui_armature_overlay(ArmatureEditor *state, bool is_edit_mode)
 				}
 
 				Clip *clip= get_or_create_rt_clip(state->clip_name);
-				clip->res.needs_saving= true;
-
 				update_rt_clip_key(clip, key);
 			}
 		}
@@ -248,8 +246,6 @@ void do_armature_editor(	ArmatureEditor *state,
 								break;
 							}
 						}
-						if (key_deleted)
-							clip->res.needs_saving= true;
 					} while (key_deleted);
 				}
 
@@ -267,8 +263,9 @@ void do_armature_editor(	ArmatureEditor *state,
 			px_size.x -= 20;
 			px_size.y -= shift;
 			gui_quad(px_pos, px_size, darken_color(gui_dev_panel_color()));
+			const char *clip_timeline_label= "clip_timeline";
 			EditorBoxState bstate=
-				gui_editorbox("clip_timeline", px_pos, px_size, true);
+				gui_editorbox(clip_timeline_label, px_pos, px_size, true);
 			if (entity && a) {
 				if (state->clip_is_bind_pose) {
 					entity->pose= identity_pose();
@@ -297,6 +294,23 @@ void do_armature_editor(	ArmatureEditor *state,
 						state->clip_time= CLAMP(t, 0, clip->duration);
 					}
 
+					// Move keys
+					CursorDeltaMode m= cursor_delta_mode(clip_timeline_label);
+					if (m == CursorDeltaMode_translate) {
+						Clip *clip= get_or_create_rt_clip(state->clip_name);
+
+						T3d coords= {{1, 1, 1}, identity_qd(), {0, 0, 0}};
+						T3f delta;
+						cursor_transform_delta_pixels(	&delta,
+														clip_timeline_label,
+														coords);
+						const F64 dt= clip->duration*delta.pos.x/px_size.x;
+						const F64 target_t=
+							CLAMP(state->clip_time + dt, 0, clip->duration);
+						move_rt_clip_keys(clip, state->clip_time, target_t);
+						state->clip_time= target_t;
+					}
+
 					// Show keys
 					for (U32 key_i= 0; key_i < clip->key_count; ++key_i) {
 						Clip_Key key= clip_keys(clip)[key_i];
@@ -314,7 +328,7 @@ void do_armature_editor(	ArmatureEditor *state,
 							{0.2, 1.0, 0.5, 1.0}, // rot
 							{0.0, 0.6, 1.0, 1.0}, // pos
 						}[key.type];
-						if (key.time == state->clip_time) {
+						if (key.time == state->clip_time && a->joints[key.joint_id].selected) {
 							color= (Color) {1.0, 1.0, 1.0, 1.0};
 							size.y += 5;
 						}

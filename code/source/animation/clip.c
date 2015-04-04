@@ -395,6 +395,9 @@ void add_rt_clip_key(Clip *c, Clip_Key key)
 
 	c->keys_offset= blob_offset(&c->res, keys);
 	c->key_count= new_count;
+
+
+	c->res.needs_saving= true;
 }
 
 void update_rt_clip_key(Clip *c, Clip_Key key)
@@ -422,6 +425,8 @@ void update_rt_clip_key(Clip *c, Clip_Key key)
 							c->joint_count, c->frame_count,
 							clip_keys(c), c->key_count,
 							c->duration);
+
+	c->res.needs_saving= true;
 }
 
 void delete_rt_clip_key(Clip *c, U32 del_i)
@@ -436,6 +441,7 @@ void delete_rt_clip_key(Clip *c, U32 del_i)
 							c->joint_count, c->frame_count,
 							clip_keys(c), c->key_count,
 							c->duration);
+	c->res.needs_saving= true;
 }
 
 void make_rt_clip_looping(Clip *c)
@@ -460,7 +466,32 @@ void make_rt_clip_looping(Clip *c)
 	for (U32 i= 0; i < key_count; ++i)
 		update_rt_clip_key(c, keys[i]);
 
+	c->res.needs_saving= true;
+
 	dev_free(keys);
+}
+
+void move_rt_clip_keys(Clip *c, F64 from, F64 to)
+{
+	const Armature *a= (Armature *)res_by_name(	c->res.blob,
+												ResType_Armature,
+												c->armature_name);
+
+	for (U32 i= 0; i < c->key_count; ++i) {
+		Clip_Key *key= &clip_keys(c)[i];
+		if (key->time == from && a->joints[key->joint_id].selected) {
+			key->time= to;
+		}
+	}
+
+	// @todo These commands are repeated -- maybe some on_clip_edit_end() ?
+	sort_clip_keys(clip_keys(c), c->key_count);
+	calc_samples_for_clip(	clip_local_samples(c),
+							c->joint_count, c->frame_count,
+							clip_keys(c), c->key_count,
+							c->duration);
+
+	c->res.needs_saving= true;
 }
 
 void recache_ptrs_to_clips()

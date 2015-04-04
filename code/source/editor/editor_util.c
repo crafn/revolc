@@ -372,7 +372,9 @@ EditorBoxState gui_editorbox(	const char *label,
 				!ctx->dev.grabbing && !ctx->dev.rotating && !ctx->dev.scaling) {
 			state.released= true;
 			gui_set_inactive(label);
-		} else if (ctx->dev.lmb.down) {
+		} else if (	ctx->dev.lmb.down &&
+					!ctx->dev.grabbing && !ctx->dev.rotating && !ctx->dev.scaling) {
+			// ldown == true if nothing else is going on
 			state.ldown= true;
 		} else if (ctx->dev.rmb.down) {
 			state.down= true;

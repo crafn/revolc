@@ -52,13 +52,21 @@ void clip_to_json(WJson *j, const Clip *c);
 
 REVOLC_API JointPoseArray calc_clip_pose(const Clip *c, F64 t);
 
-// Creates modifiable substitute for Clip resource
+//
+// These all all are kind of editor functions, but there's all kinds of caching
+// (sorting keys, recalculating samples from keys) to be caren of so it's
+//  maybe better that they're near Clip
+//
+
+// Creates modifiable substitute for a Clip resource
 REVOLC_API Clip *create_rt_clip(Clip *src);
-// Add or update
+// Add or update key
 REVOLC_API void update_rt_clip_key(Clip *c, Clip_Key key);
 REVOLC_API void delete_rt_clip_key(Clip *c, U32 del_i);
 // Copy first keys of every channel to end
 REVOLC_API void make_rt_clip_looping(Clip *c);
+// Moves keys __OF_SELECTED_JOINTS__ (<- ugly) at `from` -> `to`
+REVOLC_API void move_rt_clip_keys(Clip *c, F64 from, F64 to);
 
 REVOLC_API void recache_ptrs_to_clips();
 

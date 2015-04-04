@@ -36,6 +36,10 @@ REVOLC_API bool gui_listbox_item(const char *label);
 
 REVOLC_API F64 editor_vertex_size();
 
+// @todo Not sure if this is a good idea. Could probably just have
+//   if (ctx.dev.grabbing == gui_id(label))
+// instead of
+//   if (cursor_delta_mode(label) == CursorDeltaMode_translate)
 typedef enum {
 	CursorDeltaMode_none,
 	CursorDeltaMode_scale,
