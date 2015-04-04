@@ -181,8 +181,8 @@ void generate_world(World *w, U64 seed)
 		spawn_phys_prop(w, pos, "wbox", false);
 	}
 	for (int i= -50; i < 50; ++i) {
-		V3d p_front= {i, ground_surf_y(i) + 0.5, 0.01};
-		V3d p_back= {i, ground_surf_y(i) + 0.55, -0.1};
+		V3d p_front= {i, ground_surf_y(i) + 0.5, 0.01 + random_f64(-0.05, 0.05, &seed)};
+		V3d p_back= {i, ground_surf_y(i) + 0.55, -0.1 + random_f64(-0.05, 0.05, &seed)};
 
 		V2d a= {i - 0.2, ground_surf_y(i - 0.2)};
 		V2d b= {i + 0.2, ground_surf_y(i + 0.2)};
@@ -197,7 +197,7 @@ void generate_world(World *w, U64 seed)
 
 	// Compound test
 	for (U32 i= 0; i < 5; ++i) {
-		T3d tf= {(V3d) {1, 1, 1}, identity_qd(), {0, 15, 0}};
+		T3d tf= {(V3d) {1, 1, 1}, identity_qd(), {-3, 15, 0}};
 		SlotVal init_vals[]= {
 			{"body", "tf", WITH_DEREF_SIZEOF(&tf)},
 		};

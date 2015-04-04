@@ -7,6 +7,7 @@
 #include "resources/resource.h"
 
 typedef enum {
+	Clip_Key_Type_none,
 	Clip_Key_Type_scale,
 	Clip_Key_Type_rot,
 	Clip_Key_Type_pos,

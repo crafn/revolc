@@ -336,7 +336,8 @@ void do_armature_editor(	ArmatureEditor *state,
 						};
 						V2i size= {6, 3};
 
-						Color color= (Color [3]) {
+						Color color= (Color [4]) {
+							{}, // none
 							{1.0, 0.2, 0.0, 1.0}, // scale
 							{0.2, 1.0, 0.5, 1.0}, // rot
 							{0.0, 0.6, 1.0, 1.0}, // pos

@@ -452,13 +452,17 @@ void make_rt_clip_looping(Clip *c)
 
 	// Find keys to-be-appended
 	JointId last_key_joint= NULL_JOINT_ID;
+	Clip_Key_Type last_key_type= Clip_Key_Type_none;
 	for (U32 i= 0; i < c->key_count; ++i) {
 		Clip_Key key= clip_keys(c)[i];
-		if (key.joint_id != last_key_joint) {
+		if (	key.joint_id != last_key_joint ||
+				key.type != last_key_type) {
 			keys[key_count]= key;
 			keys[key_count].time= c->duration;
 			++key_count;
+
 			last_key_joint= key.joint_id;
+			last_key_type= key.type;
 		}
 	}
 
