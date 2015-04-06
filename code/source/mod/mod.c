@@ -44,8 +44,9 @@ MOD_API U32 resurrect_playerch(PlayerCh *p)
 	return NULL_HANDLE;
 }
 
+// FPS independent exponential decay towards `target`
 internal
-F64 smooth_drive(F64 value, F64 target, F64 dt)
+F64 exp_drive(F64 value, F64 target, F64 dt)
 {
 	return (value - target)*pow(2, -dt) + target;
 }
@@ -81,8 +82,8 @@ MOD_API void upd_playerch(PlayerCh *p, PlayerCh *e)
 			};
 
 			V3d cam_pos= g_env.renderer->cam_pos;
-			cam_pos.x= smooth_drive(cam_pos.x, target_pos.x, dt*30);
-			cam_pos.y= smooth_drive(cam_pos.y, target_pos.y, dt*30);
+			cam_pos.x= exp_drive(cam_pos.x, target_pos.x, dt*30);
+			cam_pos.y= exp_drive(cam_pos.y, target_pos.y, dt*30);
 			g_env.renderer->cam_pos= cam_pos;
 		}
 
@@ -91,28 +92,30 @@ MOD_API void upd_playerch(PlayerCh *p, PlayerCh *e)
 			F64 rot= angle_qd(p->tf.rot);
 			if (cursor_p.x < p->tf.pos.x) {
 				facing_dir= -1;
-				rot= smooth_drive(rot, TAU/2.0, dt*15);
+				rot= exp_drive(rot, TAU/2.0, dt*15);
 			} else {
 				facing_dir= 1;
-				rot= smooth_drive(rot, 0, dt*25);
+				rot= exp_drive(rot, 0, dt*25);
 			}
 			p->tf.rot= qd_by_axis((V3d) {0, 1, 0}, rot);
 		}
 
-		if (dir) {
-			// If moving
-			p->idle_run_lerp= smooth_drive(p->idle_run_lerp, 1, dt*15.0);
-			p->clip_time += dt*dir*facing_dir;
-		} else {
-			p->clip_time += dt;
-			p->idle_run_lerp= smooth_drive(p->idle_run_lerp, 0, dt*15.0);
-		}
+		{ // Animations
+			if (dir) {
+				// If moving
+				p->idle_run_lerp= exp_drive(p->idle_run_lerp, 1, dt*15.0);
+				p->clip_time += dt*dir*facing_dir;
+			} else {
+				p->clip_time += dt;
+				p->idle_run_lerp= exp_drive(p->idle_run_lerp, 0, dt*15.0);
+			}
 
-		const Clip *idle_clip= (Clip *)res_by_id(p->idle_clip_id);
-		const Clip *run_clip= (Clip *)res_by_id(p->run_clip_id);
-		p->pose= lerp_pose(	calc_clip_pose(idle_clip, p->clip_time),
-							calc_clip_pose(run_clip, p->clip_time),
-							p->idle_run_lerp);
+			const Clip *idle_clip= (Clip *)res_by_id(p->idle_clip_id);
+			const Clip *run_clip= (Clip *)res_by_id(p->run_clip_id);
+			p->pose= lerp_pose(	calc_clip_pose(idle_clip, p->clip_time),
+								calc_clip_pose(run_clip, p->clip_time),
+								p->idle_run_lerp);
+		}
 	}
 }
 

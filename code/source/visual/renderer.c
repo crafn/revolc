@@ -78,7 +78,7 @@ typedef struct TexInfo {
 
 	AtlasUv *atlas_uv;
 
-	Texel *texels;
+	Texel *texels[MAX_TEXTURE_LOD_COUNT];
 	bool free_texels;
 } TexInfo;
 
@@ -102,20 +102,20 @@ void recreate_texture_atlas(Renderer *r, ResBlob *blob)
 	ensure(r->atlas_gl_id);
 	glBindTexture(GL_TEXTURE_2D_ARRAY, r->atlas_gl_id);
 
-	const U32 mip_levels= 1;
+	const U32 atlas_lod_count= MAX_TEXTURE_LOD_COUNT;
 	const U32 layers= TEXTURE_ATLAS_LAYER_COUNT;
 
-	glTexStorage3D(GL_TEXTURE_2D_ARRAY, mip_levels, GL_RGBA8,
+	glTexStorage3D(GL_TEXTURE_2D_ARRAY, atlas_lod_count, GL_RGBA8,
 			TEXTURE_ATLAS_WIDTH, TEXTURE_ATLAS_WIDTH, layers);
 
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_BASE_LEVEL, 0);
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_LEVEL, 0); /// @todo Mipmaps
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_LEVEL, atlas_lod_count);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 1000);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_LOD, -1000);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 1000);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_LOD, -1000);
 
 	// Gather TexInfos
 	/// @todo MissingResource
@@ -136,23 +136,25 @@ void recreate_texture_atlas(Renderer *r, ResBlob *blob)
 		tex_info_count= tex_count + font_count;
 		tex_infos=
 			malloc(sizeof(*tex_infos)*(tex_info_count));
-		U32 i= 0;
+		U32 tex_info_count= 0;
 		for (U32 tex_i= 0; tex_i < tex_count; ++tex_i) {
 			Texture *tex= textures[tex_i];
-			tex_infos[i++]= (TexInfo) {
+			tex_infos[tex_info_count]= (TexInfo) {
 				.name= tex->res.name,
 				.reso= tex->reso,
 				.atlas_uv= &tex->atlas_uv,
-				.texels= tex->texels,
 			};
+			for (U32 lod_i= 0; lod_i < tex->lod_count; ++lod_i)
+				tex_infos[tex_info_count].texels[lod_i]= texture_texels(tex, lod_i);
+			++tex_info_count;
 		}
 		for (U32 font_i= 0; font_i < font_count; ++font_i) {
 			Font *font= fonts[font_i];
-			tex_infos[i++]= (TexInfo) {
+			tex_infos[tex_info_count++]= (TexInfo) {
 				.name= font->res.name,
 				.reso= font->bitmap_reso,
 				.atlas_uv= &font->atlas_uv,
-				.texels= malloc_rgba_font_bitmap(font),
+				.texels= {malloc_rgba_font_bitmap(font)},
 				.free_texels= true,
 			};
 		}
@@ -164,7 +166,7 @@ void recreate_texture_atlas(Renderer *r, ResBlob *blob)
 	// Blit to atlas
 	int x= 0, y= 0, z= 0;
 	int last_row_height= 0;
-	const int margin= 1;
+	const int margin= 1*atlas_lod_count;
 	for (U32 i= 0; i < tex_info_count; ++i) {
 		TexInfo *tex= &tex_infos[i];
 
@@ -188,13 +190,24 @@ void recreate_texture_atlas(Renderer *r, ResBlob *blob)
 		if (z > layers)
 			fail("Texture atlas full!");
 
-		glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0,
-				x, y, z,
-				tex->reso.x, tex->reso.y, 1,
-				GL_RGBA, GL_UNSIGNED_BYTE, tex->texels);
+		// Submit texture data
+		for (U32 lod_i= 0; lod_i < atlas_lod_count; ++lod_i) {
+			if (!tex->texels[lod_i])
+				continue;
+			const V2i reso= lod_reso(tex->reso, lod_i);
+			const V2i pos= lod_reso((V2i) {x, y}, lod_i); // @todo x, y should be properly aligned
+			glTexSubImage3D(GL_TEXTURE_2D_ARRAY, lod_i,
+					pos.x, pos.y, z,
+					reso.x, reso.y, 1,
+					GL_RGBA, GL_UNSIGNED_BYTE, tex->texels[lod_i]);
+		}
+
+
 		if (tex->free_texels) {
-			free(tex->texels);
-			tex->texels= NULL;
+			for (U32 i= 0; i < MAX_TEXTURE_LOD_COUNT; ++i) {
+				free(tex->texels[i]);
+				tex->texels[i]= NULL;
+			}
 		}
 
 		*tex->atlas_uv= (AtlasUv) {
