@@ -7,6 +7,8 @@
 #	include <GL/gl.h>
 #endif
 
+#define GL_SRGB8_ALPHA8 0x8C43
+
 // Required GL 2 features
 
 #define GL_ARRAY_BUFFER 0x8892

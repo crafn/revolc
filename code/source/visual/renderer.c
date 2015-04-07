@@ -105,7 +105,7 @@ void recreate_texture_atlas(Renderer *r, ResBlob *blob)
 	const U32 atlas_lod_count= MAX_TEXTURE_LOD_COUNT;
 	const U32 layers= TEXTURE_ATLAS_LAYER_COUNT;
 
-	glTexStorage3D(GL_TEXTURE_2D_ARRAY, atlas_lod_count, GL_RGBA8,
+	glTexStorage3D(GL_TEXTURE_2D_ARRAY, atlas_lod_count, GL_SRGB8_ALPHA8,
 			TEXTURE_ATLAS_WIDTH, TEXTURE_ATLAS_WIDTH, layers);
 
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_BASE_LEVEL, 0);
