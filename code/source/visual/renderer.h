@@ -32,6 +32,17 @@ typedef struct Renderer {
 
 	U32 atlas_gl_id;
 	Vao vao;
+
+	// Rendering pipeline
+	U32 scene_fbo;
+	U32 scene_fbo_tex;
+	V2i scene_fbo_reso;
+	U32 hl_fbo; // Highlights to be bloomed
+	U32 hl_tex;
+	V2i hl_fbo_reso;
+	U32 blur_tmp_fbo;
+	U32 blur_tmp_tex;
+	V2i blur_tmp_fbo_reso;
 } Renderer;
 
 // Sets g_env.renderer

@@ -45,6 +45,7 @@ LRESULT CALLBACK wndproc(
 
 void plat_init_impl(Device* d, const char* title, V2i reso)
 {
+	d->win_size= reso;
 	d->impl= zero_malloc(sizeof(*d->impl));
 
 	WNDCLASS wc= {}; 

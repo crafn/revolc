@@ -239,6 +239,108 @@ void recreate_texture_atlas(Renderer *r, ResBlob *blob)
 	gl_check_errors("recreate_texture_atlas: end");
 }
 
+internal
+void destroy_rendering_pipeline(Renderer *r)
+{
+	if (!r->scene_fbo)
+		return;
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	glDeleteFramebuffers(1, &r->scene_fbo);
+	glDeleteTextures(1, &r->scene_fbo_tex);
+
+	glDeleteFramebuffers(1, &r->hl_fbo);
+	glDeleteTextures(1, &r->hl_tex);
+
+	glDeleteFramebuffers(1, &r->blur_tmp_fbo);
+	glDeleteTextures(1, &r->blur_tmp_tex);
+}
+
+internal
+bool rendering_pipeline_obsolete(Renderer *r)
+{
+	return !equals_v2i(r->scene_fbo_reso, g_env.device->win_size);
+}
+
+internal
+void recreate_rendering_pipeline(Renderer *r)
+{
+	destroy_rendering_pipeline(r);
+
+	debug_print("reso: %i, %i", g_env.device->win_size.x, g_env.device->win_size.y);
+	r->scene_fbo_reso= g_env.device->win_size;
+	r->hl_fbo_reso= (V2i) {128, 128};
+	r->blur_tmp_fbo_reso= r->hl_fbo_reso;
+
+	{ // Setup framebuffers
+
+		// Texture to store HDR render of scene
+		glGenTextures(1, &r->scene_fbo_tex);
+		glBindTexture(GL_TEXTURE_2D, r->scene_fbo_tex);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+		glTexImage2D(	GL_TEXTURE_2D, 0, GL_RGB16F,
+						r->scene_fbo_reso.x, r->scene_fbo_reso.y,
+						0, GL_RGB, GL_FLOAT, NULL);
+
+		glGenFramebuffers(1, &r->scene_fbo);
+		glBindFramebuffer(GL_FRAMEBUFFER, r->scene_fbo);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, r->scene_fbo_tex, 0);
+
+		{
+			GLenum ret= glCheckFramebufferStatus(GL_FRAMEBUFFER);
+			if (ret != GL_FRAMEBUFFER_COMPLETE)
+				fail("Incomplete framebuffer (scene): %i", ret);
+		}
+
+		// Texture to store highlights of the scene
+		glGenTextures(1, &r->hl_tex);
+		glBindTexture(GL_TEXTURE_2D, r->hl_tex);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+		glTexImage2D(	GL_TEXTURE_2D, 0, GL_RGB16F,
+						r->hl_fbo_reso.x, r->hl_fbo_reso.y,
+						0, GL_RGB, GL_FLOAT, NULL);
+
+		glGenFramebuffers(1, &r->hl_fbo);
+		glBindFramebuffer(GL_FRAMEBUFFER, r->hl_fbo);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, r->hl_tex, 0);
+
+		{
+			GLenum ret= glCheckFramebufferStatus(GL_FRAMEBUFFER);
+			if (ret != GL_FRAMEBUFFER_COMPLETE)
+				fail("Incomplete framebuffer (hl): %i", ret);
+		}
+
+
+		// Texture to store halfway blurred highlight
+		glGenTextures(1, &r->blur_tmp_tex);
+		glBindTexture(GL_TEXTURE_2D, r->blur_tmp_tex);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+		glTexImage2D(	GL_TEXTURE_2D, 0, GL_RGB16F,
+						r->blur_tmp_fbo_reso.x, r->blur_tmp_fbo_reso.y,
+						0, GL_RGB, GL_FLOAT, NULL);
+
+		glGenFramebuffers(1, &r->blur_tmp_fbo);
+		glBindFramebuffer(GL_FRAMEBUFFER, r->blur_tmp_fbo);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, r->blur_tmp_tex, 0);
+
+		{
+			GLenum ret= glCheckFramebufferStatus(GL_FRAMEBUFFER);
+			if (ret != GL_FRAMEBUFFER_COMPLETE)
+				fail("Incomplete framebuffer (blur): %i", ret);
+		}
+	}
+}
+
 void create_renderer()
 {
 	Renderer *r= zero_malloc(sizeof(*r));
@@ -249,6 +351,7 @@ void create_renderer()
 
 	r->vao= create_vao(MeshType_tri, MAX_DRAW_VERTEX_COUNT, MAX_DRAW_INDEX_COUNT);
 
+	recreate_rendering_pipeline(r);
 	recreate_texture_atlas(r, g_env.resblob);
 
 	ensure(!g_env.renderer);
@@ -261,7 +364,10 @@ void destroy_renderer()
 	g_env.renderer= NULL;
 
 	destroy_vao(&r->vao);
+
+	destroy_rendering_pipeline(r);
 	glDeleteTextures(1, &r->atlas_gl_id);
+
 	free(r);
 }
 
@@ -503,6 +609,7 @@ void render_frame()
 				sizeof(*r->m_entities_sort_space), entity_cmp);
 		ModelEntity *entities= r->m_entities_sort_space;
 
+		// @todo Switch to frame_alloc
 		TriMeshVertex *total_verts= malloc(sizeof(*total_verts)*total_v_count);
 		MeshIndexType *total_inds= malloc(sizeof(*total_inds)*total_i_count);
 		U32 cur_v= 0;
@@ -547,84 +654,16 @@ void render_frame()
 	}
 
 	{ // Actual rendering
-		U32 scene_fbo;
-		U32 scene_fbo_tex;
-		const V2i scene_fbo_reso= g_env.device->win_size;
-
-		U32 hl_fbo; // Highlights to be bloomed
-		U32 hl_tex;
-		const V2i hl_fbo_reso= {128, 128};
-
-		U32 blur_tmp_fbo;
-		U32 blur_tmp_tex;
-		const V2i blur_tmp_fbo_reso= hl_fbo_reso;
-
-		{ // Setup framebuffers
-			// @todo Don't do every frame
-
-			// Texture to store HDR render of scene
-			glGenTextures(1, &scene_fbo_tex);
-			glBindTexture(GL_TEXTURE_2D, scene_fbo_tex);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-			glTexImage2D(	GL_TEXTURE_2D, 0, GL_RGB16F,
-							scene_fbo_reso.x, scene_fbo_reso.y,
-							0, GL_RGB, GL_FLOAT, NULL);
-
-			glGenFramebuffers(1, &scene_fbo);
-			glBindFramebuffer(GL_FRAMEBUFFER, scene_fbo);
-			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, scene_fbo_tex, 0);
-
-			if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-				fail("Incomplete framebuffer");
-
-			// Texture to store highlights of the scene
-			glGenTextures(1, &hl_tex);
-			glBindTexture(GL_TEXTURE_2D, hl_tex);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-			glTexImage2D(	GL_TEXTURE_2D, 0, GL_RGB16F,
-							hl_fbo_reso.x, hl_fbo_reso.y,
-							0, GL_RGB, GL_FLOAT, NULL);
-
-			glGenFramebuffers(1, &hl_fbo);
-			glBindFramebuffer(GL_FRAMEBUFFER, hl_fbo);
-			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, hl_tex, 0);
-
-			if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-				fail("Incomplete framebuffer");
-
-
-			// Texture to store halfway blurred highlight
-			glGenTextures(1, &blur_tmp_tex);
-			glBindTexture(GL_TEXTURE_2D, blur_tmp_tex);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-			glTexImage2D(	GL_TEXTURE_2D, 0, GL_RGB16F,
-							blur_tmp_fbo_reso.x, blur_tmp_fbo_reso.y,
-							0, GL_RGB, GL_FLOAT, NULL);
-
-			glGenFramebuffers(1, &blur_tmp_fbo);
-			glBindFramebuffer(GL_FRAMEBUFFER, blur_tmp_fbo);
-			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, blur_tmp_tex, 0);
-
-			if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-				fail("Incomplete framebuffer");
-		}
+		if (rendering_pipeline_obsolete(r))
+			recreate_rendering_pipeline(r);
 
 		{ // Render scene to fbo
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 			glClearColor(0.0, 0.0, 0.0, 0.0);
 
-			glBindFramebuffer(GL_FRAMEBUFFER, scene_fbo);
-			glViewport(0, 0, scene_fbo_reso.x, scene_fbo_reso.y);
+			glBindFramebuffer(GL_FRAMEBUFFER, r->scene_fbo);
+			glViewport(0, 0, r->scene_fbo_reso.x, r->scene_fbo_reso.y);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 			ShaderSource* shd=
@@ -654,8 +693,8 @@ void render_frame()
 		{ // Overexposed parts to small "highlight" texture
 			glDisable(GL_BLEND);
 
-			glBindFramebuffer(GL_FRAMEBUFFER, hl_fbo);
-			glViewport(0, 0, hl_fbo_reso.x, hl_fbo_reso.y);
+			glBindFramebuffer(GL_FRAMEBUFFER, r->hl_fbo);
+			glViewport(0, 0, r->hl_fbo_reso.x, r->hl_fbo_reso.y);
 
 			ShaderSource* shd=
 				(ShaderSource*)res_by_name(g_env.resblob, ResType_ShaderSource, "highlight");
@@ -666,7 +705,7 @@ void render_frame()
 
 			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_scene"), 0);
 			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, scene_fbo_tex);
+			glBindTexture(GL_TEXTURE_2D, r->scene_fbo_tex);
 
 			draw_screen_quad();
 		}
@@ -675,25 +714,25 @@ void render_frame()
 			glDisable(GL_BLEND);
 
 			{ // Vertical blur to tmp fbo
-				glBindFramebuffer(GL_FRAMEBUFFER, blur_tmp_fbo);
-				glViewport(0, 0, blur_tmp_fbo_reso.x, blur_tmp_fbo_reso.y);
+				glBindFramebuffer(GL_FRAMEBUFFER, r->blur_tmp_fbo);
+				glViewport(0, 0, r->blur_tmp_fbo_reso.x, r->blur_tmp_fbo_reso.y);
 
 				ShaderSource* shd=
 					(ShaderSource*)res_by_name(g_env.resblob, ResType_ShaderSource, "blur_v");
 				glUseProgram(shd->prog_gl_id);
 
-				// @todo To shader res
-				glBindFragDataLocation(shd->prog_gl_id, 0, "f_color");
+			// @todo To shader res
+			glBindFragDataLocation(shd->prog_gl_id, 0, "f_color");
 
 				glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_tex"), 0);
 				glActiveTexture(GL_TEXTURE0);
-				glBindTexture(GL_TEXTURE_2D, hl_tex);
+				glBindTexture(GL_TEXTURE_2D, r->hl_tex);
 
 				draw_screen_quad();
 			}
 			{ // Horizontal blur back to hl fbo
-				glBindFramebuffer(GL_FRAMEBUFFER, hl_fbo);
-				glViewport(0, 0, hl_fbo_reso.x, hl_fbo_reso.y);
+				glBindFramebuffer(GL_FRAMEBUFFER, r->hl_fbo);
+				glViewport(0, 0, r->hl_fbo_reso.x, r->hl_fbo_reso.y);
 
 				ShaderSource* shd=
 					(ShaderSource*)res_by_name(g_env.resblob, ResType_ShaderSource, "blur_h");
@@ -704,7 +743,7 @@ void render_frame()
 
 				glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_tex"), 0);
 				glActiveTexture(GL_TEXTURE0);
-				glBindTexture(GL_TEXTURE_2D, blur_tmp_tex);
+				glBindTexture(GL_TEXTURE_2D, r->blur_tmp_tex);
 
 				draw_screen_quad();
 			}
@@ -727,25 +766,12 @@ void render_frame()
 			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_highlight"), 1);
 
 			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, scene_fbo_tex);
+			glBindTexture(GL_TEXTURE_2D, r->scene_fbo_tex);
 
 			glActiveTexture(GL_TEXTURE1);
-			glBindTexture(GL_TEXTURE_2D, hl_tex);
+			glBindTexture(GL_TEXTURE_2D, r->hl_tex);
 
 			draw_screen_quad();
-		}
-
-		{ // Fbo cleanup
-			glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-			glDeleteFramebuffers(1, &scene_fbo);
-			glDeleteTextures(1, &scene_fbo_tex);
-
-			glDeleteFramebuffers(1, &hl_fbo);
-			glDeleteTextures(1, &hl_tex);
-
-			glDeleteFramebuffers(1, &blur_tmp_fbo);
-			glDeleteTextures(1, &blur_tmp_tex);
 		}
 
 		// Debug draw
