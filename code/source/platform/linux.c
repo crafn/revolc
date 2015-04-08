@@ -43,6 +43,7 @@ VoidFunc plat_query_gl_func_impl(const char *name)
 
 void plat_init_impl(Device* d, const char* title, V2i reso)
 {
+	d->win_size= reso;
 	d->impl= zero_malloc(sizeof(*d->impl));
 	{
 		/// Original code from https://www.opengl.org/wiki/Tutorial:_OpenGL_3.0_Context_Creation_%28GLX%29

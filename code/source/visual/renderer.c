@@ -268,7 +268,6 @@ void recreate_rendering_pipeline(Renderer *r)
 {
 	destroy_rendering_pipeline(r);
 
-	debug_print("reso: %i, %i", g_env.device->win_size.x, g_env.device->win_size.y);
 	r->scene_fbo_reso= g_env.device->win_size;
 	r->hl_fbo_reso= (V2i) {128, 128};
 	r->blur_tmp_fbo_reso= r->hl_fbo_reso;
