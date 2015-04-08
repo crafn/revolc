@@ -18,6 +18,7 @@ int json_model_to_blob(struct BlobBuf *buf, JsonTok j)
 	JsonTok j_mesh= json_value_by_key(j, "mesh");
 	JsonTok j_texs= json_value_by_key(j, "textures");
 	JsonTok j_color= json_value_by_key(j, "color");
+	JsonTok j_emission= json_value_by_key(j, "emission");
 
 	if (json_is_null(j_mesh))
 		RES_ATTRIB_MISSING("mesh");
@@ -35,6 +36,8 @@ int json_model_to_blob(struct BlobBuf *buf, JsonTok j)
 	}
 
 	m.color= json_color(j_color);
+	if (!json_is_null(j_emission))
+		m.emission= json_real(j_emission);
 
 	blob_write(buf, (U8*)&m + sizeof(m.res), sizeof(m) - sizeof(m.res));
 	return 0;

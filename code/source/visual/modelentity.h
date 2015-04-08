@@ -19,6 +19,7 @@ typedef struct ModelEntity {
 
 	// Cached
 	Color color;
+	F32 emission;
 	V3f atlas_uv;
 	V2f scale_to_atlas_uv;
 	U32 mesh_v_count;

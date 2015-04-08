@@ -7,7 +7,6 @@
 #	include <GL/gl.h>
 #endif
 
-#define GL_SRGB8_ALPHA8 0x8C43
 
 // Required GL 2 features
 
@@ -17,6 +16,7 @@
 #define GL_VERTEX_SHADER 0x8B31
 #define GL_COMPILE_STATUS 0x8B81
 #define GL_LINK_STATUS 0x8B82
+#define GL_SRGB8_ALPHA8 0x8C43
 
 #if PLATFORM == PLATFORM_WINDOWS
 #	define GL_CLAMP_TO_EDGE 0x812F
@@ -25,6 +25,7 @@
 #	define GL_TEXTURE_MIN_LOD 0x813A
 #	define GL_TEXTURE_MAX_LOD 0x813B
 #	define GL_TEXTURE0 0x84C0
+#	define GL_TEXTURE1 0x84C1
 #	define GL_STATIC_DRAW 0x88E4
 #	define GL_ELEMENT_ARRAY_BUFFER 0x8893
 #endif
@@ -99,7 +100,11 @@ GlBindAttribLocation glBindAttribLocation;
 
 #define GL_FRAMEBUFFER 0x8D40
 #define GL_COLOR_ATTACHMENT0 0x8CE0
+#define GL_COLOR_ATTACHMENT1 0x8CE1
 #define GL_TEXTURE_2D_ARRAY 0x8C1A
+#define GL_RGB16F 0x881B
+#define GL_RGB32F 0x8815
+#define GL_FRAMEBUFFER_COMPLETE 0x8CD5
 
 typedef void (*GlGenFramebuffers)(GLsizei, GLuint*);
 GlGenFramebuffers glGenFramebuffers;
@@ -109,6 +114,8 @@ typedef void (*GlFramebufferTexture2D)(GLenum, GLenum, GLenum, GLuint, GLint);
 GlFramebufferTexture2D glFramebufferTexture2D;
 typedef void (*GlDeleteFramebuffers)(GLsizei, GLuint*);
 GlDeleteFramebuffers glDeleteFramebuffers;
+typedef GLenum (*GlCheckFramebufferStatus)(GLenum);
+GlCheckFramebufferStatus glCheckFramebufferStatus;
 typedef void (*GlGenVertexArrays)(GLsizei, GLuint*);
 GlGenVertexArrays glGenVertexArrays;
 typedef void (*GlDeleteVertexArrays)(GLsizei, const GLuint*);
@@ -117,6 +124,8 @@ typedef void (*GlBindVertexArray)(GLuint);
 GlBindVertexArray glBindVertexArray;
 typedef void (*GlTexStorage3D)(GLenum, GLsizei, GLenum, GLsizei, GLsizei, GLsizei);
 GlTexStorage3D glTexStorage3D;
+typedef void (*GlBindFragDataLocation)(GLuint, GLuint, const char *);
+GlBindFragDataLocation glBindFragDataLocation;
 
 #if PLATFORM == PLATFORM_WINDOWS
 	typedef void (*GlTexSubImage3D)(GLenum, GLint, GLint, GLint, GLint, GLsizei, GLsizei, GLsizei, GLenum, GLenum, const GLvoid *);

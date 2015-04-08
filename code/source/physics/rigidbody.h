@@ -16,6 +16,7 @@ typedef struct RigidBody {
 
 	T3d tf;
 	T3d prev_tf;
+	V2d velocity;
 	/// @todo Bit fields
 	bool allocated;
 	bool is_in_grid;

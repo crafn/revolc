@@ -22,6 +22,7 @@ typedef struct PlayerCh {
 	ResId idle_clip_id;
 	F64 idle_run_lerp;
 	F64 clip_time;
+	F64 fake_dif;
 
 	RigidBody *body;
 	Constraint *motor;
@@ -72,9 +73,13 @@ MOD_API void upd_playerch(PlayerCh *p, PlayerCh *e)
 									(V2d) {p->body->tf.pos.x, p->body->tf.pos.y});
 		}
 
-
 		p->tf.pos= add_v3d(p->body->tf.pos, (V3d) {0, 0.25, 0});
-		
+
+		F64 dif_to_target_v= (dir*5.7 - p->body->velocity.x)*0.7;
+		p->fake_dif= exp_drive(p->fake_dif, dif_to_target_v, dt*2.5);
+		p->fake_dif= CLAMP(p->fake_dif, -0.2, 0.2);
+		p->tf.pos.x += p->fake_dif;
+
 		{ // Camera
 			V2d target_pos= {
 				p->tf.pos.x*0.5 + cursor_p.x*0.5,

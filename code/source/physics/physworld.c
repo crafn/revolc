@@ -497,6 +497,7 @@ void upd_physworld(F64 dt)
 		b->tf.pos.x= p.x;
 		b->tf.pos.y= p.y;
 		b->tf.rot= qd_by_xy_rot_matrix(r.x, r.y);
+		b->velocity= from_cpv(cpBodyGetVelocity(b->cp_body));
 
 
 		b->tf_changed= !equals_v3d(b->prev_tf.pos, b->tf.pos) ||

@@ -58,6 +58,7 @@ Device * plat_init(const char* title, V2i reso)
 		glBufferData= (GlBufferData)plat_query_gl_func("glBufferData");
 		glBufferSubData= (GlBufferSubData)plat_query_gl_func("glBufferSubData");
 		glDeleteBuffers= (GlDeleteBuffers)plat_query_gl_func("glDeleteBuffers");
+		glCheckFramebufferStatus= (GlCheckFramebufferStatus)plat_query_gl_func("glCheckFramebufferStatus");
 		glEnableVertexAttribArray= (GlEnableVertexAttribArray)plat_query_gl_func("glEnableVertexAttribArray");
 		glDisableVertexAttribArray= (GlDisableVertexAttribArray)plat_query_gl_func("glDisableVertexAttribArray");
 		glVertexAttribPointer= (GlVertexAttribPointer)plat_query_gl_func("glVertexAttribPointer");
@@ -71,6 +72,7 @@ Device * plat_init(const char* title, V2i reso)
 		glDeleteVertexArrays= (GlDeleteVertexArrays)plat_query_gl_func("glDeleteVertexArrays");
 		glBindVertexArray= (GlBindVertexArray)plat_query_gl_func("glBindVertexArray");
 		glTexStorage3D= (GlTexStorage3D)plat_query_gl_func("glTexStorage3D");
+		glBindFragDataLocation= (GlBindFragDataLocation)plat_query_gl_func("glBindFragDataLocation");
 
 #		if PLATFORM == PLATFORM_WINDOWS
 			glTexSubImage3D= (GlTexSubImage3D)plat_query_gl_func("glTexSubImage3D");

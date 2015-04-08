@@ -27,8 +27,8 @@ REVOLC_API U32 vertex_size(MeshType type);
 typedef struct TriMeshVertex {
 	V3f pos;
 	V3f uv;
-	Color color;
-	F32 dev_highlight;
+	Color color; // @todo Could be U8[4]
+	F32 emission;
 	bool selected; // Editor
 	bool pad[19];
 } TriMeshVertex ALIGNED(64);
