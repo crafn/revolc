@@ -128,6 +128,11 @@ int main(int argc, const char **argv)
 			if (d->key_down['h'])
 				g_env.renderer->cam_pos.z += spd*dt;
 
+			if (d->key_down['c'])
+				g_env.renderer->exposure -= dt*2.0;
+			if (d->key_down['v'])
+				g_env.renderer->exposure += dt*2.0;
+
 			g_env.renderer->cam_pos.z -= g_env.device->mwheel_delta;
 
 			{ // Fov which cuts stuff away with non-square window

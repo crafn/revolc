@@ -11,6 +11,7 @@
 typedef struct Renderer {
 	V3d cam_pos; // Directly written
 	V2d cam_fov;
+	F32 exposure;
 
 	ModelEntity m_entities[MAX_MODELENTITY_COUNT];
 	ModelEntity m_entities_sort_space[MAX_MODELENTITY_COUNT];
