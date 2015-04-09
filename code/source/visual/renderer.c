@@ -20,13 +20,80 @@ V2f scale_to_atlas_uv(V2i reso)
 internal
 void draw_screen_quad()
 {
-	// @todo Don't create & destroy vao
+	// @todo Don't recreate vao
 	const Mesh *quad= (Mesh*)res_by_name(g_env.resblob, ResType_Mesh, "unitquad");
 	Vao quad_vao= create_vao(MeshType_tri, 4, 6);
 	bind_vao(&quad_vao);
 	add_mesh_to_vao(&quad_vao, quad);
 	draw_vao(&quad_vao);
 	destroy_vao(&quad_vao);
+}
+
+internal
+void draw_grid_quad()
+{
+	// @todo Don't recreate vao
+	const Color white= {1, 1, 1, 1};
+	Vao grid_vao= create_vao(MeshType_tri, 4, 6);
+	bind_vao(&grid_vao);
+	add_vertices_to_vao(&grid_vao, (TriMeshVertex[]) {
+		{ .pos= {-GRID_WIDTH/2, -GRID_WIDTH/2}, .uv= {0, 0}, .color= white, },
+		{ .pos= {+GRID_WIDTH/2, -GRID_WIDTH/2}, .uv= {1, 0}, .color= white, },
+		{ .pos= {+GRID_WIDTH/2, +GRID_WIDTH/2}, .uv= {1, 1}, .color= white, },
+		{ .pos= {-GRID_WIDTH/2, +GRID_WIDTH/2}, .uv= {0, 1}, .color= white },
+	}, 4);
+	add_indices_to_vao(&grid_vao, (MeshIndexType[]) {
+		0, 1, 2,
+		0, 2, 3,
+	}, 6);
+	draw_vao(&grid_vao);
+	destroy_vao(&grid_vao);
+}
+
+// Apply blur to fbo
+internal
+void blur_fbo(Renderer *r, F32 radius, U32 fbo, U32 fbo_tex, V2i reso)
+{
+	glDisable(GL_BLEND);
+
+	{ // Vertical blur to tmp fbo
+		glBindFramebuffer(GL_FRAMEBUFFER, r->blur_tmp_fbo);
+		glViewport(0, 0, r->blur_tmp_fbo_reso.x, r->blur_tmp_fbo_reso.y);
+
+		ShaderSource* shd=
+			(ShaderSource*)res_by_name(g_env.resblob, ResType_ShaderSource, "blur_v");
+		glUseProgram(shd->prog_gl_id);
+
+		// @todo To shader res
+		glBindFragDataLocation(shd->prog_gl_id, 0, "f_color");
+
+		glUniform1f(glGetUniformLocation(shd->prog_gl_id, "u_radius"), radius);
+
+		glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_tex"), 0);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, fbo_tex);
+
+		draw_screen_quad();
+	}
+	{ // Horizontal blur back to hl fbo
+		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+		glViewport(0, 0, reso.x, reso.y);
+
+		ShaderSource* shd=
+			(ShaderSource*)res_by_name(g_env.resblob, ResType_ShaderSource, "blur_h");
+		glUseProgram(shd->prog_gl_id);
+
+		// @todo To shader res
+		glBindFragDataLocation(shd->prog_gl_id, 0, "f_color");
+
+		glUniform1f(glGetUniformLocation(shd->prog_gl_id, "u_radius"), radius);
+
+		glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_tex"), 0);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, r->blur_tmp_tex);
+
+		draw_screen_quad();
+	}
 }
 
 // Separated to function, because this switch in a loop
@@ -255,6 +322,9 @@ void destroy_rendering_pipeline(Renderer *r)
 
 	glDeleteFramebuffers(1, &r->blur_tmp_fbo);
 	glDeleteTextures(1, &r->blur_tmp_tex);
+
+	glDeleteFramebuffers(1, &r->occlusion_fbo);
+	glDeleteTextures(1, &r->occlusion_tex);
 }
 
 internal
@@ -271,6 +341,7 @@ void recreate_rendering_pipeline(Renderer *r)
 	r->scene_fbo_reso= g_env.device->win_size;
 	r->hl_fbo_reso= (V2i) {256, 256};
 	r->blur_tmp_fbo_reso= r->hl_fbo_reso;
+	r->occlusion_fbo_reso= (V2i) {64, 64};
 
 	{ // Setup framebuffers
 
@@ -316,14 +387,13 @@ void recreate_rendering_pipeline(Renderer *r)
 				fail("Incomplete framebuffer (hl): %i", ret);
 		}
 
-
 		// Texture to store halfway blurred highlight
 		glGenTextures(1, &r->blur_tmp_tex);
 		glBindTexture(GL_TEXTURE_2D, r->blur_tmp_tex);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 		glTexImage2D(	GL_TEXTURE_2D, 0, GL_RGB16F,
 						r->blur_tmp_fbo_reso.x, r->blur_tmp_fbo_reso.y,
 						0, GL_RGB, GL_FLOAT, NULL);
@@ -336,6 +406,27 @@ void recreate_rendering_pipeline(Renderer *r)
 			GLenum ret= glCheckFramebufferStatus(GL_FRAMEBUFFER);
 			if (ret != GL_FRAMEBUFFER_COMPLETE)
 				fail("Incomplete framebuffer (blur): %i", ret);
+		}
+
+		// Texture to store occlusion map (shadow)
+		glGenTextures(1, &r->occlusion_tex);
+		glBindTexture(GL_TEXTURE_2D, r->occlusion_tex);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexImage2D(	GL_TEXTURE_2D, 0, GL_RED,
+						r->occlusion_fbo_reso.x, r->occlusion_fbo_reso.y,
+						0, GL_RED, GL_UNSIGNED_BYTE, NULL);
+
+		glGenFramebuffers(1, &r->occlusion_fbo);
+		glBindFramebuffer(GL_FRAMEBUFFER, r->occlusion_fbo);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, r->occlusion_tex, 0);
+
+		{
+			GLenum ret= glCheckFramebufferStatus(GL_FRAMEBUFFER);
+			if (ret != GL_FRAMEBUFFER_COMPLETE)
+				fail("Incomplete framebuffer (occlusion): %i", ret);
 		}
 	}
 }
@@ -353,6 +444,24 @@ void create_renderer()
 	recreate_rendering_pipeline(r);
 	recreate_texture_atlas(r, g_env.resblob);
 
+	{
+		glGenTextures(1, &r->occlusion_grid_tex);
+		glBindTexture(GL_TEXTURE_2D, r->occlusion_grid_tex);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	}
+
+	{
+		glGenTextures(1, &r->grid_ddraw_tex);
+		glBindTexture(GL_TEXTURE_2D, r->grid_ddraw_tex);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	}
+
 	ensure(!g_env.renderer);
 	g_env.renderer= r;
 }
@@ -362,10 +471,13 @@ void destroy_renderer()
 	Renderer *r= g_env.renderer;
 	g_env.renderer= NULL;
 
+
 	destroy_vao(&r->vao);
 
 	destroy_rendering_pipeline(r);
 	glDeleteTextures(1, &r->atlas_gl_id);
+	glDeleteTextures(1, &r->occlusion_grid_tex);
+	glDeleteTextures(1, &r->grid_ddraw_tex);
 
 	free(r);
 }
@@ -608,9 +720,8 @@ void render_frame()
 				sizeof(*r->m_entities_sort_space), entity_cmp);
 		ModelEntity *entities= r->m_entities_sort_space;
 
-		// @todo Switch to frame_alloc
-		TriMeshVertex *total_verts= malloc(sizeof(*total_verts)*total_v_count);
-		MeshIndexType *total_inds= malloc(sizeof(*total_inds)*total_i_count);
+		TriMeshVertex *total_verts= frame_alloc(sizeof(*total_verts)*total_v_count);
+		MeshIndexType *total_inds= frame_alloc(sizeof(*total_inds)*total_i_count);
 		U32 cur_v= 0;
 		U32 cur_i= 0;
 		for (U32 i= 0; i < MAX_MODELENTITY_COUNT; ++i) {
@@ -648,13 +759,44 @@ void render_frame()
 		}
 		add_vertices_to_vao(&r->vao, total_verts, total_v_count);
 		add_indices_to_vao(&r->vao, total_inds, total_i_count);
-		free(total_verts);
-		free(total_inds);
 	}
 
 	{ // Actual rendering
 		if (rendering_pipeline_obsolete(r))
 			recreate_rendering_pipeline(r);
+
+		{ // Render occlusion grid to fbo
+			glDisable(GL_BLEND);
+
+			glBindTexture(GL_TEXTURE_2D, r->occlusion_grid_tex);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RED,
+				GRID_WIDTH_IN_CELLS, GRID_WIDTH_IN_CELLS,
+				0, GL_RED, GL_UNSIGNED_BYTE,
+				r->occlusion_grid);
+
+			// @todo Not sure if drawing right after glTexImage stalls
+
+			glBindFramebuffer(GL_FRAMEBUFFER, r->occlusion_fbo);
+			glViewport(0, 0, r->occlusion_fbo_reso.x, r->occlusion_fbo_reso.y);
+
+			ShaderSource* shd=
+				(ShaderSource*)res_by_name( g_env.resblob,
+											ResType_ShaderSource,
+											"grid_blit");
+			glUseProgram(shd->prog_gl_id);
+
+			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_tex_color"), 0);
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, r->occlusion_grid_tex);
+
+			glUniformMatrix4fv( glGetUniformLocation(shd->prog_gl_id, "u_cam"),
+								1, GL_FALSE, cam_matrix(r).e);
+			draw_grid_quad();
+
+			for (U32 blur_i= 0; blur_i < 3; ++blur_i) { // Blur shadows
+				blur_fbo(r, 5.0 + blur_i*2, r->occlusion_fbo, r->occlusion_tex, r->occlusion_fbo_reso);
+			}
+		}
 
 		{ // Render scene to fbo
 			glEnable(GL_BLEND);
@@ -675,14 +817,11 @@ void render_frame()
 			// @todo To shader res
 			glBindFragDataLocation(shd->prog_gl_id, 0, "f_color");
 
-			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_tex_color"), 0);
 			glUniform1f(glGetUniformLocation(shd->prog_gl_id, "u_exposure"), r->exposure);
-			glUniformMatrix4fv(
-					glGetUniformLocation(shd->prog_gl_id, "u_cam"),
-					1,
-					GL_FALSE,
-					cam_matrix(r).e);
+			glUniformMatrix4fv(	glGetUniformLocation(shd->prog_gl_id, "u_cam"),
+								1, GL_FALSE, cam_matrix(r).e);
 
+			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_tex_color"), 0);
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D_ARRAY, r->atlas_gl_id);
 
@@ -711,42 +850,7 @@ void render_frame()
 		}
 
 		for (U32 blur_i= 0; blur_i < 2; ++blur_i) { // Blur highlights (bloom)
-			glDisable(GL_BLEND);
-
-			{ // Vertical blur to tmp fbo
-				glBindFramebuffer(GL_FRAMEBUFFER, r->blur_tmp_fbo);
-				glViewport(0, 0, r->blur_tmp_fbo_reso.x, r->blur_tmp_fbo_reso.y);
-
-				ShaderSource* shd=
-					(ShaderSource*)res_by_name(g_env.resblob, ResType_ShaderSource, "blur_v");
-				glUseProgram(shd->prog_gl_id);
-
-			// @todo To shader res
-			glBindFragDataLocation(shd->prog_gl_id, 0, "f_color");
-
-				glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_tex"), 0);
-				glActiveTexture(GL_TEXTURE0);
-				glBindTexture(GL_TEXTURE_2D, r->hl_tex);
-
-				draw_screen_quad();
-			}
-			{ // Horizontal blur back to hl fbo
-				glBindFramebuffer(GL_FRAMEBUFFER, r->hl_fbo);
-				glViewport(0, 0, r->hl_fbo_reso.x, r->hl_fbo_reso.y);
-
-				ShaderSource* shd=
-					(ShaderSource*)res_by_name(g_env.resblob, ResType_ShaderSource, "blur_h");
-				glUseProgram(shd->prog_gl_id);
-
-				// @todo To shader res
-				glBindFragDataLocation(shd->prog_gl_id, 0, "f_color");
-
-				glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_tex"), 0);
-				glActiveTexture(GL_TEXTURE0);
-				glBindTexture(GL_TEXTURE_2D, r->blur_tmp_tex);
-
-				draw_screen_quad();
-			}
+			blur_fbo(r, 0.2 + blur_i*0.5, r->hl_fbo, r->hl_tex, r->hl_fbo_reso);
 		}
 
 		{ // Post process and show scene
@@ -763,13 +867,16 @@ void render_frame()
 			glBindFragDataLocation(shd->prog_gl_id, 0, "f_color");
 
 			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_scene"), 0);
-			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_highlight"), 1);
-
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, r->scene_fbo_tex);
 
+			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_highlight"), 1);
 			glActiveTexture(GL_TEXTURE1);
 			glBindTexture(GL_TEXTURE_2D, r->hl_tex);
+
+			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_occlusion"), 2);
+			glActiveTexture(GL_TEXTURE2);
+			glBindTexture(GL_TEXTURE_2D, r->occlusion_tex);
 
 			draw_screen_quad();
 		}
@@ -797,39 +904,18 @@ void render_frame()
 			}
 
 			if (r->draw_grid) {
-				U32 grid_id;
 				glActiveTexture(GL_TEXTURE0);
-				glGenTextures(1, &grid_id);
-				glBindTexture(GL_TEXTURE_2D, grid_id);
-
+				glBindTexture(GL_TEXTURE_2D, r->grid_ddraw_tex);
 				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8,
 					GRID_WIDTH_IN_CELLS, GRID_WIDTH_IN_CELLS,
 					0, GL_RGBA, GL_UNSIGNED_BYTE,
 					r->grid_ddraw_data);
 
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-				Vao grid_vao= create_vao(MeshType_tri, 4, 6);
-				bind_vao(&grid_vao);
-				add_vertices_to_vao(&grid_vao, (TriMeshVertex[]) {
-					{ .pos= {-GRID_WIDTH/2, -GRID_WIDTH/2}, .uv= {0, 0} },
-					{ .pos= {+GRID_WIDTH/2, -GRID_WIDTH/2}, .uv= {1, 0} },
-					{ .pos= {+GRID_WIDTH/2, +GRID_WIDTH/2}, .uv= {1, 1} },
-					{ .pos= {-GRID_WIDTH/2, +GRID_WIDTH/2}, .uv= {0, 1} },
-				}, 4);
-				add_indices_to_vao(&grid_vao, (MeshIndexType[]) {
-					0, 1, 2,
-					0, 2, 3,
-				}, 6);
-
 				ShaderSource* grid_shd=
 					(ShaderSource*)res_by_name(
 							g_env.resblob,
 							ResType_ShaderSource,
-							"grid_ddraw");
+							"grid_blit");
 				glUseProgram(grid_shd->prog_gl_id);
 				glUniform1i(glGetUniformLocation(grid_shd->prog_gl_id, "u_tex_color"), 0);
 				glUniformMatrix4fv(
@@ -837,11 +923,7 @@ void render_frame()
 						1,
 						GL_FALSE,
 						cam_matrix(r).e);
-
-				draw_vao(&grid_vao);
-				destroy_vao(&grid_vao);
-
-				glDeleteTextures(1, &grid_id);
+				draw_grid_quad();
 			}
 		}
 	}

@@ -562,4 +562,7 @@ void post_upd_physworld()
 		b->prev_tf= b->tf;
 	}
 	
+	U8 *grid= g_env.renderer->occlusion_grid;
+	for (U32 i= 0; i < GRID_CELL_COUNT; ++i)
+		grid[i]= MIN(w->grid[i].static_portion*4 + w->grid[i].dynamic_portion*4, 255);
 }

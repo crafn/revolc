@@ -30,6 +30,10 @@ typedef struct Renderer {
 	// Directly written
 	Texel grid_ddraw_data[GRID_CELL_COUNT];
 	bool draw_grid;
+	U32 grid_ddraw_tex;
+
+	U8 occlusion_grid[GRID_CELL_COUNT];
+	U32 occlusion_grid_tex;
 
 	U32 atlas_gl_id;
 	Vao vao;
@@ -44,6 +48,9 @@ typedef struct Renderer {
 	U32 blur_tmp_fbo;
 	U32 blur_tmp_tex;
 	V2i blur_tmp_fbo_reso;
+	U32 occlusion_fbo; // Stuff from The Grid
+	U32 occlusion_tex;
+	V2i occlusion_fbo_reso;
 } Renderer;
 
 // Sets g_env.renderer
