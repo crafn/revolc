@@ -34,13 +34,14 @@ void draw_grid_quad()
 {
 	// @todo Don't recreate vao
 	const Color white= {1, 1, 1, 1};
+	const F32 rad= GRID_WIDTH/2.0;
 	Vao grid_vao= create_vao(MeshType_tri, 4, 6);
 	bind_vao(&grid_vao);
 	add_vertices_to_vao(&grid_vao, (TriMeshVertex[]) {
-		{ .pos= {-GRID_WIDTH/2, -GRID_WIDTH/2}, .uv= {0, 0}, .color= white, },
-		{ .pos= {+GRID_WIDTH/2, -GRID_WIDTH/2}, .uv= {1, 0}, .color= white, },
-		{ .pos= {+GRID_WIDTH/2, +GRID_WIDTH/2}, .uv= {1, 1}, .color= white, },
-		{ .pos= {-GRID_WIDTH/2, +GRID_WIDTH/2}, .uv= {0, 1}, .color= white },
+		{ .pos= {-rad, -rad}, .uv= {0, 0}, .color= white, },
+		{ .pos= {+rad, -rad}, .uv= {1, 0}, .color= white, },
+		{ .pos= {+rad, +rad}, .uv= {1, 1}, .color= white, },
+		{ .pos= {-rad, +rad}, .uv= {0, 1}, .color= white },
 	}, 4);
 	add_indices_to_vao(&grid_vao, (MeshIndexType[]) {
 		0, 1, 2,
@@ -52,7 +53,7 @@ void draw_grid_quad()
 
 // Apply blur to fbo
 internal
-void blur_fbo(Renderer *r, F32 radius, U32 fbo, U32 fbo_tex, V2i reso)
+void blur_fbo(Renderer *r, V2f screenspace_radius, U32 fbo, U32 fbo_tex, V2i reso)
 {
 	glDisable(GL_BLEND);
 
@@ -67,7 +68,7 @@ void blur_fbo(Renderer *r, F32 radius, U32 fbo, U32 fbo_tex, V2i reso)
 		// @todo To shader res
 		glBindFragDataLocation(shd->prog_gl_id, 0, "f_color");
 
-		glUniform1f(glGetUniformLocation(shd->prog_gl_id, "u_radius"), radius);
+		glUniform1f(glGetUniformLocation(shd->prog_gl_id, "u_radius"), screenspace_radius.x);
 
 		glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_tex"), 0);
 		glActiveTexture(GL_TEXTURE0);
@@ -86,7 +87,7 @@ void blur_fbo(Renderer *r, F32 radius, U32 fbo, U32 fbo_tex, V2i reso)
 		// @todo To shader res
 		glBindFragDataLocation(shd->prog_gl_id, 0, "f_color");
 
-		glUniform1f(glGetUniformLocation(shd->prog_gl_id, "u_radius"), radius);
+		glUniform1f(glGetUniformLocation(shd->prog_gl_id, "u_radius"), screenspace_radius.y);
 
 		glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_tex"), 0);
 		glActiveTexture(GL_TEXTURE0);
@@ -339,9 +340,9 @@ void recreate_rendering_pipeline(Renderer *r)
 	destroy_rendering_pipeline(r);
 
 	r->scene_fbo_reso= g_env.device->win_size;
-	r->hl_fbo_reso= (V2i) {256, 256};
+	r->hl_fbo_reso= (V2i) {512, 512};
 	r->blur_tmp_fbo_reso= r->hl_fbo_reso;
-	r->occlusion_fbo_reso= (V2i) {64, 64};
+	r->occlusion_fbo_reso= (V2i) {128, 128};
 
 	{ // Setup framebuffers
 
@@ -765,6 +766,14 @@ void render_frame()
 		if (rendering_pipeline_obsolete(r))
 			recreate_rendering_pipeline(r);
 
+		V2d scrn_in_world= screen_to_world_size(g_env.device->win_size);
+		scrn_in_world.x= abs(scrn_in_world.x);
+		scrn_in_world.y= abs(scrn_in_world.y);
+
+		// Controls how much further outside the screen shadows are calculated (= blurred)
+		const F32 occlusion_safe_dist= 10.0;
+		const V2f occlusion_scale= {1.0/(1.0 + occlusion_safe_dist/scrn_in_world.x),
+									1.0/(1.0 + occlusion_safe_dist/scrn_in_world.y)};
 		{ // Render occlusion grid to fbo
 			glDisable(GL_BLEND);
 
@@ -789,12 +798,20 @@ void render_frame()
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, r->occlusion_grid_tex);
 
+			glUniform2f(glGetUniformLocation(shd->prog_gl_id, "u_screenspace_scale"),
+				occlusion_scale.x, occlusion_scale.y);
 			glUniformMatrix4fv( glGetUniformLocation(shd->prog_gl_id, "u_cam"),
 								1, GL_FALSE, cam_matrix(r).e);
 			draw_grid_quad();
 
-			for (U32 blur_i= 0; blur_i < 3; ++blur_i) { // Blur shadows
-				blur_fbo(r, 5.0 + blur_i*2, r->occlusion_fbo, r->occlusion_tex, r->occlusion_fbo_reso);
+			// Reset this as no other needs the uniform
+			glUniform2f(glGetUniformLocation(shd->prog_gl_id, "u_screenspace_scale"), 1.0, 1.0);
+
+			for (U32 blur_i= 0; blur_i < 2; ++blur_i) { // Blur shadows
+				F32 rad= (5.0 + blur_i*3)*15;
+				// @todo Maybe we should take aspect ratio into account
+				V2f rad_scrn= {rad/scrn_in_world.x, rad/scrn_in_world.y};
+				blur_fbo(r, rad_scrn, r->occlusion_fbo, r->occlusion_tex, r->occlusion_fbo_reso);
 			}
 		}
 
@@ -813,9 +830,6 @@ void render_frame()
 						ResType_ShaderSource,
 						"gen");
 			glUseProgram(shd->prog_gl_id);
-
-			// @todo To shader res
-			glBindFragDataLocation(shd->prog_gl_id, 0, "f_color");
 
 			glUniform1f(glGetUniformLocation(shd->prog_gl_id, "u_exposure"), r->exposure);
 			glUniformMatrix4fv(	glGetUniformLocation(shd->prog_gl_id, "u_cam"),
@@ -839,9 +853,6 @@ void render_frame()
 				(ShaderSource*)res_by_name(g_env.resblob, ResType_ShaderSource, "highlight");
 			glUseProgram(shd->prog_gl_id);
 
-			// @todo To shader res
-			glBindFragDataLocation(shd->prog_gl_id, 0, "f_color");
-
 			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_scene"), 0);
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, r->scene_fbo_tex);
@@ -849,8 +860,10 @@ void render_frame()
 			draw_screen_quad();
 		}
 
-		for (U32 blur_i= 0; blur_i < 2; ++blur_i) { // Blur highlights (bloom)
-			blur_fbo(r, 0.2 + blur_i*0.5, r->hl_fbo, r->hl_tex, r->hl_fbo_reso);
+		for (U32 blur_i= 0; blur_i < 3; ++blur_i) { // Blur highlights (bloom)
+			// @todo Aspect ratio
+			F32 rad= 0.1 + blur_i*0.2;
+			blur_fbo(r, (V2f) {rad, rad}, r->hl_fbo, r->hl_tex, r->hl_fbo_reso);
 		}
 
 		{ // Post process and show scene
@@ -863,9 +876,6 @@ void render_frame()
 				(ShaderSource*)res_by_name(g_env.resblob, ResType_ShaderSource, "post");
 			glUseProgram(shd->prog_gl_id);
 
-			// @todo To shader res
-			glBindFragDataLocation(shd->prog_gl_id, 0, "f_color");
-
 			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_scene"), 0);
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, r->scene_fbo_tex);
@@ -877,6 +887,8 @@ void render_frame()
 			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_occlusion"), 2);
 			glActiveTexture(GL_TEXTURE2);
 			glBindTexture(GL_TEXTURE_2D, r->occlusion_tex);
+
+			glUniform2f(glGetUniformLocation(shd->prog_gl_id, "u_occlusion_scale"), occlusion_scale.x, occlusion_scale.y);
 
 			draw_screen_quad();
 		}
