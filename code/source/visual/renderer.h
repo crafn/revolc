@@ -35,6 +35,9 @@ typedef struct Renderer {
 	U8 occlusion_grid[GRID_CELL_COUNT];
 	U32 occlusion_grid_tex;
 
+	Texel fluid_grid[GRID_CELL_COUNT];
+	U32 fluid_grid_tex;
+
 	U32 atlas_gl_id;
 	Vao vao;
 

@@ -142,6 +142,12 @@ int main(int argc, const char **argv)
 			if (d->key_down['e'])
 				spawn_entity(world, g_env.resblob, cursor_on_world);
 
+			if (d->key_down['r']) {
+				GridCell *grid= g_env.physworld->grid;
+				U32 i= GRID_INDEX_W(cursor_on_world.x, cursor_on_world.y);
+				grid[i].water= 1;
+			}
+
 			if (d->key_pressed['t'])
 				free_node_group(world, 1);
 

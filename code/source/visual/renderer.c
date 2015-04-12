@@ -446,19 +446,22 @@ void create_renderer()
 	recreate_texture_atlas(r, g_env.resblob);
 
 	{
+		glGenTextures(1, &r->grid_ddraw_tex);
+		glBindTexture(GL_TEXTURE_2D, r->grid_ddraw_tex);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	}
+
+	{
 		glGenTextures(1, &r->occlusion_grid_tex);
 		glBindTexture(GL_TEXTURE_2D, r->occlusion_grid_tex);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	}
 
 	{
-		glGenTextures(1, &r->grid_ddraw_tex);
-		glBindTexture(GL_TEXTURE_2D, r->grid_ddraw_tex);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+		glGenTextures(1, &r->fluid_grid_tex);
+		glBindTexture(GL_TEXTURE_2D, r->fluid_grid_tex);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	}
@@ -477,6 +480,7 @@ void destroy_renderer()
 
 	destroy_rendering_pipeline(r);
 	glDeleteTextures(1, &r->atlas_gl_id);
+	glDeleteTextures(1, &r->fluid_grid_tex);
 	glDeleteTextures(1, &r->occlusion_grid_tex);
 	glDeleteTextures(1, &r->grid_ddraw_tex);
 
@@ -841,6 +845,28 @@ void render_frame()
 
 			bind_vao(&r->vao);
 			draw_vao(&r->vao);
+
+
+			// Proto fluid proto render
+			ShaderSource* grid_shd=
+				(ShaderSource*)res_by_name(
+						g_env.resblob,
+						ResType_ShaderSource,
+						"grid_blit");
+			glUseProgram(grid_shd->prog_gl_id);
+			glUniform1i(glGetUniformLocation(grid_shd->prog_gl_id, "u_tex_color"), 0);
+			glUniformMatrix4fv(
+					glGetUniformLocation(grid_shd->prog_gl_id, "u_cam"),
+					1,
+					GL_FALSE,
+					cam_matrix(r).e);
+
+			glBindTexture(GL_TEXTURE_2D, r->fluid_grid_tex);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
+				GRID_WIDTH_IN_CELLS, GRID_WIDTH_IN_CELLS,
+				0, GL_RGBA, GL_UNSIGNED_BYTE,
+				r->fluid_grid);
+			draw_grid_quad();
 		}
 
 		{ // Overexposed parts to small "highlight" texture

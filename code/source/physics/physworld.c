@@ -228,6 +228,19 @@ void create_physworld()
 	w->cp_space= cpSpaceNew();
 	cpSpaceSetIterations(w->cp_space, 10);
 	cpSpaceSetGravity(w->cp_space, cpv(0, -25));
+
+	{ // Fluid proto
+		const int half= GRID_WIDTH_IN_CELLS/2;
+		for (U32 y_= GRID_WIDTH_IN_CELLS; y_ > 1; --y_) {
+			const U32 y= y_ - 1;
+			for (U32 x= 0; x < GRID_WIDTH_IN_CELLS; ++x) {
+				GridCell *cur= &w->grid[x + y*GRID_WIDTH_IN_CELLS];
+
+				if ((x - half)*(x - half) + (y - half - 90)*(y - half - 90) < 80)
+					cur->water= 1;
+			}
+		}
+	}
 }
 
 void destroy_physworld()
@@ -528,6 +541,55 @@ void upd_phys_debugdraw()
 	}
 }
 
+// Part of fluid update
+internal
+void calc_fluid_area_pressure(GridCell *grid, U32 cell_i)
+{
+#	define MAX_HEADS 1024 // @todo Remove
+#	define MAX_CELLS 1024 // @todo Remove
+	U32 heads[MAX_HEADS]= {cell_i};
+	U32 head_count= 1;
+	grid[cell_i].pressure= U16_MAX/2;
+	
+	U32 min_pressure= grid[cell_i].pressure;
+	U32 area_cells[MAX_CELLS]= {};
+	U32 area_cell_count= 0;
+
+	// Calculate pressure so that the gradient is correct
+	while (head_count > 0) {
+		// @todo bounds checks
+		U32 cur= heads[--head_count];
+		area_cells[area_cell_count++]= cur;
+
+		const U32 sides[4]= {
+			cur - 1,
+			cur + 1,
+			cur - GRID_WIDTH_IN_CELLS,
+			cur + GRID_WIDTH_IN_CELLS,
+		};
+		const int pressure_add[4]= {
+			0, 0, 1, -1
+		};
+		for (U32 i= 0; i < 4; ++i) {
+			const U32 side= sides[i];
+			if (grid[side].water && grid[side].pressure == 0) {
+				// Enlarge to all sides with water & uninit pressure
+				grid[side].pressure= grid[cur].pressure + pressure_add[i];
+				ensure(grid[side].pressure > 0);
+				min_pressure= MIN(min_pressure, grid[side].pressure);
+
+				heads[head_count++]= side;
+				ensure(head_count < MAX_HEADS);
+			}
+		}
+	}
+
+	// Normalize pressure values so that smallest is 1
+	for (U32 i= 0; i < area_cell_count; ++i) {
+		grid[area_cells[i]].pressure -= min_pressure - 1;
+	}
+}
+
 void post_upd_physworld()
 {
 	PhysWorld *w= g_env.physworld;
@@ -561,8 +623,80 @@ void post_upd_physworld()
 		b->tf_changed= false;
 		b->prev_tf= b->tf;
 	}
-	
-	U8 *grid= g_env.renderer->occlusion_grid;
-	for (U32 i= 0; i < GRID_CELL_COUNT; ++i)
-		grid[i]= MIN(w->grid[i].static_portion*4 + w->grid[i].dynamic_portion*4, 255);
+
+	{ // Update fluids
+		// @todo To thread -- latency of 1 frame is acceptable
+
+		{ // Calculate pressure
+			// Rules for fluid pressure
+			// - vertical sections not supported by ground should have pressure 1
+			// - highest cell with supporting ground should have pressure 1
+			// - supported areas should have uniform pressure at constant height
+			// e.g.
+			//
+			// 111####    
+			// 222####2211
+			// 333####33111111##
+			// 44444444411##22##
+			// #####555511######
+			// #########11######
+			//
+			// Plan:
+			//  - find and set pressure for non-supported sections first
+			//  - calculate pressures for every supported area separately
+
+			bool supported= false;
+			for (U32 x= 0; x < GRID_WIDTH_IN_CELLS; ++x) {
+				for (U32 y= 0; y < GRID_WIDTH_IN_CELLS; ++y) {
+					GridCell *c= &w->grid[GRID_INDEX(x, y)];
+					if (!c->water) {
+						supported= c->dynamic_portion;
+					}
+					if (c->water && !supported)
+						c->pressure= 1; // Calc non-supported cells
+					else
+						c->pressure= 0; // Reset other cells
+				}
+				supported= false;
+			}
+
+			for (U32 i= 0; i < GRID_CELL_COUNT; ++i) {
+				if (w->grid[i].water && w->grid[i].pressure == 0) {
+					calc_fluid_area_pressure(w->grid, i);
+				}
+			}
+		}
+
+		// Temp fall simulation
+		for (U32 y= 0; y < GRID_WIDTH_IN_CELLS; ++y) {
+			for (U32 x= 0; x < GRID_WIDTH_IN_CELLS; ++x) {
+				GridCell *cur= &w->grid[GRID_INDEX(x, y)];
+				GridCell *below= &w->grid[GRID_INDEX(x, y - 1)];
+				if (cur->water && !below->water && !below->dynamic_portion) {
+					below->water= 1;
+					cur->water= 0;
+				}
+			}
+		}
+	}
+
+	{ // Update fluids to renderer
+		Texel *grid= g_env.renderer->fluid_grid;
+		for (U32 i= 0; i < GRID_CELL_COUNT; ++i) {
+			F32 p= w->grid[i].pressure + 1;
+			grid[i].r= CLAMP(10, 0, 255);
+			grid[i].g= CLAMP(100 - p*5, 0, 255);
+			grid[i].b= CLAMP(255 - p*5, 0, 255);
+			grid[i].a= w->grid[i].water*240;
+		}
+	}
+
+	{ // Update occlusion grid for graphics
+		U8 *grid= g_env.renderer->occlusion_grid;
+		for (U32 i= 0; i < GRID_CELL_COUNT; ++i) {
+			grid[i]= MIN(	w->grid[i].static_portion*4 +
+							w->grid[i].dynamic_portion*4,
+							255);
+		}
+	}
 }

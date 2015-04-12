@@ -7,14 +7,20 @@
 
 #include <chipmunk/chipmunk.h>
 
-#define GRID_INDEX(x, y) \
-		((((U32)((floor(x + 0.5))*GRID_RESO_PER_UNIT + GRID_WIDTH_IN_CELLS/2)) + \
-	   	(U32)((floor(y + 0.5))*GRID_RESO_PER_UNIT + GRID_WIDTH_IN_CELLS/2)*GRID_WIDTH_IN_CELLS))
+#define GRID_INDEX_W(x, y) \
+		((U32)((floor((x + 0.5)*GRID_RESO_PER_UNIT) + GRID_WIDTH_IN_CELLS/2)) + \
+	   	(U32)((floor((y + 0.5)*GRID_RESO_PER_UNIT) + GRID_WIDTH_IN_CELLS/2)*GRID_WIDTH_IN_CELLS))
+
+#define GRID_INDEX(x, y) ((x) + (y)*GRID_WIDTH_IN_CELLS)
 
 typedef struct GridCell {
+	// @todo Rethink division between static/dynamic when fluids are ready
 	U8 static_portion; // Max == 64
 	U8 dynamic_portion;
 	bool is_static_edge;
+
+	U8 water;
+	U16 pressure;
 } GridCell;
 
 typedef struct PhysWorld {
