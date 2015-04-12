@@ -25,4 +25,12 @@ typedef void (*VoidFunc)();
 #define S32_MAX 2147483647
 #define S32_MIN (-2147483648)
 
+#if PLATFORM_BITNESS == 32
+	typedef U32 PtrInt;
+#elif PLATFORM_BITNESS == 64
+	typedef U64 PtrInt;
+#else
+#	error Unknown platform bitness
+#endif
+
 #endif // REVOLC_PLATFORM_TYPES_H

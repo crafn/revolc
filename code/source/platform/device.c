@@ -25,6 +25,13 @@ VoidFunc plat_query_gl_func(const char *name)
 Device * plat_init(const char* title, V2i reso)
 {
 	debug_print("plat_init");
+	{
+		ensure(sizeof(U8) == 1);
+		ensure(sizeof(U16) == 2);
+		ensure(sizeof(U32) == 4);
+		ensure(sizeof(U64) == 8);
+	}
+
 	Device *d= zero_malloc(sizeof(*d));
 	if (g_env.device == NULL)
 		g_env.device= d;

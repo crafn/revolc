@@ -6,8 +6,14 @@
 
 #if defined(__linux__)
 #	define PLATFORM PLATFORM_LINUX
+#	define PLATFORM_BITNESS 64
 #else
 #	define PLATFORM PLATFORM_WINDOWS
+#	if	defined(__WIN64)
+#		define PLATFORM_BITNESS 64
+#	else
+#		define PLATFORM_BITNESS 32
+#	endif
 #endif
 
 #define DLL_EXPORT __attribute__((visibility ("default")))

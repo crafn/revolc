@@ -32,7 +32,7 @@ Vao create_vao(MeshType m, U32 max_v_count, U32 max_i_count)
 				attribs[i].type,
 				attribs[i].normalized,
 				vao.v_size,
-				(const GLvoid*)attribs[i].offset);
+				(const GLvoid*)(PtrInt)attribs[i].offset);
 	}
 
 	glBufferData(GL_ARRAY_BUFFER, vao.v_size*max_v_count, NULL, GL_STATIC_DRAW);

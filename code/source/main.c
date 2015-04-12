@@ -56,11 +56,6 @@ void spawn_entity(World *world, ResBlob *blob, V2d pos)
 
 int main(int argc, const char **argv)
 {
-	char test[4];
-	fmt_str(test, 4, "test");
-	debug_print("%s", test);
-
-
 	init_env();
 
 	Device *d= plat_init("Revolc engine", (V2i) {1024, 768});

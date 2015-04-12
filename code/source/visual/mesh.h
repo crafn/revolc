@@ -8,7 +8,8 @@
 #include "resources/resource.h"
 #include "platform/gl.h"
 
-typedef enum { MeshType_tri, MeshType_point } MeshType;
+typedef enum { MeshType_tri, MeshType_point } MeshType_enum;
+typedef U32 MeshType;
 typedef U32 MeshIndexType;
 #define MESH_INDEX_GL_TYPE GL_UNSIGNED_INT
 

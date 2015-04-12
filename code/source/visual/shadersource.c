@@ -39,10 +39,13 @@ void init_shadersource(ShaderSource *shd)
 		gl_check_shader_status(*gs);
 	}
 	{ // Fragment
+		debug_print("frag");
+		debug_print("fs: %s", fs_src);
 		*fs= glCreateShader(GL_FRAGMENT_SHADER);
 		glShaderSource(*fs, fs_count, &fs_src, NULL);
 		glCompileShader(*fs);
 		gl_check_shader_status(*fs);
+		debug_print("frag end");
 	}
 	{ // Shader program
 		*prog= glCreateProgram();
