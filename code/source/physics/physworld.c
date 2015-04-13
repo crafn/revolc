@@ -541,21 +541,58 @@ void upd_phys_debugdraw()
 	}
 }
 
+#define LEFT_SIDE_MASK (1<<0)
+#define UP_SIDE_MASK (1<<1)
+#define RIGHT_SIDE_MASK (1<<2)
+#define DOWN_SIDE_MASK (1<<3)
+const U8 side_masks[4]= {
+	LEFT_SIDE_MASK,
+	RIGHT_SIDE_MASK,
+	DOWN_SIDE_MASK,
+	UP_SIDE_MASK,
+};
+
+#define MAX_SINKNESS (U16_MAX - 1)
+#define STATIC_SINKNESS U16_MAX // Can't move
+typedef struct FluidEdge {
+	U32 i;
+	U16 sinkness;
+	U8 side_water; // e.g. side_water & LEFT_SIDE_MASK == left_cell_watery
+	U8 side_occupied; // ^
+} FluidEdge;
+
+internal
+int sinks_first_cmp(const void *e1, const void *e2)
+{
+#define E1 ((FluidEdge*)e1)
+#define E2 ((FluidEdge*)e2)
+	return	(E1->sinkness < E2->sinkness) - (E1->sinkness > E2->sinkness);
+#undef E1
+#undef E2
+}
+
 // Part of fluid update
 internal
-void calc_fluid_area_pressure(GridCell *grid, U32 cell_i)
+void process_fluid_area(GridCell *grid, U32 cell_i)
 {
 #	define MAX_HEADS 1024 // @todo Remove
 #	define MAX_CELLS 1024 // @todo Remove
+#	define MAX_EDGES 1024 // @todo Remove
 	U32 heads[MAX_HEADS]= {cell_i};
 	U32 head_count= 1;
-	grid[cell_i].pressure= U16_MAX/2;
-	
+	grid[cell_i].pressure= U16_MAX/3; // @todo Should be /2 but is buggy
+
 	U32 min_pressure= grid[cell_i].pressure;
 	U32 area_cells[MAX_CELLS]= {};
 	U32 area_cell_count= 0;
 
-	// Calculate pressure so that the gradient is correct
+	FluidEdge edges[MAX_EDGES]= {};
+	U32 edge_count= 0;
+
+	// Search through fluid area while
+	//  - establishing correct pressure gradient
+	//  - find edge cells
+	// Ground level pressure is adjusted afterwards
 	while (head_count > 0) {
 		// @todo bounds checks
 		U32 cur= heads[--head_count];
@@ -570,11 +607,24 @@ void calc_fluid_area_pressure(GridCell *grid, U32 cell_i)
 		const int pressure_add[4]= {
 			0, 0, 1, -1
 		};
+		int water_side_count= 0;
+		U8 side_water= 0;
+		U8 side_occupied= 0;
 		for (U32 i= 0; i < 4; ++i) {
 			const U32 side= sides[i];
+			if (grid[side].water) {
+				++water_side_count;
+				side_water |= side_masks[i];
+			}
+
+			if (grid[side].water || grid[side].dynamic_portion) {
+				side_occupied |= side_masks[i];
+			}
+
 			if (grid[side].water && grid[side].pressure == 0) {
 				// Enlarge to all sides with water & uninit pressure
-				grid[side].pressure= grid[cur].pressure + pressure_add[i];
+				U16 side_pressure= grid[cur].pressure + pressure_add[i];
+				grid[side].pressure= side_pressure; 
 				ensure(grid[side].pressure > 0);
 				min_pressure= MIN(min_pressure, grid[side].pressure);
 
@@ -582,12 +632,82 @@ void calc_fluid_area_pressure(GridCell *grid, U32 cell_i)
 				ensure(head_count < MAX_HEADS);
 			}
 		}
+
+		// Collect edge cells
+		if (water_side_count != 4) {
+			edges[edge_count++]= (FluidEdge) {
+				.i= cur,
+				.side_water= side_water,
+				.side_occupied= side_occupied,
+			};
+			ensure(edge_count < MAX_EDGES);
+		}
 	}
 
 	// Normalize pressure values so that smallest is 1
 	for (U32 i= 0; i < area_cell_count; ++i) {
-		grid[area_cells[i]].pressure -= min_pressure - 1;
+		if (grid[area_cells[i]].supported)
+			grid[area_cells[i]].pressure -= min_pressure - 1;
+		else
+			grid[area_cells[i]].pressure= 1;
 	}
+
+	// Calculate edge sinkness (based on e.g. pressure)
+	for (U32 i= 0; i < edge_count; ++i) {
+		FluidEdge *cur= &edges[i];
+
+		if (	!(cur->side_occupied & DOWN_SIDE_MASK)) { // Empty down
+			cur->sinkness= MAX_SINKNESS;
+		} else if (!(cur->side_occupied & UP_SIDE_MASK)) { // Empty up
+			// `cur` is water surface with too high pressure
+			cur->sinkness= grid[cur->i].pressure;
+		} else if (	!(cur->side_occupied & LEFT_SIDE_MASK) ||
+					!(cur->side_occupied & RIGHT_SIDE_MASK)) {
+			cur->sinkness= grid[cur->i].pressure;
+		} else {
+			cur->sinkness= STATIC_SINKNESS; // Don't move
+		}
+	}
+
+	{ // Determine which edges are sinks and which sources, then swap
+		// @todo Flow analysis
+		qsort(edges, edge_count, sizeof(*edges), sinks_first_cmp);
+
+		if (edge_count > 0) {
+			// Sources to sinks
+			U32 sink= 0;
+			// Filter out edges with static sinkness
+			while (sink < edge_count && edges[sink].sinkness == STATIC_SINKNESS)
+				++sink;
+
+			U32 source= edge_count - 1;
+			for (; sink < source; ++sink, --source) {
+				ensure(sink < edge_count);
+				ensure(source < edge_count);
+
+				const U32 left_sink= edges[sink].i - 1;
+				const U32 right_sink= edges[sink].i + 1;
+				const U32 below_sink= edges[sink].i - GRID_WIDTH_IN_CELLS;
+				const U32 above_sink= edges[sink].i + GRID_WIDTH_IN_CELLS;
+				if (!grid[below_sink].water && !grid[below_sink].dynamic_portion)
+					grid[below_sink].water= 1;
+				else if (!grid[above_sink].water && !grid[above_sink].dynamic_portion)
+					grid[above_sink].water= 1;
+				else if (!grid[left_sink].water && !grid[left_sink].dynamic_portion)
+					grid[left_sink].water= 1;
+				else if (!grid[right_sink].water && !grid[right_sink].dynamic_portion)
+					grid[right_sink].water= 1;
+				else
+					continue; // No room - no swap
+
+				grid[edges[source].i].water= 0;
+			}
+		}
+	}
+
+#	undef MAX_EDGES
+#	undef MAX_HEADS
+#	undef MAX_CELLS
 }
 
 void post_upd_physworld()
@@ -634,10 +754,10 @@ void post_upd_physworld()
 			// - supported areas should have uniform pressure at constant height
 			// e.g.
 			//
-			// 111####    
-			// 222####2211
-			// 333####33111111##
-			// 44444444411##22##
+			// 111####      | not sure about this part
+			// 222####2211  v
+			// 333####33113333##
+			// 44444444411##44##
 			// #####555511######
 			// #########11######
 			//
@@ -649,32 +769,17 @@ void post_upd_physworld()
 			for (U32 x= 0; x < GRID_WIDTH_IN_CELLS; ++x) {
 				for (U32 y= 0; y < GRID_WIDTH_IN_CELLS; ++y) {
 					GridCell *c= &w->grid[GRID_INDEX(x, y)];
-					if (!c->water) {
+					if (!c->water)
 						supported= c->dynamic_portion;
-					}
-					if (c->water && !supported)
-						c->pressure= 1; // Calc non-supported cells
-					else
-						c->pressure= 0; // Reset other cells
+					c->pressure= 0; // Reset pressure field
+					c->supported= supported;
 				}
 				supported= false;
 			}
 
 			for (U32 i= 0; i < GRID_CELL_COUNT; ++i) {
 				if (w->grid[i].water && w->grid[i].pressure == 0) {
-					calc_fluid_area_pressure(w->grid, i);
-				}
-			}
-		}
-
-		// Temp fall simulation
-		for (U32 y= 0; y < GRID_WIDTH_IN_CELLS; ++y) {
-			for (U32 x= 0; x < GRID_WIDTH_IN_CELLS; ++x) {
-				GridCell *cur= &w->grid[GRID_INDEX(x, y)];
-				GridCell *below= &w->grid[GRID_INDEX(x, y - 1)];
-				if (cur->water && !below->water && !below->dynamic_portion) {
-					below->water= 1;
-					cur->water= 0;
+					process_fluid_area(w->grid, i);
 				}
 			}
 		}

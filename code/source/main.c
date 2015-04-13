@@ -146,6 +146,9 @@ int main(int argc, const char **argv)
 				GridCell *grid= g_env.physworld->grid;
 				U32 i= GRID_INDEX_W(cursor_on_world.x, cursor_on_world.y);
 				grid[i].water= 1;
+				grid[i + 1].water= 1;
+				grid[i + GRID_WIDTH_IN_CELLS].water= 1;
+				grid[i + 1 + GRID_WIDTH_IN_CELLS].water= 1;
 			}
 
 			if (d->key_pressed['t'])
