@@ -145,10 +145,23 @@ int main(int argc, const char **argv)
 			if (d->key_down['r']) {
 				GridCell *grid= g_env.physworld->grid;
 				U32 i= GRID_INDEX_W(cursor_on_world.x, cursor_on_world.y);
-				for (U32 x= 0; x < 10; ++x) {
-				for (U32 y= 0; y < 10; ++y) {
-					grid[i + x + y*GRID_WIDTH_IN_CELLS].water= 1;
-				}
+				U32 width= 20;
+				if (d->key_down[KEY_LSHIFT])
+					width= 1;
+				if (!d->key_down[KEY_LCTRL]) {
+					for (U32 x= 0; x < width; ++x) {
+					for (U32 y= 0; y < width; ++y) {
+						grid[i + x + y*GRID_WIDTH_IN_CELLS].water= 1;
+					}
+					}
+				} else {
+					width= 50;
+					for (U32 x= 0; x < width; ++x) {
+					for (U32 y= 0; y < width; ++y) {
+						if (rand() % 300 == 0)
+							grid[i + x + y*GRID_WIDTH_IN_CELLS].water= 1;
+					}
+					}
 				}
 			}
 
@@ -237,7 +250,7 @@ int main(int argc, const char **argv)
 			upd_world(world, d->dt);
 			post_upd_physworld();
 		}
-		upd_phys_debugdraw();
+		upd_phys_rendering();
 
 		render_frame();
 

@@ -22,8 +22,10 @@ typedef struct GridCell {
 	// @todo Pack to bitfields when design is stabilized
 	U8 water;
 	U16 pressure;
-	bool supported; // There's ground below a pillar of fluid
-	bool already_swapped; // To prevent double swap in sim
+	U16 potential; // Used in flow analysis, could be temp
+	bool already_swapped; // To prevent double swap in sim, could be temp
+	U8 fluid_path_count; // Could be temp
+	U8 draw_something; // For debugging
 } GridCell;
 
 typedef struct PhysWorld {
@@ -48,6 +50,6 @@ REVOLC_API RigidBody * get_rigidbody(U32 h);
 
 REVOLC_API void upd_physworld(F64 dt);
 REVOLC_API void post_upd_physworld();
-REVOLC_API void upd_phys_debugdraw();
+REVOLC_API void upd_phys_rendering();
 
 #endif // REVOLC_PHYSICS_PHYS_WORLD_H

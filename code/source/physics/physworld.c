@@ -518,28 +518,6 @@ void upd_physworld(F64 dt)
 	}
 }
 
-void upd_phys_debugdraw()
-{
-	PhysWorld *w= g_env.physworld;
-	g_env.renderer->draw_grid= w->debug_draw;
-
-	if (!w->debug_draw)
-		return;
-	cpSpaceDebugDrawOptions options= {
-		.drawCircle= phys_draw_circle,
-		.drawPolygon= phys_draw_poly,
-		.flags= CP_SPACE_DEBUG_DRAW_SHAPES,
-	};
-	cpSpaceDebugDraw(w->cp_space, &options);
-
-	Texel *grid= g_env.renderer->grid_ddraw_data;
-	for (U32 i= 0; i < GRID_CELL_COUNT; ++i) {
-		grid[i].r= MIN(w->grid[i].dynamic_portion*3, 255);
-		grid[i].g= 0;
-		grid[i].b= MIN(w->grid[i].static_portion*3, 255);
-		grid[i].a= MIN(w->grid[i].static_portion*3 + w->grid[i].dynamic_portion*3, 255);
-	}
-}
 
 #define LEFT_SIDE_MASK (1<<0)
 #define UP_SIDE_MASK (1<<1)
@@ -583,11 +561,6 @@ void process_fluid_area(GridCell *grid, U32 cell_i)
 #	define MAX_HEADS (1024*20) // @todo Remove
 #	define MAX_CELLS (1024*40) // @todo Remove
 #	define MAX_EDGES (1024*4) // @todo Remove
-	U32 heads[MAX_HEADS]= {cell_i};
-	U32 head_count= 1;
-	grid[cell_i].pressure= U16_MAX/2;
-
-	U16 min_pressure= U16_MAX;
 	U32 area_cells[MAX_CELLS]= {};
 	U32 area_cell_count= 0;
 
@@ -595,9 +568,14 @@ void process_fluid_area(GridCell *grid, U32 cell_i)
 	U32 edge_count= 0;
 
 	// Search through fluid area while
+	// @todo Efficient flood-fill search
 	//  - establishing correct pressure gradient
-	//  - find edge cells
+	//  - find fluid edges (single cell can have multiple edges)
 	// Ground level pressure is adjusted afterwards
+	U32 heads[MAX_HEADS]= {cell_i};
+	U32 head_count= 1;
+	grid[cell_i].pressure= U16_MAX/2;
+	U16 min_pressure= U16_MAX;
 	while (head_count > 0) {
 		// @todo bounds checks
 		U32 cur= heads[--head_count];
@@ -632,7 +610,6 @@ void process_fluid_area(GridCell *grid, U32 cell_i)
 				// Enlarge to all sides with water & uninit pressure
 				U16 side_pressure= grid[cur].pressure + pressure_add[i];
 				grid[side].pressure= side_pressure; 
-				ensure(grid[side].pressure > 50);
 
 				heads[head_count++]= side;
 				ensure(head_count < MAX_HEADS);
@@ -656,11 +633,7 @@ void process_fluid_area(GridCell *grid, U32 cell_i)
 	// Normalize pressure values so that smallest is 1
 	for (U32 i= 0; i < area_cell_count; ++i) {
 		const U32 cell_i= area_cells[i];
-		//if (grid[cell_i].supported) {
-			grid[cell_i].pressure -= min_pressure - 1;
-		//} else {
-		//	grid[cell_i].pressure= 1;
-		//}
+		grid[cell_i].pressure -= min_pressure - 1;
 	}
 
 	// Calculate edge sinkness (based on e.g. pressure)
@@ -681,17 +654,23 @@ void process_fluid_area(GridCell *grid, U32 cell_i)
 		}
 	}
 
-	{ // Determine which edges are sinks and which sources, then swap
-		// @todo Flow analysis
-		qsort(edges, edge_count, sizeof(*edges), sinks_first_cmp);
-		// Sources to sinks
+	// Sort edges so that most sinking are first
+	// STATIC_SINKNESS are first and should be skipped in later processing
+	qsort(edges, edge_count, sizeof(*edges), sinks_first_cmp);
+
+	{
+//#		define SIMPLE_FLUID_SWAP_DYNAMICS
+#		ifdef SIMPLE_FLUID_SWAP_DYNAMICS
+		// Dynamics by swapping source cells with sinks
 		if (edge_count > 0) {
 			U32 sink= 0;
 			// Filter out edges with static sinkness
 			while (sink < edge_count && edges[sink].sinkness == STATIC_SINKNESS)
 				++sink;
-
+ 
 			U32 source= edge_count - 1;
+			// If there's odd number of edges, then one source/sink ignored, which
+			// shouldn't matter too much
 			for (; sink < source; ++sink, --source) {
 				ensure(sink < edge_count);
 				ensure(source < edge_count);
@@ -724,6 +703,209 @@ void process_fluid_area(GridCell *grid, U32 cell_i)
 				grid[edges[source].cell].already_swapped= true;
 			}
 		}
+#		else
+		// Dynamics by flow analysis
+
+		U32 sinks_begin= 0;
+		// Filter out edges with static sinkness
+		while (sinks_begin < edge_count && edges[sinks_begin].sinkness == STATIC_SINKNESS)
+			++sinks_begin;
+		const U32 sinks_count= (edge_count - sinks_begin)/2;
+		const U32 sinks_end= sinks_begin + sinks_count;
+
+		{ // BFS calculating fluid potential starting from sinks
+			U32 heads[MAX_HEADS][2];
+			U32 head_count= 0;
+			U32 head_pool= 0;
+			for (U32 i= sinks_begin; i < sinks_end; ++i) {
+				heads[head_count++][head_pool]= edges[i].cell;
+				ensure(head_count < MAX_HEADS);
+			}
+			U32 cur_pot= 1;
+			while (head_count > 0) {
+				U32 next_head_pool= (head_pool + 1) % 2;
+				U32 next_head_count= 0;
+				for (U32 i= 0; i < head_count; ++i) {
+					const U32 cur= heads[i][head_pool];
+					const U32 sides[4]= {
+						cur - 1,
+						cur + GRID_WIDTH_IN_CELLS,
+						cur + 1,
+						cur - GRID_WIDTH_IN_CELLS,
+					};
+					for (U32 s= 0; s < 4; ++s) {
+						const U32 side= sides[s];
+						if (grid[side].water && grid[side].potential == 0) {
+							// Enlarge to all sides with water & uninit potential
+							grid[side].potential= cur_pot;
+							heads[next_head_count++][next_head_pool]= side;
+							ensure(next_head_count < MAX_HEADS);
+						}
+					}
+				}
+
+				head_pool= next_head_pool;
+				head_count= next_head_count;
+				cur_pot += 1;
+			}
+		}
+
+		const FluidEdge *sources_begin= edges + sinks_end;
+		const FluidEdge *sources_end= edges + edge_count;
+		{ // Find fluid paths and swap endpoints
+			// (not sure if direction matters)
+
+			struct Head {
+				U32 src_edge;
+				U32 cell;
+				U8 possible_sides[4];
+				U8 possible_side_count; // Could use Head[4] pools for perf
+				bool already_reached; // true if source == sink cell
+			};
+			typedef struct Head Head;
+
+			Head heads[MAX_HEADS][2];
+			U32 head_count= 0;
+			U32 head_pool= 0;
+			// Initial heads (in decresing sourceness)
+			const FluidEdge *e= sources_end - 1;
+			while (e >= sources_begin) {
+				Head h= {
+					.src_edge= e - edges,
+					.cell= e->cell,
+					.already_reached= grid[e->cell].potential == 1,
+				};
+				// !!! Relying on the fact that edges for a single cell are
+				// adjacent in `edges`
+				while (--e >= sources_begin && e->cell == h.cell)
+					;
+				// @todo Not sure if should adjust sides when head is created/advanced
+				//       or in the place where it's now
+				ensure(h.cell != 0); // TEMPTEST
+				++grid[h.cell].fluid_path_count;
+				heads[head_count++][head_pool]= h;
+				ensure(head_count < MAX_HEADS);
+			}
+
+			// Crawl from sources to sinks according to fluid potential
+			while (head_count > 0) {
+				U32 next_head_pool= (head_pool + 1) % 2;
+				U32 next_head_count= 0;
+
+				// Find possible sides to be advanced through
+				for (U32 i= 0; i < head_count; ++i) {
+					const U32 cur= heads[i][head_pool].cell;
+					const U32 sides[4]= {
+						cur - 1,
+						cur + GRID_WIDTH_IN_CELLS,
+						cur + 1,
+						cur - GRID_WIDTH_IN_CELLS,
+					};
+					for (U32 k= 0; k < 4; ++k) {
+						if (	grid[sides[k]].potential > 0 &&
+								grid[sides[k]].fluid_path_count == 0) {
+							const U32 side_i= heads[i][head_pool].possible_side_count++;
+							heads[i][head_pool].possible_sides[side_i]= k;
+							if (!grid[heads[i][head_pool].cell].water) {
+								critical_print("ERROR: no water, %i, %i, %i, %i",
+										i, head_pool, k, heads[i][head_pool].cell);
+							}
+						}
+					}
+
+				}
+
+				// Advance heads
+				// Heads with zero sides are implicitly killed.
+				// Conflicting next positions are solved by a heuristic, in which
+				// heads with fewer possible positions are advanced first.
+				for (U8 side_count= 1; side_count <= 4; ++side_count) { 
+					for (U32 i= 0; i < head_count; ++i) {
+						if (heads[i][head_pool].possible_side_count != side_count)
+							continue;
+
+						const U32 cur= heads[i][head_pool].cell;
+						//const bool already_reached= heads[i][head_pool].already_reached;
+						const U32 sides[4]= {
+							cur - 1,
+							cur + GRID_WIDTH_IN_CELLS,
+							cur + 1,
+							cur - GRID_WIDTH_IN_CELLS,
+						};
+
+						U16 min_pot= U16_MAX;
+						const U8 invalid_side= 5;
+						U8 min_pot_side= invalid_side;
+						//if (!already_reached) {
+							// Pick the best side to advance
+							for (U8 s= 0; s < side_count; ++s) {
+								const U8 side= heads[i][head_pool].possible_sides[s];
+								const U16 pot= grid[sides[side]].potential;
+								if (	grid[sides[side]].fluid_path_count == 0 &&
+										pot < min_pot) {
+									ensure(grid[sides[side]].water);
+									min_pot= pot; 
+									min_pot_side= side;
+								}
+							}
+
+							if (min_pot_side == invalid_side) {
+								// Dead end due to the advances of other heads in this step
+								continue;
+							}
+						//}
+						//if (already_reached)
+						//	min_pot_side= cur;
+
+						if (grid[sides[min_pot_side]].potential == 1) {
+							// We've reached a sink!
+							// Now can move water from source to sink
+							//debug_print("sink reached!");
+							const U32 source= heads[i][head_pool].src_edge;
+							/*const U32 sink= heads[i][head_pool].cell;
+
+							// @todo Use sink edge side
+							ensure(!grid[source].already_swapped)
+							const U32 sink_sides[4]= {
+								sink - 1,
+								sink + GRID_WIDTH_IN_CELLS,
+								sink + 1,
+								sink - GRID_WIDTH_IN_CELLS,
+							};
+							bool flow= false;
+							U32 side= sink_sides[edges[sink].side];
+							if (	!grid[side].water &&
+									!grid[side].dynamic_portion &&
+									!grid[side].already_swapped) {
+								grid[side].water= 1;
+								grid[side].already_swapped= true;
+								flow= true;
+							}
+							if (!flow)
+								continue; // No room, no swap
+							*/
+
+							grid[edges[source].cell].water= 0;
+							grid[edges[source].cell].already_swapped= true;
+							continue;
+						}
+
+						// Advanced head
+						Head h= {
+							.src_edge= heads[i][head_pool].src_edge,
+							.cell= sides[min_pot_side],
+						};
+						ensure(h.cell != 0); // TEMPTEST
+						++grid[sides[min_pot_side]].fluid_path_count;
+						heads[next_head_count++][next_head_pool]= h;
+					}
+				}
+
+				head_pool= next_head_pool;
+				head_count= next_head_count;
+			}
+		}
+#		endif
 	}
 
 #	undef MAX_EDGES
@@ -787,17 +969,21 @@ void post_upd_physworld()
 			//  - find and set pressure for non-supported sections first
 			//  - calculate pressures for every supported area separately
 
-			bool supported= false;
+			// Reset
+			//bool supported= false;
 			for (U32 x= 0; x < GRID_WIDTH_IN_CELLS; ++x) {
 				for (U32 y= 0; y < GRID_WIDTH_IN_CELLS; ++y) {
 					GridCell *c= &w->grid[GRID_INDEX(x, y)];
-					if (!c->water)
-						supported= c->dynamic_portion;
-					c->pressure= 0; // Reset pressure field
-					c->supported= supported;
+					//if (!c->water)
+					//	supported= c->dynamic_portion;
+					c->pressure= 0;
+					c->potential= 0;
+					c->fluid_path_count= 0;
+					//c->supported= supported;
 					c->already_swapped= false;
+					c->draw_something= 0;
 				}
-				supported= false;
+				//supported= false;
 			}
 
 			for (U32 i= 0; i < GRID_CELL_COUNT; ++i) {
@@ -807,15 +993,26 @@ void post_upd_physworld()
 			}
 		}
 	}
+}
 
+void upd_phys_rendering()
+{
+	PhysWorld *w= g_env.physworld;
 	{ // Update fluids to renderer
 		Texel *grid= g_env.renderer->fluid_grid;
 		for (U32 i= 0; i < GRID_CELL_COUNT; ++i) {
-			F32 p= w->grid[i].pressure + 1;
+			//F32 p= w->grid[i].pressure + 1;
+			F32 p= w->grid[i].potential*3 + 1;
+			//F32 p= w->grid[i].draw_something*50 + 1;
 			grid[i].r= CLAMP(10, 0, 255);
 			grid[i].g= CLAMP(100 - p*5, 0, 255);
 			grid[i].b= CLAMP(255 - p*5, 0, 255);
 			grid[i].a= w->grid[i].water*240;
+
+			if (w->grid[i].draw_something) {
+				grid[i].r= 255;
+				grid[i].a= 255;
+			}
 		}
 	}
 
@@ -826,5 +1023,23 @@ void post_upd_physworld()
 							w->grid[i].dynamic_portion*4,
 							255);
 		}
+	}
+
+	g_env.renderer->draw_grid= w->debug_draw;
+	if (!w->debug_draw)
+		return;
+	cpSpaceDebugDrawOptions options= {
+		.drawCircle= phys_draw_circle,
+		.drawPolygon= phys_draw_poly,
+		.flags= CP_SPACE_DEBUG_DRAW_SHAPES,
+	};
+	cpSpaceDebugDraw(w->cp_space, &options);
+
+	Texel *grid= g_env.renderer->grid_ddraw_data;
+	for (U32 i= 0; i < GRID_CELL_COUNT; ++i) {
+		grid[i].r= MIN(w->grid[i].dynamic_portion*3, 255);
+		grid[i].g= 0;
+		grid[i].b= MIN(w->grid[i].static_portion*3, 255);
+		grid[i].a= MIN(w->grid[i].static_portion*3 + w->grid[i].dynamic_portion*3, 255);
 	}
 }
