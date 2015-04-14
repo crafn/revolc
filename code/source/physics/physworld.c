@@ -556,6 +556,7 @@ const U8 side_masks[4]= {
 #define STATIC_SINKNESS U16_MAX // Can't move
 typedef struct FluidEdge {
 	U32 i;
+	U32 sink_i; // Sink cell is neighbour to fluid edge
 	U16 sinkness;
 	U8 side_water; // e.g. side_water & LEFT_SIDE_MASK == left_cell_watery
 	U8 side_occupied; // ^
@@ -575,14 +576,14 @@ int sinks_first_cmp(const void *e1, const void *e2)
 internal
 void process_fluid_area(GridCell *grid, U32 cell_i)
 {
-#	define MAX_HEADS 1024 // @todo Remove
-#	define MAX_CELLS 1024 // @todo Remove
-#	define MAX_EDGES 1024 // @todo Remove
+#	define MAX_HEADS (1024*20) // @todo Remove
+#	define MAX_CELLS (1024*40) // @todo Remove
+#	define MAX_EDGES (1024*4) // @todo Remove
 	U32 heads[MAX_HEADS]= {cell_i};
 	U32 head_count= 1;
-	grid[cell_i].pressure= U16_MAX/3; // @todo Should be /2 but is buggy
+	grid[cell_i].pressure= U16_MAX/2; // @todo Should be /2 but is buggy
 
-	U32 min_pressure= grid[cell_i].pressure;
+	U16 min_pressure= U16_MAX;
 	U32 area_cells[MAX_CELLS]= {};
 	U32 area_cell_count= 0;
 
@@ -597,6 +598,8 @@ void process_fluid_area(GridCell *grid, U32 cell_i)
 		// @todo bounds checks
 		U32 cur= heads[--head_count];
 		area_cells[area_cell_count++]= cur;
+		ensure(area_cell_count < MAX_CELLS);
+		min_pressure= MIN(min_pressure, grid[cur].pressure);
 
 		const U32 sides[4]= {
 			cur - 1,
@@ -625,8 +628,7 @@ void process_fluid_area(GridCell *grid, U32 cell_i)
 				// Enlarge to all sides with water & uninit pressure
 				U16 side_pressure= grid[cur].pressure + pressure_add[i];
 				grid[side].pressure= side_pressure; 
-				ensure(grid[side].pressure > 0);
-				min_pressure= MIN(min_pressure, grid[side].pressure);
+				ensure(grid[side].pressure > 50);
 
 				heads[head_count++]= side;
 				ensure(head_count < MAX_HEADS);
@@ -646,10 +648,12 @@ void process_fluid_area(GridCell *grid, U32 cell_i)
 
 	// Normalize pressure values so that smallest is 1
 	for (U32 i= 0; i < area_cell_count; ++i) {
-		if (grid[area_cells[i]].supported)
-			grid[area_cells[i]].pressure -= min_pressure - 1;
-		else
-			grid[area_cells[i]].pressure= 1;
+		const U32 cell_i= area_cells[i];
+		if (grid[cell_i].supported) {
+			grid[cell_i].pressure -= min_pressure - 1;
+		} else {
+			grid[cell_i].pressure= 1;
+		}
 	}
 
 	// Calculate edge sinkness (based on e.g. pressure)
@@ -657,12 +661,19 @@ void process_fluid_area(GridCell *grid, U32 cell_i)
 		FluidEdge *cur= &edges[i];
 
 		if (	!(cur->side_occupied & DOWN_SIDE_MASK)) { // Empty down
+			cur->sink_i= cur->i - GRID_WIDTH_IN_CELLS;
 			cur->sinkness= MAX_SINKNESS;
+		} else if (	!(cur->side_occupied & LEFT_SIDE_MASK) ||
+					!(cur->side_occupied & RIGHT_SIDE_MASK)) { // Empty side
+		//} else if (0) {
+			if (cur->side_occupied & LEFT_SIDE_MASK)
+				cur->sink_i= cur->i - 1;
+			else
+				cur->sink_i= cur->i + 1;
+			cur->sinkness= grid[cur->i].pressure;
 		} else if (!(cur->side_occupied & UP_SIDE_MASK)) { // Empty up
 			// `cur` is water surface with too high pressure
-			cur->sinkness= grid[cur->i].pressure;
-		} else if (	!(cur->side_occupied & LEFT_SIDE_MASK) ||
-					!(cur->side_occupied & RIGHT_SIDE_MASK)) {
+			cur->sink_i= cur->i + GRID_WIDTH_IN_CELLS;
 			cur->sinkness= grid[cur->i].pressure;
 		} else {
 			cur->sinkness= STATIC_SINKNESS; // Don't move
@@ -672,9 +683,16 @@ void process_fluid_area(GridCell *grid, U32 cell_i)
 	{ // Determine which edges are sinks and which sources, then swap
 		// @todo Flow analysis
 		qsort(edges, edge_count, sizeof(*edges), sinks_first_cmp);
-
-		if (edge_count > 0) {
-			// Sources to sinks
+		// Sources to sinks
+		if (0 && edge_count == 1 && area_cell_count == 1) {
+			// Single drop
+			// @todo Areas of single cell depth should be handled generally
+			U32 down_i= edges[0].i - GRID_WIDTH_IN_CELLS;
+			if (!grid[down_i].water && !grid[down_i].dynamic_portion) {
+				grid[edges[0].i].water= 0;
+				grid[down_i].water= 1;
+			}
+		} else if (edge_count > 0) {
 			U32 sink= 0;
 			// Filter out edges with static sinkness
 			while (sink < edge_count && edges[sink].sinkness == STATIC_SINKNESS)
@@ -685,22 +703,36 @@ void process_fluid_area(GridCell *grid, U32 cell_i)
 				ensure(sink < edge_count);
 				ensure(source < edge_count);
 
-				const U32 left_sink= edges[sink].i - 1;
-				const U32 right_sink= edges[sink].i + 1;
-				const U32 below_sink= edges[sink].i - GRID_WIDTH_IN_CELLS;
-				const U32 above_sink= edges[sink].i + GRID_WIDTH_IN_CELLS;
-				if (!grid[below_sink].water && !grid[below_sink].dynamic_portion)
-					grid[below_sink].water= 1;
-				else if (!grid[above_sink].water && !grid[above_sink].dynamic_portion)
-					grid[above_sink].water= 1;
-				else if (!grid[left_sink].water && !grid[left_sink].dynamic_portion)
-					grid[left_sink].water= 1;
-				else if (!grid[right_sink].water && !grid[right_sink].dynamic_portion)
-					grid[right_sink].water= 1;
-				else
-					continue; // No room - no swap
+				if (abs(edges[sink].sinkness - edges[source].sinkness) <= 1)
+					continue; // Remove jitter at surfaces
+
+				if (grid[edges[source].i].already_swapped)
+					continue;
+
+				#define TEMP_SIDE_COUNT 4
+				const U32 sink_sides[TEMP_SIDE_COUNT]= {
+					edges[sink].i - GRID_WIDTH_IN_CELLS,
+					edges[sink].i + GRID_WIDTH_IN_CELLS,
+					edges[sink].i - 1,
+					edges[sink].i + 1,
+				};
+				bool flow= false;
+				for (U32 i= 0; i < TEMP_SIDE_COUNT; ++i) {
+					U32 side_i= sink_sides[i];
+					if (	!grid[side_i].water &&
+							!grid[side_i].dynamic_portion &&
+							!grid[side_i].already_swapped) {
+						grid[side_i].water= 1;
+						grid[side_i].already_swapped= true;
+						flow= true;
+						break;
+					}
+				}
+				if (!flow)
+					continue; // No room, no swap
 
 				grid[edges[source].i].water= 0;
+				grid[edges[source].i].already_swapped= true;
 			}
 		}
 	}
@@ -773,6 +805,7 @@ void post_upd_physworld()
 						supported= c->dynamic_portion;
 					c->pressure= 0; // Reset pressure field
 					c->supported= supported;
+					c->already_swapped= false;
 				}
 				supported= false;
 			}

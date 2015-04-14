@@ -19,10 +19,11 @@ typedef struct GridCell {
 	U8 dynamic_portion;
 	bool is_static_edge;
 
-	// @todo Pack to bitfields when stabilized
+	// @todo Pack to bitfields when design is stabilized
 	U8 water;
 	U16 pressure;
 	bool supported; // There's ground below a pillar of fluid
+	bool already_swapped; // To prevent double swap in sim
 } GridCell;
 
 typedef struct PhysWorld {
