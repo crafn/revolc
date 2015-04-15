@@ -21,8 +21,10 @@ typedef struct GridCell {
 
 	// @todo Pack to bitfields when design is stabilized
 	U8 water;
+	U16 fluid_area_id; // Used in sim, could be temp
 	U16 pressure;
 	U16 potential; // Used in flow analysis, could be temp
+	U32 edge_begin_index; // Could be temp
 	bool already_swapped; // To prevent double swap in sim, could be temp
 	U8 fluid_path_count; // Could be temp
 	U8 draw_something; // For debugging
