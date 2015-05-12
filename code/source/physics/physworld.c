@@ -149,7 +149,7 @@ typedef enum {
 } ShapeType;
 
 internal
-void modify_grid(int add_mul, const void *shp, ShapeType shp_type, V2d pos, Qd rot)
+void modify_grid(bool dynamic, int add_mul, const void *shp, ShapeType shp_type, V2d pos, Qd rot)
 {
 	GridCell *grid= g_env.physworld->grid;
 
@@ -198,7 +198,7 @@ void modify_grid(int add_mul, const void *shp, ShapeType shp_type, V2d pos, Qd r
 
 		const U32 grid_i= grid_p.x + grid_p.y*GRID_WIDTH_IN_CELLS;
 		PolyCell *poly_cell= &poly_cells[x + y*rect_size.x];
-		grid[grid_i].dynamic_portion += poly_cell->fill*add_mul;
+		grid[grid_i].body_portion += poly_cell->fill*add_mul;
 	}
 	}
 }
@@ -206,16 +206,17 @@ void modify_grid(int add_mul, const void *shp, ShapeType shp_type, V2d pos, Qd r
 
 internal
 void modify_grid_with_shapes(
+		bool dynamic,
 		int add_mul, // +1 or -1
 		const Poly *polys, U32 poly_count,
 		const Circle *circles, U32 circle_count,
 		V2d pos, Qd rot)
 {
 	for (U32 i= 0; i < poly_count; ++i) {
-		modify_grid(add_mul, &polys[i], ShapeType_poly, pos, rot);
+		modify_grid(dynamic, add_mul, &polys[i], ShapeType_poly, pos, rot);
 	}
 	for (U32 i= 0; i < circle_count; ++i) {
-		modify_grid(add_mul, &circles[i], ShapeType_circle, pos, rot);
+		modify_grid(dynamic, add_mul, &circles[i], ShapeType_circle, pos, rot);
 	}
 }
 
@@ -229,6 +230,7 @@ void create_physworld()
 	cpSpaceSetIterations(w->cp_space, 10);
 	cpSpaceSetGravity(w->cp_space, cpv(0, -25));
 
+#ifdef USE_FLUID
 	{ // Fluid proto
 		const int half= GRID_WIDTH_IN_CELLS/2;
 		for (U32 y_= GRID_WIDTH_IN_CELLS; y_ > 1; --y_) {
@@ -241,6 +243,7 @@ void create_physworld()
 			}
 		}
 	}
+#endif
 }
 
 void destroy_physworld()
@@ -404,7 +407,9 @@ void free_rigidbody(RigidBody *b)
 	ensure(h < MAX_RIGIDBODY_COUNT);
 
 	if (b->is_in_grid) {
-		modify_grid_with_shapes(-1,
+		modify_grid_with_shapes(
+				cpBodyGetType(b->cp_body) == CP_BODY_TYPE_DYNAMIC,
+				-1,
 				b->polys, b->poly_count,
 				b->circles, b->circle_count,
 				v3d_to_v2d(b->prev_tf.pos), b->prev_tf.rot);
@@ -519,6 +524,8 @@ void upd_physworld(F64 dt)
 }
 
 
+#ifdef USE_FLUID_PROTO
+
 #define LEFT_SIDE_MASK (1<<0)
 #define UP_SIDE_MASK (1<<1)
 #define RIGHT_SIDE_MASK (1<<2)
@@ -603,15 +610,17 @@ void process_fluid_area(GridCell *grid, U32 cell_i, U16 area_id)
 				side_water |= side_masks[i];
 			}
 
-			if (grid[side].water || grid[side].dynamic_portion) {
+			if (grid[side].water || grid[side].static_portion) {
 				side_occupied |= side_masks[i];
 			}
 
-			if (grid[side].water && grid[side].fluid_area_id == 0) {
+			if (grid[side].water && grid[side].pressure == 0) {
 				// Enlarge to all sides with water & unprocessed area
 				U16 side_pressure= grid[cur].pressure + pressure_add[i];
 				grid[side].pressure= side_pressure; 
+#ifndef SIMPLE_FLUID_SWAP_DYNAMICS
 				grid[side].fluid_area_id= area_id;
+#endif
 
 				heads[head_count++]= side;
 				ensure(head_count < MAX_HEADS);
@@ -631,6 +640,51 @@ void process_fluid_area(GridCell *grid, U32 cell_i, U16 area_id)
 			ensure(edge_count < MAX_EDGES);
 		}
 	}
+
+	// TEMPTEST
+	/*
+	V3d prev= {};
+	for (U32 i= 0; i < edge_count;) {
+		const U32 i_cell= edges[i].cell;
+		U32 next= i;
+		while (next < edge_count && edges[next].cell == i_cell)
+			++next;
+		next %= edge_count;
+		U32 nnext= next;
+		while (nnext < edge_count && edges[nnext].cell == edges[next].cell)
+			++nnext;
+		nnext %= edge_count;
+		V3d p1= {	edges[i].cell % GRID_WIDTH_IN_CELLS,
+					edges[i].cell/GRID_WIDTH_IN_CELLS};
+		V3d p2= {	edges[next].cell % GRID_WIDTH_IN_CELLS,
+					edges[next].cell/GRID_WIDTH_IN_CELLS};
+		V3d p3= {	edges[nnext].cell % GRID_WIDTH_IN_CELLS,
+					edges[nnext].cell/GRID_WIDTH_IN_CELLS};
+		p1.x /= GRID_RESO_PER_UNIT;
+		p1.y /= GRID_RESO_PER_UNIT;
+		p2.x /= GRID_RESO_PER_UNIT;
+		p2.y /= GRID_RESO_PER_UNIT;
+		p3.x /= GRID_RESO_PER_UNIT;
+		p3.y /= GRID_RESO_PER_UNIT;
+		p1.x -= 50;
+		p1.y -= 50;
+		p2.x -= 50;
+		p2.y -= 50;
+		p3.x -= 50;
+		p3.y -= 50;
+
+		V3d mid1= {(p1.x + p2.x)/2.0, (p1.y + p2.y)/2.0};
+		V3d mid2= {(p2.x + p3.x)/2.0, (p2.y + p3.y)/2.0};
+
+		p2.x= (mid1.x + p2.x + mid2.x)/3.0;
+		p2.y= (mid1.y + p2.y + mid2.y)/3.0;
+
+		ddraw_line((Color) {1.0, 0.0, 0.0, 1.0}, prev, p2);
+		prev= p2;
+		while (i < edge_count && edges[i].cell == i_cell)
+			++i;
+	}
+	*/
 
 	// Normalize pressure values so that smallest is 1
 	for (U32 i= 0; i < area_cell_count; ++i) {
@@ -660,22 +714,21 @@ void process_fluid_area(GridCell *grid, U32 cell_i, U16 area_id)
 	// STATIC_SINKNESS are first and should be skipped in later processing
 	qsort(edges, edge_count, sizeof(*edges), sinks_first_cmp);
 
-	// Mark edges to grid (required at flow analysis)
-	for (U32 i= 0; i < edge_count;) {
-		const U32 cell= edges[i].cell;
-		grid[cell].edge_begin_index= i;
-		while (++i < edge_count && edges[i].cell == cell)
-			;
-	}
-
 	{
-#		define SIMPLE_FLUID_SWAP_DYNAMICS
 #		ifdef SIMPLE_FLUID_SWAP_DYNAMICS
 		// Dynamics by swapping source cells with sinks
 		for (U32 i= 0; i < edge_count; ++i) {
 			edges[i].flow_established= true;
 		}
 #		else
+		// Mark edges to grid (required at flow analysis)
+		for (U32 i= 0; i < edge_count;) {
+			const U32 cell= edges[i].cell;
+			grid[cell].edge_begin_index= i;
+			while (++i < edge_count && edges[i].cell == cell)
+				;
+		}
+
 		// Dynamics by flow analysis
 
 		U32 sinks_begin= 0;
@@ -894,7 +947,7 @@ void process_fluid_area(GridCell *grid, U32 cell_i, U16 area_id)
 				bool flow= false;
 				U32 side= sink_sides[edges[sink].side];
 				if (	!grid[side].water &&
-						!grid[side].dynamic_portion &&
+						!grid[side].static_portion &&
 						!grid[side].already_swapped) {
 					grid[side].water= 1;
 					grid[side].already_swapped= true;
@@ -915,6 +968,8 @@ void process_fluid_area(GridCell *grid, U32 cell_i, U16 area_id)
 #	undef MAX_CELLS
 }
 
+#endif // USE_FLUID_PROTO
+
 void post_upd_physworld()
 {
 	PhysWorld *w= g_env.physworld;
@@ -932,12 +987,16 @@ void post_upd_physworld()
 			}
 
 			if (b->is_in_grid) {
-				modify_grid_with_shapes(-1,
+				modify_grid_with_shapes(
+						cpBodyGetType(b->cp_body) == CP_BODY_TYPE_DYNAMIC,
+						-1,
 						b->polys, b->poly_count,
 						b->circles, b->circle_count,
 						v3d_to_v2d(b->prev_tf.pos), b->prev_tf.rot);
 			}
-			modify_grid_with_shapes(1,
+			modify_grid_with_shapes(
+					cpBodyGetType(b->cp_body) == CP_BODY_TYPE_DYNAMIC,
+					1,
 					b->polys, b->poly_count,
 					b->circles, b->circle_count,
 					v3d_to_v2d(b->tf.pos), b->tf.rot);
@@ -949,45 +1008,25 @@ void post_upd_physworld()
 		b->prev_tf= b->tf;
 	}
 
+#ifdef USE_FLUID_PROTO
 	{ // Update fluids
 		// @todo To thread -- latency of 1 frame is acceptable
 
 		{ // Calculate pressure
-			// @todo This isn't correct anymore
-			// Rules for fluid pressure
-			// - vertical sections not supported by ground should have pressure 1
-			// - highest cell with supporting ground should have pressure 1
-			// - supported areas should have uniform pressure at constant height
-			// e.g.
-			//
-			// 111####      | not sure about this part
-			// 222####2211  v
-			// 333####33113333##
-			// 44444444411##44##
-			// #####555511######
-			// #########11######
-			//
-			// Plan:
-			//  - find and set pressure for non-supported sections first
-			//  - calculate pressures for every supported area separately
-
 			// Reset
-			//bool supported= false;
 			for (U32 x= 0; x < GRID_WIDTH_IN_CELLS; ++x) {
 				for (U32 y= 0; y < GRID_WIDTH_IN_CELLS; ++y) {
 					GridCell *c= &w->grid[GRID_INDEX(x, y)];
-					//if (!c->water)
-					//	supported= c->dynamic_portion;
 					c->pressure= 0;
-					c->potential= 0;
-					c->fluid_path_count= 0;
-					c->edge_begin_index= 0;
-					c->fluid_area_id= 0;
-					//c->supported= supported;
 					c->already_swapped= false;
 					c->draw_something= 0;
+#					ifndef SIMPLE_FLUID_SWAP_DYNAMICS
+					c->potential= 0;
+					c->fuid_path_count= 0;
+					c->edge_begin_index= 0;
+					c->fluid_area_id= 0;
+#endif
 				}
-				//supported= false;
 			}
 
 			U16 area_id= 1;
@@ -998,16 +1037,18 @@ void post_upd_physworld()
 			}
 		}
 	}
+#endif
 }
 
 void upd_phys_rendering()
 {
 	PhysWorld *w= g_env.physworld;
+#ifdef USE_FLUID_PROTO
 	{ // Update fluids to renderer
 		Texel *grid= g_env.renderer->fluid_grid;
 		for (U32 i= 0; i < GRID_CELL_COUNT; ++i) {
-			//F32 p= w->grid[i].pressure + 1;
-			F32 p= w->grid[i].potential*3 + 1;
+			F32 p= w->grid[i].pressure + 1;
+			//F32 p= w->grid[i].potential*3 + 1;
 			//F32 p= w->grid[i].draw_something*50 + 1;
 			grid[i].r= CLAMP(10, 0, 255);
 			grid[i].g= CLAMP(100 - p*5, 0, 255);
@@ -1020,12 +1061,13 @@ void upd_phys_rendering()
 			}
 		}
 	}
+#endif
 
 	{ // Update occlusion grid for graphics
 		U8 *grid= g_env.renderer->occlusion_grid;
 		for (U32 i= 0; i < GRID_CELL_COUNT; ++i) {
-			grid[i]= MIN(	w->grid[i].static_portion*4 +
-							w->grid[i].dynamic_portion*4,
+			grid[i]= MIN(	w->grid[i].type != GRIDCELL_TYPE_AIR ? 255 : 0 +
+							w->grid[i].body_portion*4,
 							255);
 		}
 	}
@@ -1042,9 +1084,10 @@ void upd_phys_rendering()
 
 	Texel *grid= g_env.renderer->grid_ddraw_data;
 	for (U32 i= 0; i < GRID_CELL_COUNT; ++i) {
-		grid[i].r= MIN(w->grid[i].dynamic_portion*3, 255);
+		U8 ground_portion= w->grid[i].type == GRIDCELL_TYPE_GROUND ? 126 : 0;
+		grid[i].r= MIN(w->grid[i].body_portion*3, 255);
 		grid[i].g= 0;
-		grid[i].b= MIN(w->grid[i].static_portion*3, 255);
-		grid[i].a= MIN(w->grid[i].static_portion*3 + w->grid[i].dynamic_portion*3, 255);
+		grid[i].b= ground_portion;
+		grid[i].a= MIN(ground_portion + w->grid[i].body_portion*3, 255);
 	}
 }

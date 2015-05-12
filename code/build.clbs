@@ -52,6 +52,10 @@ def buildInfo(env, tags):
 			i= index
 			while i < len(str) and isWhitespace(str[i]):
 				i += 1
+			if str[i] == '#':
+				while i < len(str) and str[i] != '\n':
+					i += 1 # Skip line
+				return nextTok(str, i)
 			return i
 
 		def findNext(str, index, ch):

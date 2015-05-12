@@ -37,6 +37,7 @@ typedef struct Renderer {
 
 	Texel fluid_grid[GRID_CELL_COUNT];
 	U32 fluid_grid_tex;
+	bool draw_fluid;
 
 	U32 atlas_gl_id;
 	Vao vao;

@@ -13,21 +13,32 @@
 
 #define GRID_INDEX(x, y) ((x) + (y)*GRID_WIDTH_IN_CELLS)
 
+#define GRIDCELL_TYPE_AIR 0
+#define GRIDCELL_TYPE_GROUND 1
+
+//#define USE_FLUIDS
+#define SIMPLE_FLUID_SWAP_DYNAMICS
+
 typedef struct GridCell {
 	// @todo Rethink division between static/dynamic when fluids are ready
-	U8 static_portion; // Max == 64
-	U8 dynamic_portion;
+	U8 body_portion;
 	bool is_static_edge;
 
+	U8 type; // Ground or what
+
+#ifdef USE_FLUID_PROTO
 	// @todo Pack to bitfields when design is stabilized
+	U8 draw_something; // For debugging
 	U8 water;
-	U16 fluid_area_id; // Used in sim, could be temp
+	bool already_swapped; // To prevent double swap in sim, could be temp
 	U16 pressure;
+#ifndef SIMPLE_FLUID_SWAP_DYNAMICS
+	U16 fluid_area_id; // Used in sim, could be temp
 	U16 potential; // Used in flow analysis, could be temp
 	U32 edge_begin_index; // Could be temp
-	bool already_swapped; // To prevent double swap in sim, could be temp
 	U8 fluid_path_count; // Could be temp
-	U8 draw_something; // For debugging
+#endif
+#endif
 } GridCell;
 
 typedef struct PhysWorld {

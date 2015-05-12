@@ -846,27 +846,28 @@ void render_frame()
 			bind_vao(&r->vao);
 			draw_vao(&r->vao);
 
+			if (r->draw_fluid) {
+				// Proto fluid proto render
+				ShaderSource* grid_shd=
+					(ShaderSource*)res_by_name(
+							g_env.resblob,
+							ResType_ShaderSource,
+							"grid_blit");
+				glUseProgram(grid_shd->prog_gl_id);
+				glUniform1i(glGetUniformLocation(grid_shd->prog_gl_id, "u_tex_color"), 0);
+				glUniformMatrix4fv(
+						glGetUniformLocation(grid_shd->prog_gl_id, "u_cam"),
+						1,
+						GL_FALSE,
+						cam_matrix(r).e);
 
-			// Proto fluid proto render
-			ShaderSource* grid_shd=
-				(ShaderSource*)res_by_name(
-						g_env.resblob,
-						ResType_ShaderSource,
-						"grid_blit");
-			glUseProgram(grid_shd->prog_gl_id);
-			glUniform1i(glGetUniformLocation(grid_shd->prog_gl_id, "u_tex_color"), 0);
-			glUniformMatrix4fv(
-					glGetUniformLocation(grid_shd->prog_gl_id, "u_cam"),
-					1,
-					GL_FALSE,
-					cam_matrix(r).e);
-
-			glBindTexture(GL_TEXTURE_2D, r->fluid_grid_tex);
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
-				GRID_WIDTH_IN_CELLS, GRID_WIDTH_IN_CELLS,
-				0, GL_RGBA, GL_UNSIGNED_BYTE,
-				r->fluid_grid);
-			draw_grid_quad();
+				glBindTexture(GL_TEXTURE_2D, r->fluid_grid_tex);
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
+					GRID_WIDTH_IN_CELLS, GRID_WIDTH_IN_CELLS,
+					0, GL_RGBA, GL_UNSIGNED_BYTE,
+					r->fluid_grid);
+				draw_grid_quad();
+			}
 		}
 
 		{ // Overexposed parts to small "highlight" texture
