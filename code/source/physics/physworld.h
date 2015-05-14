@@ -11,6 +11,12 @@
 		((U32)((floor((x + 0.5)*GRID_RESO_PER_UNIT) + GRID_WIDTH_IN_CELLS/2)) + \
 	   	(U32)((floor((y + 0.5)*GRID_RESO_PER_UNIT) + GRID_WIDTH_IN_CELLS/2)*GRID_WIDTH_IN_CELLS))
 
+#define GRID_VEC_W(x, y) \
+		(V2i) { \
+			(U32)(floor((x + 0.5)*GRID_RESO_PER_UNIT) + GRID_WIDTH_IN_CELLS/2), \
+			(U32)(floor((y + 0.5)*GRID_RESO_PER_UNIT) + GRID_WIDTH_IN_CELLS/2) \
+		}
+
 #define GRID_INDEX(x, y) ((x) + (y)*GRID_WIDTH_IN_CELLS)
 
 #define GRIDCELL_TYPE_AIR 0

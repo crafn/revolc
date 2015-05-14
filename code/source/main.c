@@ -167,8 +167,25 @@ int main(int argc, const char **argv)
 			}
 #			endif
 
-			if (d->key_pressed['t'])
-				free_node_group(world, 1);
+			if (d->key_down['t']) {
+				// Erase circle
+				V2i cell= GRID_VEC_W(cursor_on_world.x, cursor_on_world.y);
+				const int rad_in_cells= 16;
+				for (int y= cell.y - rad_in_cells; y < cell.y + rad_in_cells; ++y) {
+				for (int x= cell.x - rad_in_cells; x < cell.x + rad_in_cells; ++x) {
+					if (	x < 0 || x >= GRID_WIDTH_IN_CELLS ||
+							y < 0 || y >= GRID_WIDTH_IN_CELLS)
+						continue;
+
+					if (	(x - cell.x)*(x - cell.x) +
+							(y - cell.y)*(y - cell.y) > rad_in_cells*rad_in_cells)
+						continue;
+
+					g_env.physworld->grid[GRID_INDEX(x, y)].type= GRIDCELL_TYPE_AIR;
+					g_env.physworld->grid_modified= true;
+				}
+				}
+			}
 
 			if (d->key_pressed['q'])
 				g_env.physworld->debug_draw= !g_env.physworld->debug_draw;
