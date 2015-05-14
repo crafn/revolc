@@ -487,28 +487,48 @@ void destroy_renderer()
 	free(r);
 }
 
-void push_model(	T3d tf,
-					TriMeshVertex *v, U32 v_count,
-					MeshIndexType *i, U32 i_count,
-					Color c,
-					AtlasUv uv,
-					S32 layer)
+void drawcmd(	T3d tf,
+				TriMeshVertex *v, U32 v_count,
+				MeshIndexType *i, U32 i_count,
+				AtlasUv uv,
+				Color c,
+				S32 layer,
+				F32 emission)
 {
-	ModelEntity init;
-	init_modelentity(&init);
-	U32 handle= resurrect_modelentity(&init);
-	ModelEntity *e= get_modelentity(handle);
-	e->tf= tf;
-	e->free_after_draw= true;
-	e->atlas_uv= uv.uv;
-	e->scale_to_atlas_uv= uv.scale;
-	e->layer= layer;
+	DrawCmd cmd= {
+		.tf= tf,
+		.layer= layer,
+		.color= c,
+		.atlas_uv= uv.uv,
+		.scale_to_atlas_uv= uv.scale,
+		.mesh_v_count= v_count,
+		.mesh_i_count= i_count,
+		.vertices= v,
+		.indices= i,
+		.emission= emission,
+	};
+	Renderer *r= g_env.renderer;
+	if (r->cmd_count >= MAX_DRAW_CMD_COUNT) {
+		fail("Too many draw commands");
+	}
+	r->cmds[r->cmd_count++]= cmd;
+}
 
-	e->vertices= v;
-	e->mesh_v_count= v_count;
-
-	e->indices= i;
-	e->mesh_i_count= i_count;
+void drawcmd_model(	T3d tf,
+					const Model *model,
+					Color c,
+					S32 layer,
+					F32 emission)
+{
+	const Texture *tex= model_texture(model, 0);
+	const Mesh *mesh= model_mesh(model);
+	drawcmd(tf,
+			mesh_vertices(mesh), mesh->v_count,
+			mesh_indices(mesh), mesh->i_count,
+			tex->atlas_uv,
+			mul_color(model->color, c),
+			layer,
+			model->emission + emission);
 }
 
 T3d px_tf(V2i px_pos, V2i px_size)
@@ -655,10 +675,10 @@ void * storage_compentity()
 
 internal
 inline
-int entity_cmp(const void *e1, const void *e2)
+int drawcmd_z_cmp(const void *e1, const void *e2)
 {
-#define E1 ((ModelEntity*)e1)
-#define E2 ((ModelEntity*)e2)
+#define E1 ((DrawCmd*)e1)
+#define E2 ((DrawCmd*)e2)
 	if (E1->layer != E2->layer)
 		return (E1->layer > E2->layer) - (E1->layer < E2->layer);
 
@@ -692,16 +712,26 @@ void render_frame()
 		}
 	}
 
-	// Calculate total vertex and index count for frame
-	U32 total_v_count= 0;
-	U32 total_i_count= 0;
 	for (U32 i= 0; i < MAX_MODELENTITY_COUNT; ++i) {
 		ModelEntity *e= &r->m_entities[i];
 		if (!e->allocated)
 			continue;
+		drawcmd(e->tf,
+				e->vertices, e->mesh_v_count,
+				e->indices, e->mesh_i_count,
+				(AtlasUv) {e->atlas_uv, e->scale_to_atlas_uv},
+				e->color,
+				e->layer,
+				e->emission);
+	}
 
-		total_v_count += e->mesh_v_count;
-		total_i_count += e->mesh_i_count;
+	// Calculate total vertex and index count for frame
+	U32 total_v_count= 0;
+	U32 total_i_count= 0;
+	for (U32 i= 0; i < r->cmd_count; ++i) {
+		DrawCmd *cmd= &r->cmds[i];
+		total_v_count += cmd->mesh_v_count;
+		total_i_count += cmd->mesh_i_count;
 	}
 
 	if (total_v_count > MAX_DRAW_VERTEX_COUNT)
@@ -715,48 +745,40 @@ void render_frame()
 	bind_vao(&r->vao);
 	reset_vao_mesh(&r->vao);
 
-	{ // Meshes to Vao
-		memcpy(	r->m_entities_sort_space,
-				r->m_entities,
-				sizeof(*r->m_entities)*MAX_MODELENTITY_COUNT);
-
+	{ // Issue drawing commands (= meshes to Vao)
 		// Z-sort
-		qsort(	r->m_entities_sort_space, MAX_MODELENTITY_COUNT,
-				sizeof(*r->m_entities_sort_space), entity_cmp);
-		ModelEntity *entities= r->m_entities_sort_space;
+		qsort(r->cmds, r->cmd_count, sizeof(*r->cmds), drawcmd_z_cmp);
 
 		TriMeshVertex *total_verts= frame_alloc(sizeof(*total_verts)*total_v_count);
 		MeshIndexType *total_inds= frame_alloc(sizeof(*total_inds)*total_i_count);
 		U32 cur_v= 0;
 		U32 cur_i= 0;
-		for (U32 i= 0; i < MAX_MODELENTITY_COUNT; ++i) {
-			ModelEntity *e= &entities[i];
-			if (!e->allocated)
-				continue;
+		for (U32 i= 0; i < r->cmd_count; ++i) {
+			DrawCmd *cmd= &r->cmds[i];
 
-			for (U32 k= 0; k < e->mesh_i_count; ++k) {
-				total_inds[cur_i]= e->indices[k] + cur_v;
+			for (U32 k= 0; k < cmd->mesh_i_count; ++k) {
+				total_inds[cur_i]= cmd->indices[k] + cur_v;
 				++cur_i;
 			}
 
-			for (U32 k= 0; k < e->mesh_v_count; ++k) {
-				TriMeshVertex v= e->vertices[k];
+			for (U32 k= 0; k < cmd->mesh_v_count; ++k) {
+				TriMeshVertex v= cmd->vertices[k];
 				V3d p= {v.pos.x, v.pos.y, v.pos.z};
-				p= mul_v3d(e->tf.scale, p);
-				p= rot_v3d(e->tf.rot, p);
-				p= add_v3d(e->tf.pos, p);
+				p= mul_v3d(cmd->tf.scale, p);
+				p= rot_v3d(cmd->tf.rot, p);
+				p= add_v3d(cmd->tf.pos, p);
 
 				v.pos= (V3f) {p.x, p.y, p.z};
 
-				v.uv.x *= e->scale_to_atlas_uv.x;
-				v.uv.y *= e->scale_to_atlas_uv.y;
+				v.uv.x *= cmd->scale_to_atlas_uv.x;
+				v.uv.y *= cmd->scale_to_atlas_uv.y;
 
-				v.uv.x += e->atlas_uv.x;
-				v.uv.y += e->atlas_uv.y;
-				v.uv.z += e->atlas_uv.z;
+				v.uv.x += cmd->atlas_uv.x;
+				v.uv.y += cmd->atlas_uv.y;
+				v.uv.z += cmd->atlas_uv.z;
 
-				v.color= e->color;
-				v.emission= e->emission;
+				v.color= cmd->color;
+				v.emission= cmd->emission;
 
 				total_verts[cur_v]= v;
 				++cur_v;
@@ -764,6 +786,8 @@ void render_frame()
 		}
 		add_vertices_to_vao(&r->vao, total_verts, total_v_count);
 		add_indices_to_vao(&r->vao, total_inds, total_i_count);
+
+		r->cmd_count= 0; // Clear commands
 	}
 
 	{ // Actual rendering
@@ -965,12 +989,6 @@ void render_frame()
 				draw_grid_quad();
 			}
 		}
-	}
-
-	for (U32 i= 0; i < MAX_MODELENTITY_COUNT; ++i) {
-		ModelEntity *e= &r->m_entities[i];
-		if (e->free_after_draw)
-			free_modelentity(e);
 	}
 }
 

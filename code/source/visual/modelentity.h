@@ -15,12 +15,11 @@ typedef struct ModelEntity {
 	S32 layer; // Overrides z-sorting. 0 for world stuff
 	bool allocated;
 	bool has_own_mesh; // If true, vertices and indices are free'd along this
-	bool free_after_draw;
 
 	// Cached
 	Color color;
 	F32 emission;
-	V3f atlas_uv;
+	V3f atlas_uv; // @todo Use AtlasUv
 	V2f scale_to_atlas_uv;
 	U32 mesh_v_count;
 	U32 mesh_i_count;

@@ -170,7 +170,7 @@ int main(int argc, const char **argv)
 			if (d->key_down['t']) {
 				// Erase circle
 				V2i cell= GRID_VEC_W(cursor_on_world.x, cursor_on_world.y);
-				const int rad_in_cells= 16;
+				const int rad_in_cells= 4;
 				for (int y= cell.y - rad_in_cells; y < cell.y + rad_in_cells; ++y) {
 				for (int x= cell.x - rad_in_cells; x < cell.x + rad_in_cells; ++x) {
 					if (	x < 0 || x >= GRID_WIDTH_IN_CELLS ||

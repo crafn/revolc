@@ -8,13 +8,31 @@
 #include "mesh.h"
 #include "vao.h"
 
+// Command for the (immediate-mode) renderer to draw a model this frame
+typedef struct DrawCmd {
+	T3d tf;
+	S32 layer; // Overrides z-sorting. 0 for world stuff
+	Color color;
+	V3f atlas_uv;
+	F32 emission;
+	V2f scale_to_atlas_uv;
+	U32 mesh_v_count;
+	U32 mesh_i_count;
+	TriMeshVertex* vertices;
+	MeshIndexType* indices;
+} DrawCmd;
+
 typedef struct Renderer {
 	V3d cam_pos; // Directly written
 	V2d cam_fov;
 	F32 exposure;
 
+	DrawCmd cmds[MAX_DRAW_CMD_COUNT];
+	U32 cmd_count;
+
+	// Not sure if these need to be here anymore, as renderer is now immediate-mode.
+	// These could just be normal nodes and issue drawing commands.
 	ModelEntity m_entities[MAX_MODELENTITY_COUNT];
-	ModelEntity m_entities_sort_space[MAX_MODELENTITY_COUNT];
 	U32 next_m_entity;
 	U32 m_entity_count; // Statistics
 
@@ -61,14 +79,19 @@ typedef struct Renderer {
 REVOLC_API void create_renderer();
 REVOLC_API void destroy_renderer();
 
-// @todo This should be The interface to renderer
-//       So remove ModelEntities from renderer and have them call this
-REVOLC_API void push_model(	T3d tf,
+// Main interface to draw something
+REVOLC_API void drawcmd(	T3d tf,
 							TriMeshVertex *v, U32 v_count,
 							MeshIndexType *i, U32 i_count,
-							Color c,
 							AtlasUv uv,
-							S32 layer);
+							Color c,
+							S32 layer,
+							F32 emission);
+REVOLC_API void drawcmd_model(	T3d tf,
+								const Model *model,
+								Color c,
+								S32 layer,
+								F32 emission);
 
 // Valid for only a frame (because camera can move)
 REVOLC_API T3d px_tf(V2i px_pos, V2i px_size);

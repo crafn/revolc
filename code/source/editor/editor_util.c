@@ -68,13 +68,13 @@ void gui_text(const char *text)
 	const U32 v_count= 4*quad_count;
 	const U32 i_count= 6*quad_count;
 
-	push_model(	px_tf(px_pos, (V2i) {1, 1}),
-				verts, v_count,
-				inds, i_count,
-				(Color) {1, 1, 1, 1},
-				gui_font()->atlas_uv,
-				gui_next_draw_layer());
-
+	drawcmd(px_tf(px_pos, (V2i) {1, 1}),
+			verts, v_count,
+			inds, i_count,
+			gui_font()->atlas_uv,
+			(Color) {1, 1, 1, 1},
+			gui_next_draw_layer(),
+			0.0);
 
 	gui_end();
 	gui_advance_turtle(size);
@@ -307,17 +307,11 @@ CursorDeltaMode cursor_transform_delta_pixels(	T3f *out,
 void gui_quad(V2i px_pos, V2i px_size, Color c)
 {
 	gui_wrap(&px_pos, &px_size);
-
-	ModelEntity init;
-	init_modelentity(&init);
-	init.tf= px_tf(px_pos, px_size);
-	init.free_after_draw= true;
-	fmt_str(init.model_name, sizeof(init.model_name), "guibox_singular");
-
-	U32 handle= resurrect_modelentity(&init);
-	ModelEntity *e= get_modelentity(handle);
-	e->color= c;
-	e->layer= gui_next_draw_layer();
+	drawcmd_model(	px_tf(px_pos, px_size),
+					(Model*)res_by_name(g_env.resblob, ResType_Model, "guibox_singular"),
+					c,
+					gui_next_draw_layer(),
+					0.0);
 }
 
 void gui_model_image(V2i px_pos, V2i px_size, ModelEntity *src_model)
@@ -327,18 +321,16 @@ void gui_model_image(V2i px_pos, V2i px_size, ModelEntity *src_model)
 	V3d pos= v2d_to_v3d(screen_to_world_point(px_pos)); 
 	V3d size= v2d_to_v3d(screen_to_world_size(px_size));
 
-	ModelEntity init;
-	init_modelentity(&init);
-	init.tf.pos= pos;
-	init.tf.scale= size;
-	init.free_after_draw= true;
-	fmt_str(init.model_name, sizeof(init.model_name), "guibox");
+	const Model *model= (Model*)res_by_name(g_env.resblob, ResType_Model, "guibox");
+	const Mesh *mesh= model_mesh(model);
 
-	U32 handle= resurrect_modelentity(&init);
-	ModelEntity *e= get_modelentity(handle);
-	e->atlas_uv= src_model->atlas_uv;
-	e->scale_to_atlas_uv= src_model->scale_to_atlas_uv;
-	e->layer= gui_next_draw_layer();
+	drawcmd((T3d) {size, identity_qd(), pos},
+			mesh_vertices(mesh), mesh->v_count,
+			mesh_indices(mesh), mesh->i_count,
+			(AtlasUv) {src_model->atlas_uv, src_model->scale_to_atlas_uv},
+			(Color) {1, 1, 1, 1},
+			gui_next_draw_layer(),
+			0.0);
 }
 
 void gui_res_info(ResType t, const Resource *res)
