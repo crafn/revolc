@@ -220,6 +220,39 @@ void modify_grid_with_shapes(
 	}
 }
 
+internal
+void cp_remove_constraint(cpBody *b, cpConstraint *c, void *data)
+{ remove_constraint(c); }
+
+internal
+void cp_destroy_body_shape(cpBody *b, cpShape *s, void *data)
+{
+	cpSpace *space= data;
+	cpSpaceRemoveShape(space, s);
+	cpShapeFree(s);
+}
+
+internal
+cpBody *cp_create_body(cpSpace *space, float mass, float moment, bool is_static)
+{
+	cpBody *body;
+	if (!is_static)
+		body= cpBodyNew(mass, moment);
+	else
+		body= cpBodyNewStatic();
+	cpSpaceAddBody(space, body);
+	return body;
+}
+
+internal void cp_destroy_body(cpSpace *space, cpBody *body)
+{
+	cpBodyEachShape(body, cp_destroy_body_shape, space);
+	cpBodyEachConstraint(body, cp_remove_constraint, NULL);
+
+	cpSpaceRemoveBody(space, body);
+	cpBodyFree(body);
+}
+
 void create_physworld()
 {
 	PhysWorld *w= zero_malloc(sizeof(*w));
@@ -229,6 +262,8 @@ void create_physworld()
 	w->cp_space= cpSpaceNew();
 	cpSpaceSetIterations(w->cp_space, 10);
 	cpSpaceSetGravity(w->cp_space, cpv(0, -25));
+
+	w->cp_ground_body= cp_create_body(w->cp_space, 0, 0, true);
 
 #ifdef USE_FLUID
 	{ // Fluid proto
@@ -251,6 +286,9 @@ void destroy_physworld()
 	PhysWorld *w= g_env.physworld;
 	ensure(w);
 	g_env.physworld= NULL;
+
+	cp_destroy_body(w->cp_space, w->cp_ground_body);
+
 	cpSpaceFree(w->cp_space);
 
 	free(w);
@@ -312,18 +350,14 @@ void set_rigidbody(U32 h, RigidBodyDef *def)
 		}
 	}
 
-	if (!b->is_static)
-		b->cp_body= cpBodyNew(total_mass, total_moment);
-	else
-		b->cp_body= cpBodyNewStatic();
-	cpSpaceAddBody(w->cp_space, b->cp_body);
+	b->cp_body= cp_create_body(w->cp_space, total_mass, total_moment, b->is_static);
 	cpBodySetPosition(b->cp_body, to_cpv((V2d) {b->tf.pos.x, b->tf.pos.y}));
 
 	U32 circle_count= def->circle_count;
 	U32 poly_count= def->poly_count;
 	Circle *circles= def->circles;
 	Poly *polys= def->polys;
-	if (b->has_own_shape) { // Override def with own shape (e.g. ground)
+	if (b->has_own_shape) { // Override def with own shape
 		circle_count= b->circle_count;
 		poly_count= b->poly_count;
 		circles= b->circles;
@@ -395,10 +429,6 @@ U32 resurrect_rigidbody(const RigidBody *dead)
 	return h;
 }
 
-internal
-void cp_remove_constraint(cpBody *b, cpConstraint *c, void *data)
-{ remove_constraint(c); }
-
 void free_rigidbody(RigidBody *b)
 {
 	PhysWorld *w= g_env.physworld;
@@ -415,15 +445,7 @@ void free_rigidbody(RigidBody *b)
 				v3d_to_v2d(b->prev_tf.pos), b->prev_tf.rot);
 	}
 
-	for (U32 i= 0; i < b->cp_shape_count; ++i) {
-		cpSpaceRemoveShape(w->cp_space, b->cp_shapes[i]);
-		cpShapeFree(b->cp_shapes[i]);
-	}
-
-	cpBodyEachConstraint(b->cp_body, cp_remove_constraint, NULL);
-
-	cpSpaceRemoveBody(w->cp_space, b->cp_body);
-	cpBodyFree(b->cp_body);
+	cp_destroy_body(w->cp_space, b->cp_body);
 
 	*b= (RigidBody) { .allocated= false };
 	--w->body_count;
@@ -1006,6 +1028,90 @@ void post_upd_physworld()
 		b->shape_changed= false;
 		b->tf_changed= false;
 		b->prev_tf= b->tf;
+	}
+
+	if (w->grid_modified) {
+		w->grid_modified= false;
+
+		cp_destroy_body(w->cp_space, w->cp_ground_body);
+		w->cp_ground_body= cp_create_body(w->cp_space, 0, 0, true);
+
+		// Recreate static ground shapes
+		// @todo This is just a temp solution. Must smooth more.
+		for (int y= 0; y < GRID_WIDTH_IN_CELLS; ++y) {
+			cpVect poly[6];
+			const F64 width= 1.0/GRID_RESO_PER_UNIT;
+			bool left_reached= false;
+			for (int x= 0; x < GRID_WIDTH_IN_CELLS + 1; ++x) {
+				V2d wp= {x*width - GRID_WIDTH/2, y*width - GRID_WIDTH/2};
+
+				// Calculate cell status at top and bottom for simple smoothing
+#define CELL_ON(x, y) (w->grid[GRID_INDEX((x), (y))].type != GRIDCELL_TYPE_AIR)
+
+				if (	x == GRID_WIDTH_IN_CELLS ||
+						!CELL_ON(x, y)) {
+					if (left_reached) {
+						left_reached= false;
+
+						// Right side of the layer
+						// @note x is one off
+						int top_cell_dif= 0;
+						int bottom_cell_dif= 0;
+						if (x > 0 && x + 1 < GRID_WIDTH_IN_CELLS) {
+							if (y + 1 < GRID_WIDTH_IN_CELLS) {
+								top_cell_dif += CELL_ON(x, y + 1);
+								top_cell_dif -= !CELL_ON(x - 1, y + 1);
+							}
+							if (y > 0) {
+								bottom_cell_dif += CELL_ON(x, y - 1);
+								bottom_cell_dif -= !CELL_ON(x - 1, y - 1);
+							}
+						}
+						poly[3].x= wp.x + width*bottom_cell_dif*0.5;
+						poly[3].y= wp.y;
+						poly[4].x= wp.x;
+						poly[4].y= wp.y + width*0.5;
+						poly[5].x= wp.x + width*top_cell_dif*0.5;
+						poly[5].y= wp.y + width;
+						cpShape *shape= cpSpaceAddShape(w->cp_space,
+								cpPolyShapeNew(	w->cp_ground_body,
+												6,
+												poly,
+												cpTransformIdentity,
+												0.0));
+						// @todo Set in data
+						cpShapeSetFriction(shape, 1);
+						cpShapeSetElasticity(shape, 0.1);
+					}
+				} else {
+					if (!left_reached) {
+						left_reached= true;
+
+						// Left side of the layer
+						int top_cell_dif= 0;
+						int bottom_cell_dif= 0;
+						if (x > 0 && x + 1 < GRID_WIDTH_IN_CELLS) {
+							if (y + 1 < GRID_WIDTH_IN_CELLS) {
+								top_cell_dif -= CELL_ON(x - 1, y + 1);
+								top_cell_dif += !CELL_ON(x, y + 1);
+							}
+							if (y > 0) {
+								bottom_cell_dif -= CELL_ON(x - 1, y - 1);
+								bottom_cell_dif += !CELL_ON(x , y - 1);
+							}
+						}
+
+						poly[0].x= wp.x + width*top_cell_dif*0.5;
+						poly[0].y= wp.y + width;
+						poly[1].x= wp.x;
+						poly[1].y= wp.y + width*0.5;
+						poly[2].x= wp.x + width*bottom_cell_dif*0.5;
+						poly[2].y= wp.y;
+					}
+				}
+#undef CELL_ON
+			}
+		}
 	}
 
 #ifdef USE_FLUID_PROTO

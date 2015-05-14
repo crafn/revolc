@@ -163,12 +163,21 @@ void generate_world(World *w, U64 seed)
 	spawn_visual_prop(w, (V3d) {150, -50, -300}, 0, (V3d) {200, 90, 1}, "bg_meadow");
 	spawn_visual_prop(w, (V3d) {400, -70, -350}, 0, (V3d) {200, 110, 1}, "bg_meadow");
 
-	for (int y= -50; y <= 50; ++y) {
-		for (int x= -50; x < 50; ++x) {
-			V2d pos= {x, y};
-			try_spawn_ground(w, pos);
+	for (int y= 0; y < GRID_WIDTH_IN_CELLS; ++y) {
+		for (int x= 0; x < GRID_WIDTH_IN_CELLS; ++x) {
+			V2d wpos= {
+				1.0*x/GRID_RESO_PER_UNIT - GRID_WIDTH/2,
+				1.0*y/GRID_RESO_PER_UNIT - GRID_WIDTH/2,
+			};
+			if (ground_surf_y(wpos.x) < wpos.y)
+				continue;
+			if ((wpos.x + 14)*(wpos.x + 14) + wpos.y*wpos.y < 6*6)
+				continue;
+			g_env.physworld->grid[GRID_INDEX(x, y)].type= GRIDCELL_TYPE_GROUND;
 		}
 	}
+	g_env.physworld->grid_modified= true;
+
 	for (int i= 0; i < 20; ++i) {
 		V2d pos= {
 			random_f64(-30.0, 30.0, &seed),

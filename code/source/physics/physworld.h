@@ -48,8 +48,10 @@ typedef struct PhysWorld {
 	U32 next_body, body_count;
 
 	GridCell grid[GRID_CELL_COUNT];
+	bool grid_modified; // Set to true after making changes to grid
 
 	cpSpace *cp_space;
+	cpBody *cp_ground_body; // Recreated when 
 } PhysWorld;
 
 /// @note Sets g_env.physworld
