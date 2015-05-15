@@ -1173,7 +1173,7 @@ void upd_phys_rendering()
 		U8 *grid= g_env.renderer->occlusion_grid;
 		for (U32 i= 0; i < GRID_CELL_COUNT; ++i) {
 			grid[i]= MIN(	w->grid[i].type != GRIDCELL_TYPE_AIR ? 255 : 0 +
-							w->grid[i].body_portion*4,
+							w->grid[i].body_portion*8,
 							255);
 		}
 	}

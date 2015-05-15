@@ -40,6 +40,7 @@ typedef struct Renderer {
 	U32 next_c_entity;
 	U32 c_entity_count; // Statistics
 
+	// @todo Debug draw can be replaced with the new immediate-mode rendering
 	TriMeshVertex ddraw_v[MAX_DEBUG_DRAW_VERTICES];
 	MeshIndexType ddraw_i[MAX_DEBUG_DRAW_INDICES];
 	U32 ddraw_v_count;
