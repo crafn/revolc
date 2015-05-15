@@ -1,44 +1,6 @@
 #include "worldgen.h"
 #include "physics/shapes.h"
-
-// Thanks R.. http://stackoverflow.com/questions/19083566/what-are-the-better-pseudo-random-number-generator-than-the-lcg-for-lottery-sc
-internal
-U32 temper(U32 x)
-{
-    x ^= x>>11;
-    x ^= x<<7 & 0x9D2C5680;
-    x ^= x<<15 & 0xEFC60000;
-    x ^= x>>18;
-    return x;
-}
-U32 random_u32_base(U64 *seed)
-{
-    *seed = 6364136223846793005ULL * *seed + 1;
-    return temper(*seed >> 32);
-}
-
-// Not production quality
-U32 random_u32(U32 min, U32 max, U64 *seed)
-{
-	ensure(max > min);
-	return random_u32_base(seed)%(max - min) + min;
-}
-
-// Not production quality
-S32 random_s32(S32 min, S32 max, U64 *seed)
-{
-	ensure(max > min);
-	return random_u32_base(seed)%(max - min) + min;
-}
-
-// Not production quality
-internal
-F64 random_f64(F64 min, F64 max, U64 *seed)
-{
-	ensure(max > min);
-	F64 f= (F64)random_u32_base(seed)/U32_MAX;
-	return f*(max - min) + min;
-}
+#include "core/random.h"
 
 internal
 F64 ground_surf_y(F64 x)

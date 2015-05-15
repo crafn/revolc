@@ -1,9 +1,10 @@
 #include "animation/armature.h"
 #include "animation/joint.h"
 #include "build.h"
+#include "core/debug_print.h"
 #include "core/ensure.h"
 #include "core/file.h"
-#include "core/debug_print.h"
+#include "core/random.h"
 #include "core/vector.h"
 #include "editor/editor.h"
 #include "game/aitest.h"
@@ -53,13 +54,6 @@ void spawn_entity(World *world, ResBlob *blob, V2d pos)
 #define SAVEFILE_PATH "save.bin"
 #define DEFAULT_BLOB_PATH "main.blob"
 
-
-#define RAND_U32_MAX 32768
-U32 randU32(U32 *seed) // RAND_MAX assumed to be 32767
-{
-    *seed = *seed * 1103515245 + 12345;
-    return (unsigned int)(*seed/65536) % RAND_U32_MAX;
-}
 
 int main(int argc, const char **argv)
 {
@@ -297,16 +291,18 @@ int main(int argc, const char **argv)
 				if (g_env.physworld->grid[GRID_INDEX(x, y)].type == GRIDCELL_TYPE_AIR)
 					continue;
 
-				U32 seed= x + y*10000 + (x << 5) + x*(x << 3);
-				float z= 0.2*randU32(&seed)/RAND_U32_MAX - 0.15;
-				float scale= 1.3*randU32(&seed)/RAND_U32_MAX + 1.5;
-				float rot= 1.5*randU32(&seed)/RAND_U32_MAX - 0.75;
-				float brightness= 0.3*randU32(&seed)/RAND_U32_MAX + 0.7;
-
+				U64 seed= x + y*10000;
+				float z= random_f32(-0.1, 0.05, &seed);
+				float scale= 1.3*random_f32(1.5, 1.8, &seed);
+				float rot= random_f32(-0.7, 0.7, &seed);
+				float brightness= random_f32(0.7, 1.0, &seed);
+				float x_dif= random_f32(-0.07, 0.07, &seed);
+				float y_dif= random_f32(-0.07, 0.07, &seed);
+				
 				V3d size= {scale/GRID_RESO_PER_UNIT, scale/GRID_RESO_PER_UNIT, 1.0};
 				V3d pos= {
-					(x + 0.5)/GRID_RESO_PER_UNIT - GRID_WIDTH/2,
-					(y + 0.5)/GRID_RESO_PER_UNIT - GRID_WIDTH/2,
+					(x + 0.5)/GRID_RESO_PER_UNIT - GRID_WIDTH/2 + x_dif,
+					(y + 0.5)/GRID_RESO_PER_UNIT - GRID_WIDTH/2 + y_dif,
 					z
 				};
 				// @todo Cache mesh so we don't need to recalculate everything every frame
