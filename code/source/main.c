@@ -290,22 +290,23 @@ int main(int argc, const char **argv)
 			V2i tr= GRID_VEC_W(w_tr.x, w_tr.y);
 
 			int draw_count= 0;
-			for (int y= ll.y - 2; y < tr.y; ++y) {
-			for (int x= ll.x - 2; x < tr.x; ++x) {
+			for (int y= ll.y - 3; y < tr.y + 1; ++y) {
+			for (int x= ll.x - 3; x < tr.x + 1; ++x) {
 				if (x < 0 || y < 0 || x >= GRID_WIDTH_IN_CELLS || y >= GRID_WIDTH_IN_CELLS)
 					continue;
 				if (g_env.physworld->grid[GRID_INDEX(x, y)].type == GRIDCELL_TYPE_AIR)
 					continue;
 
 				U32 seed= x + y*10000 + (x << 5) + x*(x << 3);
-				float z= 0.5*randU32(&seed)/RAND_U32_MAX;
-				float scale= 1.2*randU32(&seed)/RAND_U32_MAX + 1.4;
-				float rot= 6.3*randU32(&seed)/RAND_U32_MAX;
+				float z= 0.2*randU32(&seed)/RAND_U32_MAX - 0.15;
+				float scale= 1.3*randU32(&seed)/RAND_U32_MAX + 1.5;
+				float rot= 1.5*randU32(&seed)/RAND_U32_MAX - 0.75;
+				float brightness= 0.3*randU32(&seed)/RAND_U32_MAX + 0.7;
 
 				V3d size= {scale/GRID_RESO_PER_UNIT, scale/GRID_RESO_PER_UNIT, 1.0};
 				V3d pos= {
-					1.0*x/GRID_RESO_PER_UNIT - GRID_WIDTH/2,
-					1.0*y/GRID_RESO_PER_UNIT - GRID_WIDTH/2,
+					(x + 0.5)/GRID_RESO_PER_UNIT - GRID_WIDTH/2,
+					(y + 0.5)/GRID_RESO_PER_UNIT - GRID_WIDTH/2,
 					z
 				};
 				// @todo Cache mesh so we don't need to recalculate everything every frame
@@ -313,7 +314,7 @@ int main(int argc, const char **argv)
 						mesh_vertices(mesh), mesh->v_count,
 						mesh_indices(mesh), mesh->i_count,
 						model_texture(model, 0)->atlas_uv,
-						(Color) {0.5, 0.2, 0.1, 1},
+						(Color) {brightness, brightness, brightness, 1},
 						0,
 						0.0);
 				++draw_count;

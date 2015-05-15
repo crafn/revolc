@@ -166,8 +166,8 @@ void generate_world(World *w, U64 seed)
 	for (int y= 0; y < GRID_WIDTH_IN_CELLS; ++y) {
 		for (int x= 0; x < GRID_WIDTH_IN_CELLS; ++x) {
 			V2d wpos= {
-				1.0*x/GRID_RESO_PER_UNIT - GRID_WIDTH/2,
-				1.0*y/GRID_RESO_PER_UNIT - GRID_WIDTH/2,
+				(x + 0.5)/GRID_RESO_PER_UNIT - GRID_WIDTH/2,
+				(y + 0.5)/GRID_RESO_PER_UNIT - GRID_WIDTH/2,
 			};
 			if (ground_surf_y(wpos.x) < wpos.y)
 				continue;
