@@ -88,6 +88,7 @@ MOD_API void upd_playerch(PlayerCh *p, PlayerCh *e)
 			};
 
 			F64 leg_space_t= 1;
+			// @todo Multiple segments (or radius for the segment)
 			phys_segment_query(
 				a, b, 0.0,
 				playerch_ray_callback, &leg_space_t);
@@ -108,22 +109,23 @@ MOD_API void upd_playerch(PlayerCh *p, PlayerCh *e)
 			}
 		}
 
-		if (dir)
-			apply_force(p->body, (V2d) {100*dir, 0});
+		// Walking
+		const F64 walking_speed= 7;
+		apply_velocity_target(p->body, (V2d) {walking_speed*dir, p->body->velocity.y}, 100.0);
 
 		if (jump) {
 			apply_impulse_world(	p->body,
-									(V2d) {0, 15},
+									(V2d) {0, rigidbody_mass(p->body)*11},
 									(V2d) {p->body->tf.pos.x, p->body->tf.pos.y});
 		}
 
 		p->tf.pos= add_v3d(p->body->tf.pos, (V3d) {0, 0.25, 0});
 		p->tf.pos.y -= leg_space;
 
-		F64 dif_to_target_v= (dir*5.7 - p->body->velocity.x)*0.7;
-		p->fake_dif= exp_drive(p->fake_dif, dif_to_target_v, dt*2.5);
-		p->fake_dif= CLAMP(p->fake_dif, -0.2, 0.2);
-		//p->tf.pos.x += p->fake_dif;
+		F64 dif_to_target_v= (dir*walking_speed - p->body->velocity.x)*0.2;
+		p->fake_dif= exp_drive(p->fake_dif, dif_to_target_v, dt*5);
+		p->fake_dif= CLAMP(p->fake_dif, -0.1, 0.1);
+		p->tf.pos.x += p->fake_dif;
 
 		{ // Camera
 			V2d target_pos= {

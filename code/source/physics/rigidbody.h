@@ -51,4 +51,8 @@ REVOLC_API void set_constraint_max_force(Constraint *c, F64 force);
 // Constraints are removed along bodies
 REVOLC_API void remove_constraint(Constraint *c);
 
+REVOLC_API void apply_velocity_target(RigidBody *b, V2d velocity, F64 max_force);
+
+REVOLC_API F64 rigidbody_mass(const RigidBody *b);
+
 #endif // REVOLC_PHYSICS_RIGIDBODY_H

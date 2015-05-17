@@ -36,3 +36,18 @@ void remove_constraint(Constraint *c)
 	cpConstraintFree(c);
 }
 
+void apply_velocity_target(RigidBody *b, V2d velocity, F64 max_force)
+{
+	V2d dif= sub_v2d(velocity, b->velocity);
+	// @todo Could be optimal if dt was taken into account
+	V2d force= scaled_v2d(50.0*rigidbody_mass(b), dif);
+
+	if (length_sqr_v2d(force) > max_force*max_force)
+		force= scaled_v2d(max_force, normalized_v2d(force));
+	apply_force(b, force);
+}
+
+F64 rigidbody_mass(const RigidBody *b)
+{
+	return cpBodyGetMass(b->cp_body);
+}
