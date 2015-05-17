@@ -233,6 +233,12 @@ void cp_destroy_body_shape(cpBody *b, cpShape *s, void *data)
 }
 
 internal
+void cp_destroy_body_shapes(cpSpace *space, cpBody *body)
+{
+	cpBodyEachShape(body, cp_destroy_body_shape, space);
+}
+
+internal
 cpBody *cp_create_body(cpSpace *space, float mass, float moment, bool is_static)
 {
 	cpBody *body;
@@ -244,9 +250,10 @@ cpBody *cp_create_body(cpSpace *space, float mass, float moment, bool is_static)
 	return body;
 }
 
-internal void cp_destroy_body(cpSpace *space, cpBody *body)
+internal
+void cp_destroy_body(cpSpace *space, cpBody *body)
 {
-	cpBodyEachShape(body, cp_destroy_body_shape, space);
+	cp_destroy_body_shapes(space, body);
 	cpBodyEachConstraint(body, cp_remove_constraint, NULL);
 
 	cpSpaceRemoveBody(space, body);
@@ -263,7 +270,16 @@ void create_physworld()
 	cpSpaceSetIterations(w->cp_space, 10);
 	cpSpaceSetGravity(w->cp_space, cpv(0, -25));
 
-	w->cp_ground_body= cp_create_body(w->cp_space, 0, 0, true);
+	{ // Create static "ground" body
+		w->cp_ground_body= cp_create_body(w->cp_space, 0, 0, true);
+
+		w->ground_body.cp_body= w->cp_ground_body;
+		w->ground_body.cp_data.body= &w->ground_body;
+		w->ground_body.is_static= true;
+		w->ground_body.allocated= true;
+
+		cpBodySetUserData(w->cp_ground_body, &w->ground_body.cp_data);
+	}
 
 #ifdef USE_FLUID
 	{ // Fluid proto
@@ -354,6 +370,9 @@ void set_rigidbody(U32 h, RigidBodyDef *def)
 		total_moment= INFINITY;
 
 	b->cp_body= cp_create_body(w->cp_space, total_mass, total_moment, b->is_static);
+	b->cp_data.body= b;
+	cpBodySetUserData(b->cp_body, &b->cp_data);
+
 	cpBodySetPosition(b->cp_body, to_cpv((V2d) {b->tf.pos.x, b->tf.pos.y}));
 
 	U32 circle_count= def->circle_count;
@@ -1036,8 +1055,7 @@ void post_upd_physworld()
 	if (w->grid_modified) {
 		w->grid_modified= false;
 
-		cp_destroy_body(w->cp_space, w->cp_ground_body);
-		w->cp_ground_body= cp_create_body(w->cp_space, 0, 0, true);
+		cp_destroy_body_shapes(w->cp_space, w->cp_ground_body);
 
 		// Recreate static ground shapes
 		// @todo This is just a temp solution. Must smooth more.

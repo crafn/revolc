@@ -58,6 +58,7 @@ typedef struct PhysWorld {
 
 	cpSpace *cp_space;
 	cpBody *cp_ground_body; // Recreated when 
+	RigidBody ground_body; // So that every cpShape has a RigidBody
 } PhysWorld;
 
 /// @note Sets g_env.physworld

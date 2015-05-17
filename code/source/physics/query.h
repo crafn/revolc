@@ -3,8 +3,10 @@
 
 #include "build.h"
 
+struct RigidBody;
+
 // @todo Wrap
-typedef void (*PhysSegmentCb)(cpShape *shape, cpVect v1, cpVect v2, cpFloat t, void *data);
+typedef void (*PhysSegmentCb)(RigidBody *body, V2d point, V2d normal, F64 fraction, void *data);
 
 REVOLC_API void phys_segment_query(	V2d a, V2d b, F64 rad, 
 									PhysSegmentCb cb, void *data);	

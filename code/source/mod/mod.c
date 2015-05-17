@@ -6,6 +6,7 @@
 #include "core/vector.h"
 #include "global/env.h"
 #include "game/world.h"
+#include "physics/chipmunk_util.h"
 #include "physics/rigidbody.h"
 #include "physics/physworld.h"
 #include "physics/query.h"
@@ -21,6 +22,10 @@ typedef struct PlayerCh {
 	F64 idle_run_lerp;
 	F64 clip_time;
 	F64 fake_dif;
+	F64 on_ground_timer;
+	V2d last_ground_velocity;
+	V2d last_ground_contact_point;
+	F64 time_from_jump;
 
 	// Cached
 	ResId run_clip_id;
@@ -50,12 +55,23 @@ F64 exp_drive(F64 value, F64 target, F64 dt)
 	return (value - target)*pow(2, -dt) + target;
 }
 
+typedef struct PlayerChLegRayResult {
+	F64 ray_fraction;
+	RigidBody *ground_body;
+	V2d ground_velocity;
+	V2d ground_contact_point;
+} PlayerChLegRayResult;
+
 internal
-void playerch_ray_callback(cpShape *shape, cpVect v1, cpVect v2, cpFloat t, void *data)
+void playerch_ray_callback(RigidBody *body, V2d point, V2d normal, F64 fraction, void *data)
 {
-	F64 *leg_space_t= data;
-	if (t < *leg_space_t)
-		*leg_space_t= t;
+	PlayerChLegRayResult *result= data;
+	if (!result->ground_body || fraction < result->ray_fraction) {
+		result->ray_fraction= fraction;
+		result->ground_velocity= rigidbody_velocity_at(body, point);
+		result->ground_body= body;
+		result->ground_contact_point= point;
+	}
 }
 
 MOD_API void upd_playerch(PlayerCh *p, PlayerCh *e)
@@ -72,60 +88,96 @@ MOD_API void upd_playerch(PlayerCh *p, PlayerCh *e)
 
 	for (; p != e; ++p) {
 
-		const F64 box_height= 1.0; // @todo Should be in data
+		const F64 box_lower_height= 0.5; // @todo Should be in data
 		const F64 leg_height= 0.65;
+		const F64 on_ground_timer_start= 0.2; // Time to jump after ground has disappeared
 		//const F64 leg_width= 0.2;
 		F64 leg_space= leg_height;
+		RigidBody *ground_body= NULL;
 
 		{ // Levitate box
 			V2d a= {
 				p->body->tf.pos.x,
-				p->body->tf.pos.y - box_height/2 - 0.05,
+				p->body->tf.pos.y - box_lower_height - 0.02,
 			};
 			V2d b= {
 				p->body->tf.pos.x,
-				p->body->tf.pos.y - box_height/2 - leg_height,
+				p->body->tf.pos.y - box_lower_height - leg_height,
 			};
 
-			F64 leg_space_t= 1;
+			PlayerChLegRayResult result= {};
 			// @todo Multiple segments (or radius for the segment)
 			phys_segment_query(
 				a, b, 0.0,
-				playerch_ray_callback, &leg_space_t);
+				playerch_ray_callback, &result);
 
-			F64 leg_space= leg_height*leg_space_t;
+			F64 leg_space= leg_height*result.ray_fraction;
 
-			if (leg_space_t != 1) {
+			if (result.ground_body && p->time_from_jump > 0.2) {
+				p->on_ground_timer= on_ground_timer_start;
+				p->last_ground_velocity= result.ground_velocity;
+				p->last_ground_contact_point= result.ground_contact_point;
+				ground_body= result.ground_body;
+
 				const F64 max_force= 200;
-				F64 force= (leg_height - leg_space)*1000;
-				if (ABS(force) > max_force)
-					force = SIGN(force)*max_force;
+				F64 yforce= (leg_height - leg_space)*300;
+				if (ABS(yforce) > max_force)
+					yforce = SIGN(yforce)*max_force;
 
 				// Damping
 				V2d vel= p->body->velocity;
-				force -= vel.y*40.0;
+				yforce -= vel.y*50.0;
 
-				apply_force(p->body, (V2d) {0, force});
+				V2d force= (V2d) {0, yforce};
+				apply_force(p->body, force);
+
+				if (ground_body)
+					apply_force_at(	ground_body,
+									scaled_v2d(-1, force),
+									p->last_ground_contact_point);
 			}
 		}
 
-		// Walking
-		const F64 walking_speed= 7;
-		apply_velocity_target(p->body, (V2d) {walking_speed*dir, p->body->velocity.y}, 100.0);
+		const F64 walking_speed= 6;
+		if (p->on_ground_timer > 0.0) { // Walking
+			V2d ground_vel= p->last_ground_velocity;
+			V2d target_vel= {
+				walking_speed*dir + ground_vel.x,
+				p->body->velocity.y + ground_vel.y
+			};
+			V2d force= apply_velocity_target(	p->body,
+												target_vel,
+												100.0);
+			if (ground_body)
+				apply_force_at(	ground_body,
+								scaled_v2d(-1, force),
+								p->last_ground_contact_point);
+		}
 
-		if (jump) {
-			apply_impulse_world(	p->body,
-									(V2d) {0, rigidbody_mass(p->body)*11},
-									(V2d) {p->body->tf.pos.x, p->body->tf.pos.y});
+		if (jump && p->on_ground_timer > 0.0) {
+			p->on_ground_timer= 0.0; // Prevent double jumps
+			p->time_from_jump= 0.0;
+
+			V2d vel_after_jump= {
+				p->body->velocity.x,
+				p->last_ground_velocity.y + 11,
+			};
+			V2d vel_dif= sub_v2d(p->body->velocity, vel_after_jump);
+			rigidbody_set_velocity(p->body, vel_after_jump);
+
+			if (ground_body) // @todo fix ground_body is NULL if we have already detached
+				apply_impulse_at(	ground_body,
+									scaled_v2d(rigidbody_mass(p->body), vel_dif),
+									p->last_ground_contact_point);
 		}
 
 		p->tf.pos= add_v3d(p->body->tf.pos, (V3d) {0, 0.25, 0});
 		p->tf.pos.y -= leg_space;
 
 		F64 dif_to_target_v= (dir*walking_speed - p->body->velocity.x)*0.2;
-		p->fake_dif= exp_drive(p->fake_dif, dif_to_target_v, dt*5);
+		p->fake_dif= exp_drive(p->fake_dif, dif_to_target_v, dt*8);
 		p->fake_dif= CLAMP(p->fake_dif, -0.1, 0.1);
-		p->tf.pos.x += p->fake_dif;
+		//p->tf.pos.x += p->fake_dif;
 
 		{ // Camera
 			V2d target_pos= {
@@ -153,12 +205,13 @@ MOD_API void upd_playerch(PlayerCh *p, PlayerCh *e)
 		}
 
 		{ // Animations
+			const F64 run_anim_mul= 1.1;
 			if (dir) {
 				// If moving
 				p->idle_run_lerp= exp_drive(p->idle_run_lerp, 1, dt*15.0);
-				p->clip_time += dt*dir*facing_dir;
+				p->clip_time += dt*dir*facing_dir*run_anim_mul;
 			} else {
-				p->clip_time += dt;
+				p->clip_time += dt*run_anim_mul;
 				p->idle_run_lerp= exp_drive(p->idle_run_lerp, 0, dt*15.0);
 			}
 
@@ -168,6 +221,9 @@ MOD_API void upd_playerch(PlayerCh *p, PlayerCh *e)
 								calc_clip_pose(run_clip, p->clip_time),
 								p->idle_run_lerp);
 		}
+
+		p->on_ground_timer -= dt;
+		p->time_from_jump += dt;
 	}
 }
 
