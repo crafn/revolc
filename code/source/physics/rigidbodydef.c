@@ -3,6 +3,7 @@
 int json_rigidbodydef_to_blob(struct BlobBuf *buf, JsonTok j)
 {
 	JsonTok j_mat= json_value_by_key(j, "mat");
+	JsonTok j_disable_rot= json_value_by_key(j, "disable_rot");
 	JsonTok j_shapes= json_value_by_key(j, "shapes");
 
 	if (json_is_null(j_mat))
@@ -20,6 +21,11 @@ int json_rigidbodydef_to_blob(struct BlobBuf *buf, JsonTok j)
 	RigidBodyDef def= {};
 	fmt_str(def.mat_name, sizeof(def.mat_name), "%s",
 			json_str(j_mat));
+
+
+	if (!json_is_null(j_disable_rot))
+		def.disable_rot= json_bool(j_disable_rot);
+
 	/// @todo Take density into account
 
 	for (U32 i= 0; i < json_member_count(j_shapes); ++i) {

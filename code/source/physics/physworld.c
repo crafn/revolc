@@ -350,6 +350,9 @@ void set_rigidbody(U32 h, RigidBodyDef *def)
 		}
 	}
 
+	if (def->disable_rot)
+		total_moment= INFINITY;
+
 	b->cp_body= cp_create_body(w->cp_space, total_mass, total_moment, b->is_static);
 	cpBodySetPosition(b->cp_body, to_cpv((V2d) {b->tf.pos.x, b->tf.pos.y}));
 

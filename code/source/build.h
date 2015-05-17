@@ -45,6 +45,7 @@
 #define CLAMP(v, a, b) (MAX(MIN(v, b), a))
 #define ABS(v) ((v) > 0 ? (v) : -(v))
 #define SQR(x) ((x)*(x))
+#define SIGN(x) ((x) > 0 ? 1 : -1)
 #define NULL_HANDLE ((U32)-1)
 
 #include "platform/types.h"

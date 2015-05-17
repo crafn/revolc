@@ -27,6 +27,7 @@
 #include "main.c"
 #include "physics/physmat.c"
 #include "physics/physworld.c"
+#include "physics/query.c"
 #include "physics/rigidbody.c"
 #include "physics/rigidbodydef.c"
 #include "platform/device.c"

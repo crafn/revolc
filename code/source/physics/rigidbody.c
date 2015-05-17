@@ -2,6 +2,9 @@
 #include "global/env.h"
 #include "rigidbody.h"
 
+void apply_force(RigidBody *b, V2d force)
+{ cpBodySetForce(b->cp_body, cpvadd(cpBodyGetForce(b->cp_body), to_cpv(force))); }
+
 void apply_torque(RigidBody *b, F64 torque)
 { cpBodySetTorque(b->cp_body, cpBodyGetTorque(b->cp_body) + torque); }
 

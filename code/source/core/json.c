@@ -196,6 +196,9 @@ F64 json_real(JsonTok j)
 S64 json_integer(JsonTok j)
 { return atoll(j.null_json + j.tok->start); };
 
+bool json_bool(JsonTok j)
+{ return j.null_json[j.tok->start] == 't'; } // @todo Proper checking
+
 V2d json_v2(JsonTok j)
 {
 	return (V2d) {
