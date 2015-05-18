@@ -171,6 +171,14 @@ MOD_API void upd_playerch(PlayerCh *p, PlayerCh *e)
 									p->last_ground_contact_point);
 		}
 
+		if (dir && p->on_ground_timer < 0.0) { // Air control
+			V2d target_vel= {
+				p->last_ground_velocity.x + dir*walking_speed*1.1,
+				p->body->velocity.y,
+			};
+			apply_velocity_target(p->body, target_vel, 50.0);
+		}
+
 		p->tf.pos= add_v3d(p->body->tf.pos, (V3d) {0, 0.25, 0});
 		p->tf.pos.y -= leg_space;
 
