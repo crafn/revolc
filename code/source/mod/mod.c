@@ -2,6 +2,7 @@
 #include "animation/joint.h"
 #include "build.h"
 #include "core/debug_print.h"
+#include "core/scalar.h"
 #include "core/ensure.h"
 #include "core/vector.h"
 #include "global/env.h"
@@ -13,6 +14,75 @@
 #include "platform/device.h"
 #include "resources/resblob.h"
 #include "visual/renderer.h" // screen_to_world_point, camera
+
+typedef struct WorldEnv {
+	U8 placeholder;
+} WorldEnv;
+
+MOD_API void upd_worldenv(WorldEnv *w, WorldEnv *e)
+{
+	ensure(w + 1 == e);
+
+	if (g_env.device->key_down[KEY_KP_9])
+		g_env.world->time += g_env.world->dt*50;
+	if (g_env.device->key_down[KEY_KP_6])
+		g_env.world->time -= g_env.world->dt*50;
+
+	const F32 day_duration= 100.0;
+	F64 time= g_env.world->time + day_duration/3.0; // Start somewhere morning
+	F32 dayphase= fmod(time, day_duration)/day_duration;
+
+	Color night= {0.15*0.3, 0.1*0.3, 0.6*0.3}; // Night
+	Color colors[]= {
+		night,
+		night,
+		{0.9, 0.2, 0.1}, // Morning
+		{2.3, 1.8, 1.9}, // Day
+		{0.9, 0.1, 0.05}, // Evening
+		night,
+		night
+	};
+	F32 color_phases[]= {
+		0.0, // Night
+		0.1, // Night
+		0.2,
+		0.5, // Day
+		0.8,
+		0.9, // Night
+		1.0, // Night
+	};
+	const char *sky_models[]= {
+		"sky_night",
+		"sky_night",
+		"sky_evening",
+		"sky_day",
+		"sky_evening",
+		"sky_night",
+		"sky_night",
+	};
+	const int color_count = ARRAY_COUNT(colors);
+	ensure(ARRAY_COUNT(color_phases) == color_count);
+	ensure(ARRAY_COUNT(sky_models) == color_count);
+	
+	for (int i= 0; i + 1 < color_count; ++i) {
+		int next_i= i + 1;
+		if (dayphase < color_phases[i] || dayphase >= color_phases[next_i])
+			continue;
+
+		F32 t= smootherstep_f32(color_phases[i], color_phases[next_i], dayphase);
+		g_env.renderer->env_light_color= lerp_color(colors[i], colors[next_i], t);
+
+		T3d tf= {{600, 1200, 1}, identity_qd(), {0, 0, -500}};
+		drawcmd_model(	tf,
+						(Model*)res_by_name(g_env.resblob, ResType_Model, sky_models[i]),
+						(Color) {1, 1, 1, 1 - t}, 0, 0);
+		drawcmd_model(	tf,
+						(Model*)res_by_name(g_env.resblob, ResType_Model, sky_models[next_i]),
+						(Color) {1, 1, 1, t} , 0, 0);
+
+		break;
+	}
+}
 
 // Character
 typedef struct PlayerCh {
@@ -171,12 +241,12 @@ MOD_API void upd_playerch(PlayerCh *p, PlayerCh *e)
 									p->last_ground_contact_point);
 		}
 
-		if (dir && p->on_ground_timer < 0.0) { // Air control
+		if (p->on_ground_timer < 0.0) { // Air control
 			V2d target_vel= {
 				p->last_ground_velocity.x + dir*walking_speed*1.1,
 				p->body->velocity.y,
 			};
-			apply_velocity_target(p->body, target_vel, 50.0);
+			apply_velocity_target(p->body, target_vel, dir ? 40 : 10);
 		}
 
 		p->tf.pos= add_v3d(p->body->tf.pos, (V3d) {0, 0.25, 0});

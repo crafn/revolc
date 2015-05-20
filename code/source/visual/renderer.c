@@ -860,6 +860,10 @@ void render_frame()
 			glUseProgram(shd->prog_gl_id);
 
 			glUniform1f(glGetUniformLocation(shd->prog_gl_id, "u_exposure"), r->exposure);
+			glUniform3f(glGetUniformLocation(shd->prog_gl_id, "u_env_light_color"),
+						r->env_light_color.r,
+						r->env_light_color.g,
+						r->env_light_color.b);
 			glUniformMatrix4fv(	glGetUniformLocation(shd->prog_gl_id, "u_cam"),
 								1, GL_FALSE, cam_matrix(r).e);
 

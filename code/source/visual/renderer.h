@@ -26,6 +26,7 @@ typedef struct Renderer {
 	V3d cam_pos; // Directly written
 	V2d cam_fov;
 	F32 exposure;
+	Color env_light_color;
 
 	DrawCmd cmds[MAX_DRAW_CMD_COUNT];
 	U32 cmd_count;

@@ -268,7 +268,6 @@ void parse_cmd(NodeGroupDef_Cmd *cmd, const Token *toks, U32 tok_count, const No
 		cmd->size= src_size;
 	} else if (toks[1].type == TokType_open_paren) {
 		// Call
-		ensure(tok_count >= 4);
 		ensure(toks[0].type == TokType_name);
 
 		const char *func_name= toks[0].str;

@@ -13,6 +13,18 @@
 #define KEY_LCTRL 11
 #define KEY_SPACE 12
 #define KEY_DEL 13
+#define KEY_KP_0 14
+#define KEY_KP_1 15
+#define KEY_KP_2 16
+#define KEY_KP_3 17
+#define KEY_KP_4 18
+#define KEY_KP_5 19
+#define KEY_KP_6 20
+#define KEY_KP_7 21
+#define KEY_KP_8 22
+#define KEY_KP_9 23
+// ...
+
 #define KEY_A 97 // 'a'
 //  ...
 #define KEY_F1  128

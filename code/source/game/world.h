@@ -65,6 +65,7 @@ typedef struct World {
 	F64 time;
 	F64 dt;
 
+	// @todo Nodes don't need to be limited to game world
 	NodeInfo nodes[MAX_NODE_COUNT];
 	U32 next_node;
 	U32 node_count;

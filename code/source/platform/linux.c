@@ -261,6 +261,28 @@ void plat_update_impl(Device *d)
 				table_index= KEY_SPACE;
 			else if (*keysym == 65535)
 				table_index= KEY_DEL;
+
+			else if (*keysym == 0xff9e)
+				table_index= KEY_KP_0;
+			else if (*keysym == 0xff9c)
+				table_index= KEY_KP_1;
+			else if (*keysym == 0xff99)
+				table_index= KEY_KP_2;
+			else if (*keysym == 0xff9b)
+				table_index= KEY_KP_3;
+			else if (*keysym == 0xff96)
+				table_index= KEY_KP_4;
+			else if (*keysym == 0xff9d)
+				table_index= KEY_KP_5;
+			else if (*keysym == 0xff98)
+				table_index= KEY_KP_6;
+			else if (*keysym == 0xff99)
+				table_index= KEY_KP_7;
+			else if (*keysym == 0xff97)
+				table_index= KEY_KP_8;
+			else if (*keysym == 0xff9a)
+				table_index= KEY_KP_9;
+
 			else if (*keysym == 65307)
 				table_index= KEY_ESC;
 			else if (*keysym == 65361)

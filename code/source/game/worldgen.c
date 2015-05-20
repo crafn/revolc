@@ -116,7 +116,13 @@ void spawn_phys_prop(World *world, V2d pos, const char *name, bool is_static)
 
 void generate_world(World *w, U64 seed)
 {
-	spawn_visual_prop(w, (V3d) {0, 0, -500}, 0, (V3d) {600, 1200, 1}, "sky_day");
+	{
+		SlotVal init_vals[]= { };
+		NodeGroupDef *def=
+			(NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, "world_env");
+		create_nodes(w, def, WITH_ARRAY_COUNT(init_vals), 0);
+	}
+
 	spawn_visual_prop(w, (V3d) {-100, -50, -490}, 0, (V3d) {700, 250, 1}, "bg_mountain");
 
 	spawn_visual_prop(w, (V3d) {20, -120, -100}, 0, (V3d) {220, 90, 1}, "bg_meadow");
