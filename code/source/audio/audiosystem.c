@@ -111,7 +111,7 @@ void create_audiosystem()
 	} else {
 		S32 picked_device_i= -1;
 		debug_print("Available audio devices:");
-		for(S32 i= num_devices - 1; i >= 0; --i) { // Reverse to favor first device
+		for(S32 i= 0; i < num_devices; ++i) { // Reverse to favor first device
 			const PaDeviceInfo *device_info= Pa_GetDeviceInfo(i);
 			bool supported= false;
 			if (!strcmp(device_info->name, "dmix")) {

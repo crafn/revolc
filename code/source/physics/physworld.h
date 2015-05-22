@@ -8,19 +8,19 @@
 #include <chipmunk/chipmunk.h>
 
 #define GRID_INDEX_W(x, y) \
-		((U32)((floor((x + 0.5)*GRID_RESO_PER_UNIT) + GRID_WIDTH_IN_CELLS/2)) + \
-	   	(U32)((floor((y + 0.5)*GRID_RESO_PER_UNIT) + GRID_WIDTH_IN_CELLS/2)*GRID_WIDTH_IN_CELLS))
+		((U32)((floor((x + 0.0)*GRID_RESO_PER_UNIT) + GRID_WIDTH_IN_CELLS/2)) + \
+	   	(U32)((floor((y + 0.0)*GRID_RESO_PER_UNIT) + GRID_WIDTH_IN_CELLS/2)*GRID_WIDTH_IN_CELLS))
 
 #define GRID_VEC_W(x, y) \
 		(V2i) { \
-			(U32)(floor((x + 0.5)*GRID_RESO_PER_UNIT) + GRID_WIDTH_IN_CELLS/2), \
-			(U32)(floor((y + 0.5)*GRID_RESO_PER_UNIT) + GRID_WIDTH_IN_CELLS/2) \
+			(U32)(floor((x + 0.0)*GRID_RESO_PER_UNIT) + GRID_WIDTH_IN_CELLS/2), \
+			(U32)(floor((y + 0.0)*GRID_RESO_PER_UNIT) + GRID_WIDTH_IN_CELLS/2) \
 		}
 
 #define GRID_INDEX(x, y) ((x) + (y)*GRID_WIDTH_IN_CELLS)
 
-#define GRIDCELL_TYPE_AIR 0
-#define GRIDCELL_TYPE_GROUND 1
+#define GRIDCELL_MATERIAL_AIR 0
+#define GRIDCELL_MATERIAL_GROUND 1
 
 //#define USE_FLUIDS
 #define SIMPLE_FLUID_SWAP_DYNAMICS
@@ -30,7 +30,7 @@ typedef struct GridCell {
 	U8 body_portion;
 	bool is_static_edge;
 
-	U8 type; // Ground or what
+	U8 material; // Ground or what
 
 #ifdef USE_FLUID_PROTO
 	// @todo Pack to bitfields when design is stabilized
@@ -73,5 +73,7 @@ REVOLC_API RigidBody * get_rigidbody(U32 h);
 REVOLC_API void upd_physworld(F64 dt);
 REVOLC_API void post_upd_physworld();
 REVOLC_API void upd_phys_rendering();
+
+REVOLC_API void set_grid_material_in_circle(V2d center, F64 rad, U8 material);
 
 #endif // REVOLC_PHYSICS_PHYS_WORLD_H

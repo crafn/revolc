@@ -141,7 +141,7 @@ void generate_world(World *w, U64 seed)
 				continue;
 			if ((wpos.x + 14)*(wpos.x + 14) + wpos.y*wpos.y < 6*6)
 				continue;
-			g_env.physworld->grid[GRID_INDEX(x, y)].type= GRIDCELL_TYPE_GROUND;
+			g_env.physworld->grid[GRID_INDEX(x, y)].material= GRIDCELL_MATERIAL_GROUND;
 		}
 	}
 	g_env.physworld->grid_modified= true;

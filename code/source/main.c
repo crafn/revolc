@@ -168,25 +168,10 @@ int main(int argc, const char **argv)
 			}
 #			endif
 
-			if (d->key_down['t']) {
-				// Erase circle
-				V2i cell= GRID_VEC_W(cursor_on_world.x, cursor_on_world.y);
-				const int rad_in_cells= 4;
-				for (int y= cell.y - rad_in_cells; y < cell.y + rad_in_cells; ++y) {
-				for (int x= cell.x - rad_in_cells; x < cell.x + rad_in_cells; ++x) {
-					if (	x < 0 || x >= GRID_WIDTH_IN_CELLS ||
-							y < 0 || y >= GRID_WIDTH_IN_CELLS)
-						continue;
-
-					if (	(x - cell.x)*(x - cell.x) +
-							(y - cell.y)*(y - cell.y) > rad_in_cells*rad_in_cells)
-						continue;
-
-					g_env.physworld->grid[GRID_INDEX(x, y)].type= GRIDCELL_TYPE_AIR;
-					g_env.physworld->grid_modified= true;
-				}
-				}
-			}
+			if (d->key_down['t'])
+				set_grid_material_in_circle(cursor_on_world, 1.0, GRIDCELL_MATERIAL_AIR);
+			if (d->key_down['g'])
+				set_grid_material_in_circle(cursor_on_world, 0.4, GRIDCELL_MATERIAL_GROUND);
 
 			if (d->key_pressed['q'])
 				g_env.physworld->debug_draw= !g_env.physworld->debug_draw;
@@ -241,7 +226,7 @@ int main(int argc, const char **argv)
 
 			if (g_env.editor->state == EditorState_invisible) {
 				local_persist cpBody *body= NULL;
-				if (d->key_down[KEY_LMB]) {
+				if (d->key_down['f']) {
 					cpVect p= {cursor_on_world.x, cursor_on_world.y};
 					cpShape *shape=
 						cpSpacePointQueryNearest(
@@ -249,7 +234,7 @@ int main(int argc, const char **argv)
 								p, 0.1,
 								CP_SHAPE_FILTER_ALL, NULL);
 
-					if (!body && shape) {
+					if (!body && shape && body != g_env.physworld->cp_ground_body) {
 						body= cpShapeGetBody(shape);
 					}
 
@@ -288,7 +273,7 @@ int main(int argc, const char **argv)
 			for (int x= ll.x - 3; x < tr.x + 1; ++x) {
 				if (x < 0 || y < 0 || x >= GRID_WIDTH_IN_CELLS || y >= GRID_WIDTH_IN_CELLS)
 					continue;
-				if (g_env.physworld->grid[GRID_INDEX(x, y)].type == GRIDCELL_TYPE_AIR)
+				if (g_env.physworld->grid[GRID_INDEX(x, y)].material == GRIDCELL_MATERIAL_AIR)
 					continue;
 
 				U64 seed= x + y*10000;

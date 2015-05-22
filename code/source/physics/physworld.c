@@ -1067,7 +1067,7 @@ void post_upd_physworld()
 				V2d wp= {x*width - GRID_WIDTH/2, y*width - GRID_WIDTH/2};
 
 				// Calculate cell status at top and bottom for simple smoothing
-#define CELL_ON(x, y) (w->grid[GRID_INDEX((x), (y))].type != GRIDCELL_TYPE_AIR)
+#define CELL_ON(x, y) (w->grid[GRID_INDEX((x), (y))].material != GRIDCELL_MATERIAL_AIR)
 
 				if (	x == GRID_WIDTH_IN_CELLS ||
 						!CELL_ON(x, y)) {
@@ -1193,7 +1193,7 @@ void upd_phys_rendering()
 	{ // Update occlusion grid for graphics
 		U8 *grid= g_env.renderer->occlusion_grid;
 		for (U32 i= 0; i < GRID_CELL_COUNT; ++i) {
-			grid[i]= MIN(	w->grid[i].type != GRIDCELL_TYPE_AIR ? 255 : 0 +
+			grid[i]= MIN(	w->grid[i].material != GRIDCELL_MATERIAL_AIR ? 255 : 0 +
 							w->grid[i].body_portion*8,
 							255);
 		}
@@ -1211,10 +1211,31 @@ void upd_phys_rendering()
 
 	Texel *grid= g_env.renderer->grid_ddraw_data;
 	for (U32 i= 0; i < GRID_CELL_COUNT; ++i) {
-		U8 ground_portion= w->grid[i].type == GRIDCELL_TYPE_GROUND ? 126 : 0;
+		U8 ground_portion= w->grid[i].material == GRIDCELL_MATERIAL_GROUND ? 126 : 0;
 		grid[i].r= MIN(w->grid[i].body_portion*3, 255);
 		grid[i].g= 0;
 		grid[i].b= ground_portion;
 		grid[i].a= MIN(ground_portion + w->grid[i].body_portion*3, 255);
 	}
 }
+
+void set_grid_material_in_circle(V2d center, F64 rad, U8 material)
+{
+	const V2i cell= GRID_VEC_W(center.x, center.y);
+	const int rad_in_cells= rad*GRID_RESO_PER_UNIT;
+	for (int y= cell.y - rad_in_cells; y < cell.y + rad_in_cells; ++y) {
+	for (int x= cell.x - rad_in_cells; x < cell.x + rad_in_cells; ++x) {
+		if (	x < 0 || x >= GRID_WIDTH_IN_CELLS ||
+				y < 0 || y >= GRID_WIDTH_IN_CELLS)
+			continue;
+
+		if (	(x - cell.x)*(x - cell.x) +
+				(y - cell.y)*(y - cell.y) > rad_in_cells*rad_in_cells)
+			continue;
+
+		g_env.physworld->grid[GRID_INDEX(x, y)].material= material;
+		g_env.physworld->grid_modified= true;
+	}
+	}
+}
+

@@ -3,9 +3,10 @@
 #include "audio/audiosystem.h"
 #include "build.h"
 #include "core/debug_print.h"
-#include "core/scalar.h"
 #include "core/ensure.h"
+#include "core/random.h"
 #include "core/vector.h"
+#include "core/scalar.h"
 #include "global/env.h"
 #include "game/world.h"
 #include "physics/chipmunk_util.h"
@@ -103,6 +104,7 @@ typedef struct PlayerCh {
 	V2d last_ground_velocity;
 	V2d last_ground_contact_point;
 	F64 time_from_jump;
+	F64 dig_timer;
 
 	// Cached
 	ResId run_clip_id;
@@ -160,6 +162,9 @@ MOD_API void upd_playerch(PlayerCh *p, PlayerCh *e)
 	if (g_env.device->key_down['d'])
 		dir += 1;
 	bool jump= g_env.device->key_pressed[KEY_SPACE];
+	bool dig= g_env.device->key_down[KEY_LMB];
+	V2d cursor_on_world= screen_to_world_point(g_env.device->cursor_pos);
+
 	F64 dt= g_env.world->dt;
 	V2d cursor_p= screen_to_world_point(g_env.device->cursor_pos);
 
@@ -274,6 +279,20 @@ MOD_API void upd_playerch(PlayerCh *p, PlayerCh *e)
 			cam_pos.x= exp_drive(cam_pos.x, target_pos.x, dt*30);
 			cam_pos.y= exp_drive(cam_pos.y, target_pos.y, dt*30);
 			g_env.renderer->cam_pos= cam_pos;
+		}
+
+		p->dig_timer -= dt;
+		if (dig && p->dig_timer <= 0.0f) {
+			const V2d dist= {0.5, 0.7};
+			local_persist U64 seed;
+			const F64 rad= random_f32(0.9, 1.1, &seed);
+
+			V2d dif= sub_v2d(cursor_on_world, v3d_to_v2d(p->tf.pos));
+			dif= mul_v2d(dist, normalized_v2d(dif));
+
+			V2d center= add_v2d(v3d_to_v2d(p->tf.pos), dif);
+			set_grid_material_in_circle(center, rad, GRIDCELL_MATERIAL_AIR);
+			p->dig_timer= 0.25;
 		}
 
 		int facing_dir= 0;
