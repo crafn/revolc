@@ -196,28 +196,35 @@ void destroy_audiosystem()
 	g_env.audiosystem= NULL;
 }
 
-U32 play_sound(const char *name, F32 vol, F32 pan)
+internal
+SoundHandle sound_handle(U32 sound_id, U32 channel)
+{ return sound_id*MAX_AUDIO_CHANNELS + channel; }
+
+SoundHandle play_sound(const char *name, F32 vol, F32 pan)
 {
 	AudioSystem *a= g_env.audiosystem;
 	Sound *s= (Sound*)res_by_name(g_env.resblob, ResType_Sound, name);
 
-	U32 free_i= 0;
-	while (	free_i < MAX_AUDIO_CHANNELS &&
-			a->channels[free_i].state != AC_free)
-		++free_i;
+	U32 channel_i= 0;
+	while (	channel_i < MAX_AUDIO_CHANNELS &&
+			a->channels[channel_i].state != AC_free)
+		++channel_i;
 
-	if (free_i == MAX_AUDIO_CHANNELS) {
+	if (channel_i == MAX_AUDIO_CHANNELS) {
 		debug_print("play_sounds: too many sounds");
-		return NULL_HANDLE;
+		return NULL_SOUND_HANDLE;
 	}
 
+	U32 sound_id= ++a->next_sound_id;
 	{ // Start playing
-		AudioChannel *ch= &a->channels[free_i];
+		AudioChannel *ch= &a->channels[channel_i];
 		*ch= (AudioChannel) {
 			.state= AC_free,
 			.samples= s->samples,
-			.frame_count= s->frame_count,
 			.ch_count= s->ch_count,
+			.frame_count= s->frame_count,
+			.last_id= sound_id,
+			.last_sound_name= name,
 			.in_vol= vol,
 			.out_vol= vol,
 			.in_pan= pan,
@@ -229,5 +236,37 @@ U32 play_sound(const char *name, F32 vol, F32 pan)
 		ch->state= AC_play;
 	}
 
-	return free_i;
+	return sound_handle(sound_id, channel_i);
+}
+
+SoundHandle sound_handle_by_name(const char *name)
+{
+	AudioSystem *a= g_env.audiosystem;
+	for (U32 i= 0; i < MAX_AUDIO_CHANNELS; ++i) {
+		if (a->channels[i].state != AC_play)
+			continue;
+		if (!strcmp(a->channels[i].last_sound_name, name))
+			return sound_handle(a->channels[i].last_id, i);
+	}
+	return NULL_SOUND_HANDLE;
+}
+
+bool is_sound_playing(SoundHandle h)
+{
+	AudioSystem *a= g_env.audiosystem;
+	U32 channel_i= h % MAX_AUDIO_CHANNELS;
+	U32 sound_id= h/MAX_AUDIO_CHANNELS;
+	return	a->channels[channel_i].state == AC_play &&
+			a->channels[channel_i].last_id == sound_id;
+}
+
+void set_sound_vol(SoundHandle h, F32 vol)
+{
+	AudioSystem *a= g_env.audiosystem;
+	U32 channel_i= h % MAX_AUDIO_CHANNELS;
+	U32 sound_id= h/MAX_AUDIO_CHANNELS;
+	if (	a->channels[channel_i].state != AC_play ||
+			a->channels[channel_i].last_id != sound_id)
+		return;
+	a->channels[channel_i].in_vol= vol;
 }

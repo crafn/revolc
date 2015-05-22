@@ -17,4 +17,8 @@ F32 smootherstep_f32(F32 a, F32 b, F32 x)
 	return t*t*t*(t*(6*t - 15) + 10);
 }
 
+static
+F32 lerp_f32(F32 a, F32 b, F32 t)
+{ return a*(1 - t) + b*t; }
+
 #endif // REVOLC_CORE_SCALAR_H

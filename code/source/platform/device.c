@@ -10,6 +10,7 @@ void plat_init_impl(Device* d, const char* title, V2i reso);
 void plat_quit_impl(Device *d);
 void plat_update_impl(Device *d);
 void plat_sleep_impl(int ms);
+void plat_flush_denormals_impl(bool enable);
 void plat_find_paths_with_end_impl(	char **path_table, U32 *path_count, U32 max_count,
 									const char *name, int level, const char *end);
 
@@ -31,6 +32,7 @@ Device * plat_init(const char* title, V2i reso)
 		ensure(sizeof(U32) == 4);
 		ensure(sizeof(U64) == 8);
 	}
+	plat_flush_denormals(true); // For perf
 
 	Device *d= zero_malloc(sizeof(*d));
 	if (g_env.device == NULL)
@@ -106,6 +108,9 @@ void plat_update(Device *d)
 
 void plat_sleep(int ms)
 { plat_sleep_impl(ms); }
+
+void plat_flush_denormals(bool enable)
+{ plat_flush_denormals_impl(enable); }
 
 #define PATH_MAX_TABLE_SIZE 1024
 char ** plat_find_paths_with_end(const char *path_to_dir, const char *end)

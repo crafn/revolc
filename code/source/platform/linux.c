@@ -13,6 +13,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <pmmintrin.h>
 
 typedef struct DevicePlatformData {
 	Display* dpy;
@@ -346,6 +347,14 @@ void plat_update_impl(Device *d)
 void plat_sleep_impl(int ms)
 {
 	usleep(ms*1000);
+}
+
+void plat_flush_denormals_impl(bool enable)
+{
+	if (enable)
+		_mm_setcsr(_mm_getcsr() | (_MM_FLUSH_ZERO_ON | _MM_DENORMALS_ZERO_ON));
+	else
+		_mm_setcsr(_mm_getcsr() & ~(_MM_FLUSH_ZERO_ON | _MM_DENORMALS_ZERO_ON));
 }
 
 // Thanks lloydm: http://stackoverflow.com/questions/8436841/how-to-recursively-list-directories-in-c-on-linux 
