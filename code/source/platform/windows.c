@@ -228,6 +228,16 @@ void plat_sleep_impl(int ms)
 	Sleep(ms);
 }
 
+void plat_flush_denormals_impl(bool enable)
+{
+	// (1 << 15) == FLUSH_TO_ZERO
+	// @todo Should we also have DENORMALS_ZERO_ON ?
+	if (enable)
+		__builtin_ia32_ldmxcsr(__builtin_ia32_stmxcsr() | (1 << 15));
+	else
+		__builtin_ia32_ldmxcsr(__builtin_ia32_stmxcsr() & ~(1 << 15));
+}
+
 void plat_find_paths_with_end_impl(	char **path_table, U32 *path_count, U32 max_count,
 					const char *name, int level, const char *end)
 {

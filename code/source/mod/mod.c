@@ -77,6 +77,7 @@ MOD_API void upd_worldenv(WorldEnv *w, WorldEnv *e)
 		drawcmd_model(	tf,
 						(Model*)res_by_name(g_env.resblob, ResType_Model, cur.model),
 						(Color) {1, 1, 1, 1}, 0, 0);
+		tf.pos.z += 0.01;
 		drawcmd_model(	tf,
 						(Model*)res_by_name(g_env.resblob, ResType_Model, next.model),
 						(Color) {1, 1, 1, t} , 0, 0);
