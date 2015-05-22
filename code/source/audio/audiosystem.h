@@ -4,10 +4,6 @@
 #include "build.h"
 #include "global/cfg.h"
 
-#ifndef CODEGEN
-#	include <portaudio.h>
-#endif
-
 typedef U64 SoundHandle;
 #define NULL_SOUND_HANDLE 0
 
@@ -38,7 +34,7 @@ typedef struct AudioSystem {
 	AudioChannel channels[MAX_AUDIO_CHANNELS];
 	U32 next_sound_id;
 
-	PaStream *pa_out_stream;
+	void *pa_out_stream;
 } AudioSystem;
 
 /// @note Sets g_env.audiosystem

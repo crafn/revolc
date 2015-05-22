@@ -109,6 +109,7 @@ typedef struct PlayerCh {
 	// Cached
 	ResId run_clip_id;
 	ResId idle_clip_id;
+	ResId dig_clip_id;
 
 	RigidBody *body;
 } PlayerCh;
@@ -123,6 +124,7 @@ MOD_API U32 resurrect_playerch(PlayerCh *p)
 
 	p->run_clip_id= res_id(ResType_Clip, "playerch_run");
 	p->idle_clip_id= res_id(ResType_Clip, "playerch_idle");
+	p->dig_clip_id= res_id(ResType_Clip, "playerch_dig");
 
 	return NULL_HANDLE;
 }
@@ -167,9 +169,9 @@ MOD_API void upd_playerch(PlayerCh *p, PlayerCh *e)
 
 	F64 dt= g_env.world->dt;
 	V2d cursor_p= screen_to_world_point(g_env.device->cursor_pos);
+	const F64 dig_interval= 0.25;
 
 	for (; p != e; ++p) {
-
 		const F64 box_lower_height= 0.5; // @todo Should be in data
 		const F64 leg_height= 0.65;
 		const F64 on_ground_timer_start= 0.2; // Time to jump after ground has disappeared
@@ -292,7 +294,7 @@ MOD_API void upd_playerch(PlayerCh *p, PlayerCh *e)
 
 			V2d center= add_v2d(v3d_to_v2d(p->tf.pos), dif);
 			set_grid_material_in_circle(center, rad, GRIDCELL_MATERIAL_AIR);
-			p->dig_timer= 0.25;
+			p->dig_timer= dig_interval;
 		}
 
 		int facing_dir= 0;
@@ -319,11 +321,16 @@ MOD_API void upd_playerch(PlayerCh *p, PlayerCh *e)
 				p->idle_run_lerp= exp_drive(p->idle_run_lerp, 0, dt*15.0);
 			}
 
-			const Clip *idle_clip= (Clip *)res_by_id(p->idle_clip_id);
-			const Clip *run_clip= (Clip *)res_by_id(p->run_clip_id);
+			const Clip *idle_clip= (Clip*)res_by_id(p->idle_clip_id);
+			const Clip *run_clip= (Clip*)res_by_id(p->run_clip_id);
 			p->pose= lerp_pose(	calc_clip_pose(idle_clip, p->clip_time),
 								calc_clip_pose(run_clip, p->clip_time),
 								p->idle_run_lerp);
+
+			if (p->dig_timer > 0.0) {
+				const Clip *dig_clip= (Clip*)res_by_id(p->dig_clip_id);
+				p->pose= calc_clip_pose(dig_clip, (dig_interval - p->dig_timer)/dig_interval);
+			}
 		}
 
 		p->on_ground_timer -= dt;
