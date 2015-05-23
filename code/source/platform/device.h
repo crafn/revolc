@@ -23,6 +23,7 @@
 #define KEY_KP_7 21
 #define KEY_KP_8 22
 #define KEY_KP_9 23
+// @todo Change to match with ascii
 #define KEY_0 24
 #define KEY_1 25
 #define KEY_2 26
