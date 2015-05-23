@@ -146,13 +146,13 @@ void generate_world(World *w, U64 seed)
 	}
 	g_env.physworld->grid_modified= true;
 
-	for (int i= 0; i < 20; ++i) {
+	for (int i= 0; i < 5; ++i) {
 		V2d pos= {
 			random_f64(-30.0, 30.0, &seed),
-			random_f64(0.0, 40.0, &seed),
+			0
 		};
-		if (pos.y < ground_surf_y(pos.x))
-			continue;
+		pos.y= ground_surf_y(pos.x) + 2;
+
 		//spawn_phys_prop(w, pos, "wbarrel", false);
 		spawn_phys_prop(w, pos, "rollbot", false);
 		spawn_phys_prop(w, pos, "wbox", false);

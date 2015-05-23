@@ -529,7 +529,7 @@ void upd_physworld(F64 dt)
 	PhysWorld *w= g_env.physworld;
 
 	//dt= 1.0/60.0;
-	dt= CLAMP(dt, 1.0/120.0, 1.0/30.0);
+	dt= MIN(dt, 1.0/30.0);
 
 	for (U32 i= 0; i < MAX_RIGIDBODY_COUNT; ++i) {
 		RigidBody *b= &w->bodies[i];
@@ -1219,8 +1219,10 @@ void upd_phys_rendering()
 	}
 }
 
-void set_grid_material_in_circle(V2d center, F64 rad, U8 material)
+
+U32 set_grid_material_in_circle(V2d center, F64 rad, U8 material)
 {
+	U32 changed_count= 0;
 	const V2i cell= GRID_VEC_W(center.x, center.y);
 	const int rad_in_cells= rad*GRID_RESO_PER_UNIT;
 	for (int y= cell.y - rad_in_cells; y < cell.y + rad_in_cells; ++y) {
@@ -1233,9 +1235,46 @@ void set_grid_material_in_circle(V2d center, F64 rad, U8 material)
 				(y - cell.y)*(y - cell.y) > rad_in_cells*rad_in_cells)
 			continue;
 
+		if (g_env.physworld->grid[GRID_INDEX(x, y)].material != material)
+			++changed_count;
 		g_env.physworld->grid[GRID_INDEX(x, y)].material= material;
 		g_env.physworld->grid_modified= true;
 	}
 	}
+	return changed_count;
+}
+
+U32 grid_material_fullness_in_circle(V2d center, F64 rad, U8 material)
+{
+	bool empty= true;
+	bool full= true;
+	const V2i cell= GRID_VEC_W(center.x, center.y);
+	const int rad_in_cells= rad*GRID_RESO_PER_UNIT;
+	for (int y= cell.y - rad_in_cells; y < cell.y + rad_in_cells; ++y) {
+	for (int x= cell.x - rad_in_cells; x < cell.x + rad_in_cells; ++x) {
+		if (	x < 0 || x >= GRID_WIDTH_IN_CELLS ||
+				y < 0 || y >= GRID_WIDTH_IN_CELLS)
+			continue;
+
+		if (	(x - cell.x)*(x - cell.x) +
+				(y - cell.y)*(y - cell.y) > rad_in_cells*rad_in_cells)
+			continue;
+
+		if (g_env.physworld->grid[GRID_INDEX(x, y)].material == material)
+			empty= false;
+		else
+			full= false;
+	}
+	}
+	return !empty + full;
+}
+
+GridCell grid_cell(V2d world_vec)
+{
+	V2i v= GRID_VEC_W(world_vec.x, world_vec.y);
+	if (	v.x < 0 || v.x >= GRID_WIDTH_IN_CELLS ||
+			v.y < 0 || v.y >= GRID_WIDTH_IN_CELLS)
+		return (GridCell) {};
+	return g_env.physworld->grid[GRID_INDEX(v.x, v.y)];
 }
 

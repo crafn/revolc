@@ -40,7 +40,7 @@ MOD_API void upd_worldenv(WorldEnv *w, WorldEnv *e)
 	if (g_env.device->key_down[KEY_KP_6])
 		g_env.world->time -= g_env.world->dt*50;
 
-	const F32 day_duration= 100.0;
+	const F32 day_duration= 60.0*4;
 	F64 time= g_env.world->time + day_duration/3.0; // Start somewhere morning
 	F32 dayphase= fmod(time, day_duration)/day_duration;
 
@@ -105,6 +105,10 @@ typedef struct PlayerCh {
 	V2d last_ground_contact_point;
 	F64 time_from_jump;
 	F64 dig_timer;
+	F64 build_timer;
+
+	U8 active_slot; // 0-9
+	S32 dirt_amount;
 
 	// Cached
 	ResId run_clip_id;
@@ -136,17 +140,23 @@ F64 exp_drive(F64 value, F64 target, F64 dt)
 	return (value - target)*pow(2, -dt) + target;
 }
 
-typedef struct PlayerChLegRayResult {
+typedef struct PlayerChFirstHitResult {
+	const RigidBody *ignore_body;
+
+	bool did_hit;
 	F64 ray_fraction;
 	RigidBody *ground_body;
 	V2d ground_velocity;
 	V2d ground_contact_point;
-} PlayerChLegRayResult;
+} PlayerChFirstHitResult;
 
 internal
 void playerch_ray_callback(RigidBody *body, V2d point, V2d normal, F64 fraction, void *data)
 {
-	PlayerChLegRayResult *result= data;
+	PlayerChFirstHitResult *result= data;
+	if (result->ignore_body && result->ignore_body == body)
+		return;
+	result->did_hit= true;
 	if (!result->ground_body || fraction < result->ray_fraction) {
 		result->ray_fraction= fraction;
 		result->ground_velocity= rigidbody_velocity_at(body, point);
@@ -165,11 +175,20 @@ MOD_API void upd_playerch(PlayerCh *p, PlayerCh *e)
 		dir += 1;
 	bool jump= g_env.device->key_pressed[KEY_SPACE];
 	bool dig= g_env.device->key_down[KEY_LMB];
+	bool build_immediately= g_env.device->key_pressed[KEY_RMB];
+	bool build= g_env.device->key_down[KEY_RMB];
+	int select_slot= -1;
+	for (int i= 0; i <= 9; ++i) {
+		if (g_env.device->key_pressed[KEY_0 + i]) {
+			select_slot= i - 1;
+			if (select_slot == -1)
+				select_slot= 9;
+		}
+	}
 	V2d cursor_on_world= screen_to_world_point(g_env.device->cursor_pos);
 
 	F64 dt= g_env.world->dt;
 	V2d cursor_p= screen_to_world_point(g_env.device->cursor_pos);
-	const F64 dig_interval= 0.25;
 
 	for (; p != e; ++p) {
 		const F64 box_lower_height= 0.5; // @todo Should be in data
@@ -189,7 +208,7 @@ MOD_API void upd_playerch(PlayerCh *p, PlayerCh *e)
 				p->body->tf.pos.y - box_lower_height - leg_height,
 			};
 
-			PlayerChLegRayResult result= {};
+			PlayerChFirstHitResult result= {};
 			// @todo Multiple segments (or radius for the segment)
 			phys_segment_query(
 				a, b, 0.0,
@@ -283,18 +302,84 @@ MOD_API void upd_playerch(PlayerCh *p, PlayerCh *e)
 			g_env.renderer->cam_pos= cam_pos;
 		}
 
-		p->dig_timer -= dt;
-		if (dig && p->dig_timer <= 0.0f) {
-			const V2d dist= {0.5, 0.7};
+		if (select_slot >= 0) // Select active item slot
+			p->active_slot= select_slot;
+
+		const F64 dig_interval= 0.15;
+		const F64 build_interval= 0.001;
+		{ // Digging and building
+			// @todo Separate digging and building as they seem to work quite differently
+			p->dig_timer -= dt;
+			p->build_timer -= dt;
+
+			const F64 max_dig_reach= 1.5;
+			const F64 max_build_reach= 3.0;
+
+			PlayerChFirstHitResult result= {
+				.ignore_body= p->body,
+			};
+			const V2d start= v3d_to_v2d(p->tf.pos);
+			V2d end= cursor_on_world;
+			V2d dig_reach_end= cursor_on_world;
+			bool build_out_of_reach= false;
+			V2d dif= sub_v2d(end, start);
+			if (length_sqr_v2d(dif) > max_dig_reach*max_dig_reach) {
+				dig_reach_end= add_v2d(	start,
+										scaled_v2d(	max_dig_reach,
+													normalized_v2d(dif)));
+			}
+			if (ABS(dif.x) > max_build_reach || ABS(dif.y) > max_build_reach) {
+				build_out_of_reach= true;
+			}
+			phys_segment_query(
+				start, dig_reach_end, 0.0,
+				playerch_ray_callback, &result);
+
+			V2d dig_center= result.ground_contact_point;
+			if (!result.did_hit)
+				dig_center= dig_reach_end;
+
+			if (0) { // Max dig
+				T3d tf= {{0.5, 0.5, 1}, identity_qd(), v2d_to_v3d(dig_reach_end)};
+				drawcmd_model(	tf,
+								(Model*)res_by_name(g_env.resblob, ResType_Model, "playerch_target"),
+								(Color) {1, 1, 1, 1}, 1, 0);
+			}
+
 			local_persist U64 seed;
-			const F64 rad= random_f32(0.9, 1.1, &seed);
+			if (grid_material_fullness_in_circle(dig_center, 0.5, GRIDCELL_MATERIAL_GROUND) > 0) {
+				{ // Dig target
+					T3d tf= {{0.4, 0.4, 1}, identity_qd(), v2d_to_v3d(dig_center)};
+					drawcmd_model(	tf,
+									(Model*)res_by_name(g_env.resblob, ResType_Model, "playerch_target"),
+									(Color) {1, 1, 1, 1}, 1, 0);
+				}
+				if (dig && p->dig_timer <= 0.0f) { // Dig
+					const F64 rad= random_f32(0.5, 0.6, &seed);
+					p->dirt_amount += set_grid_material_in_circle(dig_center, rad, GRIDCELL_MATERIAL_AIR);
+					p->dig_timer= dig_interval;
+				}
+			}
 
-			V2d dif= sub_v2d(cursor_on_world, v3d_to_v2d(p->tf.pos));
-			dif= mul_v2d(dist, normalized_v2d(dif));
-
-			V2d center= add_v2d(v3d_to_v2d(p->tf.pos), dif);
-			set_grid_material_in_circle(center, rad, GRIDCELL_MATERIAL_AIR);
-			p->dig_timer= dig_interval;
+			if (	p->dirt_amount > 0 &&
+					!build_out_of_reach &&
+					grid_material_fullness_in_circle(end, 0.5, GRIDCELL_MATERIAL_GROUND) == 1) {
+				{ // Build cursor
+					T3d tf= {{1.3, 1.3, 1}, identity_qd(), v2d_to_v3d(end)};
+					//F32 alpha= MIN(1 - ABS(dif.x)/max_build_reach, 1 - ABS(dif.y)/max_build_reach);
+					//alpha= CLAMP(alpha, 0, 1);
+					drawcmd_model(	tf,
+									(Model*)res_by_name(g_env.resblob, ResType_Model, "playerch_target"),
+									(Color) {0.7, 0.2, 0.1, 1.0}, 1, 0);
+				}
+				if ((build && p->build_timer <= 0.0f) || build_immediately) { // Build
+					const F64 rad= random_f32(0.5, 0.6, &seed);
+					p->dirt_amount -= set_grid_material_in_circle(end, rad, GRIDCELL_MATERIAL_GROUND);
+					if (p->dirt_amount < 0)
+						p->dirt_amount= 0;
+					p->build_timer= build_interval;
+				}
+			}
 		}
 
 		int facing_dir= 0;
@@ -331,6 +416,15 @@ MOD_API void upd_playerch(PlayerCh *p, PlayerCh *e)
 				const Clip *dig_clip= (Clip*)res_by_id(p->dig_clip_id);
 				p->pose= calc_clip_pose(dig_clip, (dig_interval - p->dig_timer)/dig_interval);
 			}
+		}
+
+		{ // Draw bag
+			F64 scale_x= MIN(sqrt(p->dirt_amount*0.001)*1.1 + 0.3, 1.3);
+			F64 scale_y= MIN(sqrt(p->dirt_amount*0.001) + 0.6, 1.3);
+			T3d tf= {{scale_x, scale_y, 1}, identity_qd(), {p->tf.pos.x, p->tf.pos.y + 1}};
+			drawcmd_model(	tf,
+							(Model*)res_by_name(g_env.resblob, ResType_Model, "dirtbag"),
+							(Color) {1, 1, 1, 1}, 0, 0);
 		}
 
 		p->on_ground_timer -= dt;

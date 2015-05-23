@@ -284,6 +284,9 @@ void plat_update_impl(Device *d)
 			else if (*keysym == 0xff9a)
 				table_index= KEY_KP_9;
 
+			else if (*keysym >= 0x30 && *keysym <= 0x39)
+				table_index= KEY_0 + *keysym - 0x30;
+
 			else if (*keysym == 65307)
 				table_index= KEY_ESC;
 			else if (*keysym == 65361)

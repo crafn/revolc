@@ -23,6 +23,17 @@
 #define KEY_KP_7 21
 #define KEY_KP_8 22
 #define KEY_KP_9 23
+#define KEY_0 24
+#define KEY_1 25
+#define KEY_2 26
+#define KEY_3 27
+#define KEY_4 28
+#define KEY_5 29
+#define KEY_6 30
+#define KEY_7 31
+#define KEY_8 32
+#define KEY_9 33
+
 // ...
 
 #define KEY_A 97 // 'a'

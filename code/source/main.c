@@ -168,10 +168,11 @@ int main(int argc, const char **argv)
 			}
 #			endif
 
-			if (d->key_down['t'])
+			/*if (d->key_down['t'])
 				set_grid_material_in_circle(cursor_on_world, 1.0, GRIDCELL_MATERIAL_AIR);
 			if (d->key_down['g'])
 				set_grid_material_in_circle(cursor_on_world, 0.4, GRIDCELL_MATERIAL_GROUND);
+				*/
 
 			if (d->key_pressed['q'])
 				g_env.physworld->debug_draw= !g_env.physworld->debug_draw;
@@ -250,15 +251,17 @@ int main(int argc, const char **argv)
 
 		upd_editor();
 
-		if (g_env.editor->state == EditorState_invisible) {
-			upd_physworld(d->dt);
-			upd_world(world, d->dt);
-			post_upd_physworld();
-		}
+		F64 game_dt= d->dt;
+		if (g_env.editor->state != EditorState_invisible)
+			game_dt= 0.0;
+		upd_physworld(game_dt);
+		upd_world(world, game_dt);
+		post_upd_physworld();
 		upd_phys_rendering();
+
 		{ // Test ground drawing
 
-			const Model *model= (Model*)res_by_name(g_env.resblob, ResType_Model, "block_dirt");
+			const Model *model= (Model*)res_by_name(g_env.resblob, ResType_Model, "dirt");
 			const Mesh *mesh= model_mesh(model);
 
 			V2i px_ll= {0, g_env.device->win_size.y};

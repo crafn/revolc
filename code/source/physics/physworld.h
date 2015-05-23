@@ -74,6 +74,10 @@ REVOLC_API void upd_physworld(F64 dt);
 REVOLC_API void post_upd_physworld();
 REVOLC_API void upd_phys_rendering();
 
-REVOLC_API void set_grid_material_in_circle(V2d center, F64 rad, U8 material);
+// 0 = empty, 1 = partial, 2 = full
+REVOLC_API U32 grid_material_fullness_in_circle(V2d center, F64 rad, U8 material);
+// Returns number of changed cells
+REVOLC_API U32 set_grid_material_in_circle(V2d center, F64 rad, U8 material);
+REVOLC_API GridCell grid_cell(V2d world_vec);
 
 #endif // REVOLC_PHYSICS_PHYS_WORLD_H
