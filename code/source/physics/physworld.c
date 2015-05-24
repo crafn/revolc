@@ -369,11 +369,13 @@ void set_rigidbody(U32 h, RigidBodyDef *def)
 	if (def->disable_rot)
 		total_moment= INFINITY;
 
-	b->cp_body= cp_create_body(w->cp_space, total_mass, total_moment, b->is_static);
+	b->cp_body= cp_create_body(w->cp_space, total_mass, total_moment, def->is_static);
 	b->cp_data.body= b;
 	cpBodySetUserData(b->cp_body, &b->cp_data);
+	b->is_static= def->is_static;
 
 	cpBodySetPosition(b->cp_body, to_cpv((V2d) {b->tf.pos.x, b->tf.pos.y}));
+	cpBodySetAngle(b->cp_body, rotation_z_qd(b->tf.rot));
 
 	U32 circle_count= def->circle_count;
 	U32 poly_count= def->poly_count;
@@ -1269,9 +1271,8 @@ U32 grid_material_fullness_in_circle(V2d center, F64 rad, U8 material)
 	return !empty + full;
 }
 
-GridCell grid_cell(V2d world_vec)
+GridCell grid_cell(V2i v)
 {
-	V2i v= GRID_VEC_W(world_vec.x, world_vec.y);
 	if (	v.x < 0 || v.x >= GRID_WIDTH_IN_CELLS ||
 			v.y < 0 || v.y >= GRID_WIDTH_IN_CELLS)
 		return (GridCell) {};

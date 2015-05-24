@@ -11,6 +11,7 @@ typedef struct RigidBodyDef {
 
 	char mat_name[RES_NAME_SIZE];
 	bool disable_rot;
+	bool is_static;
 
 	Circle circles[MAX_SHAPES_PER_BODY];
 	U32 circle_count;

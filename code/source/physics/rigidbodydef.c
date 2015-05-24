@@ -4,6 +4,7 @@ int json_rigidbodydef_to_blob(struct BlobBuf *buf, JsonTok j)
 {
 	JsonTok j_mat= json_value_by_key(j, "mat");
 	JsonTok j_disable_rot= json_value_by_key(j, "disable_rot");
+	JsonTok j_is_static= json_value_by_key(j, "is_static");
 	JsonTok j_shapes= json_value_by_key(j, "shapes");
 
 	if (json_is_null(j_mat))
@@ -25,6 +26,9 @@ int json_rigidbodydef_to_blob(struct BlobBuf *buf, JsonTok j)
 
 	if (!json_is_null(j_disable_rot))
 		def.disable_rot= json_bool(j_disable_rot);
+
+	if (!json_is_null(j_is_static))
+		def.is_static= json_bool(j_is_static);
 
 	/// @todo Take density into account
 

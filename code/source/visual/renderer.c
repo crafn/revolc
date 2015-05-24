@@ -437,7 +437,7 @@ void create_renderer()
 	Renderer *r= zero_malloc(sizeof(*r));
 
 	r->cam_pos.y= 5.0;
-	r->cam_pos.z= 10.0;
+	r->cam_pos.z= 7.0;
 	r->cam_fov= (V2d) {3.141/2.0, 3.0141/2.0};
 
 	r->vao= create_vao(MeshType_tri, MAX_DRAW_VERTEX_COUNT, MAX_DRAW_INDEX_COUNT);

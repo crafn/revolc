@@ -286,6 +286,14 @@ int main(int argc, const char **argv)
 				float brightness= random_f32(0.7, 1.0, &seed);
 				float x_dif= random_f32(-0.07, 0.07, &seed);
 				float y_dif= random_f32(-0.07, 0.07, &seed);
+				/*
+				float z= 0;
+				float scale= 1;
+				float rot= 0;
+				float brightness= 1;
+				float x_dif= 0;
+				float y_dif= 0;
+				*/
 				
 				V3d size= {scale/GRID_RESO_PER_UNIT, scale/GRID_RESO_PER_UNIT, 1.0};
 				V3d pos= {

@@ -80,7 +80,7 @@ void try_spawn_ground(World *world, V2d pos)
 	};
 	NodeGroupDef *def=
 		(NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, "block");
-	create_nodes(world, def, WITH_ARRAY_COUNT(init_vals), 0);
+	create_nodes(world, def, WITH_ARRAY_COUNT(init_vals), world->next_entity_id++);
 }
 
 internal
@@ -93,15 +93,12 @@ void spawn_visual_prop(World *world, V3d pos, F64 rot, V3d scale, const char *na
 	};
 	NodeGroupDef *def=
 		(NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, "visual_prop");
-	create_nodes(world, def, WITH_ARRAY_COUNT(init_vals), 0);
+	create_nodes(world, def, WITH_ARRAY_COUNT(init_vals), world->next_entity_id++);
 }
 
 internal
 void spawn_phys_prop(World *world, V2d pos, const char *name, bool is_static)
 {
-	local_persist U64 group_i= 0;
-	group_i= (group_i + 1) % 3;
-
 	T3d tf= {{1, 1, 1}, identity_qd(), (V3d) {pos.x, pos.y, 0}};
 	SlotVal init_vals[]= {
 		{"body",	"tf",			WITH_DEREF_SIZEOF(&tf)},
@@ -111,7 +108,7 @@ void spawn_phys_prop(World *world, V2d pos, const char *name, bool is_static)
 	};
 	NodeGroupDef *def=
 		(NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, "phys_prop");
-	create_nodes(world, def, WITH_ARRAY_COUNT(init_vals), group_i);
+	create_nodes(world, def, WITH_ARRAY_COUNT(init_vals), world->next_entity_id++);
 }
 
 void generate_world(World *w, U64 seed)
@@ -120,7 +117,7 @@ void generate_world(World *w, U64 seed)
 		SlotVal init_vals[]= { };
 		NodeGroupDef *def=
 			(NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, "world_env");
-		create_nodes(w, def, WITH_ARRAY_COUNT(init_vals), 0);
+		create_nodes(w, def, WITH_ARRAY_COUNT(init_vals), w->next_entity_id++);
 	}
 
 	spawn_visual_prop(w, (V3d) {-100, -50, -490}, 0, (V3d) {700, 250, 1}, "bg_mountain");
@@ -157,20 +154,25 @@ void generate_world(World *w, U64 seed)
 		spawn_phys_prop(w, pos, "rollbot", false);
 		spawn_phys_prop(w, pos, "wbox", false);
 	}
-	for (int i= -100; i < 100; ++i) {
+	for (int i= -99; i < 99; ++i) {
 		F64 x= i/2.0;
-		V3d p_front= {x, ground_surf_y(x) - 0.02, 0.01 + random_f64(0.0, 0.1, &seed)};
-		V3d p_back= {x, ground_surf_y(x) + 0.02, -0.1 + random_f64(-0.1, 0.0, &seed)};
+		V3d p_front= {x, ground_surf_y(x) - 0.1, 0.01 + random_f64(0.0, 0.1, &seed)};
+		//V3d p_back= {x, ground_surf_y(x) + 0.02, -0.1 + random_f64(-0.1, 0.0, &seed)};
 
 		V2d a= {i - 0.2, ground_surf_y(x - 0.2)};
 		V2d b= {i + 0.2, ground_surf_y(x + 0.2)};
 		V2d tangent= sub_v2d(b, a);
 		F64 rot= atan2(tangent.y, tangent.x) + random_f64(-0.3, 0.3, &seed);
 
-		F64 scale= random_f64(0.75, 1.5, &seed);
+		F64 scale= random_f64(0.85, 1.45, &seed);
 
-		spawn_visual_prop(w, p_front, rot, (V3d) {scale, scale, scale}, "grassclump_f");
-		spawn_visual_prop(w, p_back, rot, (V3d) {scale, scale, scale}, "grassclump_b");
+		T3d tf= {{scale, scale, scale}, qd_by_axis((V3d){0, 0, 1}, rot), p_front};
+		SlotVal init_vals[]= {
+			{"body",	"tf",			WITH_DEREF_SIZEOF(&tf)},
+		};
+		NodeGroupDef *def=
+			(NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, "grass");
+		create_nodes(w, def, WITH_ARRAY_COUNT(init_vals), w->next_entity_id++);
 	}
 
 	// Compound test
@@ -181,7 +183,7 @@ void generate_world(World *w, U64 seed)
 		};
 		NodeGroupDef *def=
 			(NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, "test_comp");
-		create_nodes(w, def, WITH_ARRAY_COUNT(init_vals), 0);
+		create_nodes(w, def, WITH_ARRAY_COUNT(init_vals), w->next_entity_id++);
 	}
 
 	{ // Player test
@@ -191,6 +193,6 @@ void generate_world(World *w, U64 seed)
 		};
 		NodeGroupDef *def=
 			(NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, "playerch");
-		create_nodes(w, def, WITH_ARRAY_COUNT(init_vals), 0);
+		create_nodes(w, def, WITH_ARRAY_COUNT(init_vals), w->next_entity_id++);
 	}
 }

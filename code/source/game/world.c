@@ -275,6 +275,12 @@ void upd_world(World *w, F64 dt)
 
 	//debug_print("upd signal count: %i", signal_count);
 	//debug_print("upd batch count: %i", batch_count);
+
+	// Free remove-flagged nodes
+	for (U32 i= 0; i < MAX_NODE_COUNT; ++i) {
+		if (w->nodes[i].allocated && w->nodes[i].remove)
+			free_node(w, i);
+	}
 }
 
 typedef struct SaveHeader {
@@ -544,6 +550,26 @@ void free_node_group(World *w, U64 group_id)
 		if (node->group_id == group_id)
 			free_node(w, i);
 	}
+}
+
+void remove_node_group(World *w, void *node_impl_in_group)
+{
+	// @todo It's horrible to scan like this
+
+	U64 group_id= (U64)-1;
+	for (U32 i= 0; i < MAX_NODE_COUNT; ++i) {
+		NodeInfo *node= &w->nodes[i];
+		if (!node->allocated)
+			continue;
+
+		if (node_impl(w, NULL, node) == node_impl_in_group) {
+			group_id= node->group_id;
+			break;
+		}
+	}
+
+	ensure(group_id != (U64)-1);
+	free_node_group(w, group_id);
 }
 
 U32 node_impl_handle(World *w, U32 node_handle)

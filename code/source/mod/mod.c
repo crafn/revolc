@@ -292,8 +292,8 @@ MOD_API void upd_playerch(PlayerCh *p, PlayerCh *e)
 
 		{ // Camera
 			V2d target_pos= {
-				p->tf.pos.x*0.5 + cursor_p.x*0.5,
-				p->tf.pos.y*0.5 + cursor_p.y*0.5,
+				p->tf.pos.x, // + cursor_p.x*0.5,
+				p->tf.pos.y, // + cursor_p.y*0.5,
 			};
 
 			V3d cam_pos= g_env.renderer->cam_pos;
@@ -435,4 +435,28 @@ MOD_API void upd_playerch(PlayerCh *p, PlayerCh *e)
 MOD_API void free_playerch(PlayerCh *p)
 {
 	free_rigidbody(p->body);
+}
+
+MOD_API void upd_grass(	ModelEntity *front,	ModelEntity *front_e,
+						ModelEntity *back,	ModelEntity *back_e,
+						RigidBody *body,	RigidBody *body_e)
+{
+	for (; front != front_e; ++front, ++back, ++body) {
+		T3d tf= body->tf;
+
+		back->tf= tf;
+		back->tf.pos.z -= 0.05;
+
+		front->tf= tf;
+		front->tf.pos.z += 0.05;
+
+		V2i cell_vec= GRID_VEC_W(body->tf.pos.x, body->tf.pos.y);
+		V2i above_cell_vec= {cell_vec.x, cell_vec.y + 1};
+		if (grid_cell(cell_vec).material == GRIDCELL_MATERIAL_AIR) {
+			remove_node_group(g_env.world, body); // Kill me
+		}
+		if (grid_cell(above_cell_vec).material != GRIDCELL_MATERIAL_AIR) {
+			remove_node_group(g_env.world, body); // Kill me
+		}
+	}
 }

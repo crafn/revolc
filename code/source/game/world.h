@@ -50,6 +50,7 @@ typedef struct NodeInfo {
 	U32 impl_handle; // e.g. Handle to ModelEntity
 	U32 cmd_count;
 	bool allocated; /// @todo Can be substituted by type (== NULL)
+	bool remove;
 } NodeInfo;
 
 typedef struct AutoNodeImplStorage {
@@ -64,6 +65,7 @@ typedef struct AutoNodeImplStorage {
 typedef struct World {
 	F64 time;
 	F64 dt;
+	U64 next_entity_id;
 
 	// @todo Nodes don't need to be limited to game world
 	NodeInfo nodes[MAX_NODE_COUNT];
@@ -91,6 +93,7 @@ REVOLC_API void create_nodes(	World *w,
 								U64 group_id);
 REVOLC_API void free_node(World *w, U32 handle);
 REVOLC_API void free_node_group(World *w, U64 group_id);
+REVOLC_API void remove_node_group(World *w, void *node_impl_in_group);
 REVOLC_API U32 node_impl_handle(World *w, U32 node_handle);
 
 void world_on_res_reload(struct ResBlob *old);
