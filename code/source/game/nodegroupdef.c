@@ -81,6 +81,7 @@ void commit(	TokState *state,
 		if (size > sizeof(tok.str))
 			fail("Too long token");
 		fmt_str(tok.str, size, "%s", b);
+		ensure(strlen(tok.str) + 1 == size);
 		add_tok(tokens, next_tok, max_token_count, tok);
 		*state= TokState_none;
 	}
@@ -171,7 +172,7 @@ U32 node_i_by_name(const NodeGroupDef *def, const char *name)
 			return i;
 	}
 
-	fail("Node not found: %s", name);
+	fail("Node not found: '%s'", name);
 }
 
 // Finds offset and size of the sub-member in "foo.bar.asdfg.hsdg"

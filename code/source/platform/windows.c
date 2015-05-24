@@ -317,10 +317,9 @@ int v_fmt_str(char *str, U32 size, const char *fmt, va_list args)
 
 	// For some reason this mingw distro doesn't have vsnprintf_s. Must terminate manually
 	int ret= vsnprintf(str, size, fmt, args);
-	if (str && ret >= size) {
-		str[size - 1]= 0;
+	if (str && ret >= (int)size)
 		ret= size - 1;
-	}
+	str[size - 1]= 0;
 	return ret;
 }
 

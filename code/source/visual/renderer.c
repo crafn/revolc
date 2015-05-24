@@ -270,7 +270,7 @@ void recreate_texture_atlas(Renderer *r, ResBlob *blob)
 			fail("Texture atlas full!");
 
 		// Submit texture data
-		for (U32 lod_i= 0; lod_i < atlas_lod_count; ++lod_i) {
+		for (int lod_i= 0; lod_i < atlas_lod_count; ++lod_i) {
 			if (!tex->texels[lod_i])
 				continue;
 			const V2i reso= lod_reso(tex->reso, lod_i);
