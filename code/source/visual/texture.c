@@ -96,8 +96,8 @@ int json_texture_to_blob(struct BlobBuf *buf, JsonTok j)
 		const U32 mip_i= lod_i - 1;
 		mips[mip_i]= malloc(byte_count);
 		mip_byte_counts[mip_i]= byte_count;
-		for (U32 y= 0; y < reso.y; ++y) {
-			for (U32 x= 0; x < reso.x; ++x) {
+		for (int y= 0; y < reso.y; ++y) {
+			for (int x= 0; x < reso.x; ++x) {
 
 				// @todo Better filter
 				// Gamma == 2 for fast gamma correction
@@ -108,8 +108,8 @@ int json_texture_to_blob(struct BlobBuf *buf, JsonTok j)
 						x*width/reso.x + sample_d[sample_i].x,
 						y*height/reso.y + sample_d[sample_i].y
 					};
-					image_p.x= CLAMP(image_p.x, 0, width);
-					image_p.y= CLAMP(image_p.y, 0, height);
+					image_p.x= CLAMP(image_p.x, 0, (int)width);
+					image_p.y= CLAMP(image_p.y, 0, (int)height);
 					const U32 texel_i= image_p.x + image_p.y*width;
 
 					avg.r += SQR(image[texel_i].r)/4.0;

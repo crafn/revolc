@@ -15,7 +15,8 @@ static
 Color lerp_color(Color c1, Color c2, F32 t)
 { return (Color) {	c1.r*(1 - t) + c2.r*t,
 					c1.g*(1 - t) + c2.g*t,
-					c1.b*(1 - t) + c2.b*t}; }
+					c1.b*(1 - t) + c2.b*t,
+					c1.a*(1 - t) + c2.a*t}; }
 
 static
 Color identity_color()

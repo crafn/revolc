@@ -60,7 +60,7 @@ PolyCell* rasterized_poly(V2i *rect_ll, V2i *rect_size, const Poly *poly)
 
 		// At which side are we
 		bool is_left_side= cur_p.y > next_p.y;
-		bool is_horizontal_segment= abs(cur_p.y - next_p.y) < EPSILOND;
+		bool is_horizontal_segment= ABS(cur_p.y - next_p.y) < EPSILOND;
 
 		S32 low_y= floor(cur_p.y + 0.5);
 		S32 high_y= floor(next_p.y + 0.5);
@@ -511,7 +511,7 @@ void phys_draw_poly(
 		cpDataPointer data)
 {
 	V3d v[count];
-	for (U32 i= 0; i < count; ++i) {
+	for (int i= 0; i < count; ++i) {
 		v[i].x= verts[i].x;
 		v[i].y= verts[i].y;
 		v[i].z= 0.0;
@@ -976,7 +976,7 @@ void process_fluid_area(GridCell *grid, U32 cell_i, U16 area_id)
 				ensure(sink < edge_count);
 				ensure(source < edge_count);
 
-				if (abs(edges[sink].sinkness - edges[source].sinkness) <= 1)
+				if (ABS(edges[sink].sinkness - edges[source].sinkness) <= 1)
 					continue; // Remove jitter at surfaces
 
 				if (grid[edges[source].cell].already_swapped)

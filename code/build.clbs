@@ -271,8 +271,10 @@ def buildInfo(env, tags):
 
 	revolc_src_dir= "./source"
 	revolc_flags= target_flags + [
-		"Wall", "Werror",
-		"Wno-unused-function"
+		"Wextra", "Wall", "Werror",
+		"Wno-unused-function",
+		"Wno-unused-parameter", # Apparently C doesn't allow nameless parameters
+		"Wno-missing-field-initializers", # They're meant to be initialized to zero
 	]
 	revolc_defines= target_defines + dep_defines
 	revolc_includedirs= [ revolc_src_dir ] + dep_include_paths

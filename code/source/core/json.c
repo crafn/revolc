@@ -57,7 +57,7 @@ ParsedJsonFile malloc_parsed_json_file(const char *file)
 		ret.root.tok= ret.tokens;
 
 		{ // Terminate strings and primitives so that they're easier to handle
-			for (U32 i= 1; i < r; ++i) {
+			for (int i= 1; i < r; ++i) {
 				if (	ret.tokens[i].type == JSMN_STRING ||
 						ret.tokens[i].type == JSMN_PRIMITIVE)
 					ret.null_json[ret.tokens[i].end]= '\0';
@@ -86,7 +86,7 @@ JsonTok json_value_by_key(JsonTok obj, const char *key)
 {
 	ensure(obj.tok->type == JSMN_OBJECT);
 	jsmntok_t *m= obj.tok + 1;
-	for (U32 i= 0; i < obj.tok->size; ++i, m += m->deep_size + 1) {
+	for (int i= 0; i < obj.tok->size; ++i, m += m->deep_size + 1) {
 		if (m->type != JSMN_STRING)
 			continue;
 
@@ -146,7 +146,7 @@ U32 json_member_count(JsonTok j)
 
 JsonTok json_member(JsonTok j, U32 i)
 {
-	ensure(i < j.tok->size);
+	ensure(i < (U32)j.tok->size);
 	JsonTok ret= j;
 	ret.tok += 1;
 	for (U32 k= 0; k < i; ++k)
@@ -159,7 +159,7 @@ bool json_is_same(JsonTok j, const char *str)
 	ensure(	j.tok->type == JSMN_STRING ||
 			j.tok->type == JSMN_PRIMITIVE);
 
-	U32 i= 0;
+	int i= 0;
 	while (str[i] != 0 && i < j.tok->end - j.tok->start) {
 		if (str[i] != j.json[j.tok->start + i])
 			return false;
@@ -170,11 +170,11 @@ bool json_is_same(JsonTok j, const char *str)
 
 void json_strcpy(char *dst, U32 max_len, JsonTok j)
 {
-	U32 i= 0;
-	for (; i < j.tok->end - j.tok->start && i < max_len; ++i)
+	int i= 0;
+	for (; i < j.tok->end - j.tok->start && i < (int)max_len; ++i)
 		dst[i]= j.json[i + j.tok->start];
 
-	if (i < max_len)
+	if (i < (int)max_len)
 		dst[i]= '\0';
 	else
 		dst[max_len - 1]= '\0';
@@ -447,8 +447,8 @@ void wjson_add_sub(	JsonSubs *subs, U32 *count, U32 max_count,
 {
 	ensure(max_count > *count);
 
-	int begin_offset= 0;
-	int end_offset= 0;
+	U32 begin_offset= 0;
+	U32 end_offset= 0;
 
 	if (json_is_string(in)) {
 		// "asdfg",

@@ -17,7 +17,7 @@ internal inline
 void upd_smoothed(F32 *var, F32 target)
 {
 	const F32 delta= 0.005;
-	if (abs(*var - target) <= delta)
+	if (ABS(*var - target) <= delta)
 		*var= target;
 	else if (*var < target)
 		*var += delta;

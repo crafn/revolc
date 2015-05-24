@@ -37,7 +37,7 @@ void * malloc_file(const char *path, U32 *file_size)
 void file_write(FILE *f, const void *data, U32 size)
 {
 	int ret= fwrite(data, 1, size, f);
-	if (ret != size)
+	if ((U32)ret != size)
 		fail("fwrite failed");
 }
 

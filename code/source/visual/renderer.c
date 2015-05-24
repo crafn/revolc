@@ -181,8 +181,8 @@ void recreate_texture_atlas(Renderer *r, ResBlob *blob)
 	ensure(r->atlas_gl_id);
 	glBindTexture(GL_TEXTURE_2D_ARRAY, r->atlas_gl_id);
 
-	const U32 atlas_lod_count= MAX_TEXTURE_LOD_COUNT;
-	const U32 layers= TEXTURE_ATLAS_LAYER_COUNT;
+	const int atlas_lod_count= MAX_TEXTURE_LOD_COUNT;
+	const int layers= TEXTURE_ATLAS_LAYER_COUNT;
 
 	glTexStorage3D(GL_TEXTURE_2D_ARRAY, atlas_lod_count, GL_SRGB8_ALPHA8,
 			TEXTURE_ATLAS_WIDTH, TEXTURE_ATLAS_WIDTH, layers);
@@ -795,8 +795,8 @@ void render_frame()
 			recreate_rendering_pipeline(r);
 
 		V2d scrn_in_world= screen_to_world_size(g_env.device->win_size);
-		scrn_in_world.x= abs(scrn_in_world.x);
-		scrn_in_world.y= abs(scrn_in_world.y);
+		scrn_in_world.x= ABS(scrn_in_world.x);
+		scrn_in_world.y= ABS(scrn_in_world.y);
 
 		// Controls how much further outside the screen shadows are calculated (= blurred)
 		const F32 occlusion_safe_dist= 10.0;

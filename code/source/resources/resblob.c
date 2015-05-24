@@ -333,7 +333,7 @@ BlobOffset blob_offset(const Resource *who_asks, const void *ptr)
 void print_blob(const ResBlob *blob)
 {
 	debug_print("print_blob - res count: %i", (int)blob->res_count);
-	for (int res_i= 0; res_i < blob->res_count; ++res_i) {
+	for (U32 res_i= 0; res_i < blob->res_count; ++res_i) {
 		Resource* res= res_by_index(blob, res_i);
 		debug_print(
 				"  %s, %s",

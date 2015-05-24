@@ -255,7 +255,7 @@ F32 *malloc_decoded_ogg_vorbis(U32 *frame_count, U32 *ch_count, U8 *ogg_data, U3
 						}
 
 						U32 begin_frame= total_sample_count/info.channels;
-						for (U32 ch_i= 0; ch_i < info.channels; ++ch_i) {
+						for (int ch_i= 0; ch_i < info.channels; ++ch_i) {
 							F32* mono= rawsamples[ch_i];
 							for (U32 i= 0; i < frames_to_read; ++i){
 								U32 frame= begin_frame + i;
