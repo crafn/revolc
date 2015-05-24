@@ -117,10 +117,10 @@ void plat_update_impl(Device *d)
 		VK_SPACE, VK_DELETE, VK_NUMPAD0, VK_NUMPAD1,
 		VK_NUMPAD2, VK_NUMPAD3, VK_NUMPAD4, VK_NUMPAD5,
 		VK_NUMPAD6, VK_NUMPAD7, VK_NUMPAD8, VK_NUMPAD9,
-		0, 0, 0, 0,
-		0, 0, 0, 0,
+		0x30, 0x31, 0x32, 0x33, // Numbers 0-3
+		0x34, 0x35, 0x36, 0x37, // Numbers 4-7
 
-		0, 0, 0, 0,
+		0x38, 0x39, 0, 0, // Number 8-9
 		0, 0, 0, 0,
 		0, 0, 0, 0,
 		0, 0, 0, 0,
