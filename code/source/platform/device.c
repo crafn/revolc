@@ -62,6 +62,7 @@ Device * plat_init(const char* title, V2i reso)
 		glUniform4f= (GlUniform4f)plat_query_gl_func("glUniform4f");
 		glUniformMatrix4fv= (GlUniformMatrix4fv)plat_query_gl_func("glUniformMatrix4fv");
 		glUniform1i= (GlUniform1i)plat_query_gl_func("glUniform1i");
+		glUniform2i= (GlUniform2i)plat_query_gl_func("glUniform2i");
 		glGenBuffers= (GlGenBuffers)plat_query_gl_func("glGenBuffers");
 		glBindBuffer= (GlBindBuffer)plat_query_gl_func("glBindBuffer");
 		glBufferData= (GlBufferData)plat_query_gl_func("glBufferData");

@@ -27,6 +27,6 @@ MOD_API void upd_dirtbug(DirtBug *bug, DirtBug *bug_end)
 	//F64 dt= g_env.world->dt;
 
 	for (; bug != bug_end; ++bug) {
-		debug_print("DirtBug %f", bug->body->tf.pos.x);
+		//debug_print("DirtBug %f", bug->body->tf.pos.x);
 	}
 }

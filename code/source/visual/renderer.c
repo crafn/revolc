@@ -439,6 +439,7 @@ void create_renderer()
 	r->cam_pos.y= 5.0;
 	r->cam_pos.z= 7.0;
 	r->cam_fov= (V2d) {3.141/2.0, 3.0141/2.0};
+	r->dithering= true;
 
 	r->vao= create_vao(MeshType_tri, MAX_DRAW_VERTEX_COUNT, MAX_DRAW_INDEX_COUNT);
 
@@ -926,7 +927,8 @@ void render_frame()
 
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-			glViewport(0, 0, g_env.device->win_size.x, g_env.device->win_size.y);
+			V2i reso= g_env.device->win_size;
+			glViewport(0, 0, reso.x, reso.y);
 			ShaderSource* shd=
 				(ShaderSource*)res_by_name(g_env.resblob, ResType_ShaderSource, "post");
 			glUseProgram(shd->prog_gl_id);
@@ -944,6 +946,9 @@ void render_frame()
 			glBindTexture(GL_TEXTURE_2D, r->occlusion_tex);
 
 			glUniform2f(glGetUniformLocation(shd->prog_gl_id, "u_occlusion_scale"), occlusion_scale.x, occlusion_scale.y);
+
+			glUniform2i(glGetUniformLocation(shd->prog_gl_id, "u_reso"), reso.x, reso.y);
+			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_dithering"), r->dithering);
 
 			draw_screen_quad();
 		}

@@ -195,4 +195,14 @@ void generate_world(World *w, U64 seed)
 			(NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, "playerch");
 		create_nodes(w, def, WITH_ARRAY_COUNT(init_vals), w->next_entity_id++);
 	}
+
+	{ // Dirtbug
+		T3d tf= {{1, 1, 1}, identity_qd(), {0, 20}};
+		SlotVal init_vals[]= {
+			{"body", "tf", WITH_DEREF_SIZEOF(&tf)},
+		};
+		NodeGroupDef *def=
+			(NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, "dirtbug");
+		create_nodes(w, def, WITH_ARRAY_COUNT(init_vals), w->next_entity_id++);
+	}
 }

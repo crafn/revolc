@@ -77,6 +77,8 @@ typedef void (*GlUniformMatrix4fv)(GLint, GLsizei, GLboolean, const GLfloat*);
 GlUniformMatrix4fv glUniformMatrix4fv;
 typedef void (*GlUniform1i)(GLint, GLint);
 GlUniform1i glUniform1i;
+typedef void (*GlUniform2i)(GLint, GLint, GLint);
+GlUniform2i glUniform2i;
 typedef void (*GlGenBuffers)(GLsizei, GLuint*);
 GlGenBuffers glGenBuffers;
 typedef void (*GlBindBuffer)(GLenum, GLuint);
