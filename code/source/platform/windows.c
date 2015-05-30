@@ -319,7 +319,8 @@ int v_fmt_str(char *str, U32 size, const char *fmt, va_list args)
 	int ret= vsnprintf(str, size, fmt, args);
 	if (str && ret >= (int)size)
 		ret= size - 1;
-	str[size - 1]= 0;
+	if (str && size >= 1)
+		str[size - 1]= 0;
 	return ret;
 }
 
