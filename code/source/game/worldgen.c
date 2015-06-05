@@ -154,7 +154,7 @@ void generate_world(World *w, U64 seed)
 		spawn_phys_prop(w, pos, "rollbot", false);
 		spawn_phys_prop(w, pos, "wbox", false);
 	}
-	for (int i= -99; i < 99; ++i) {
+	for (int i= -GRID_WIDTH + 1; i < GRID_WIDTH - 1; ++i) {
 		F64 x= i/2.0;
 		V3d p_front= {x, ground_surf_y(x) - 0.1, 0.01 + random_f64(0.0, 0.1, &seed)};
 		//V3d p_back= {x, ground_surf_y(x) + 0.02, -0.1 + random_f64(-0.1, 0.0, &seed)};
@@ -196,7 +196,7 @@ void generate_world(World *w, U64 seed)
 		create_nodes(w, def, WITH_ARRAY_COUNT(init_vals), w->next_entity_id++);
 	}
 
-	{ // Dirtbug
+	for (U32 i= 0; i < 1; ++i) { // Dirtbug
 		T3d tf= {{1, 1, 1}, identity_qd(), {0, 20}};
 		SlotVal init_vals[]= {
 			{"body", "tf", WITH_DEREF_SIZEOF(&tf)},

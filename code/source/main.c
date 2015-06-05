@@ -87,7 +87,7 @@ int main(int argc, const char **argv)
 		plat_update(d);
 		upd_uicontext();
 		time_accum += d->dt;
-		if (frame++ == 60) {
+		if (frame++ == 60 && 0) {
 			debug_print("---");
 			debug_print("model entities: %i", g_env.renderer->m_entity_count);
 			debug_print("comp entities: %i", g_env.renderer->c_entity_count);

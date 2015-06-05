@@ -2,9 +2,9 @@
 
 void* zero_malloc(U32 size)
 {
-	void* ptr= malloc(size);
-	memset(ptr, 0, size);
-	return ptr;
+	void* mem= malloc(size);
+	memset(mem, 0, size);
+	return mem;
 }
 
 void * dev_malloc(U32 size)

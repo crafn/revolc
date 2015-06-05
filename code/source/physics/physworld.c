@@ -266,6 +266,15 @@ void create_physworld()
 	ensure(!g_env.physworld);
 	g_env.physworld= w;
 
+	w->griddef= (GridDef) {
+		.offset= (V2i) {-GRID_WIDTH_IN_CELLS/2, -GRID_WIDTH_IN_CELLS/2},
+		.reso= (V2i) {GRID_WIDTH_IN_CELLS, GRID_WIDTH_IN_CELLS},
+		.reso_per_unit= GRID_RESO_PER_UNIT,
+		.cell_count= GRID_CELL_COUNT,
+		.sizeof_cell= sizeof(*w->grid),
+		.sizeof_grid= sizeof(w->grid),
+	};
+
 	w->cp_space= cpSpaceNew();
 	cpSpaceSetIterations(w->cp_space, 10);
 	cpSpaceSetGravity(w->cp_space, cpv(0, -25));
@@ -545,6 +554,10 @@ void upd_physworld(F64 dt)
 					cpv(b->tf.pos.x, b->tf.pos.y));
 			b->input_force= (V2d) {};
 		}
+
+		if (b->max_target_force > 0.0)
+			apply_velocity_target(b, b->target_velocity, b->max_target_force);
+		b->max_target_force= 0.0;
 	}
 	/// @todo Accumulation
 	/// @todo Reset torques etc. only after all timesteps are done
@@ -562,6 +575,7 @@ void upd_physworld(F64 dt)
 		b->tf.pos.y= p.y;
 		b->tf.rot= qd_by_xy_rot_matrix(r.x, r.y);
 		b->velocity= from_cpv(cpBodyGetVelocity(b->cp_body));
+
 
 
 		b->tf_changed= !equals_v3d(b->prev_tf.pos, b->tf.pos) ||

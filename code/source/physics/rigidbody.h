@@ -18,8 +18,10 @@ typedef struct RigidBodyCpData {
 
 typedef struct RigidBody {
 	/// @todo Mechanism for separating input variables
-	V2d input_force; // in
 	char def_name[RES_NAME_SIZE]; // in
+	V2d input_force; // in, set every frame
+	V2d target_velocity; // in
+	F64 max_target_force; // in, set every frame
 
 	T3d tf;
 	T3d prev_tf;

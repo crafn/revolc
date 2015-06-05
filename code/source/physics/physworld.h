@@ -2,6 +2,7 @@
 #define REVOLC_PHYSICS_PHYS_WORLD_H
 
 #include "build.h"
+#include "core/grid.h"
 #include "rigidbody.h"
 #include "rigidbodydef.h"
 
@@ -53,6 +54,7 @@ typedef struct PhysWorld {
 	RigidBody bodies[MAX_RIGIDBODY_COUNT];
 	U32 next_body, body_count;
 
+	GridDef griddef;
 	GridCell grid[GRID_CELL_COUNT];
 	bool grid_modified; // Set to true after making changes to grid
 

@@ -7,6 +7,7 @@
 #include "core/array.c"
 #include "core/debug_print.c"
 #include "core/ensure.c"
+#include "core/grid.c"
 #include "core/file.c"
 #include "core/json.c"
 #include "core/malloc.c"

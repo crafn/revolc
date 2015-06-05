@@ -6,6 +6,9 @@
 REVOLC_API WARN_UNUSED
 void * zero_malloc(U32 size);
 
+#define STACK_ALLOC(size) alloca(size)
+#define ZERO_STACK_ALLOC(size) memset(alloca(size), 0, size)
+
 REVOLC_API WARN_UNUSED
 void * dev_malloc(U32 size);
 REVOLC_API WARN_UNUSED
