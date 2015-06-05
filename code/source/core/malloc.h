@@ -3,6 +3,8 @@
 
 #include "build.h"
 
+#include <string.h>
+
 REVOLC_API WARN_UNUSED
 void * zero_malloc(U32 size);
 

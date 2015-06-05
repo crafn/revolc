@@ -33,9 +33,9 @@ typedef struct GridCell {
 
 	U8 material; // Ground or what
 
+	U8 draw_something; // For debugging
 #ifdef USE_FLUID_PROTO
 	// @todo Pack to bitfields when design is stabilized
-	U8 draw_something; // For debugging
 	U8 water;
 	bool already_swapped; // To prevent double swap in sim, could be temp
 	U16 pressure;

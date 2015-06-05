@@ -1229,9 +1229,11 @@ void upd_phys_rendering()
 	for (U32 i= 0; i < GRID_CELL_COUNT; ++i) {
 		U8 ground_portion= w->grid[i].material == GRIDCELL_MATERIAL_GROUND ? 126 : 0;
 		grid[i].r= MIN(w->grid[i].body_portion*3, 255);
-		grid[i].g= 0;
+		grid[i].g= w->grid[i].draw_something*255;
 		grid[i].b= ground_portion;
-		grid[i].a= MIN(ground_portion + w->grid[i].body_portion*3, 255);
+		grid[i].a= MIN(ground_portion + w->grid[i].body_portion*3 + w->grid[i].draw_something*255, 255);
+
+		w->grid[i].draw_something= 0;
 	}
 }
 
