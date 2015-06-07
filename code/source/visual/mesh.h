@@ -30,8 +30,9 @@ typedef struct TriMeshVertex {
 	V3f uv;
 	Color color; // @todo Could be U8[4]
 	F32 emission;
+	U8 pattern;
 	bool selected; // Editor
-	bool pad[19];
+	bool pad[18];
 } TriMeshVertex ALIGNED(64);
 
 typedef struct Mesh {

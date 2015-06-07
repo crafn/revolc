@@ -74,7 +74,8 @@ void gui_text(const char *text)
 			gui_font()->atlas_uv,
 			(Color) {1, 1, 1, 1},
 			gui_next_draw_layer(),
-			0.0);
+			0.0,
+			NULL_PATTERN);
 
 	gui_end();
 	gui_advance_turtle(size);
@@ -330,7 +331,8 @@ void gui_model_image(V2i px_pos, V2i px_size, ModelEntity *src_model)
 			(AtlasUv) {src_model->atlas_uv, src_model->scale_to_atlas_uv},
 			(Color) {1, 1, 1, 1},
 			gui_next_draw_layer(),
-			0.0);
+			0.0,
+			NULL_PATTERN);
 }
 
 void gui_res_info(ResType t, const Resource *res)

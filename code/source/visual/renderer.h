@@ -8,6 +8,8 @@
 #include "mesh.h"
 #include "vao.h"
 
+#define NULL_PATTERN 0
+
 // Command for the (immediate-mode) renderer to draw a model this frame
 typedef struct DrawCmd {
 	T3d tf;
@@ -15,6 +17,7 @@ typedef struct DrawCmd {
 	Color color;
 	V3f atlas_uv;
 	F32 emission;
+	U8 pattern;
 	V2f scale_to_atlas_uv;
 	U32 mesh_v_count;
 	U32 mesh_i_count;
@@ -28,6 +31,7 @@ typedef struct Renderer {
 	F32 exposure;
 	Color env_light_color;
 	bool dithering;
+	float dithering_phase;
 
 	DrawCmd cmds[MAX_DRAW_CMD_COUNT];
 	U32 cmd_count;
@@ -60,8 +64,10 @@ typedef struct Renderer {
 	U32 fluid_grid_tex;
 	bool draw_fluid;
 
-	U32 atlas_gl_id;
+	U32 atlas_tex;
 	Vao vao;
+	U32 dither_tex;
+	V2i dither_tex_reso;
 
 	// Rendering pipeline
 	U32 scene_fbo;
@@ -89,7 +95,8 @@ REVOLC_API void drawcmd(	T3d tf,
 							AtlasUv uv,
 							Color c,
 							S32 layer,
-							F32 emission);
+							F32 emission,
+							U8 pattern);
 REVOLC_API void drawcmd_model(	T3d tf,
 								const Model *model,
 								Color c,

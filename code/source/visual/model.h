@@ -14,6 +14,7 @@ typedef struct Model {
 	char mesh[RES_NAME_SIZE];
 	Color color;
 	F64 emission;
+	U8 pattern;
 } PACKED Model;
 
 REVOLC_API Texture* model_texture(const Model *model, U32 index);

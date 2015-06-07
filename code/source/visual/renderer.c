@@ -150,7 +150,7 @@ M44f cam_matrix(const Renderer *r)
 	return mul_m44f(view_matrix(r), p_matrix);
 }
 
-/// Helper in `recreate_texture_atlas`
+/// Helper in `recreate_gl_textures`
 typedef struct TexInfo {
 	const char *name;
 	V2i reso;
@@ -171,15 +171,46 @@ int texinfo_cmp(const void *a_, const void *b_)
 }
 
 internal
-void recreate_texture_atlas(Renderer *r, ResBlob *blob)
+void recreate_gl_textures(Renderer *r, ResBlob *blob)
 {
-	gl_check_errors("recreate_texture_atlas: begin");
-	if (r->atlas_gl_id)
-		glDeleteTextures(1, &r->atlas_gl_id);
+	gl_check_errors("recreate_gl_textures: begin");
+	{ // Dither patterns
+		if (r->dither_tex)
+			glDeleteTextures(1, &r->dither_tex);
 
-	glGenTextures(1, &r->atlas_gl_id);
-	ensure(r->atlas_gl_id);
-	glBindTexture(GL_TEXTURE_2D_ARRAY, r->atlas_gl_id);
+		Texture *tex= (Texture*)res_by_name(g_env.resblob,
+											ResType_Texture,
+											"ditherpatterns");
+		r->dither_tex_reso= tex->reso;
+
+		gl_check_errors("recreate_gl_textures dither: begin");
+		glGenTextures(1, &r->dither_tex);
+		ensure(r->dither_tex);
+		glBindTexture(GL_TEXTURE_2D, r->dither_tex);
+		// @note No sRGB because shaders depend on exact numerical values
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RED,
+				tex->reso.x, tex->reso.y, 0,
+				GL_RGBA, GL_UNSIGNED_BYTE,
+				texture_texels(tex, 0));
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 1);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 0);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_LOD, 0);
+
+		gl_check_errors("recreate_gl_textures dither: end");
+	}
+
+	if (r->atlas_tex)
+		glDeleteTextures(1, &r->atlas_tex);
+
+	glGenTextures(1, &r->atlas_tex);
+	ensure(r->atlas_tex);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, r->atlas_tex);
 
 	const int atlas_lod_count= MAX_TEXTURE_LOD_COUNT;
 	const int layers= TEXTURE_ATLAS_LAYER_COUNT;
@@ -195,6 +226,7 @@ void recreate_texture_atlas(Renderer *r, ResBlob *blob)
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 1000);
 	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_LOD, -1000);
+
 
 	// Gather TexInfos
 	/// @todo MissingResource
@@ -304,7 +336,7 @@ void recreate_texture_atlas(Renderer *r, ResBlob *blob)
 	}
 
 	free(tex_infos);
-	gl_check_errors("recreate_texture_atlas: end");
+	gl_check_errors("recreate_gl_textures: end");
 }
 
 internal
@@ -444,7 +476,7 @@ void create_renderer()
 	r->vao= create_vao(MeshType_tri, MAX_DRAW_VERTEX_COUNT, MAX_DRAW_INDEX_COUNT);
 
 	recreate_rendering_pipeline(r);
-	recreate_texture_atlas(r, g_env.resblob);
+	recreate_gl_textures(r, g_env.resblob);
 
 	{
 		glGenTextures(1, &r->grid_ddraw_tex);
@@ -480,7 +512,8 @@ void destroy_renderer()
 	destroy_vao(&r->vao);
 
 	destroy_rendering_pipeline(r);
-	glDeleteTextures(1, &r->atlas_gl_id);
+	glDeleteTextures(1, &r->dither_tex);
+	glDeleteTextures(1, &r->atlas_tex);
 	glDeleteTextures(1, &r->fluid_grid_tex);
 	glDeleteTextures(1, &r->occlusion_grid_tex);
 	glDeleteTextures(1, &r->grid_ddraw_tex);
@@ -494,7 +527,8 @@ void drawcmd(	T3d tf,
 				AtlasUv uv,
 				Color c,
 				S32 layer,
-				F32 emission)
+				F32 emission,
+				U8 pattern)
 {
 	DrawCmd cmd= {
 		.tf= tf,
@@ -507,6 +541,7 @@ void drawcmd(	T3d tf,
 		.vertices= v,
 		.indices= i,
 		.emission= emission,
+		.pattern= pattern,
 	};
 	Renderer *r= g_env.renderer;
 	if (r->cmd_count >= MAX_DRAW_CMD_COUNT) {
@@ -529,7 +564,8 @@ void drawcmd_model(	T3d tf,
 			tex->atlas_uv,
 			mul_color(model->color, c),
 			layer,
-			model->emission + emission);
+			model->emission + emission,
+			model->pattern);
 }
 
 T3d px_tf(V2i px_pos, V2i px_size)
@@ -554,6 +590,7 @@ void recache_modelentity(ModelEntity *e)
 	Texture *tex= model_texture(model, 0);
 	e->color= model->color;
 	e->emission= model->emission;
+	e->pattern= model->pattern;
 	e->atlas_uv= tex->atlas_uv.uv;
 	e->scale_to_atlas_uv= tex->atlas_uv.scale;
 	e->vertices=
@@ -723,7 +760,8 @@ void render_frame()
 				(AtlasUv) {e->atlas_uv, e->scale_to_atlas_uv},
 				e->color,
 				e->layer,
-				e->emission);
+				e->emission,
+				e->pattern);
 	}
 
 	// Calculate total vertex and index count for frame
@@ -780,6 +818,8 @@ void render_frame()
 
 				v.color= cmd->color;
 				v.emission= cmd->emission;
+
+				v.pattern= cmd->pattern;
 
 				total_verts[cur_v]= v;
 				++cur_v;
@@ -870,7 +910,7 @@ void render_frame()
 
 			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_tex_color"), 0);
 			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D_ARRAY, r->atlas_gl_id);
+			glBindTexture(GL_TEXTURE_2D_ARRAY, r->atlas_tex);
 
 			bind_vao(&r->vao);
 			draw_vao(&r->vao);
@@ -945,10 +985,19 @@ void render_frame()
 			glActiveTexture(GL_TEXTURE2);
 			glBindTexture(GL_TEXTURE_2D, r->occlusion_tex);
 
-			glUniform2f(glGetUniformLocation(shd->prog_gl_id, "u_occlusion_scale"), occlusion_scale.x, occlusion_scale.y);
+			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_dither"), 3);
+			glActiveTexture(GL_TEXTURE3);
+			glBindTexture(GL_TEXTURE_2D, r->dither_tex);
+
+			glUniform2i(glGetUniformLocation(shd->prog_gl_id, "u_dither_reso"),
+				r->dither_tex_reso.x, r->dither_tex_reso.y);
+			glUniform2f(glGetUniformLocation(shd->prog_gl_id, "u_occlusion_scale"),
+				occlusion_scale.x, occlusion_scale.y);
 
 			glUniform2i(glGetUniformLocation(shd->prog_gl_id, "u_reso"), reso.x, reso.y);
 			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_dithering"), r->dithering);
+			glUniform1f(glGetUniformLocation(shd->prog_gl_id,
+				"u_dithering_phase"), r->dithering_phase);
 
 			draw_screen_quad();
 		}
@@ -1094,7 +1143,7 @@ void renderer_on_res_reload()
 {
 	Renderer *r= g_env.renderer;
 
-	recreate_texture_atlas(r, g_env.resblob);
+	recreate_gl_textures(r, g_env.resblob);
 	recache_modelentities();
 
 	for (U32 e_i= 0; e_i < MAX_COMPENTITY_COUNT; ++e_i) {
