@@ -26,18 +26,28 @@ Vao create_vao(MeshType m, U32 max_v_count, U32 max_i_count)
 	
 	for (U32 i= 0; i < attrib_count; ++i) {
 		glEnableVertexAttribArray(i);
-		glVertexAttribPointer(
-				i,
-				attribs[i].size,
-				attribs[i].type,
-				attribs[i].normalized,
-				vao.v_size,
-				(const GLvoid*)(PtrInt)attribs[i].offset);
+		if (attribs[i].floating) {
+			glVertexAttribPointer(
+					i,
+					attribs[i].size,
+					attribs[i].type,
+					attribs[i].normalized,
+					vao.v_size,
+					(const GLvoid*)(PtrInt)attribs[i].offset);
+		} else {
+			glVertexAttribIPointer(
+					i,
+					attribs[i].size,
+					attribs[i].type,
+					vao.v_size,
+					(const GLvoid*)(PtrInt)attribs[i].offset);
+		}
 	}
 
 	glBufferData(GL_ARRAY_BUFFER, vao.v_size*max_v_count, NULL, GL_STATIC_DRAW);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-			sizeof(MeshIndexType)*max_i_count, NULL, GL_STATIC_DRAW);
+	if (vao.ibo_id)
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+				sizeof(MeshIndexType)*max_i_count, NULL, GL_STATIC_DRAW);
 
 	return vao;
 }

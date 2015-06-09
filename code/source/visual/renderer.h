@@ -71,8 +71,13 @@ typedef struct Renderer {
 
 	// Rendering pipeline
 	U32 scene_fbo;
-	U32 scene_fbo_tex;
+	U32 scene_color_tex;
+	U32 scene_detail_tex; // Requested brush detail
 	V2i scene_fbo_reso;
+	Vao brush_vao; // Brush positions
+	U32 paint_fbo; // Painted scene
+	U32 paint_fbo_tex;
+	V2i paint_fbo_reso;
 	U32 hl_fbo; // Highlights to be bloomed
 	U32 hl_tex;
 	V2i hl_fbo_reso;

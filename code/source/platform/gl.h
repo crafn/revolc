@@ -14,9 +14,12 @@
 #define GL_DYNAMIC_DRAW 0x88E8
 #define GL_FRAGMENT_SHADER 0x8B30
 #define GL_VERTEX_SHADER 0x8B31
+#define GL_GEOMETRY_SHADER 0x8DD9
 #define GL_COMPILE_STATUS 0x8B81
 #define GL_LINK_STATUS 0x8B82
 #define GL_SRGB8_ALPHA8 0x8C43
+#define GL_MAJOR_VERSION 0x821B
+#define GL_MINOR_VERSION 0x821C
 
 #if PLATFORM == PLATFORM_WINDOWS
 #	define GL_CLAMP_TO_EDGE 0x812F
@@ -96,9 +99,12 @@ typedef void (*GlDisableVertexAttribArray)(GLuint);
 GlDisableVertexAttribArray glDisableVertexAttribArray;
 typedef void (*GlVertexAttribPointer)(GLuint, GLint, GLenum, GLboolean, GLsizei, const GLvoid*);
 GlVertexAttribPointer glVertexAttribPointer;
+typedef void (*GlVertexAttribIPointer)(GLuint, GLint, GLenum, GLsizei, const GLvoid*);
+GlVertexAttribIPointer glVertexAttribIPointer;
 typedef void (*GlBindAttribLocation)(GLuint program, GLuint index, const GLchar *name);
 GlBindAttribLocation glBindAttribLocation;
-
+typedef void (*GlDrawBuffers)(GLsizei n, const GLenum *buffs);
+GlDrawBuffers glDrawBuffers;
 
 // Required GL 3 features
 
@@ -142,7 +148,7 @@ GlBindFragDataLocation glBindFragDataLocation;
 
 // Useful utilities wrapping multiple OpenGL commands
 
-REVOLC_API void gl_check_shader_status(GLuint shd);
+REVOLC_API void gl_check_shader_status(GLuint shd, const char *msg);
 REVOLC_API void gl_check_program_status(GLuint prog);
 REVOLC_API void gl_check_errors(const char* tag);
 REVOLC_API void gl_destroy_shader_prog(GLuint *prog, GLuint *vs, GLuint *gs, GLuint *fs);

@@ -30,19 +30,19 @@ void init_shadersource(ShaderSource *shd)
 		*vs= glCreateShader(GL_VERTEX_SHADER);
 		glShaderSource(*vs, vs_count, &vs_src, NULL);
 		glCompileShader(*vs);
-		gl_check_shader_status(*vs);
+		gl_check_shader_status(*vs, "vertex shader");
 	}
-	if (gs_count > 0) { // Geometry
-		*gs= glCreateShader(GL_FRAGMENT_SHADER);
+	if (strlen(gs_src) > 0) { // Geometry
+		*gs= glCreateShader(GL_GEOMETRY_SHADER);
 		glShaderSource(*gs, gs_count, &gs_src, NULL);
 		glCompileShader(*gs);
-		gl_check_shader_status(*gs);
+		gl_check_shader_status(*gs, "geometry shader");
 	}
 	{ // Fragment
 		*fs= glCreateShader(GL_FRAGMENT_SHADER);
 		glShaderSource(*fs, fs_count, &fs_src, NULL);
 		glCompileShader(*fs);
-		gl_check_shader_status(*fs);
+		gl_check_shader_status(*fs, "fragment shader");
 	}
 	{ // Shader program
 		*prog= glCreateProgram();
@@ -72,9 +72,11 @@ int json_shadersource_to_blob(struct BlobBuf *buf, JsonTok j)
 {
 	int return_value= 0;
 	char *vs_src= NULL; /// @warning Not null-terminated!
+	char *gs_src= NULL; /// @warning Not null-terminated!
 	char *fs_src= NULL; /// @warning Not null-terminated!
 
 	JsonTok j_vs_file= json_value_by_key(j, "vs_file");
+	JsonTok j_gs_file= json_value_by_key(j, "gs_file");
 	JsonTok j_fs_file= json_value_by_key(j, "fs_file");
 
 	if (json_is_null(j_vs_file)) {
@@ -88,22 +90,30 @@ int json_shadersource_to_blob(struct BlobBuf *buf, JsonTok j)
 	}
 
 	char vs_total_path[MAX_PATH_SIZE];
+	char gs_total_path[MAX_PATH_SIZE];
 	char fs_total_path[MAX_PATH_SIZE];
 	joined_path(	vs_total_path,
 					j.json_path,
 					json_str(j_vs_file));
+	if (!json_is_null(j_gs_file))
+		joined_path(	gs_total_path,
+						j.json_path,
+						json_str(j_gs_file));
 	joined_path(	fs_total_path,
 					j.json_path,
 					json_str(j_fs_file));
 
-	U32 vs_src_len;
-	U32 fs_src_len;
+	U32 vs_src_len= 0;
+	U32 gs_src_len= 0;
+	U32 fs_src_len= 0;
 	vs_src= malloc_file(vs_total_path, &vs_src_len);
+	if (!json_is_null(j_gs_file))
+		gs_src= malloc_file(gs_total_path, &gs_src_len);
 	fs_src= malloc_file(fs_total_path, &fs_src_len);
 
 	BlobOffset vs_src_offset= buf->offset + sizeof(ShaderSource) - sizeof(Resource);
-	BlobOffset gs_src_offset= 0;
-	BlobOffset fs_src_offset= vs_src_offset + vs_src_len + 1;
+	BlobOffset gs_src_offset= vs_src_offset + vs_src_len + 1;
+	BlobOffset fs_src_offset= gs_src_offset + gs_src_len + 1;
 	MeshType mesh_type= MeshType_tri;
 	U32 cached= 0;
 	U8 null_byte= 0;
@@ -118,11 +128,14 @@ int json_shadersource_to_blob(struct BlobBuf *buf, JsonTok j)
 	blob_write(buf, &cached, sizeof(cached));
 	blob_write(buf, vs_src, vs_src_len);
 	blob_write(buf, &null_byte, 1);
+	blob_write(buf, gs_src, gs_src_len);
+	blob_write(buf, &null_byte, 1);
 	blob_write(buf, fs_src, fs_src_len);
 	blob_write(buf, &null_byte, 1);
 
 cleanup:
 	free(vs_src);
+	free(gs_src);
 	free(fs_src);
 	return return_value;
 

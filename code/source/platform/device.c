@@ -72,7 +72,9 @@ Device * plat_init(const char* title, V2i reso)
 		glEnableVertexAttribArray= (GlEnableVertexAttribArray)plat_query_gl_func("glEnableVertexAttribArray");
 		glDisableVertexAttribArray= (GlDisableVertexAttribArray)plat_query_gl_func("glDisableVertexAttribArray");
 		glVertexAttribPointer= (GlVertexAttribPointer)plat_query_gl_func("glVertexAttribPointer");
+		glVertexAttribIPointer= (GlVertexAttribIPointer)plat_query_gl_func("glVertexAttribIPointer");
 		glBindAttribLocation= (GlBindAttribLocation)plat_query_gl_func("glBindAttribLocation");
+		glDrawBuffers= (GlDrawBuffers)plat_query_gl_func("glDrawBuffers");
 
 		glGenFramebuffers= (GlGenFramebuffers)plat_query_gl_func("glGenFramebuffers");
 		glBindFramebuffer= (GlBindFramebuffer)plat_query_gl_func("glBindFramebuffer");

@@ -6,30 +6,44 @@ void vertex_attributes(MeshType type, const VertexAttrib **attribs, U32 *count)
 {
 	if (type == MeshType_tri) {
 		local_persist VertexAttrib tri_attribs[]= {
-			{ "a_pos", 3, GL_FLOAT, false, offsetof(TriMeshVertex, pos) },
-			{ "a_uv", 3, GL_FLOAT, false, offsetof(TriMeshVertex, uv) },
-			{ "a_color", 4, GL_FLOAT, false, offsetof(TriMeshVertex, color) },
-			{ "a_emission", 1, GL_FLOAT, false, offsetof(TriMeshVertex, emission) },
-			{ "a_pattern", 1, GL_UNSIGNED_BYTE, false, offsetof(TriMeshVertex, pattern) },
+			{ "a_pos", 3, GL_FLOAT, true, false, offsetof(TriMeshVertex, pos) },
+			{ "a_uv", 3, GL_FLOAT, true, false, offsetof(TriMeshVertex, uv) },
+			{ "a_color", 4, GL_FLOAT, true, false, offsetof(TriMeshVertex, color) },
+			{ "a_emission", 1, GL_FLOAT, true, false, offsetof(TriMeshVertex, emission) },
+			{ "a_pattern", 1, GL_UNSIGNED_BYTE, false, false, offsetof(TriMeshVertex, pattern) },
 		};
 		if (attribs)
 			*attribs= tri_attribs;
 		*count= sizeof(tri_attribs)/sizeof(*tri_attribs);
+	} else if (type == MeshType_brush) {
+		local_persist VertexAttrib brush_attribs[]= {
+			{ "a_pos", 2, GL_FLOAT, true, false, offsetof(BrushMeshVertex, pos) },
+			{ "a_size", 1, GL_FLOAT, true, false, offsetof(BrushMeshVertex, size) },
+		};
+		if (attribs)
+			*attribs= brush_attribs;
+		*count= sizeof(brush_attribs)/sizeof(*brush_attribs);
 	} else {
 		fail("Unimplemented mesh type");
 	}
 }
 
 bool is_indexed_mesh(MeshType type)
-{ return type == MeshType_tri; }
+{
+	switch (type) {
+		case MeshType_tri: return true;
+		case MeshType_brush: return false;
+		default: fail("Unhandled mesh type");
+	}
+}
 
 U32 vertex_size(MeshType type)
 {
 	switch (type) {
 		case MeshType_tri: return sizeof(TriMeshVertex);
+		case MeshType_brush: return sizeof(BrushMeshVertex);
 		default: fail("Unhandled mesh type");
 	}
-	return 0;
 }
 
 TriMeshVertex * mesh_vertices(const Mesh *m)

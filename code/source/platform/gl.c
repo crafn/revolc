@@ -2,7 +2,7 @@
 #include "core/ensure.h"
 #include "gl.h"
 
-void gl_check_shader_status(GLuint shd)
+void gl_check_shader_status(GLuint shd, const char *msg)
 {
 	GLint status;
 	glGetShaderiv(shd, GL_COMPILE_STATUS, &status);
@@ -10,7 +10,7 @@ void gl_check_shader_status(GLuint shd)
 		const GLsizei max_len= 512;
 		GLchar log[max_len];
 		glGetShaderInfoLog(shd, max_len, NULL, log);
-		fail("Shader compilation failed (%i): %s", shd, log);
+		fail("Shader compilation failed (%i, %s): %s", shd, msg, log);
 	}
 }
 

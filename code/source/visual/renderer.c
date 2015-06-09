@@ -221,12 +221,12 @@ void recreate_gl_textures(Renderer *r, ResBlob *blob)
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_BASE_LEVEL, 0);
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_LEVEL, atlas_lod_count);
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR); // Can't be mipmap
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 1000);
 	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_LOD, -1000);
-
+	gl_check_errors("recreate_gl_textures: atlas alloc");
 
 	// Gather TexInfos
 	/// @todo MissingResource
@@ -348,7 +348,11 @@ void destroy_rendering_pipeline(Renderer *r)
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	glDeleteFramebuffers(1, &r->scene_fbo);
-	glDeleteTextures(1, &r->scene_fbo_tex);
+	glDeleteTextures(1, &r->scene_color_tex);
+	glDeleteTextures(1, &r->scene_detail_tex);
+
+	glDeleteFramebuffers(1, &r->paint_fbo);
+	glDeleteTextures(1, &r->paint_fbo_tex);
 
 	glDeleteFramebuffers(1, &r->hl_fbo);
 	glDeleteTextures(1, &r->hl_tex);
@@ -369,37 +373,68 @@ bool rendering_pipeline_obsolete(Renderer *r)
 internal
 void recreate_rendering_pipeline(Renderer *r)
 {
+	gl_check_errors("recreate_rendering_pipeline: begin");
 	destroy_rendering_pipeline(r);
 
 	r->scene_fbo_reso= g_env.device->win_size;
+	r->paint_fbo_reso= g_env.device->win_size;
 	r->hl_fbo_reso= (V2i) {512, 512};
 	r->blur_tmp_fbo_reso= r->hl_fbo_reso;
 	r->occlusion_fbo_reso= (V2i) {128, 128};
 
 	{ // Setup framebuffers
 
-		// Texture to store HDR render of scene
-		glGenTextures(1, &r->scene_fbo_tex);
-		glBindTexture(GL_TEXTURE_2D, r->scene_fbo_tex);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		// Fbo & tex to store HDR render of the scene and "requested brush detail" -map
+		glGenFramebuffers(1, &r->scene_fbo);
+		glBindFramebuffer(GL_FRAMEBUFFER, r->scene_fbo);
+
+		glGenTextures(1, &r->scene_color_tex);
+		glBindTexture(GL_TEXTURE_2D, r->scene_color_tex);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
 		glTexImage2D(	GL_TEXTURE_2D, 0, GL_RGB16F,
 						r->scene_fbo_reso.x, r->scene_fbo_reso.y,
 						0, GL_RGB, GL_FLOAT, NULL);
-
-		glGenFramebuffers(1, &r->scene_fbo);
-		glBindFramebuffer(GL_FRAMEBUFFER, r->scene_fbo);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, r->scene_fbo_tex, 0);
-
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, r->scene_color_tex, 0);
+		glGenTextures(1, &r->scene_detail_tex);
+		glBindTexture(GL_TEXTURE_2D, r->scene_detail_tex);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+		glTexImage2D(	GL_TEXTURE_2D, 0, GL_RED,
+						r->scene_fbo_reso.x, r->scene_fbo_reso.y,
+						0, GL_RED, GL_FLOAT, NULL);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, r->scene_detail_tex, 0);
 		{
 			GLenum ret= glCheckFramebufferStatus(GL_FRAMEBUFFER);
 			if (ret != GL_FRAMEBUFFER_COMPLETE)
 				fail("Incomplete framebuffer (scene): %i", ret);
 		}
+		gl_check_errors("recreate_rendering_pipeline: scene fbo");
 
-		// Texture to store highlights of the scene
+		// Fbo & tex to store HDR painting of the scene (could try without HDR if slow)
+		glGenTextures(1, &r->paint_fbo_tex);
+		glBindTexture(GL_TEXTURE_2D, r->paint_fbo_tex);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+		glTexImage2D(	GL_TEXTURE_2D, 0, GL_RGB16F,
+						r->paint_fbo_reso.x, r->paint_fbo_reso.y,
+						0, GL_RGB, GL_FLOAT, NULL);
+		glGenFramebuffers(1, &r->paint_fbo);
+		glBindFramebuffer(GL_FRAMEBUFFER, r->paint_fbo);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, r->paint_fbo_tex, 0);
+		{
+			GLenum ret= glCheckFramebufferStatus(GL_FRAMEBUFFER);
+			if (ret != GL_FRAMEBUFFER_COMPLETE)
+				fail("Incomplete framebuffer (paint): %i", ret);
+		}
+
+		// Fbo & tex to store highlights of the scene
 		glGenTextures(1, &r->hl_tex);
 		glBindTexture(GL_TEXTURE_2D, r->hl_tex);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -409,18 +444,16 @@ void recreate_rendering_pipeline(Renderer *r)
 		glTexImage2D(	GL_TEXTURE_2D, 0, GL_RGB16F,
 						r->hl_fbo_reso.x, r->hl_fbo_reso.y,
 						0, GL_RGB, GL_FLOAT, NULL);
-
 		glGenFramebuffers(1, &r->hl_fbo);
 		glBindFramebuffer(GL_FRAMEBUFFER, r->hl_fbo);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, r->hl_tex, 0);
-
 		{
 			GLenum ret= glCheckFramebufferStatus(GL_FRAMEBUFFER);
 			if (ret != GL_FRAMEBUFFER_COMPLETE)
 				fail("Incomplete framebuffer (hl): %i", ret);
 		}
 
-		// Texture to store halfway blurred highlight
+		// Fbo & tex to store halfway blurred highlight
 		glGenTextures(1, &r->blur_tmp_tex);
 		glBindTexture(GL_TEXTURE_2D, r->blur_tmp_tex);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -430,18 +463,16 @@ void recreate_rendering_pipeline(Renderer *r)
 		glTexImage2D(	GL_TEXTURE_2D, 0, GL_RGB16F,
 						r->blur_tmp_fbo_reso.x, r->blur_tmp_fbo_reso.y,
 						0, GL_RGB, GL_FLOAT, NULL);
-
 		glGenFramebuffers(1, &r->blur_tmp_fbo);
 		glBindFramebuffer(GL_FRAMEBUFFER, r->blur_tmp_fbo);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, r->blur_tmp_tex, 0);
-
 		{
 			GLenum ret= glCheckFramebufferStatus(GL_FRAMEBUFFER);
 			if (ret != GL_FRAMEBUFFER_COMPLETE)
 				fail("Incomplete framebuffer (blur): %i", ret);
 		}
 
-		// Texture to store occlusion map (shadow)
+		// Fbo & tex to store occlusion map (shadow)
 		glGenTextures(1, &r->occlusion_tex);
 		glBindTexture(GL_TEXTURE_2D, r->occlusion_tex);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -451,29 +482,71 @@ void recreate_rendering_pipeline(Renderer *r)
 		glTexImage2D(	GL_TEXTURE_2D, 0, GL_RED,
 						r->occlusion_fbo_reso.x, r->occlusion_fbo_reso.y,
 						0, GL_RED, GL_UNSIGNED_BYTE, NULL);
-
 		glGenFramebuffers(1, &r->occlusion_fbo);
 		glBindFramebuffer(GL_FRAMEBUFFER, r->occlusion_fbo);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, r->occlusion_tex, 0);
-
 		{
 			GLenum ret= glCheckFramebufferStatus(GL_FRAMEBUFFER);
 			if (ret != GL_FRAMEBUFFER_COMPLETE)
 				fail("Incomplete framebuffer (occlusion): %i", ret);
 		}
 	}
+
+	gl_check_errors("recreate_rendering_pipeline: end");
 }
 
 void create_renderer()
 {
+	gl_check_errors("create_renderer: begin");
 	Renderer *r= zero_malloc(sizeof(*r));
 
 	r->cam_pos.y= 5.0;
 	r->cam_pos.z= 7.0;
 	r->cam_fov= (V2d) {3.141/2.0, 3.0141/2.0};
-	r->dithering= true;
+	r->dithering= false;
 
 	r->vao= create_vao(MeshType_tri, MAX_DRAW_VERTEX_COUNT, MAX_DRAW_INDEX_COUNT);
+
+	{ // Create brush vao
+		struct Layer {
+			V2i brush_count;
+			F32 brush_size;
+		} layers[] = {
+			{{4, 4}, 2.0},
+			{{30, 30}, 0.3},
+			{{80, 80}, 0.15},
+			{{150, 150}, 0.05},
+			{{300, 300}, 0.01},
+		};
+		const int layer_count= ARRAY_COUNT(layers);
+
+		int total_brush_count= 0;
+		for (int i= 0; i < layer_count; ++i)
+			total_brush_count += layers[i].brush_count.x*layers[i].brush_count.y;
+		BrushMeshVertex *brushes= frame_alloc(sizeof(*brushes)*total_brush_count);
+
+		int brush_i= 0;
+		U64 seed= 42;
+		for (int i= 0; i < layer_count; ++i) {
+			struct Layer *layer= &layers[i];
+			V2i c= layer->brush_count;
+			for (int y= 0; y < c.y; ++y)
+			for (int x= 0; x < c.x; ++x) {
+				brushes[brush_i++]= (BrushMeshVertex) {
+					.pos= {
+						(2.0f*x/c.x - 1.0f)*1.1f,
+						(2.0f*y/c.y - 1.0f)*1.1f,
+					},
+					.size= layer->brush_size*random_f32(0.5f, 1.5f, &seed),
+				};
+			}
+		}
+
+		r->brush_vao= create_vao(MeshType_brush, total_brush_count, 0);
+		bind_vao(&r->brush_vao);
+		add_vertices_to_vao(&r->brush_vao, brushes, total_brush_count);
+		gl_check_errors("create_renderer: brush vao");
+	}
 
 	recreate_rendering_pipeline(r);
 	recreate_gl_textures(r, g_env.resblob);
@@ -501,6 +574,7 @@ void create_renderer()
 
 	ensure(!g_env.renderer);
 	g_env.renderer= r;
+	gl_check_errors("create_renderer: end");
 }
 
 void destroy_renderer()
@@ -508,8 +582,8 @@ void destroy_renderer()
 	Renderer *r= g_env.renderer;
 	g_env.renderer= NULL;
 
-
 	destroy_vao(&r->vao);
+	destroy_vao(&r->brush_vao);
 
 	destroy_rendering_pipeline(r);
 	glDeleteTextures(1, &r->dither_tex);
@@ -835,7 +909,8 @@ void render_frame()
 		if (rendering_pipeline_obsolete(r))
 			recreate_rendering_pipeline(r);
 
-		V2d scrn_in_world= screen_to_world_size(g_env.device->win_size);
+		V2i reso= g_env.device->win_size;
+		V2d scrn_in_world= screen_to_world_size(reso);
 		scrn_in_world.x= ABS(scrn_in_world.x);
 		scrn_in_world.y= ABS(scrn_in_world.y);
 
@@ -884,7 +959,7 @@ void render_frame()
 			}
 		}
 
-		{ // Render scene to fbo
+		{ // Render scene to fbo (color + detail)
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 			glClearColor(0.0, 0.0, 0.0, 0.0);
@@ -911,6 +986,25 @@ void render_frame()
 			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_tex_color"), 0);
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D_ARRAY, r->atlas_tex);
+
+
+			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_dither"), 1);
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, r->dither_tex);
+
+			glUniform2i(glGetUniformLocation(shd->prog_gl_id, "u_dither_reso"),
+				r->dither_tex_reso.x, r->dither_tex_reso.y);
+
+			glUniform2i(glGetUniformLocation(shd->prog_gl_id, "u_reso"), reso.x, reso.y);
+			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_dithering"), r->dithering);
+			glUniform1f(glGetUniformLocation(shd->prog_gl_id,
+				"u_dithering_phase"), r->dithering_phase);
+
+			GLenum buffers[]= {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
+			glDrawBuffers(2, buffers); // Does second buffer need to be disabled afterwards?
+
+			glBindFragDataLocation(shd->prog_gl_id, 0, "f_color"); // to scene_color_tex
+			glBindFragDataLocation(shd->prog_gl_id, 1, "f_detail"); // to scene_detail_tex
 
 			bind_vao(&r->vao);
 			draw_vao(&r->vao);
@@ -939,6 +1033,29 @@ void render_frame()
 			}
 		}
 
+		{ // Paintify rendered scene
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+			glBindFramebuffer(GL_FRAMEBUFFER, r->paint_fbo);
+			glViewport(0, 0, r->paint_fbo_reso.x, r->paint_fbo_reso.y);
+
+			ShaderSource* shd=
+				(ShaderSource*)res_by_name(g_env.resblob, ResType_ShaderSource, "paint");
+			glUseProgram(shd->prog_gl_id);
+
+			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_scene_color"), 0);
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, r->scene_color_tex);
+
+			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_scene_detail"), 1);
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, r->scene_detail_tex);
+
+			bind_vao(&r->brush_vao);
+			draw_vao(&r->brush_vao);
+		}
+
 		{ // Overexposed parts to small "highlight" texture
 			glDisable(GL_BLEND);
 
@@ -949,9 +1066,10 @@ void render_frame()
 				(ShaderSource*)res_by_name(g_env.resblob, ResType_ShaderSource, "highlight");
 			glUseProgram(shd->prog_gl_id);
 
-			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_scene"), 0);
+			// Should we use scene_color or paint?
+			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_scene_color"), 0);
 			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, r->scene_fbo_tex);
+			glBindTexture(GL_TEXTURE_2D, r->scene_color_tex);
 
 			draw_screen_quad();
 		}
@@ -967,15 +1085,14 @@ void render_frame()
 
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-			V2i reso= g_env.device->win_size;
 			glViewport(0, 0, reso.x, reso.y);
 			ShaderSource* shd=
 				(ShaderSource*)res_by_name(g_env.resblob, ResType_ShaderSource, "post");
 			glUseProgram(shd->prog_gl_id);
 
-			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_scene"), 0);
+			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_paint"), 0);
 			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, r->scene_fbo_tex);
+			glBindTexture(GL_TEXTURE_2D, r->paint_fbo_tex);
 
 			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_highlight"), 1);
 			glActiveTexture(GL_TEXTURE1);
@@ -985,19 +1102,8 @@ void render_frame()
 			glActiveTexture(GL_TEXTURE2);
 			glBindTexture(GL_TEXTURE_2D, r->occlusion_tex);
 
-			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_dither"), 3);
-			glActiveTexture(GL_TEXTURE3);
-			glBindTexture(GL_TEXTURE_2D, r->dither_tex);
-
-			glUniform2i(glGetUniformLocation(shd->prog_gl_id, "u_dither_reso"),
-				r->dither_tex_reso.x, r->dither_tex_reso.y);
 			glUniform2f(glGetUniformLocation(shd->prog_gl_id, "u_occlusion_scale"),
 				occlusion_scale.x, occlusion_scale.y);
-
-			glUniform2i(glGetUniformLocation(shd->prog_gl_id, "u_reso"), reso.x, reso.y);
-			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_dithering"), r->dithering);
-			glUniform1f(glGetUniformLocation(shd->prog_gl_id,
-				"u_dithering_phase"), r->dithering_phase);
 
 			draw_screen_quad();
 		}

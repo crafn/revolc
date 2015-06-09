@@ -80,6 +80,11 @@ void plat_init_impl(Device* d, const char* title, V2i reso)
 	d->impl->hGlrc= wglCreateContext(d->impl->hDC);
 	wglMakeCurrent(d->impl->hDC, d->impl->hGlrc);
 
+	int ver[2]= {0, 0};
+	glGetIntegerv(GL_MAJOR_VERSION, &ver[0]);
+	glGetIntegerv(GL_MINOR_VERSION, &ver[1]);
+	debug_print("OpenGL version: %i.%i", ver[0], ver[1]);
+
 	U64 ticks;
 	if(!QueryPerformanceFrequency((LARGE_INTEGER *)&ticks))
 		fail("QueryPerformanceFrequency failed!");

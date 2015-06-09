@@ -8,7 +8,7 @@
 #include "resources/resource.h"
 #include "platform/gl.h"
 
-typedef enum { MeshType_tri, MeshType_point } MeshType_enum;
+typedef enum { MeshType_tri, MeshType_brush } MeshType_enum;
 typedef U32 MeshType;
 typedef U32 MeshIndexType;
 #define MESH_INDEX_GL_TYPE GL_UNSIGNED_INT
@@ -16,7 +16,8 @@ typedef U32 MeshIndexType;
 typedef struct VertexAttrib {
 	const GLchar *name;
 	GLint size;
-	GLenum type;	
+	GLenum type;
+	bool floating; // False for integer attribs
 	GLboolean normalized;
 	U64 offset;
 } VertexAttrib;
@@ -30,10 +31,16 @@ typedef struct TriMeshVertex {
 	V3f uv;
 	Color color; // @todo Could be U8[4]
 	F32 emission;
-	U8 pattern;
+	U8 pattern; // Overridden in rendering
 	bool selected; // Editor
 	bool pad[18];
 } TriMeshVertex ALIGNED(64);
+
+typedef struct BrushMeshVertex {
+	V2f pos; // In GL coords
+	F32 size;
+	bool pad[4];
+} BrushMeshVertex ALIGNED(16);
 
 typedef struct Mesh {
 	Resource res;

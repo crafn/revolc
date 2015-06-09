@@ -297,7 +297,7 @@ int main(int argc, const char **argv)
 				float x_dif= 0;
 				float y_dif= 0;
 				*/
-				
+
 				V3d size= {scale/GRID_RESO_PER_UNIT, scale/GRID_RESO_PER_UNIT, 1.0};
 				V3d pos= {
 					(x + 0.5)/GRID_RESO_PER_UNIT - GRID_WIDTH/2 + x_dif,
@@ -312,7 +312,7 @@ int main(int argc, const char **argv)
 						(Color) {brightness, brightness, brightness, 1},
 						0,
 						0.0,
-						4);
+						2);
 				++draw_count;
 			}
 			}
