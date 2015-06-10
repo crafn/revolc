@@ -2,7 +2,7 @@
 #define REVOLC_GLOBAL_CFG_H
 
 // These options largely determine the memory usage and performance of the engine
-#define FRAME_MEM_SIZE (1024*1024*10)
+#define FRAME_MEM_SIZE (1024*1024*20)
 
 #define MAX_BLOB_SIZE (1024*1024*512) // 0.5 Gb
 #define MAX_RES_FILES 64

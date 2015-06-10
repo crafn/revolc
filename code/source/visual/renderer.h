@@ -31,7 +31,6 @@ typedef struct Renderer {
 	F32 exposure;
 	Color env_light_color;
 	bool dithering;
-	float dithering_phase;
 
 	DrawCmd cmds[MAX_DRAW_CMD_COUNT];
 	U32 cmd_count;
@@ -66,8 +65,7 @@ typedef struct Renderer {
 
 	U32 atlas_tex;
 	Vao vao;
-	U32 dither_tex;
-	V2i dither_tex_reso;
+	U32 brush_tex;
 
 	// Rendering pipeline
 	U32 scene_fbo;

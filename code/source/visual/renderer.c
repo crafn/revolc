@@ -175,18 +175,16 @@ void recreate_gl_textures(Renderer *r, ResBlob *blob)
 {
 	gl_check_errors("recreate_gl_textures: begin");
 	{ // Dither patterns
-		if (r->dither_tex)
-			glDeleteTextures(1, &r->dither_tex);
+		if (r->brush_tex)
+			glDeleteTextures(1, &r->brush_tex);
 
 		Texture *tex= (Texture*)res_by_name(g_env.resblob,
 											ResType_Texture,
-											"ditherpatterns");
-		r->dither_tex_reso= tex->reso;
-
-		gl_check_errors("recreate_gl_textures dither: begin");
-		glGenTextures(1, &r->dither_tex);
-		ensure(r->dither_tex);
-		glBindTexture(GL_TEXTURE_2D, r->dither_tex);
+											"brush");
+		gl_check_errors("recreate_gl_textures brush: begin");
+		glGenTextures(1, &r->brush_tex);
+		ensure(r->brush_tex);
+		glBindTexture(GL_TEXTURE_2D, r->brush_tex);
 		// @note No sRGB because shaders depend on exact numerical values
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RED,
 				tex->reso.x, tex->reso.y, 0,
@@ -202,7 +200,7 @@ void recreate_gl_textures(Renderer *r, ResBlob *blob)
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 0);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_LOD, 0);
 
-		gl_check_errors("recreate_gl_textures dither: end");
+		gl_check_errors("recreate_gl_textures brush: end");
 	}
 
 	if (r->atlas_tex)
@@ -400,8 +398,8 @@ void recreate_rendering_pipeline(Renderer *r)
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, r->scene_color_tex, 0);
 		glGenTextures(1, &r->scene_detail_tex);
 		glBindTexture(GL_TEXTURE_2D, r->scene_detail_tex);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
 		glTexImage2D(	GL_TEXTURE_2D, 0, GL_RED,
@@ -503,7 +501,6 @@ void create_renderer()
 	r->cam_pos.y= 5.0;
 	r->cam_pos.z= 7.0;
 	r->cam_fov= (V2d) {3.141/2.0, 3.0141/2.0};
-	r->dithering= false;
 
 	r->vao= create_vao(MeshType_tri, MAX_DRAW_VERTEX_COUNT, MAX_DRAW_INDEX_COUNT);
 
@@ -512,11 +509,16 @@ void create_renderer()
 			V2i brush_count;
 			F32 brush_size;
 		} layers[] = {
-			{{4, 4}, 2.0},
-			{{30, 30}, 0.3},
-			{{80, 80}, 0.15},
-			{{150, 150}, 0.05},
-			{{300, 300}, 0.01},
+			{{2, 2}, 5.12},
+			{{4, 4}, 2.56},
+			{{7, 7}, 1.28},
+			{{13, 13}, 0.64},
+			{{25, 25}, 0.32},
+			{{50, 50}, 0.16},
+			{{100, 100}, 0.08},
+			{{200, 200}, 0.04},
+			{{400, 400}, 0.02},
+			{{800, 800}, 0.01},
 		};
 		const int layer_count= ARRAY_COUNT(layers);
 
@@ -537,7 +539,7 @@ void create_renderer()
 						(2.0f*x/c.x - 1.0f)*1.1f,
 						(2.0f*y/c.y - 1.0f)*1.1f,
 					},
-					.size= layer->brush_size*random_f32(0.5f, 1.5f, &seed),
+					.size= layer->brush_size*random_f32(0.7f, 1.3f, &seed),
 				};
 			}
 		}
@@ -586,7 +588,7 @@ void destroy_renderer()
 	destroy_vao(&r->brush_vao);
 
 	destroy_rendering_pipeline(r);
-	glDeleteTextures(1, &r->dither_tex);
+	glDeleteTextures(1, &r->brush_tex);
 	glDeleteTextures(1, &r->atlas_tex);
 	glDeleteTextures(1, &r->fluid_grid_tex);
 	glDeleteTextures(1, &r->occlusion_grid_tex);
@@ -988,17 +990,7 @@ void render_frame()
 			glBindTexture(GL_TEXTURE_2D_ARRAY, r->atlas_tex);
 
 
-			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_dither"), 1);
-			glActiveTexture(GL_TEXTURE1);
-			glBindTexture(GL_TEXTURE_2D, r->dither_tex);
-
-			glUniform2i(glGetUniformLocation(shd->prog_gl_id, "u_dither_reso"),
-				r->dither_tex_reso.x, r->dither_tex_reso.y);
-
 			glUniform2i(glGetUniformLocation(shd->prog_gl_id, "u_reso"), reso.x, reso.y);
-			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_dithering"), r->dithering);
-			glUniform1f(glGetUniformLocation(shd->prog_gl_id,
-				"u_dithering_phase"), r->dithering_phase);
 
 			GLenum buffers[]= {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
 			glDrawBuffers(2, buffers); // Does second buffer need to be disabled afterwards?
@@ -1051,6 +1043,10 @@ void render_frame()
 			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_scene_detail"), 1);
 			glActiveTexture(GL_TEXTURE1);
 			glBindTexture(GL_TEXTURE_2D, r->scene_detail_tex);
+
+			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_brush"), 2);
+			glActiveTexture(GL_TEXTURE2);
+			glBindTexture(GL_TEXTURE_2D, r->brush_tex);
 
 			bind_vao(&r->brush_vao);
 			draw_vao(&r->brush_vao);

@@ -132,7 +132,6 @@ int main(int argc, const char **argv)
 				toggle_bool(&g_env.renderer->dithering);
 
 			g_env.renderer->cam_pos.z -= g_env.device->mwheel_delta;
-			g_env.renderer->dithering_phase += dt*0.2;
 
 			{ // Fov which cuts stuff away with non-square window
 				V2i win_size= g_env.device->win_size;
