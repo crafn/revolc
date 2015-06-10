@@ -968,7 +968,7 @@ void render_frame()
 
 			glBindFramebuffer(GL_FRAMEBUFFER, r->scene_fbo);
 			glViewport(0, 0, r->scene_fbo_reso.x, r->scene_fbo_reso.y);
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			glClear(GL_COLOR_BUFFER_BIT);
 
 			ShaderSource* shd=
 				(ShaderSource*)res_by_name(
@@ -1031,6 +1031,8 @@ void render_frame()
 
 			glBindFramebuffer(GL_FRAMEBUFFER, r->paint_fbo);
 			glViewport(0, 0, r->paint_fbo_reso.x, r->paint_fbo_reso.y);
+			// @todo Remove (just to clean up persistent pixel mess on linux)
+			glClear(GL_COLOR_BUFFER_BIT);
 
 			ShaderSource* shd=
 				(ShaderSource*)res_by_name(g_env.resblob, ResType_ShaderSource, "paint");
