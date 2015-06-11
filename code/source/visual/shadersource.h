@@ -13,6 +13,7 @@ typedef struct ShaderSource {
 	BlobOffset gs_src_offset;
 	BlobOffset fs_src_offset;
 	MeshType mesh_type;
+	char feedback_varyings[MAX_SHADER_VARYING_COUNT][RES_NAME_SIZE];
 
 	// On init
 	/// @todo	Store these somewhere else, as single shader source can

@@ -544,9 +544,16 @@ void create_renderer()
 			}
 		}
 
-		r->brush_vao= create_vao(MeshType_brush, total_brush_count, 0);
-		bind_vao(&r->brush_vao);
-		add_vertices_to_vao(&r->brush_vao, brushes, total_brush_count);
+		r->brush_vaos[0]= create_vao(MeshType_brush, total_brush_count, 0);
+		r->brush_vaos[1]= create_vao(MeshType_brush, total_brush_count, 0);
+		r->src_brush_vao= &r->brush_vaos[0];
+		r->dst_brush_vao= &r->brush_vaos[1];
+
+		bind_vao(r->src_brush_vao);
+		add_vertices_to_vao(r->src_brush_vao, brushes, total_brush_count);
+
+		r->dst_brush_vao->v_count= r->dst_brush_vao->v_capacity; // Filled by transform feedback
+
 		gl_check_errors("create_renderer: brush vao");
 	}
 
@@ -585,7 +592,8 @@ void destroy_renderer()
 	g_env.renderer= NULL;
 
 	destroy_vao(&r->vao);
-	destroy_vao(&r->brush_vao);
+	destroy_vao(&r->brush_vaos[0]);
+	destroy_vao(&r->brush_vaos[1]);
 
 	destroy_rendering_pipeline(r);
 	glDeleteTextures(1, &r->brush_tex);
@@ -1025,6 +1033,24 @@ void render_frame()
 			}
 		}
 
+		{ // Move brushes according to scene
+			ShaderSource* shd=
+				(ShaderSource*)res_by_name(g_env.resblob, ResType_ShaderSource, "upd_brushes");
+			glUseProgram(shd->prog_gl_id);
+
+			glEnable(GL_RASTERIZER_DISCARD);
+			glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, r->dst_brush_vao->vbo_id);
+		 
+			glBeginTransformFeedback(GL_POINTS);
+			bind_vao(r->src_brush_vao);
+			draw_vao(r->src_brush_vao);
+			glEndTransformFeedback();
+
+			glDisable(GL_RASTERIZER_DISCARD);
+
+			SWAP(Vao*, r->src_brush_vao, r->dst_brush_vao);
+		}
+
 		{ // Paintify rendered scene
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -1050,8 +1076,9 @@ void render_frame()
 			glActiveTexture(GL_TEXTURE2);
 			glBindTexture(GL_TEXTURE_2D, r->brush_tex);
 
-			bind_vao(&r->brush_vao);
-			draw_vao(&r->brush_vao);
+
+			bind_vao(r->src_brush_vao);
+			draw_vao(r->src_brush_vao);
 		}
 
 		{ // Overexposed parts to small "highlight" texture

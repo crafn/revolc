@@ -39,7 +39,7 @@ typedef struct TriMeshVertex {
 typedef struct BrushMeshVertex {
 	V2f pos; // In GL coords
 	F32 size;
-	bool pad[4];
+	F32 pad;
 } BrushMeshVertex ALIGNED(16);
 
 typedef struct Mesh {

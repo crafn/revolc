@@ -22,37 +22,48 @@ void init_shadersource(ShaderSource *shd)
 	U32* vs= &shd->vs_gl_id;
 	U32* gs= &shd->gs_gl_id;
 	U32* fs= &shd->fs_gl_id;
-	U32 vs_count= 1;
-	U32 gs_count= shd->gs_src_offset != 0;
-	U32 fs_count= 1;
 
 	{ // Vertex
 		*vs= glCreateShader(GL_VERTEX_SHADER);
-		glShaderSource(*vs, vs_count, &vs_src, NULL);
+		glShaderSource(*vs, 1, &vs_src, NULL);
 		glCompileShader(*vs);
 		gl_check_shader_status(*vs, "vertex shader");
 	}
 	if (strlen(gs_src) > 0) { // Geometry
 		*gs= glCreateShader(GL_GEOMETRY_SHADER);
-		glShaderSource(*gs, gs_count, &gs_src, NULL);
+		glShaderSource(*gs, 1, &gs_src, NULL);
 		glCompileShader(*gs);
 		gl_check_shader_status(*gs, "geometry shader");
 	}
-	{ // Fragment
+	if (strlen(fs_src) > 0) { // Fragment
 		*fs= glCreateShader(GL_FRAGMENT_SHADER);
-		glShaderSource(*fs, fs_count, &fs_src, NULL);
+		glShaderSource(*fs, 1, &fs_src, NULL);
 		glCompileShader(*fs);
 		gl_check_shader_status(*fs, "fragment shader");
 	}
 	{ // Shader program
 		*prog= glCreateProgram();
 		glAttachShader(*prog, *vs);
-		if (gs_count > 0)
+		if (strlen(gs_src) > 0)
 			glAttachShader(*prog, *gs);
-		glAttachShader(*prog, *fs);
+		if (strlen(fs_src) > 0)
+			glAttachShader(*prog, *fs);
 
 		for (U32 i= 0; i < attrib_count; ++i)
 			glBindAttribLocation(*prog, i, attribs[i].name);
+
+		const char *varyings[MAX_SHADER_VARYING_COUNT];
+		U32 varying_count= 0;
+		for (U32 i= 0; i < MAX_SHADER_VARYING_COUNT; ++i) {
+			if (strlen(shd->feedback_varyings[i]) == 0)
+				continue;
+			varyings[varying_count++]= shd->feedback_varyings[i];
+		}
+		glTransformFeedbackVaryings(
+						*prog,
+						varying_count,
+						varyings,
+						GL_INTERLEAVED_ATTRIBS);
 
 		glLinkProgram(*prog);
 		gl_check_program_status(*prog);
@@ -78,15 +89,20 @@ int json_shadersource_to_blob(struct BlobBuf *buf, JsonTok j)
 	JsonTok j_vs_file= json_value_by_key(j, "vs_file");
 	JsonTok j_gs_file= json_value_by_key(j, "gs_file");
 	JsonTok j_fs_file= json_value_by_key(j, "fs_file");
+	JsonTok j_varyings= json_value_by_key(j, "feedback_varyings");
 
 	if (json_is_null(j_vs_file)) {
 		critical_print("Attrib 'vs_file' missing");
 		goto error;
 	}
 
-	if (json_is_null(j_fs_file)) {
-		critical_print("Attrib 'fs_file' missing");
-		goto error;
+	char varyings[MAX_SHADER_VARYING_COUNT][RES_NAME_SIZE]= {};
+	if (!json_is_null(j_varyings)) {
+		ensure(json_member_count(j_varyings) < MAX_SHADER_VARYING_COUNT);
+		for (U32 i= 0; i < json_member_count(j_varyings); ++i) {
+			JsonTok j_str= json_member(j_varyings, i);
+			fmt_str(varyings[i], sizeof(varyings[i]), "%s", json_str(j_str));
+		}
 	}
 
 	char vs_total_path[MAX_PATH_SIZE];
@@ -99,9 +115,10 @@ int json_shadersource_to_blob(struct BlobBuf *buf, JsonTok j)
 		joined_path(	gs_total_path,
 						j.json_path,
 						json_str(j_gs_file));
-	joined_path(	fs_total_path,
-					j.json_path,
-					json_str(j_fs_file));
+	if (!json_is_null(j_fs_file))
+		joined_path(	fs_total_path,
+						j.json_path,
+						json_str(j_fs_file));
 
 	U32 vs_src_len= 0;
 	U32 gs_src_len= 0;
@@ -109,7 +126,8 @@ int json_shadersource_to_blob(struct BlobBuf *buf, JsonTok j)
 	vs_src= malloc_file(vs_total_path, &vs_src_len);
 	if (!json_is_null(j_gs_file))
 		gs_src= malloc_file(gs_total_path, &gs_src_len);
-	fs_src= malloc_file(fs_total_path, &fs_src_len);
+	if (!json_is_null(j_fs_file))
+		fs_src= malloc_file(fs_total_path, &fs_src_len);
 
 	BlobOffset vs_src_offset= buf->offset + sizeof(ShaderSource) - sizeof(Resource);
 	BlobOffset gs_src_offset= vs_src_offset + vs_src_len + 1;
@@ -122,6 +140,7 @@ int json_shadersource_to_blob(struct BlobBuf *buf, JsonTok j)
 	blob_write(buf, &gs_src_offset, sizeof(gs_src_offset));
 	blob_write(buf, &fs_src_offset, sizeof(fs_src_offset));
 	blob_write(buf, &mesh_type, sizeof(mesh_type));
+	blob_write(buf, &varyings, sizeof(varyings));
 	blob_write(buf, &cached, sizeof(cached));
 	blob_write(buf, &cached, sizeof(cached));
 	blob_write(buf, &cached, sizeof(cached));

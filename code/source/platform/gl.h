@@ -115,6 +115,9 @@ GlDrawBuffers glDrawBuffers;
 #define GL_RGB16F 0x881B
 #define GL_RGB32F 0x8815
 #define GL_FRAMEBUFFER_COMPLETE 0x8CD5
+#define GL_RASTERIZER_DISCARD 0x8C89
+#define GL_INTERLEAVED_ATTRIBS 0x8C8C
+#define GL_TRANSFORM_FEEDBACK_BUFFER 0x8C8E
 
 typedef void (*GlGenFramebuffers)(GLsizei, GLuint*);
 GlGenFramebuffers glGenFramebuffers;
@@ -136,7 +139,15 @@ typedef void (*GlTexStorage3D)(GLenum, GLsizei, GLenum, GLsizei, GLsizei, GLsize
 GlTexStorage3D glTexStorage3D;
 typedef void (*GlBindFragDataLocation)(GLuint, GLuint, const char *);
 GlBindFragDataLocation glBindFragDataLocation;
-
+typedef void (*GlBindBufferBase)(GLenum target, GLuint index, GLuint buffer);
+typedef void (*GlTransformFeedbackVaryings)(GLuint program, GLsizei count, const char **varyings, GLenum bufferMode);
+GlTransformFeedbackVaryings glTransformFeedbackVaryings;
+GlBindBufferBase glBindBufferBase;
+typedef void (*GlBeginTransformFeedback)(GLenum primitiveMode);
+GlBeginTransformFeedback glBeginTransformFeedback;
+typedef void (*GlEndTransformFeedback)();
+GlEndTransformFeedback glEndTransformFeedback;
+ 
 #if PLATFORM == PLATFORM_WINDOWS
 	typedef void (*GlTexSubImage3D)(GLenum, GLint, GLint, GLint, GLint, GLsizei, GLsizei, GLsizei, GLenum, GLenum, const GLvoid *);
 	GlTexSubImage3D glTexSubImage3D;

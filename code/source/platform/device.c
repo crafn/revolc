@@ -85,6 +85,10 @@ Device * plat_init(const char* title, V2i reso)
 		glBindVertexArray= (GlBindVertexArray)plat_query_gl_func("glBindVertexArray");
 		glTexStorage3D= (GlTexStorage3D)plat_query_gl_func("glTexStorage3D");
 		glBindFragDataLocation= (GlBindFragDataLocation)plat_query_gl_func("glBindFragDataLocation");
+		glTransformFeedbackVaryings= (GlTransformFeedbackVaryings)plat_query_gl_func("glTransformFeedbackVaryings");
+		glBindBufferBase= (GlBindBufferBase)plat_query_gl_func("glBindBufferBase");
+		glBeginTransformFeedback= (GlBeginTransformFeedback)plat_query_gl_func("glBeginTransformFeedback");
+		glEndTransformFeedback= (GlEndTransformFeedback)plat_query_gl_func("glEndTransformFeedback");
 
 #		if PLATFORM == PLATFORM_WINDOWS
 			glTexSubImage3D= (GlTexSubImage3D)plat_query_gl_func("glTexSubImage3D");

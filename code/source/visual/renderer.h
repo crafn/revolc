@@ -72,7 +72,8 @@ typedef struct Renderer {
 	U32 scene_color_tex;
 	U32 scene_detail_tex; // Requested brush detail
 	V2i scene_fbo_reso;
-	Vao brush_vao; // Brush positions
+	Vao brush_vaos[2]; // Brush positions, transform feedback
+	Vao *src_brush_vao, *dst_brush_vao;
 	U32 paint_fbo; // Painted scene
 	U32 paint_fbo_tex;
 	V2i paint_fbo_reso;
