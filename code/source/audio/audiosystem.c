@@ -44,6 +44,8 @@ int audio_callback(	const void* input_data, void* output_data,
 		if (ch->state != AC_play)
 			continue;
 
+		PLAT_ACQUIRE_FENCE();
+
 		ensure(ch->ch_count == 2 && "@todo mono sounds");
 
 		bool going_to_finish= false;
@@ -73,8 +75,7 @@ int audio_callback(	const void* input_data, void* output_data,
 		if (going_to_finish) {
 			ch->samples= NULL;
 
-			/// @todo Full barrier not necessary 
-			PLAT_FULL_MEMORY_BARRIER();
+			PLAT_RELEASE_FENCE();
 			ch->state= AC_free;
 		}
 	}
@@ -221,6 +222,9 @@ SoundHandle play_sound(const char *name, F32 vol, F32 pan)
 
 	U32 sound_id= ++a->next_sound_id;
 	{ // Start playing
+		// State should be read before initializing channel
+		PLAT_ACQUIRE_FENCE();
+
 		AudioChannel *ch= &a->channels[channel_i];
 		*ch= (AudioChannel) {
 			.state= AC_free,
@@ -235,8 +239,9 @@ SoundHandle play_sound(const char *name, F32 vol, F32 pan)
 			.out_pan= pan,
 		};
 
-		/// @todo Full barrier not necessary 
-		PLAT_FULL_MEMORY_BARRIER();
+		// Setting state should happen after channel has been initialized
+		PLAT_RELEASE_FENCE();
+
 		ch->state= AC_play;
 	}
 
