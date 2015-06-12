@@ -51,6 +51,16 @@ void draw_grid_quad()
 	destroy_vao(&grid_vao);
 }
 
+internal
+GLint uniform_loc(U32 shd, const char *name)
+{
+	GLint loc= glGetUniformLocation(shd, name);
+	if (loc == -1) {
+		critical_print("Uniform missing: %s", name);
+	}
+	return loc;
+}
+
 // Apply blur to fbo
 internal
 void blur_fbo(Renderer *r, V2f screenspace_radius, U32 fbo, U32 fbo_tex, V2i reso)
@@ -68,9 +78,9 @@ void blur_fbo(Renderer *r, V2f screenspace_radius, U32 fbo, U32 fbo_tex, V2i res
 		// @todo To shader res
 		glBindFragDataLocation(shd->prog_gl_id, 0, "f_color");
 
-		glUniform1f(glGetUniformLocation(shd->prog_gl_id, "u_radius"), screenspace_radius.x);
+		glUniform1f(uniform_loc(shd->prog_gl_id, "u_radius"), screenspace_radius.x);
 
-		glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_tex"), 0);
+		glUniform1i(uniform_loc(shd->prog_gl_id, "u_tex"), 0);
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, fbo_tex);
 
@@ -87,9 +97,9 @@ void blur_fbo(Renderer *r, V2f screenspace_radius, U32 fbo, U32 fbo_tex, V2i res
 		// @todo To shader res
 		glBindFragDataLocation(shd->prog_gl_id, 0, "f_color");
 
-		glUniform1f(glGetUniformLocation(shd->prog_gl_id, "u_radius"), screenspace_radius.y);
+		glUniform1f(uniform_loc(shd->prog_gl_id, "u_radius"), screenspace_radius.y);
 
-		glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_tex"), 0);
+		glUniform1i(uniform_loc(shd->prog_gl_id, "u_tex"), 0);
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, r->blur_tmp_tex);
 
@@ -116,11 +126,11 @@ void set_ventity_tf(U32 h, VEntityType t, T3d tf)
 }
 
 internal
-M44f view_matrix(const Renderer *r)
+M44f view_matrix(V3d cam_pos)
 {
-	F32 cx= r->cam_pos.x;
-	F32 cy= r->cam_pos.y;
-	F32 cz= r->cam_pos.z;
+	F32 cx= cam_pos.x;
+	F32 cy= cam_pos.y;
+	F32 cz= cam_pos.z;
 	M44f m= {{
 		1, 0, 0, 0,
 		0, 1, 0, 0,
@@ -132,11 +142,11 @@ M44f view_matrix(const Renderer *r)
 
 // World point to screen
 internal
-M44f cam_matrix(const Renderer *r)
+M44f cam_matrix(V3d cam_pos, V2d cam_fov)
 {
 	F32 n= 0.1;
 	F32 f= 1.0;
-	V2d fov= r->cam_fov;
+	V2d fov= cam_fov;
 	F32 h= tan(fov.y/2)*n;
 	F32 w= tan(fov.x/2)*n;
 
@@ -147,7 +157,7 @@ M44f cam_matrix(const Renderer *r)
 		0, 0, 2*f*n/(n - f), 0,
 	}};
 
-	return mul_m44f(view_matrix(r), p_matrix);
+	return mul_m44f(view_matrix(cam_pos), p_matrix);
 }
 
 /// Helper in `recreate_gl_textures`
@@ -407,6 +417,16 @@ void recreate_rendering_pipeline(Renderer *r)
 						r->scene_fbo_reso.x, r->scene_fbo_reso.y,
 						0, GL_RED, GL_FLOAT, NULL);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, r->scene_detail_tex, 0);
+		glGenTextures(1, &r->scene_change_tex);
+		glBindTexture(GL_TEXTURE_2D, r->scene_change_tex);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+		glTexImage2D(	GL_TEXTURE_2D, 0, GL_RGB16F,
+						r->scene_fbo_reso.x, r->scene_fbo_reso.y,
+						0, GL_RGB, GL_FLOAT, NULL);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, r->scene_change_tex, 0);
 		{
 			GLenum ret= glCheckFramebufferStatus(GL_FRAMEBUFFER);
 			if (ret != GL_FRAMEBUFFER_COMPLETE)
@@ -501,6 +521,7 @@ void create_renderer()
 
 	r->cam_pos.y= 5.0;
 	r->cam_pos.z= 7.0;
+	r->prev_cam_pos= r->cam_pos;
 	r->cam_fov= (V2d) {3.141/2.0, 3.0141/2.0};
 
 	r->vao= create_vao(MeshType_tri, MAX_DRAW_VERTEX_COUNT, MAX_DRAW_INDEX_COUNT);
@@ -949,18 +970,18 @@ void render_frame()
 											"grid_blit");
 			glUseProgram(shd->prog_gl_id);
 
-			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_tex_color"), 0);
+			glUniform1i(uniform_loc(shd->prog_gl_id, "u_tex_color"), 0);
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, r->occlusion_grid_tex);
 
-			glUniform2f(glGetUniformLocation(shd->prog_gl_id, "u_screenspace_scale"),
+			glUniform2f(uniform_loc(shd->prog_gl_id, "u_screenspace_scale"),
 				occlusion_scale.x, occlusion_scale.y);
-			glUniformMatrix4fv( glGetUniformLocation(shd->prog_gl_id, "u_cam"),
-								1, GL_FALSE, cam_matrix(r).e);
+			glUniformMatrix4fv( uniform_loc(shd->prog_gl_id, "u_cam"),
+								1, GL_FALSE, cam_matrix(r->cam_pos, r->cam_fov).e);
 			draw_grid_quad();
 
 			// Reset this as no other needs the uniform
-			glUniform2f(glGetUniformLocation(shd->prog_gl_id, "u_screenspace_scale"), 1.0, 1.0);
+			glUniform2f(uniform_loc(shd->prog_gl_id, "u_screenspace_scale"), 1.0, 1.0);
 
 			for (U32 blur_i= 0; blur_i < 2; ++blur_i) { // Blur shadows
 				F32 rad= (5.0 + blur_i*3)*15;
@@ -970,7 +991,7 @@ void render_frame()
 			}
 		}
 
-		{ // Render scene to fbo (color + detail)
+		{ // Render scene to fbo (color + detail + change)
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 			glClearColor(0.0, 0.0, 0.0, 0.0);
@@ -986,26 +1007,25 @@ void render_frame()
 						"gen");
 			glUseProgram(shd->prog_gl_id);
 
-			glUniform1f(glGetUniformLocation(shd->prog_gl_id, "u_exposure"), r->exposure);
-			glUniform3f(glGetUniformLocation(shd->prog_gl_id, "u_env_light_color"),
+			glUniform1f(uniform_loc(shd->prog_gl_id, "u_exposure"), r->exposure);
+			glUniform3f(uniform_loc(shd->prog_gl_id, "u_env_light_color"),
 						r->env_light_color.r,
 						r->env_light_color.g,
 						r->env_light_color.b);
-			glUniformMatrix4fv(	glGetUniformLocation(shd->prog_gl_id, "u_cam"),
-								1, GL_FALSE, cam_matrix(r).e);
+			glUniformMatrix4fv(	uniform_loc(shd->prog_gl_id, "u_cam"),
+								1, GL_FALSE, cam_matrix(r->cam_pos, r->cam_fov).e);
+			glUniformMatrix4fv(	uniform_loc(shd->prog_gl_id, "u_prev_cam"),
+								1, GL_FALSE, cam_matrix(r->prev_cam_pos, r->cam_fov).e);
 
-			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_tex_color"), 0);
+			glUniform1i(uniform_loc(shd->prog_gl_id, "u_tex_color"), 0);
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D_ARRAY, r->atlas_tex);
 
-
-			glUniform2i(glGetUniformLocation(shd->prog_gl_id, "u_reso"), reso.x, reso.y);
-
-			GLenum buffers[]= {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
-			glDrawBuffers(2, buffers); // Does second buffer need to be disabled afterwards?
-
+			GLenum buffers[]= {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2};
+			glDrawBuffers(3, buffers); // Do buffers need to be disabled afterwards?
 			glBindFragDataLocation(shd->prog_gl_id, 0, "f_color"); // to scene_color_tex
 			glBindFragDataLocation(shd->prog_gl_id, 1, "f_detail"); // to scene_detail_tex
+			glBindFragDataLocation(shd->prog_gl_id, 2, "f_change"); // to scene_change_tex
 
 			bind_vao(&r->vao);
 			draw_vao(&r->vao);
@@ -1018,12 +1038,12 @@ void render_frame()
 							ResType_ShaderSource,
 							"grid_blit");
 				glUseProgram(grid_shd->prog_gl_id);
-				glUniform1i(glGetUniformLocation(grid_shd->prog_gl_id, "u_tex_color"), 0);
+				glUniform1i(uniform_loc(grid_shd->prog_gl_id, "u_tex_color"), 0);
 				glUniformMatrix4fv(
-						glGetUniformLocation(grid_shd->prog_gl_id, "u_cam"),
+						uniform_loc(grid_shd->prog_gl_id, "u_cam"),
 						1,
 						GL_FALSE,
-						cam_matrix(r).e);
+						cam_matrix(r->cam_pos, r->cam_fov).e);
 
 				glBindTexture(GL_TEXTURE_2D, r->fluid_grid_tex);
 				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
@@ -1038,6 +1058,14 @@ void render_frame()
 			ShaderSource* shd=
 				(ShaderSource*)res_by_name(g_env.resblob, ResType_ShaderSource, "upd_brushes");
 			glUseProgram(shd->prog_gl_id);
+
+			glUniform1i(uniform_loc(shd->prog_gl_id, "u_scene_change"), 0);
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, r->scene_change_tex);
+
+			//glUniform1i(uniform_loc(shd->prog_gl_id, "u_scene_color"), 1);
+			//glActiveTexture(GL_TEXTURE1);
+			//glBindTexture(GL_TEXTURE_2D, r->scene_color_tex);
 
 			glEnable(GL_RASTERIZER_DISCARD);
 			glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, r->dst_brush_vao->vbo_id);
@@ -1065,15 +1093,15 @@ void render_frame()
 				(ShaderSource*)res_by_name(g_env.resblob, ResType_ShaderSource, "paint");
 			glUseProgram(shd->prog_gl_id);
 
-			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_scene_color"), 0);
+			glUniform1i(uniform_loc(shd->prog_gl_id, "u_scene_color"), 0);
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, r->scene_color_tex);
 
-			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_scene_detail"), 1);
+			glUniform1i(uniform_loc(shd->prog_gl_id, "u_scene_detail"), 1);
 			glActiveTexture(GL_TEXTURE1);
 			glBindTexture(GL_TEXTURE_2D, r->scene_detail_tex);
 
-			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_brush"), 2);
+			glUniform1i(uniform_loc(shd->prog_gl_id, "u_brush"), 2);
 			glActiveTexture(GL_TEXTURE2);
 			glBindTexture(GL_TEXTURE_2D, r->brush_tex);
 
@@ -1093,7 +1121,7 @@ void render_frame()
 			glUseProgram(shd->prog_gl_id);
 
 			// Should we use scene_color or paint?
-			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_scene_color"), 0);
+			glUniform1i(uniform_loc(shd->prog_gl_id, "u_scene_color"), 0);
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, r->scene_color_tex);
 
@@ -1116,19 +1144,19 @@ void render_frame()
 				(ShaderSource*)res_by_name(g_env.resblob, ResType_ShaderSource, "post");
 			glUseProgram(shd->prog_gl_id);
 
-			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_paint"), 0);
+			glUniform1i(uniform_loc(shd->prog_gl_id, "u_paint"), 0);
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, r->paint_fbo_tex);
 
-			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_highlight"), 1);
+			glUniform1i(uniform_loc(shd->prog_gl_id, "u_highlight"), 1);
 			glActiveTexture(GL_TEXTURE1);
 			glBindTexture(GL_TEXTURE_2D, r->hl_tex);
 
-			glUniform1i(glGetUniformLocation(shd->prog_gl_id, "u_occlusion"), 2);
+			glUniform1i(uniform_loc(shd->prog_gl_id, "u_occlusion"), 2);
 			glActiveTexture(GL_TEXTURE2);
 			glBindTexture(GL_TEXTURE_2D, r->occlusion_tex);
 
-			glUniform2f(glGetUniformLocation(shd->prog_gl_id, "u_occlusion_scale"),
+			glUniform2f(uniform_loc(shd->prog_gl_id, "u_occlusion_scale"),
 				occlusion_scale.x, occlusion_scale.y);
 
 			draw_screen_quad();
@@ -1170,16 +1198,18 @@ void render_frame()
 							ResType_ShaderSource,
 							"grid_blit");
 				glUseProgram(grid_shd->prog_gl_id);
-				glUniform1i(glGetUniformLocation(grid_shd->prog_gl_id, "u_tex_color"), 0);
+				glUniform1i(uniform_loc(grid_shd->prog_gl_id, "u_tex_color"), 0);
 				glUniformMatrix4fv(
-						glGetUniformLocation(grid_shd->prog_gl_id, "u_cam"),
+						uniform_loc(grid_shd->prog_gl_id, "u_cam"),
 						1,
 						GL_FALSE,
-						cam_matrix(r).e);
+						cam_matrix(r->cam_pos, r->cam_fov).e);
 				draw_grid_quad();
 			}
 		}
 	}
+
+	r->prev_cam_pos= r->cam_pos;
 }
 
 V2d screen_to_world_point(V2i p)
@@ -1196,7 +1226,7 @@ V2d screen_to_world_point(V2i p)
 		gl_p.y*tan(r->cam_fov.y*0.5)*r->cam_pos.z,
 	};
 
-	M44f m= inverted_m44f(view_matrix(r));
+	M44f m= inverted_m44f(view_matrix(r->cam_pos));
 	V2d result= {
 		.x= view_p.x*m.e[0] + view_p.y*m.e[4] + m.e[12],
 		.y= view_p.x*m.e[1] + view_p.y*m.e[5] + m.e[13],

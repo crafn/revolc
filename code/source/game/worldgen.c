@@ -187,7 +187,7 @@ void generate_world(World *w, U64 seed)
 	}
 
 	{ // Player test
-		T3d tf= {{1, 1, 1}, identity_qd(), {0, 15}};
+		T3d tf= {{1, 1, 1}, identity_qd(), {0, 12}};
 		SlotVal init_vals[]= {
 			{"char", "tf", WITH_DEREF_SIZEOF(&tf)},
 		};

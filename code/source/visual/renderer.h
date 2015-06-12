@@ -30,7 +30,8 @@ typedef struct Renderer {
 	V2d cam_fov;
 	F32 exposure;
 	Color env_light_color;
-	bool dithering;
+
+	V3d prev_cam_pos;
 
 	DrawCmd cmds[MAX_DRAW_CMD_COUNT];
 	U32 cmd_count;
