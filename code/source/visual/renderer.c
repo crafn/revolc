@@ -348,6 +348,7 @@ void destroy_rendering_pipeline(Renderer *r)
 	glDeleteFramebuffers(1, &r->scene_fbo);
 	glDeleteTextures(1, &r->scene_color_tex);
 	glDeleteTextures(1, &r->scene_detail_tex);
+	glDeleteTextures(1, &r->scene_change_tex);
 
 	glDeleteFramebuffers(1, &r->paint_fbo);
 	glDeleteTextures(1, &r->paint_fbo_tex);

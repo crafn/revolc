@@ -88,19 +88,20 @@ void create_audiosystem()
 	ensure(!g_env.audiosystem);
 	g_env.audiosystem= a;
 
-	// Default outputstream params
-	PaStreamParameters out_params;
-	out_params.channelCount= 2;
-	out_params.hostApiSpecificStreamInfo= NULL;
-	out_params.sampleFormat= paFloat32;
-	out_params.suggestedLatency= 0.05;
-
 	PaError err= Pa_Initialize();
 
 	if(err != paNoError) {
 		fail("create_audiosystem(): PortAudio init failed: %s",
 				Pa_GetErrorText(err));
 	}
+
+#if 0
+	// Default outputstream params
+	PaStreamParameters out_params;
+	out_params.channelCount= 2;
+	out_params.hostApiSpecificStreamInfo= NULL;
+	out_params.sampleFormat= paFloat32;
+	out_params.suggestedLatency= 0.05;
 
 	S32 host_api_count= Pa_GetHostApiCount();
 	if (host_api_count < 1)
@@ -157,6 +158,18 @@ void create_audiosystem()
 			  paNoFlag,
 			  &audio_callback,
 			  a->channels);
+#else
+	PaStream *out_stream;
+    err= Pa_OpenDefaultStream(	&out_stream,
+								0,
+								2,
+								paFloat32,
+								AUDIO_SAMPLE_RATE,
+								AUDIO_BUFFER_SIZE,
+								&audio_callback,
+								a->channels);
+#endif
+
 	if(err != paNoError) {
 		debug_print("create_audiosystem(): Pa_OpenStream failed: %s",
 				Pa_GetErrorText(err));
