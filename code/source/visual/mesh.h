@@ -31,9 +31,9 @@ typedef struct TriMeshVertex {
 	V3f uv;
 	Color color; // @todo Could be U8[4]
 	F32 emission;
-	U8 pattern; // Overridden in rendering
+	U16 draw_id; // Renderer internals
 	bool selected; // Editor
-	bool pad[18];
+	bool pad[17];
 } TriMeshVertex ALIGNED(64);
 
 typedef struct BrushMeshVertex {
@@ -41,6 +41,13 @@ typedef struct BrushMeshVertex {
 	F32 size;
 	F32 pad;
 } BrushMeshVertex ALIGNED(16);
+
+typedef struct BrushSpawnVertex {
+	V2f pos; // In GL coords
+	V2f gap;
+	V2i count;
+	F32 pad[2];
+} BrushSpawnVertex ALIGNED(32);
 
 typedef struct Mesh {
 	Resource res;

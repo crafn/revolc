@@ -61,6 +61,19 @@ GLint uniform_loc(U32 shd, const char *name)
 	return loc;
 }
 
+internal
+U32 gen_tex(GLenum mag_filter, GLenum min_filter)
+{
+	U32 tex;
+	glGenTextures(1, &tex);
+	glBindTexture(GL_TEXTURE_2D, tex);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, mag_filter);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, min_filter);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+	return tex;
+}
+
 // Apply blur to fbo
 internal
 void blur_fbo(Renderer *r, V2f screenspace_radius, U32 fbo, U32 fbo_tex, V2i reso)
@@ -358,7 +371,9 @@ void destroy_rendering_pipeline(Renderer *r)
 	glDeleteFramebuffers(1, &r->scene_fbo);
 	glDeleteTextures(1, &r->scene_color_tex);
 	glDeleteTextures(1, &r->scene_detail_tex);
-	glDeleteTextures(1, &r->scene_change_tex);
+	glDeleteTextures(1, &r->scene_move_tex);
+	glDeleteTextures(1, &r->scene_src_tex);
+	glDeleteTextures(1, &r->scene_dst_tex);
 
 	glDeleteFramebuffers(1, &r->paint_fbo);
 	glDeleteTextures(1, &r->paint_fbo_tex);
@@ -397,36 +412,31 @@ void recreate_rendering_pipeline(Renderer *r)
 		glGenFramebuffers(1, &r->scene_fbo);
 		glBindFramebuffer(GL_FRAMEBUFFER, r->scene_fbo);
 
-		glGenTextures(1, &r->scene_color_tex);
-		glBindTexture(GL_TEXTURE_2D, r->scene_color_tex);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+		r->scene_color_tex= gen_tex(GL_LINEAR, GL_LINEAR);
 		glTexImage2D(	GL_TEXTURE_2D, 0, GL_RGB16F,
 						r->scene_fbo_reso.x, r->scene_fbo_reso.y,
 						0, GL_RGB, GL_FLOAT, NULL);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, r->scene_color_tex, 0);
-		glGenTextures(1, &r->scene_detail_tex);
-		glBindTexture(GL_TEXTURE_2D, r->scene_detail_tex);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+		r->scene_detail_tex= gen_tex(GL_NEAREST, GL_NEAREST);
 		glTexImage2D(	GL_TEXTURE_2D, 0, GL_RED,
 						r->scene_fbo_reso.x, r->scene_fbo_reso.y,
 						0, GL_RED, GL_FLOAT, NULL);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, r->scene_detail_tex, 0);
-		glGenTextures(1, &r->scene_change_tex);
-		glBindTexture(GL_TEXTURE_2D, r->scene_change_tex);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-		glTexImage2D(	GL_TEXTURE_2D, 0, GL_RGB16F,
+		r->scene_move_tex= gen_tex(GL_NEAREST, GL_NEAREST);
+		glTexImage2D(	GL_TEXTURE_2D, 0, GL_RG16F,
 						r->scene_fbo_reso.x, r->scene_fbo_reso.y,
 						0, GL_RGB, GL_FLOAT, NULL);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, r->scene_change_tex, 0);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, r->scene_move_tex, 0);
+		r->scene_src_tex= gen_tex(GL_NEAREST, GL_NEAREST);
+		glTexImage2D(	GL_TEXTURE_2D, 0, GL_R16UI,
+						r->scene_fbo_reso.x, r->scene_fbo_reso.y,
+						0, GL_RED_INTEGER, GL_UNSIGNED_SHORT, NULL);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, r->scene_src_tex, 0);
+		r->scene_dst_tex= gen_tex(GL_NEAREST, GL_NEAREST);
+		glTexImage2D(	GL_TEXTURE_2D, 0, GL_R16UI,
+						r->scene_fbo_reso.x, r->scene_fbo_reso.y,
+						0, GL_RED_INTEGER, GL_UNSIGNED_SHORT, NULL);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT4, GL_TEXTURE_2D, r->scene_dst_tex, 0);
 		{
 			GLenum ret= glCheckFramebufferStatus(GL_FRAMEBUFFER);
 			if (ret != GL_FRAMEBUFFER_COMPLETE)
@@ -435,12 +445,7 @@ void recreate_rendering_pipeline(Renderer *r)
 		gl_check_errors("recreate_rendering_pipeline: scene fbo");
 
 		// Fbo & tex to store HDR painting of the scene (could try without HDR if slow)
-		glGenTextures(1, &r->paint_fbo_tex);
-		glBindTexture(GL_TEXTURE_2D, r->paint_fbo_tex);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+		r->paint_fbo_tex= gen_tex(GL_LINEAR, GL_LINEAR);
 		glTexImage2D(	GL_TEXTURE_2D, 0, GL_RGB16F,
 						r->paint_fbo_reso.x, r->paint_fbo_reso.y,
 						0, GL_RGB, GL_FLOAT, NULL);
@@ -454,12 +459,7 @@ void recreate_rendering_pipeline(Renderer *r)
 		}
 
 		// Fbo & tex to store highlights of the scene
-		glGenTextures(1, &r->hl_tex);
-		glBindTexture(GL_TEXTURE_2D, r->hl_tex);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+		r->hl_tex= gen_tex(GL_LINEAR, GL_LINEAR);
 		glTexImage2D(	GL_TEXTURE_2D, 0, GL_RGB16F,
 						r->hl_fbo_reso.x, r->hl_fbo_reso.y,
 						0, GL_RGB, GL_FLOAT, NULL);
@@ -473,12 +473,7 @@ void recreate_rendering_pipeline(Renderer *r)
 		}
 
 		// Fbo & tex to store halfway blurred highlight
-		glGenTextures(1, &r->blur_tmp_tex);
-		glBindTexture(GL_TEXTURE_2D, r->blur_tmp_tex);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		r->blur_tmp_tex= gen_tex(GL_LINEAR, GL_LINEAR);
 		glTexImage2D(	GL_TEXTURE_2D, 0, GL_RGB16F,
 						r->blur_tmp_fbo_reso.x, r->blur_tmp_fbo_reso.y,
 						0, GL_RGB, GL_FLOAT, NULL);
@@ -492,12 +487,7 @@ void recreate_rendering_pipeline(Renderer *r)
 		}
 
 		// Fbo & tex to store occlusion map (shadow)
-		glGenTextures(1, &r->occlusion_tex);
-		glBindTexture(GL_TEXTURE_2D, r->occlusion_tex);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		r->occlusion_tex= gen_tex(GL_LINEAR, GL_LINEAR);
 		glTexImage2D(	GL_TEXTURE_2D, 0, GL_RED,
 						r->occlusion_fbo_reso.x, r->occlusion_fbo_reso.y,
 						0, GL_RED, GL_UNSIGNED_BYTE, NULL);
@@ -925,7 +915,7 @@ void render_frame()
 				v.color= cmd->color;
 				v.emission= cmd->emission;
 
-				v.pattern= cmd->pattern;
+				v.draw_id= i;
 
 				total_verts[cur_v]= v;
 				++cur_v;
@@ -991,7 +981,7 @@ void render_frame()
 			}
 		}
 
-		{ // Render scene to fbo (color + detail + change)
+		{ // Render scene to fbo (color + detail + move)
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 			glClearColor(0.0, 0.0, 0.0, 0.0);
@@ -1021,11 +1011,20 @@ void render_frame()
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D_ARRAY, r->atlas_tex);
 
-			GLenum buffers[]= {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2};
-			glDrawBuffers(3, buffers); // Do buffers need to be disabled afterwards?
+			GLenum buffers[]= {
+				GL_COLOR_ATTACHMENT0,
+				GL_COLOR_ATTACHMENT1,
+				GL_COLOR_ATTACHMENT2,
+				GL_COLOR_ATTACHMENT3,
+				GL_COLOR_ATTACHMENT4,
+			};
+			// Do buffers need to be disabled afterwards?
+			glDrawBuffers(ARRAY_COUNT(buffers), buffers);
 			glBindFragDataLocation(shd->prog_gl_id, 0, "f_color"); // to scene_color_tex
 			glBindFragDataLocation(shd->prog_gl_id, 1, "f_detail"); // to scene_detail_tex
-			glBindFragDataLocation(shd->prog_gl_id, 2, "f_change"); // to scene_change_tex
+			glBindFragDataLocation(shd->prog_gl_id, 2, "f_move"); // to scene_move_tex
+			glBindFragDataLocation(shd->prog_gl_id, 3, "f_src"); // to scene_src_tex
+			glBindFragDataLocation(shd->prog_gl_id, 4, "f_dst"); // to scene_dst_tex
 
 			bind_vao(&r->vao);
 			draw_vao(&r->vao);
@@ -1059,13 +1058,17 @@ void render_frame()
 				(ShaderSource*)res_by_name(g_env.resblob, ResType_ShaderSource, "upd_brushes");
 			glUseProgram(shd->prog_gl_id);
 
-			glUniform1i(uniform_loc(shd->prog_gl_id, "u_scene_change"), 0);
+			glUniform1i(uniform_loc(shd->prog_gl_id, "u_scene_move"), 0);
 			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, r->scene_change_tex);
+			glBindTexture(GL_TEXTURE_2D, r->scene_move_tex);
 
-			//glUniform1i(uniform_loc(shd->prog_gl_id, "u_scene_color"), 1);
-			//glActiveTexture(GL_TEXTURE1);
-			//glBindTexture(GL_TEXTURE_2D, r->scene_color_tex);
+			glUniform1i(uniform_loc(shd->prog_gl_id, "u_scene_src"), 1);
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, r->scene_src_tex);
+
+			glUniform1i(uniform_loc(shd->prog_gl_id, "u_scene_dst"), 2);
+			glActiveTexture(GL_TEXTURE2);
+			glBindTexture(GL_TEXTURE_2D, r->scene_dst_tex);
 
 			glEnable(GL_RASTERIZER_DISCARD);
 			glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, r->dst_brush_vao->vbo_id);

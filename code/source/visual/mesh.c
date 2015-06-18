@@ -10,7 +10,7 @@ void vertex_attributes(MeshType type, const VertexAttrib **attribs, U32 *count)
 			{ "a_uv", 3, GL_FLOAT, true, false, offsetof(TriMeshVertex, uv) },
 			{ "a_color", 4, GL_FLOAT, true, false, offsetof(TriMeshVertex, color) },
 			{ "a_emission", 1, GL_FLOAT, true, false, offsetof(TriMeshVertex, emission) },
-			{ "a_pattern", 1, GL_UNSIGNED_BYTE, false, false, offsetof(TriMeshVertex, pattern) },
+			{ "a_draw_id", 1, GL_UNSIGNED_SHORT, false, false, offsetof(TriMeshVertex, draw_id) },
 		};
 		if (attribs)
 			*attribs= tri_attribs;

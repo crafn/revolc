@@ -24,8 +24,8 @@ void deinit_env()
 void * frame_alloc(U32 size)
 {
 	/// @todo ALIGNMENT
-	U8 *block= g_env.frame_mem;
-	g_env.frame_mem += size;
+	U8 *block= (void*)((U64)(g_env.frame_mem + 15) & ~0x0F); // 16-aligned
+	g_env.frame_mem= block + size;
 	ensure(g_env.frame_mem < g_env.frame_mem_end && "Frame allocator out of space");
 	return block;
 }
