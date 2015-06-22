@@ -1053,6 +1053,7 @@ void render_frame()
 			}
 		}
 
+		if (r->brush_rendering)
 		{ // Move brushes according to scene
 			ShaderSource* shd=
 				(ShaderSource*)res_by_name(g_env.resblob, ResType_ShaderSource, "upd_brushes");
@@ -1083,6 +1084,7 @@ void render_frame()
 			SWAP(Vao*, r->src_brush_vao, r->dst_brush_vao);
 		}
 
+		if (r->brush_rendering)
 		{ // Paintify rendered scene
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -1147,9 +1149,15 @@ void render_frame()
 				(ShaderSource*)res_by_name(g_env.resblob, ResType_ShaderSource, "post");
 			glUseProgram(shd->prog_gl_id);
 
-			glUniform1i(uniform_loc(shd->prog_gl_id, "u_paint"), 0);
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, r->paint_fbo_tex);
+			if (r->brush_rendering) {
+				glUniform1i(uniform_loc(shd->prog_gl_id, "u_color"), 0);
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, r->paint_fbo_tex);
+			} else {
+				glUniform1i(uniform_loc(shd->prog_gl_id, "u_color"), 0);
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, r->scene_color_tex);
+			}
 
 			glUniform1i(uniform_loc(shd->prog_gl_id, "u_highlight"), 1);
 			glActiveTexture(GL_TEXTURE1);

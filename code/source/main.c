@@ -128,8 +128,8 @@ int main(int argc, const char **argv)
 				g_env.renderer->exposure -= dt*2.0;
 			if (d->key_down['v'])
 				g_env.renderer->exposure += dt*2.0;
-			//if (d->key_pressed['m'])
-			//	toggle_bool(&g_env.renderer->dithering);
+			if (d->key_pressed['m'])
+				toggle_bool(&g_env.renderer->brush_rendering);
 
 			g_env.renderer->cam_pos.z -= g_env.device->mwheel_delta;
 

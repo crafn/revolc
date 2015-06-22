@@ -30,6 +30,7 @@ typedef struct Renderer {
 	V2d cam_fov;
 	F32 exposure;
 	Color env_light_color;
+	bool brush_rendering;
 
 	V3d prev_cam_pos;
 
