@@ -5,6 +5,18 @@
 #include "world.h"
 
 // This is just a test world generation
-void generate_world(World *w, U64 seed);
+
+REVOLC_API
+void generate_test_world(World *w);
+
+REVOLC_API
+F64 ground_surf_y(F64 x);
+
+REVOLC_API
+void spawn_visual_prop(World *world, V3d pos, F64 rot, V3d scale, const char *name);
+
+REVOLC_API
+void spawn_phys_prop(World *world, V2d pos, const char *name, bool is_static);
+
 
 #endif // REVOLC_GAME_WORLDGEN_H

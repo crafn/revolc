@@ -1,6 +1,6 @@
 #define MOD_DLL_BUILD
 
-#include "mod.c"
+#include "clover.c"
 #include "dirtbug.c"
 
 #ifndef CODEGEN

@@ -19,16 +19,30 @@
 #include "visual/model.h"
 #include "visual/renderer.h"
 
-#define DEFAULT_RES_ROOT "../../resources/gamedata/"
+#define DEFAULT_RES_ROOT "../../resources/"
 
 internal
-void make_main_blob()
+void make_main_blob(const char *blob_path, const char *game)
 {
-	char **res_paths= plat_find_paths_with_end(DEFAULT_RES_ROOT, ".res");
-	make_blob("main.blob", res_paths);
+	const char *engine_res_root= frame_str("%srevolc/", DEFAULT_RES_ROOT);
+	const char *game_res_root= frame_str("%s%s/", DEFAULT_RES_ROOT, game);
+
+	// @todo Fix crappy api!
+	char **game_res_paths= plat_find_paths_with_end(game_res_root, ".res");
+	char **engine_res_paths= plat_find_paths_with_end(engine_res_root, ".res");
+
+	U32 res_count= 0;
+	char *res_paths[MAX_RES_FILES]= {0};
+	for (U32 i= 0; res_count < MAX_RES_FILES && engine_res_paths[i]; ++i)
+		res_paths[res_count++]= engine_res_paths[i];
+	for (U32 i= 0; res_count < MAX_RES_FILES && game_res_paths[i]; ++i)
+		res_paths[res_count++]= game_res_paths[i];
+
+	make_blob(blob_path, res_paths);
 	for (U32 i= 0; res_paths[i]; ++i)
 		free(res_paths[i]);
-	free(res_paths);
+	free(engine_res_paths);
+	free(game_res_paths);
 }
 
 internal
@@ -52,32 +66,46 @@ void spawn_entity(World *world, ResBlob *blob, V2d pos)
 }
 
 #define SAVEFILE_PATH "save.bin"
-#define DEFAULT_BLOB_PATH "main.blob"
-
 
 int main(int argc, const char **argv)
 {
+	const char *game= NULL;
+	if (argc <= 1) {
+		fail("Not enough arguments: specify name of the game");
+	} else {
+		game= argv[1];
+	}
+
 	init_env();
 
-	Device *d= plat_init("Revolc engine", (V2i) {1024, 768});
+	Device *d= plat_init(frame_str("Revolc engine - %s", game), (V2i) {1024, 768});
 
-	if (!file_exists(DEFAULT_BLOB_PATH))
-		make_main_blob();
-
-	load_blob(&g_env.resblob, DEFAULT_BLOB_PATH);
+	const char *blob_path= frame_str("%s.blob", game);
+	if (!file_exists(blob_path))
+		make_main_blob(blob_path, game);
+	load_blob(&g_env.resblob, blob_path);
 	print_blob(g_env.resblob);
 
 	create_audiosystem();
 	create_renderer();
 	create_physworld();
-	World *world= g_env.world= create_world();
-
-	if (file_exists(SAVEFILE_PATH))
-		load_world(world, SAVEFILE_PATH);
-	else
-		generate_world(world, (U32)time(NULL));
 	create_uicontext();
 	create_editor();
+
+	World *world= g_env.world= create_world();
+
+	if (file_exists(SAVEFILE_PATH)) {
+		load_world(world, SAVEFILE_PATH);
+	} else {
+		U32 count;
+		Module **modules= (Module**)all_res_by_type(&count,
+													g_env.resblob,
+													ResType_Module);
+		for (U32 i= 0; i < count; ++i) {
+			if (modules[i]->worldgen)
+				modules[i]->worldgen(world);
+		}
+	}
 
 	F64 time_accum= 0.0; // For fps
 	U32 frame= 0;
@@ -187,29 +215,35 @@ int main(int argc, const char **argv)
 			if (d->key_pressed[KEY_F5]) {
 				U32 count= mirror_blob_modifications(g_env.resblob);
 				if (count > 0)
-					delete_file(DEFAULT_BLOB_PATH); // Force make_blob at restart
+					delete_file(blob_path); // Force make_blob at restart
 			}
 
 			if (d->key_pressed[KEY_F9]) {
 				system("cd ../../code && clbs debug mod");
-				make_main_blob();
+				make_main_blob(blob_path, game);
 
 				if (!d->key_down[KEY_LSHIFT] && blob_has_modifications(g_env.resblob))
 					critical_print("Current resblob has unsaved modifications -- not reloading");
 				else
-					reload_blob(&g_env.resblob, g_env.resblob, DEFAULT_BLOB_PATH);
+					reload_blob(&g_env.resblob, g_env.resblob, blob_path);
 			}
 
 			if (d->key_pressed[KEY_F12]) {
-				/// @todo Reload only modules
-				system("cd ../../code && clbs debug mod");
-				if (!file_exists(DEFAULT_BLOB_PATH))
-					make_main_blob();
+				U32 count;
+				Module **modules= (Module**)all_res_by_type(&count,
+															g_env.resblob,
+															ResType_Module);
+				for (U32 i= 0; i < count; ++i)
+					system(frame_str("cd ../../code && clbs debug %s", count[modules]->res.name));
 
+				if (!file_exists(blob_path))
+					make_main_blob(blob_path, game);
+
+				/// @todo Reload only modules
 				if (!d->key_down[KEY_LSHIFT] && blob_has_modifications(g_env.resblob))
 					critical_print("Current resblob has unsaved modifications -- not reloading");
 				else
-					reload_blob(&g_env.resblob, g_env.resblob, DEFAULT_BLOB_PATH);
+					reload_blob(&g_env.resblob, g_env.resblob, blob_path);
 			}
 
 			if (d->key_pressed['u']) {
@@ -261,7 +295,8 @@ int main(int argc, const char **argv)
 		post_upd_physworld();
 		upd_phys_rendering();
 
-		{ // Test ground drawing
+		// @todo NO STRCMP HERE
+		if (!strcmp(game, "clover")){ // Test ground drawing
 
 			const Model *model= (Model*)res_by_name(g_env.resblob, ResType_Model, "dirt");
 			const Mesh *mesh= model_mesh(model);

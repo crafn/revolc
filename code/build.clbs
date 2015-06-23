@@ -1,16 +1,19 @@
 # Build instructions
 
-# `clbs -j4` - build with development configuration in 4 threads
-# `clbs debug`, `clbs dev` or `clbs release` - build everything with respective configuration
-# `clbs revolc` or `clbs mod` - build certain parts of the codebase
+# `clbs clover -j4` - build with development configuration in 4 threads
+# `clbs clover debug`, `clbs dev` or `clbs release` - build everything with respective configuration
+# `clbs clover revolc` or `clbs mod` - build certain parts of the codebase
 # `clbs <cfg> clean` - removes all objects, libraries and executables
 # Flag `-v` can be used to see actual compilation and linking commands
 
 # When working with engine, desired command usually is
 # `clbs -j8 dev revolc`
 
-# When working with game, desired command usually is
-# `clbs -j8 dev mod`
+# When working with clover, desired command usually is
+# `clbs -j8 dev clover`
+
+# When working with rts, desired command usually is
+# `clbs -j8 dev rts`
 
 def buildInfo(env, tags):
 	def runCodegen(p, input_file, output_file, gen_also_math):
@@ -186,9 +189,13 @@ def buildInfo(env, tags):
 		common_dep_dir + "/ogg/include",
 	]
 	only_revolc= "revolc" in tags
-	only_mod= "mod" in tags
-	build_deps= not only_revolc and not only_mod
-	build_revolc= only_revolc or not only_mod
+	only_clover= "clover" in tags
+	only_rts= "rts" in tags
+	only_something= only_revolc or only_clover or only_rts
+	build_deps= only_revolc or not only_something
+	build_revolc= only_revolc or not only_something
+	build_rts= only_rts or not only_something
+	build_clover= not build_rts and (only_clover or not only_something)
 
 	### Codegen ##
 
@@ -220,36 +227,38 @@ def buildInfo(env, tags):
 	elif "dev" in tags:
 		cfg= "dev"
 		target_flags += [ "g", "O2", "mtune=native", "march=native" ]
+	elif "clover" in tags:
+		pass
 	else:
 		fail("Invalid tags: " + str(tags))
 
 	deps_libname= "deps_" + cfg
+	dep_libs= []
+	# PortAudio for windows
+	if env.os == "windows":
+		pa_dir= "./deps/win/portaudio-19"
+		pa= Project()
+		if build_deps:
+			pa.name= "portaudio_" + cfg
+			pa.type= "obj"
+			pa.targetDir= lib_dir
+			pa.includeDirs= [
+				pa_dir + "/include",
+				pa_dir + "/src/common",
+				pa_dir + "/src/os/win" ]
+			pa.headers= findFiles(pa_dir, "*.h")
+			pa.src= findFiles(pa_dir + "/src/common", "*.c") +\
+					findFiles(pa_dir + "/src/os/win", "*.c") +\
+					findFiles(pa_dir + "/src/hostapi/dsound", "*.c") # Not sure
+			pa.flags= target_flags + ["w"]
+			pa.defines= target_defines + [ "PA_USE_DS" ]
+			pa.compiler= c_compiler
+			pa.linker= linker
+			dep_libs.append(pa)
+		dep_include_paths.append(pa_dir + "/include")
+
 	if build_deps:
 		dep_lib_paths= []
-		dep_libs= []
-
-		# PortAudio
-		if env.os == "windows":
-			pa_dir= "./deps/win/portaudio-19"
-			pa= Project()
-			if build_deps:
-				pa.name= "portaudio_" + cfg
-				pa.type= "obj"
-				pa.targetDir= lib_dir
-				pa.includeDirs= [
-					pa_dir + "/include",
-					pa_dir + "/src/common",
-					pa_dir + "/src/os/win" ]
-				pa.headers= findFiles(pa_dir, "*.h")
-				pa.src= findFiles(pa_dir + "/src/common", "*.c") +\
-						findFiles(pa_dir + "/src/os/win", "*.c") +\
-						findFiles(pa_dir + "/src/hostapi/dsound", "*.c") # Not sure
-				pa.flags= target_flags + ["w"]
-				pa.defines= target_defines + [ "PA_USE_DS" ]
-				pa.compiler= c_compiler
-				pa.linker= linker
-				dep_libs.append(pa)
-			dep_include_paths.append(pa_dir + "/include")
 
 		deps_proj= Project()
 		deps_proj.name= deps_libname
@@ -305,7 +314,7 @@ def buildInfo(env, tags):
 		revolc.targetDir= build_dest_dir
 		revolc.includeDirs= revolc_includedirs
 		revolc.libDirs= revolc_libdirs
-		revolc.headers= filterStrs(["/mod/"], findCplFiles(revolc_src_dir, ["*.h", "*.def", "*.c"]))
+		revolc.headers= filterStrs(["/clover/", "/rts/"], findCplFiles(revolc_src_dir, ["*.h", "*.def", "*.c"]))
 		revolc.src= [ revolc_src_dir + "/unity.c" ]
 		revolc.flags= revolc_flags
 		revolc.defines= revolc_defines
@@ -325,29 +334,56 @@ def buildInfo(env, tags):
 			revolc.links += [ "--export-all-symbols", "--out-implib," + lib_dir + "/librevolc_stubs.a" ]
 
 	### Game DLL ###
+	game= None
+	if build_clover and build_rts:
+		fail("Can't build both clover and rts")
 
-	resource_dir= "../resources/gamedata"
-	mod_src_dir= revolc_src_dir + "/mod"
-	mod= Project()
-	mod.name= "mod"
-	mod.type= "dll"
-	mod.targetDir= resource_dir
-	mod.includeDirs= revolc_includedirs
-	mod.libDirs= revolc_libdirs
-	mod.headers= findCplFiles(mod_src_dir, ["*.h", "*.c"])
-	mod.src= [ mod_src_dir + "/unity.c" ]
-	mod.flags= revolc_flags
-	mod.defines= revolc_defines
-	mod.compiler= c_compiler
-	mod.linker= linker
-	mod.deps = [ codegen ]
-	mod.prebuild= lambda p: runCodegen(p, mod.src[0], mod_src_dir + "/gen_rtti.c", False)
+	if build_clover:
+		resource_dir= "../resources/clover"
+		clover_src_dir= revolc_src_dir + "/clover"
+		clover= Project()
+		clover.name= "clover"
+		clover.type= "dll"
+		clover.targetDir= resource_dir
+		clover.includeDirs= revolc_includedirs
+		clover.libDirs= revolc_libdirs
+		clover.headers= findCplFiles(clover_src_dir, ["*.h", "*.c"])
+		clover.src= [ clover_src_dir + "/unity.c" ]
+		clover.flags= revolc_flags
+		clover.defines= revolc_defines
+		clover.compiler= c_compiler
+		clover.linker= linker
+		clover.deps = [ codegen ]
+		clover.prebuild= lambda p: runCodegen(p, clover.src[0], clover_src_dir + "/gen_rtti.c", False)
+		game= clover
+	elif build_rts:
+		resource_dir= "../resources/rts"
+		rts_src_dir= revolc_src_dir + "/rts"
+		rts= Project()
+		rts.name= "rts"
+		rts.type= "dll"
+		rts.targetDir= resource_dir
+		rts.includeDirs= revolc_includedirs
+		rts.libDirs= revolc_libdirs
+		rts.headers= findCplFiles(rts_src_dir, ["*.h", "*.c"])
+		rts.src= [ rts_src_dir + "/unity.c" ]
+		rts.flags= revolc_flags
+		rts.defines= revolc_defines
+		rts.compiler= c_compiler
+		rts.linker= linker
+		rts.deps = [ codegen ]
+		rts.prebuild= lambda p: runCodegen(p, rts.src[0], rts_src_dir + "/gen_rtti.c", False)
+		game= rts
+
+	if game == None:
+		return revolc
 
 	if build_revolc:
-		mod.deps += [ revolc ]
+		game.deps += [ revolc ]
+
 	if env.os == "linux":
 		pass # Linked at runtime
 	elif env.os == "windows":
 		# Undefined references not allowed in windows DLL
-		mod.links += [ "revolc_stubs" ]
-	return mod
+		game.links += [ "revolc_stubs" ]
+	return game
