@@ -19,8 +19,6 @@
 #include "visual/model.h"
 #include "visual/renderer.h"
 
-#define DEFAULT_RES_ROOT "../../resources/"
-
 internal
 void make_main_blob(const char *blob_path, const char *game)
 {
@@ -295,8 +293,7 @@ int main(int argc, const char **argv)
 		post_upd_physworld();
 		upd_phys_rendering();
 
-		// @todo NO STRCMP HERE
-		if (!strcmp(game, "clover")){ // Test ground drawing
+		{ // Test ground drawing
 
 			const Model *model= (Model*)res_by_name(g_env.resblob, ResType_Model, "dirt");
 			const Mesh *mesh= model_mesh(model);

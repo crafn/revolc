@@ -11,8 +11,6 @@
 #	include "resources/resources.def"
 #undef HEADERS
 
-#define MISSING_RES_FILE "../../resources/gamedata/basic/missing"
-
 internal
 int json_res_to_blob(BlobBuf *buf, JsonTok j, ResType res_t)
 {

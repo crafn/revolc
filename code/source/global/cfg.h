@@ -6,6 +6,8 @@
 
 #define MAX_BLOB_SIZE (1024*1024*512) // 0.5 Gb
 #define MAX_RES_FILES 64
+#define DEFAULT_RES_ROOT "../../resources/"
+#define MISSING_RES_FILE "../../resources/revolc/missing"
 
 #define MAX_ARMATURE_JOINT_COUNT 16
 #define MAX_ARMATURE_CLIP_COUNT 32
