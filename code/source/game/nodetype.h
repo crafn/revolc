@@ -3,6 +3,7 @@
 
 #include "build.h"
 #include "resources/resource.h"
+#include "core/json.h"
 
 struct World;
 struct Module;

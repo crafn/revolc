@@ -3,6 +3,7 @@
 
 #include "build.h"
 #include "resources/resource.h"
+#include "core/json.h"
 
 #define MAX_NODES_IN_GROUP_DEF 16
 #define MAX_DEFAULT_STRUCT_SIZE (1024*2)

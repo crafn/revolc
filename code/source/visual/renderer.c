@@ -513,6 +513,7 @@ void create_renderer()
 	r->cam_pos.z= 7.0;
 	r->prev_cam_pos= r->cam_pos;
 	r->cam_fov= (V2d) {3.141/2.0, 3.0141/2.0};
+	r->env_light_color= (Color) {1, 1, 1, 1};
 
 	r->vao= create_vao(MeshType_tri, MAX_DRAW_VERTEX_COUNT, MAX_DRAW_INDEX_COUNT);
 

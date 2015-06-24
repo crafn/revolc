@@ -43,6 +43,9 @@ void make_main_blob(const char *blob_path, const char *game)
 	free(game_res_paths);
 }
 
+const char *blob_path(const char *game)
+{ return frame_str("%s.blob", game); }
+
 internal
 void spawn_entity(World *world, ResBlob *blob, V2d pos)
 {
@@ -78,10 +81,9 @@ int main(int argc, const char **argv)
 
 	Device *d= plat_init(frame_str("Revolc engine - %s", game), (V2i) {1024, 768});
 
-	const char *blob_path= frame_str("%s.blob", game);
-	if (!file_exists(blob_path))
-		make_main_blob(blob_path, game);
-	load_blob(&g_env.resblob, blob_path);
+	if (!file_exists(blob_path(game)))
+		make_main_blob(blob_path(game), game);
+	load_blob(&g_env.resblob, blob_path(game));
 	print_blob(g_env.resblob);
 
 	create_audiosystem();
@@ -158,6 +160,7 @@ int main(int argc, const char **argv)
 				toggle_bool(&g_env.renderer->brush_rendering);
 
 			g_env.renderer->cam_pos.z -= g_env.device->mwheel_delta;
+			g_env.renderer->cam_pos.z = MIN(g_env.renderer->cam_pos.z, 30);
 
 			{ // Fov which cuts stuff away with non-square window
 				V2i win_size= g_env.device->win_size;
@@ -196,11 +199,10 @@ int main(int argc, const char **argv)
 			}
 #			endif
 
-			/*if (d->key_down['t'])
-				set_grid_material_in_circle(cursor_on_world, 1.0, GRIDCELL_MATERIAL_AIR);
+			if (d->key_down['t'])
+				set_grid_material_in_circle(cursor_on_world, 2.0, GRIDCELL_MATERIAL_AIR);
 			if (d->key_down['g'])
-				set_grid_material_in_circle(cursor_on_world, 0.4, GRIDCELL_MATERIAL_GROUND);
-				*/
+				set_grid_material_in_circle(cursor_on_world, 1.0, GRIDCELL_MATERIAL_GROUND);
 
 			if (d->key_pressed['q'])
 				g_env.physworld->debug_draw= !g_env.physworld->debug_draw;
@@ -213,17 +215,17 @@ int main(int argc, const char **argv)
 			if (d->key_pressed[KEY_F5]) {
 				U32 count= mirror_blob_modifications(g_env.resblob);
 				if (count > 0)
-					delete_file(blob_path); // Force make_blob at restart
+					delete_file(blob_path(game)); // Force make_blob at restart
 			}
 
 			if (d->key_pressed[KEY_F9]) {
 				system("cd ../../code && clbs debug mod");
-				make_main_blob(blob_path, game);
+				make_main_blob(blob_path(game), game);
 
 				if (!d->key_down[KEY_LSHIFT] && blob_has_modifications(g_env.resblob))
 					critical_print("Current resblob has unsaved modifications -- not reloading");
 				else
-					reload_blob(&g_env.resblob, g_env.resblob, blob_path);
+					reload_blob(&g_env.resblob, g_env.resblob, blob_path(game));
 			}
 
 			if (d->key_pressed[KEY_F12]) {
@@ -234,14 +236,14 @@ int main(int argc, const char **argv)
 				for (U32 i= 0; i < count; ++i)
 					system(frame_str("cd ../../code && clbs debug %s", count[modules]->res.name));
 
-				if (!file_exists(blob_path))
-					make_main_blob(blob_path, game);
+				if (!file_exists(blob_path(game)))
+					make_main_blob(blob_path(game), game);
 
 				/// @todo Reload only modules
 				if (!d->key_down[KEY_LSHIFT] && blob_has_modifications(g_env.resblob))
 					critical_print("Current resblob has unsaved modifications -- not reloading");
 				else
-					reload_blob(&g_env.resblob, g_env.resblob, blob_path);
+					reload_blob(&g_env.resblob, g_env.resblob, blob_path(game));
 			}
 
 			if (d->key_pressed['u']) {
