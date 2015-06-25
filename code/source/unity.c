@@ -51,7 +51,6 @@
 #include "visual/vao.c"
 
 
-
 #ifndef CODEGEN
 #	if PLATFORM == PLATFORM_LINUX
 #		include "platform/linux.c"

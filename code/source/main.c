@@ -5,6 +5,7 @@
 #include "core/ensure.h"
 #include "core/file.h"
 #include "core/random.h"
+#include "core/socket.h"
 #include "core/vector.h"
 #include "editor/editor.h"
 #include "game/aitest.h"
@@ -71,13 +72,12 @@ void spawn_entity(World *world, ResBlob *blob, V2d pos)
 int main(int argc, const char **argv)
 {
 	const char *game= NULL;
-	if (argc <= 1) {
-		fail("Not enough arguments: specify name of the game");
-	} else {
+	if (argc < 2)
+		fail("Specify name of the game");
+	else
 		game= argv[1];
-	}
 
-	init_env();
+	init_env(argc, argv);
 
 	Device *d= plat_init(frame_str("Revolc engine - %s", game), (V2i) {1024, 768});
 
@@ -92,19 +92,16 @@ int main(int argc, const char **argv)
 	create_uicontext();
 	create_editor();
 
+	init_for_modules();
+
 	World *world= g_env.world= create_world();
 
+
+	// Init/load world
 	if (file_exists(SAVEFILE_PATH)) {
 		load_world(world, SAVEFILE_PATH);
 	} else {
-		U32 count;
-		Module **modules= (Module**)all_res_by_type(&count,
-													g_env.resblob,
-													ResType_Module);
-		for (U32 i= 0; i < count; ++i) {
-			if (modules[i]->worldgen)
-				modules[i]->worldgen(world);
-		}
+		worldgen_for_modules(world);
 	}
 
 	F64 time_accum= 0.0; // For fps
@@ -113,7 +110,6 @@ int main(int argc, const char **argv)
 		reset_frame_alloc();
 
 		plat_update(d);
-		upd_uicontext();
 		time_accum += d->dt;
 		if (frame++ == 60 && 0) {
 			debug_print("---");
@@ -125,6 +121,8 @@ int main(int argc, const char **argv)
 			frame= 0;
 			time_accum= 0;
 		}
+
+		upd_uicontext();
 
 		{ // User input
 			V2d cursor_on_world= screen_to_world_point(g_env.device->cursor_pos);
@@ -287,6 +285,8 @@ int main(int argc, const char **argv)
 
 		upd_editor();
 
+		upd_for_modules(); // This should be in multiple places with different enum params
+
 		F64 game_dt= d->dt;
 		if (g_env.editor->state != EditorState_invisible)
 			game_dt= 0.0;
@@ -357,10 +357,12 @@ int main(int argc, const char **argv)
 		plat_sleep(1);
 	}
 
-	destroy_editor();
-	destroy_uicontext();
+	deinit_for_modules();
+
 	destroy_world(world);
 	g_env.world= NULL;
+	destroy_editor();
+	destroy_uicontext();
 
 	destroy_physworld();
 	destroy_renderer();

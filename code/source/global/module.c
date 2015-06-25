@@ -1,6 +1,55 @@
 #include "platform/file.h"
 #include "global/module.h"
 
+void init_for_modules()
+{
+	U32 module_count;
+	Module **modules= (Module**)all_res_by_type(&module_count,
+												g_env.resblob,
+												ResType_Module);
+	for (U32 i= 0; i < module_count; ++i) {
+		if (modules[i]->init)
+			modules[i]->init();
+	}
+}
+
+void deinit_for_modules()
+{
+	U32 module_count;
+	Module **modules= (Module**)all_res_by_type(&module_count,
+												g_env.resblob,
+												ResType_Module);
+	for (U32 i= 0; i < module_count; ++i) {
+		if (modules[i]->deinit)
+			modules[i]->deinit();
+	}
+}
+
+void worldgen_for_modules(World *w)
+{
+	U32 module_count;
+	Module **modules= (Module**)all_res_by_type(&module_count,
+												g_env.resblob,
+												ResType_Module);
+	for (U32 i= 0; i < module_count; ++i) {
+		if (modules[i]->worldgen)
+			modules[i]->worldgen(w);
+	}
+}
+
+void upd_for_modules()
+{
+	U32 module_count;
+	Module **modules= (Module**)all_res_by_type(&module_count,
+												g_env.resblob,
+												ResType_Module);
+	for (U32 i= 0; i < module_count; ++i) {
+		if (modules[i]->upd)
+			modules[i]->upd();
+	}
+}
+
+
 void init_module(Module *mod)
 {
 	if (mod->is_main_prog_module) {
@@ -30,11 +79,32 @@ void init_module(Module *mod)
 		fail("Couldn't load dll '%s': %s", mod->extless_file, dll_error());
 
 	bool has_worldgen= mod->worldgen_func_name[0] != 0;
+	bool has_init= mod->init_func_name[0] != 0;
+	bool has_deinit= mod->deinit_func_name[0] != 0;
+	bool has_upd= mod->upd_func_name[0] != 0;
 	if (has_worldgen) {
 		mod->worldgen=
 			(WorldGenModuleImpl)rtti_func_ptr(mod->worldgen_func_name);
 		if (!mod->worldgen)
 			fail("worldgen_func not found: '%s'", mod->worldgen_func_name);
+	}
+	if (has_init) {
+		mod->init=
+			(InitModuleImpl)rtti_func_ptr(mod->init_func_name);
+		if (!mod->init)
+			fail("init_func not found: '%s'", mod->init_func_name);
+	}
+	if (has_deinit) {
+		mod->deinit=
+			(DeinitModuleImpl)rtti_func_ptr(mod->deinit_func_name);
+		if (!mod->deinit)
+			fail("deinit_func not found: '%s'", mod->deinit_func_name);
+	}
+	if (has_upd) {
+		mod->upd=
+			(UpdModuleImpl)rtti_func_ptr(mod->upd_func_name);
+		if (!mod->upd)
+			fail("upd_func not found: '%s'", mod->upd_func_name);
 	}
 	
 	debug_print("DLL loaded: %s", mod->extless_file);
@@ -53,6 +123,9 @@ int json_module_to_blob(struct BlobBuf *buf, JsonTok j)
 {
 	JsonTok j_file= json_value_by_key(j, "extless_file");
 	JsonTok j_worldgen= json_value_by_key(j, "worldgen_func");
+	JsonTok j_init= json_value_by_key(j, "init_func");
+	JsonTok j_deinit= json_value_by_key(j, "deinit_func");
+	JsonTok j_upd= json_value_by_key(j, "upd_func");
 
 	if (json_is_null(j_file))
 		RES_ATTRIB_MISSING("extless_file");
@@ -61,6 +134,18 @@ int json_module_to_blob(struct BlobBuf *buf, JsonTok j)
 	if (!json_is_null(j_worldgen)) {
 		fmt_str(m.worldgen_func_name, sizeof(m.worldgen_func_name),
 				"%s", json_str(j_worldgen));
+	}
+	if (!json_is_null(j_init)) {
+		fmt_str(m.init_func_name, sizeof(m.init_func_name),
+				"%s", json_str(j_init));
+	}
+	if (!json_is_null(j_deinit)) {
+		fmt_str(m.deinit_func_name, sizeof(m.deinit_func_name),
+				"%s", json_str(j_deinit));
+	}
+	if (!json_is_null(j_upd)) {
+		fmt_str(m.upd_func_name, sizeof(m.upd_func_name),
+				"%s", json_str(j_upd));
 	}
 
 	fmt_str(m.extless_file, sizeof(m.extless_file), "%s%s", j.json_dir, json_str(j_file));

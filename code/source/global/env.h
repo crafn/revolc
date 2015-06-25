@@ -24,6 +24,11 @@ typedef struct Env {
 	struct UiContext *uicontext;
 	struct World *world;
 
+	U32 argc;
+	const char **argv;
+
+	void *game_data; // Pointer to be used by the game module
+
 	U8 *frame_mem_begin;
 	U8 *frame_mem_end;
 	U8 *frame_mem;
@@ -35,7 +40,7 @@ typedef struct Env {
 
 extern REVOLC_API Env g_env;
 
-REVOLC_API void init_env();
+REVOLC_API void init_env(U32 argc, const char **argv);
 REVOLC_API void deinit_env();
 
 // Allocates memory valid only for the current frame

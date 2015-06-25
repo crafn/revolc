@@ -1,10 +1,17 @@
+#include "core/debug_print.h"
+#include "core/malloc.h"
+#include "core/socket.h"
 #include "core/vector.h"
 #include "platform/device.h"
 #include "platform/dll.h"
+#include "platform/stdlib.h"
 #include "global/env.h"
 
 #include <windows.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
 #include <tchar.h>
+#include <iphlpapi.h>
 
 typedef struct DevicePlatformData {
 	HDC hDC;
@@ -48,54 +55,67 @@ void plat_init_impl(Device* d, const char* title, V2i reso)
 	d->win_size= reso;
 	d->impl= zero_malloc(sizeof(*d->impl));
 
-	WNDCLASS wc= {}; 
-	wc.lpfnWndProc= wndproc;
-	wc.hInstance= GetModuleHandle(0);
-	wc.hbrBackground= (HBRUSH)(COLOR_BACKGROUND);
-	wc.lpszClassName= title;
-	wc.style = CS_OWNDC;
-	if( !RegisterClass(&wc) )
-			fail("RegisterClass failed\n");
-	d->impl->hWnd= CreateWindow(
-		wc.lpszClassName,
-		title,
-		WS_OVERLAPPEDWINDOW|WS_VISIBLE,
-		0, 0, reso.x, reso.y, 0, 0, wc.hInstance, 0);
+	{ // Window
+		WNDCLASS wc= {}; 
+		wc.lpfnWndProc= wndproc;
+		wc.hInstance= GetModuleHandle(0);
+		wc.hbrBackground= (HBRUSH)(COLOR_BACKGROUND);
+		wc.lpszClassName= title;
+		wc.style = CS_OWNDC;
+		if( !RegisterClass(&wc) )
+				fail("RegisterClass failed\n");
+		d->impl->hWnd= CreateWindow(
+			wc.lpszClassName,
+			title,
+			WS_OVERLAPPEDWINDOW|WS_VISIBLE,
+			0, 0, reso.x, reso.y, 0, 0, wc.hInstance, 0);
 
-	// Create OpenGL context
-	PIXELFORMATDESCRIPTOR pfd= {
-		sizeof(PIXELFORMATDESCRIPTOR), 1,
-		PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,
-		PFD_TYPE_RGBA,
-		32, // Framebuffer
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		24, // Depth buffer
-		8, // Stencil buffer
-		0, PFD_MAIN_PLANE, 0, 0, 0, 0
-	};
+		// Create OpenGL context
+		PIXELFORMATDESCRIPTOR pfd= {
+			sizeof(PIXELFORMATDESCRIPTOR), 1,
+			PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,
+			PFD_TYPE_RGBA,
+			32, // Framebuffer
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			24, // Depth buffer
+			8, // Stencil buffer
+			0, PFD_MAIN_PLANE, 0, 0, 0, 0
+		};
 
-	d->impl->hDC= GetDC(d->impl->hWnd);
-	int choose= ChoosePixelFormat(d->impl->hDC, &pfd);
-	SetPixelFormat(d->impl->hDC, choose, &pfd);
-	d->impl->hGlrc= wglCreateContext(d->impl->hDC);
-	wglMakeCurrent(d->impl->hDC, d->impl->hGlrc);
+		d->impl->hDC= GetDC(d->impl->hWnd);
+		int choose= ChoosePixelFormat(d->impl->hDC, &pfd);
+		SetPixelFormat(d->impl->hDC, choose, &pfd);
+		d->impl->hGlrc= wglCreateContext(d->impl->hDC);
+		wglMakeCurrent(d->impl->hDC, d->impl->hGlrc);
 
-	int ver[2]= {0, 0};
-	glGetIntegerv(GL_MAJOR_VERSION, &ver[0]);
-	glGetIntegerv(GL_MINOR_VERSION, &ver[1]);
-	debug_print("OpenGL version: %i.%i", ver[0], ver[1]);
+		int ver[2]= {0, 0};
+		glGetIntegerv(GL_MAJOR_VERSION, &ver[0]);
+		glGetIntegerv(GL_MINOR_VERSION, &ver[1]);
+		debug_print("OpenGL version: %i.%i", ver[0], ver[1]);
+	}
 
-	U64 ticks;
-	if(!QueryPerformanceFrequency((LARGE_INTEGER *)&ticks))
-		fail("QueryPerformanceFrequency failed!");
-	d->impl->timer_reso= ticks;
+	{ // Timers
+		U64 ticks;
+		if(!QueryPerformanceFrequency((LARGE_INTEGER *)&ticks))
+			fail("QueryPerformanceFrequency failed!");
+		d->impl->timer_reso= ticks;
 
-	QueryPerformanceCounter((LARGE_INTEGER *)&ticks);
-	d->impl->ticks= ticks;
+		QueryPerformanceCounter((LARGE_INTEGER *)&ticks);
+		d->impl->ticks= ticks;
+	}
+
+	{ // Winsock 2
+		WSADATA wsa;
+		int ret= WSAStartup(MAKEWORD(2,2), &wsa);
+		if (ret != 0)
+		    fail("WSAStartup failed: %d\n", ret);
+	}
 }
 
 void plat_quit_impl(Device *d)
 {
+	WSACleanup();
+
 	wglDeleteContext(d->impl->hGlrc);
 
 	free(d->impl);
@@ -228,12 +248,12 @@ void plat_update_impl(Device *d)
 	d->impl->ticks= new_ticks;
 }
 
-void plat_sleep_impl(int ms)
+void plat_sleep(int ms)
 {
 	Sleep(ms);
 }
 
-void plat_flush_denormals_impl(bool enable)
+void plat_flush_denormals(bool enable)
 {
 	// (1 << 15) == FLUSH_TO_ZERO
 	// @todo Should we also have DENORMALS_ZERO_ON ?
@@ -327,5 +347,74 @@ int v_fmt_str(char *str, U32 size, const char *fmt, va_list args)
 	if (str && size >= 1)
 		str[size - 1]= 0;
 	return ret;
+}
+
+int socket_error()
+{
+	return WSAGetLastError();
+}
+
+Socket invalid_socket()
+{ return INVALID_SOCKET; }
+
+void close_socket(Socket *fd)
+{
+	closesocket(*fd);
+	*fd= INVALID_SOCKET;
+}
+
+Socket open_udp_socket(U16 port)
+{
+	SOCKET fd= socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	if (fd == INVALID_SOCKET)
+		fail("Error calling socket()");
+	// Set non-blocking
+	u_long iMode=1;
+	ioctlsocket(fd, FIONBIO, &iMode);
+
+	struct sockaddr_in servaddr;
+	memset(&servaddr, 0, sizeof(servaddr));
+	servaddr.sin_family      = AF_INET;
+	servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+	servaddr.sin_port        = htons(port);
+
+	if (bind(fd, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0 )
+		fail("Error calling bind()");
+	return fd;
+}
+
+U32 socket_send(Socket sock, IpAddress addr, const void *data, U32 size)
+{
+	struct sockaddr_in to;
+	to.sin_family= AF_INET;
+	to.sin_addr.s_addr= htonl(	(addr.a << 24) |
+								(addr.b << 16) |
+								(addr.c << 8) |
+								(addr.d << 0));
+	to.sin_port= htons(addr.port);
+	int bytes= sendto(	sock,
+						(const char *)data, size,
+						0,
+						(struct sockaddr*)&to, sizeof(struct sockaddr_in));
+	ensure(bytes >= 0);
+	return (U32)bytes;
+}
+
+U32 socket_recv(Socket sock, IpAddress *addr, void *dst, U32 dst_size)
+{
+	struct sockaddr_in from;
+	socklen_t from_size = sizeof(from);
+	int bytes = recvfrom(	sock,
+							dst, dst_size,
+							0,
+							(struct sockaddr*)&from, &from_size);
+	ensure(bytes >= 0);
+	U32 from_address= ntohl(from.sin_addr.s_addr); 
+	addr->a = (from_address & 0xFF000000) >> 24;
+	addr->b = (from_address & 0x00FF0000) >> 16;
+	addr->c = (from_address & 0x0000FF00) >> 8;
+	addr->d = (from_address & 0x000000FF) >> 0;
+	addr->port = ntohs(from.sin_port);
+	return (U32)bytes;
 }
 

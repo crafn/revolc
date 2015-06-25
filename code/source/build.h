@@ -26,6 +26,12 @@
 #	define REVOLC_API DLL_EXPORT
 #endif  
 
+#if PLATFORM == PLATFORM_WINDOWS
+#	ifndef WIN32_LEAN_AND_MEAN
+#		define WIN32_LEAN_AND_MEAN
+#	endif
+#endif
+
 #define internal static
 #define local_persist static
 
