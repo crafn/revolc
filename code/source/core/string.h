@@ -15,4 +15,7 @@ REVOLC_API void path_to_dir(char *dst, const char *path_to_file);
 
 REVOLC_API bool is_str_end(const char *str, const char *end);
 
+// Creates a string which exists only this frame
+REVOLC_API char * frame_str(const char *fmt, ...);
+
 #endif // REVOLC_CORE_STRING_H

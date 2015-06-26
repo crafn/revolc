@@ -16,9 +16,6 @@ typedef struct EditorBoxState {
 	bool ldown;
 } EditorBoxState;
 
-// Creates a string which exists only this frame
-REVOLC_API char * frame_str(const char *fmt, ...);
-
 // @todo Move to ui/*
 REVOLC_API void gui_wrap(V2i *p, V2i *s);
 REVOLC_API Color gui_dev_panel_color();

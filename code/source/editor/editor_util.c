@@ -9,22 +9,6 @@ const Font *gui_font()
 								"dev");
 }
 
-char * frame_str(const char *fmt, ...)
-{
-	char *text= NULL;
-	va_list args;
-	va_list args_copy;
-
-	va_start(args, fmt);
-	va_copy(args_copy, args);
-	U32 size= v_fmt_str(NULL, 0, fmt, args) + 1; 
-	text= frame_alloc(size);
-	v_fmt_str(text, size, fmt, args_copy);
-	va_end(args_copy);
-	va_end(args);
-	return text;
-}
-
 void gui_wrap(V2i *p, V2i *s)
 {
 	const V2i win_size= g_env.device->win_size;

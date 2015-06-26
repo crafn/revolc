@@ -27,6 +27,8 @@ typedef struct Env {
 	U32 argc;
 	const char **argv;
 
+	F64 time_from_start;
+
 	void *game_data; // Pointer to be used by the game module
 
 	U8 *frame_mem_begin;

@@ -383,7 +383,7 @@ Socket open_udp_socket(U16 port)
 	return fd;
 }
 
-U32 socket_send(Socket sock, IpAddress addr, const void *data, U32 size)
+U32 send_packet(Socket sock, IpAddress addr, const void *data, U32 size)
 {
 	struct sockaddr_in to;
 	to.sin_family= AF_INET;
@@ -400,7 +400,7 @@ U32 socket_send(Socket sock, IpAddress addr, const void *data, U32 size)
 	return (U32)bytes;
 }
 
-U32 socket_recv(Socket sock, IpAddress *addr, void *dst, U32 dst_size)
+U32 recv_packet(Socket sock, IpAddress *addr, void *dst, U32 dst_size)
 {
 	struct sockaddr_in from;
 	socklen_t from_size = sizeof(from);
@@ -408,7 +408,13 @@ U32 socket_recv(Socket sock, IpAddress *addr, void *dst, U32 dst_size)
 							dst, dst_size,
 							0,
 							(struct sockaddr*)&from, &from_size);
-	ensure(bytes >= 0);
+	if (bytes < 0)
+	{
+		int err= WSAGetLastError();
+		if (err != WSAEWOULDBLOCK && err != WSAECONNRESET)
+			fail("recvfrom failed: %i, %i", bytes, err);
+		bytes= 0;
+	}
 	U32 from_address= ntohl(from.sin_addr.s_addr); 
 	addr->a = (from_address & 0xFF000000) >> 24;
 	addr->b = (from_address & 0x00FF0000) >> 16;

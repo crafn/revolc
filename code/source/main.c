@@ -130,6 +130,7 @@ int main(int argc, const char **argv)
 			V2d cursor_delta_on_world= sub_v2d(cursor_on_world, prev_cursor_on_world);
 
 			F32 dt= d->dt;
+			g_env.time_from_start += dt;
 			F32 spd= 25.0;
 			if (d->key_down[KEY_UP])
 				g_env.renderer->cam_pos.y += spd*dt;
