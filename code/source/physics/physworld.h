@@ -8,6 +8,7 @@
 
 #include <chipmunk/chipmunk.h>
 
+// @todo Replace these with core/grid functions
 #define GRID_INDEX_W(x, y) \
 		((U32)((floor((x + 0.0)*GRID_RESO_PER_UNIT) + GRID_WIDTH_IN_CELLS/2)) + \
 	   	(U32)((floor((y + 0.0)*GRID_RESO_PER_UNIT) + GRID_WIDTH_IN_CELLS/2)*GRID_WIDTH_IN_CELLS))

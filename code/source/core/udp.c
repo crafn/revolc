@@ -17,25 +17,26 @@ void destroy_udp_peer(UdpPeer *peer)
 	close_socket(&peer->socket);
 }
 
-void buffer_udp_msg(UdpPeer *peer, const void *data, U32 size)
+internal
+void buffer_udp_packet(	UdpPeer *peer, const void *data, U16 size,
+						U32 msg_id, U16 frag_i, U16 frag_count)
 {
-	ensure(size < UDP_MAX_PACKET_DATA_SIZE && "Too large message");
-
+	// Not nice
 	U32 free_i= 0;
 	while (peer->send_buffer_filled[free_i] && free_i < UDP_MAX_BUFFERED_PACKET_COUNT)
 		++free_i;
 
 	if (free_i >= UDP_MAX_BUFFERED_PACKET_COUNT)
-		fail("Too many packets queued to send buffer, max %i", UDP_MAX_BUFFERED_PACKET_COUNT);
+		fail("Too many packets in send buffer, max %i", UDP_MAX_BUFFERED_PACKET_COUNT);
 
 	UdpPacket packet= {};
 	memcpy(packet.data, data, size);
 
 	packet.header= (UdpPacketHeader) {
 		.packet_id= peer->next_packet_id++,
-		.msg_id= peer->next_msg_id++,
-		.msg_frag_count= 1,
-		.msg_frag_i= 0,
+		.msg_id= msg_id,
+		.msg_frag_count= frag_count,
+		.msg_frag_i= frag_i,
 		.data_size= size,
 		.acked= peer->recv_packet_count > 0,
 		.ack_id= peer->remote_packet_id,
@@ -46,7 +47,41 @@ void buffer_udp_msg(UdpPeer *peer, const void *data, U32 size)
 	peer->send_buffer_filled[free_i]= true;
 }
 
-REVOLC_API void upd_udp_peer(UdpPeer *peer)
+void buffer_udp_msg(UdpPeer *peer, const void *data, U32 size)
+{
+	ensure(size > 0);
+	U32 frag_count= (size - 1)/ UDP_MAX_PACKET_DATA_SIZE + 1;
+	U32 left_size= size;
+	for (U32 i= 0; i < frag_count; ++i) {
+		buffer_udp_packet(	peer,
+							(const U8*)data + i*UDP_MAX_PACKET_DATA_SIZE,
+							MIN(left_size, UDP_MAX_PACKET_DATA_SIZE),
+							peer->next_msg_id,
+							i,
+							frag_count);
+		left_size -= UDP_MAX_PACKET_DATA_SIZE;
+	}
+	++peer->next_msg_id;
+}
+
+internal
+int msg_packet_cmp(const void *a_, const void *b_)
+{
+	const UdpPacket *a= a_, *b= b_;
+	const UdpPacketHeader *h1= &a->header, *h2= &b->header;
+	if (h1->data_size == 0 && h2->data_size > 0) {
+		return 1;
+	} else if (h1->data_size > 0 && h2->data_size == 0) {
+		return -1;
+	} else {
+		if (h1->msg_id != h2->msg_id)
+			return h1->msg_id - h2->msg_id;
+		else
+			return h1->msg_frag_i - h2->msg_frag_i;
+	}
+}
+
+REVOLC_API void upd_udp_peer(UdpPeer *peer, UdpMsg **msgs, U32 *msg_count)
 {
 	{ // Send buffered packets
 		IpAddress addr= {
@@ -74,17 +109,25 @@ REVOLC_API void upd_udp_peer(UdpPeer *peer)
 	{
 		IpAddress addr;
 		UdpPacket packet;
-		ensure(sizeof(packet) == UDP_MAX_PACKET_SIZE);
 		bool packet_received= false;
+
+		ensure(msgs && msg_count);
+		U32 max_msg_count= UDP_MAX_BUFFERED_PACKET_COUNT;
+		*msgs= frame_alloc(sizeof(*msgs)*max_msg_count);
+		*msg_count= 0;
+
 		U32 bytes= 0;
 		while (	(bytes= recv_packet(peer->socket, &addr, &packet, UDP_MAX_PACKET_SIZE))
 				> 0) {
 			if (peer->connected && !ip_equals(peer->connected_ip, addr))
 				continue; // Discard packets from others when connected
 
-			if (	packet.header.data_size >= UDP_MAX_PACKET_DATA_SIZE ||
+			if (bytes < sizeof(UdpPacketHeader))
+				fail("Corrupted UDP packet (header too small)");
+
+			if (	packet.header.data_size > UDP_MAX_PACKET_DATA_SIZE ||
 					packet.header.data_size != bytes - sizeof(UdpPacketHeader))
-				fail("Corrupted UDP packet");
+				fail("Corrupted UDP packet (wrong size)");
 
 			packet_received= true;
 
@@ -121,6 +164,21 @@ REVOLC_API void upd_udp_peer(UdpPeer *peer)
 				// @todo Read previous_acks for redundant acking
 			}
 
+			{ // Write received packet to buffer
+				U32 free_i= 0;
+				while (	peer->recv_buffer[free_i].header.data_size > 0 &&
+						free_i < UDP_MAX_BUFFERED_PACKET_COUNT)
+					++free_i;
+
+				// @todo This shouldn't terminate
+				if (free_i >= UDP_MAX_BUFFERED_PACKET_COUNT)
+					fail(	"Too many packets in recv buffer, max %i",
+							UDP_MAX_BUFFERED_PACKET_COUNT);
+
+				ensure(packet.header.data_size > 0);
+				peer->recv_buffer[free_i]= packet;
+			}
+
 			//debug_print("data: %.*s", packet.header.data_size, packet.data);
 			//debug_print("rtt: %f", peer->rtt);
 		}
@@ -129,6 +187,79 @@ REVOLC_API void upd_udp_peer(UdpPeer *peer)
 				peer->last_recv_time + UDP_CONNECTION_TIMEOUT < g_env.time_from_start) {
 			peer->connected= false;
 			debug_print("Disconnected from %s", ip_str(peer->connected_ip));
+		}
+
+		// Write complete messages to caller
+		if (packet_received) {
+			// Sort recv buffer so that messages are contiguous,
+			// makes finding complete messages easy.
+
+			qsort(peer->recv_buffer, UDP_MAX_BUFFERED_PACKET_COUNT,
+					sizeof(*peer->recv_buffer), msg_packet_cmp);
+
+#ifdef NET_DEBUG
+			for (U32 i= 0; i < UDP_MAX_BUFFERED_PACKET_COUNT; ++i) {
+				debug_print(	"%i: data_size: %i, msg_id: %i, frag_i: %i",
+								i,
+								peer->recv_buffer[i].header.data_size,
+								peer->recv_buffer[i].header.msg_id,
+								peer->recv_buffer[i].header.msg_frag_i);
+			}
+#endif
+
+			U32 msg_begin_i= 0;
+			while (msg_begin_i < UDP_MAX_BUFFERED_PACKET_COUNT) {
+				// Check if message is complete
+				// @note UDP packets can be duplicated!
+				UdpPacketHeader first_header= peer->recv_buffer[msg_begin_i].header;
+				if (first_header.data_size == 0) {
+					++msg_begin_i;
+					continue;
+				}
+				U32 cur_frag_i= 0;
+				U32 msg_end_i= msg_begin_i;
+				U32 msg_data_size= 0;
+				for (; msg_end_i < UDP_MAX_BUFFERED_PACKET_COUNT; ++msg_end_i) {
+					U32 i= msg_end_i;
+					UdpPacketHeader *h= &peer->recv_buffer[i].header;
+					if (	h->msg_id != first_header.msg_id ||
+							h->msg_frag_i >= first_header.msg_frag_count)
+						break;
+					if (h->msg_frag_i == cur_frag_i) {
+						++cur_frag_i;
+						msg_data_size += h->data_size;
+					}
+				}
+
+				bool complete= cur_frag_i == first_header.msg_frag_count;
+				if (complete) {
+					// Join packet datas and write message to the caller
+
+					void *copied_data_begin= frame_alloc(msg_data_size);
+					U8 *copied_data= copied_data_begin;
+					U32 cur_frag_i= 0;
+					for (U32 i= msg_begin_i; i < msg_end_i; ++i) {
+						UdpPacket *packet= &peer->recv_buffer[i];
+						if (packet->header.msg_frag_i != cur_frag_i)
+							continue;
+						memcpy(copied_data, packet->data, packet->header.data_size);
+						copied_data += packet->header.data_size;
+						++cur_frag_i;
+					}
+
+					ensure(*msg_count < max_msg_count);
+					(*msgs)[(*msg_count)++]= (UdpMsg) {
+						.data_size= msg_data_size,
+						.data= copied_data_begin,
+					};
+
+					// Erase processed packets from buffer
+					for (U32 i= msg_begin_i; i < msg_end_i; ++i)
+						peer->recv_buffer[i].header.data_size= 0;
+				}
+
+				msg_begin_i= msg_end_i;
+			}
 		}
 	}
 }

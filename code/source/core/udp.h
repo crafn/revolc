@@ -8,17 +8,17 @@
 // A lightweight low-level protocol on top of UDP for message passing
 
 // @todo Message division to packets
-// @todo Priority settings (latency, throughput, reliability)
-// @todo Packet timeout
-// @todo Heartbeat (essential for reliable rtt measurement through acks)
+// @todo Heartbeat (essential for preventing timeout and rtt measurement)
 //
 // Things I dont care about:
 //  - endianness -- only supporting little endian platforms
 //  - different floating point binary formats -- only supporting x64 platforms
 //
-// This I care about after working LAN networking:
+// Things I care about after working LAN networking:
 // @todo Greeting packet
 // @todo Congestion avoidance
+// @todo Priority settings (latency, throughput, reliability)
+// @todo Packet timeout detection
 // @todo Compression (arithmetic coding)
 // @todo Redundant acking
 
@@ -58,17 +58,24 @@ typedef struct UdpPeer {
 	U8 remote_packet_id; // Largest received remote packet id (wrapping)
 	U32 prev_out_acks; // Bitfield relative to remote_packet_id
 
-	bool send_buffer_filled[UDP_MAX_BUFFERED_PACKET_COUNT];
+	bool send_buffer_filled[UDP_MAX_BUFFERED_PACKET_COUNT]; // Not required - use data_Size = 0
 	UdpPacket send_buffer[UDP_MAX_BUFFERED_PACKET_COUNT];
 	F64 send_times[UDP_PACKET_ID_COUNT];
 
+	UdpPacket recv_buffer[UDP_MAX_BUFFERED_PACKET_COUNT];
 } UdpPeer;
 
+// Read-only convenience struct for receiving messages.
+// Don't store permanently, will be freed automatically
+typedef struct UdpMsg {
+	U32 data_size;
+	void *data;
+} UdpMsg;
 
 REVOLC_API UdpPeer create_udp_peer(U16 local_port, U16 remote_port);
 REVOLC_API void destroy_udp_peer(UdpPeer *peer);
 
 REVOLC_API void buffer_udp_msg(UdpPeer *peer, const void *data, U32 size);
-REVOLC_API void upd_udp_peer(UdpPeer *peer);
+REVOLC_API void upd_udp_peer(UdpPeer *peer, UdpMsg **msgs, U32 *msg_count);
 
 #endif // REVOLC_CORE_UDP
