@@ -1,13 +1,14 @@
 #include "udp.h"
 
-UdpPeer create_udp_peer(U16 local_port, U16 remote_port)
+UdpPeer *create_udp_peer(U16 local_port, U16 remote_port)
 {
-	UdpPeer peer = {
+	UdpPeer *peer= malloc(sizeof(*peer));
+	*peer= (UdpPeer) {
 		.socket= open_udp_socket(local_port),
 		.send_port= remote_port,
 		.rtt= 1.0, // Better to be too large than too small at the startup
 	};
-	if (peer.socket == invalid_socket())
+	if (peer->socket == invalid_socket())
 		fail("Socket creation failed");
 	return peer;
 }

@@ -72,7 +72,7 @@ typedef struct UdpMsg {
 	void *data;
 } UdpMsg;
 
-REVOLC_API UdpPeer create_udp_peer(U16 local_port, U16 remote_port);
+REVOLC_API UdpPeer *create_udp_peer(U16 local_port, U16 remote_port);
 REVOLC_API void destroy_udp_peer(UdpPeer *peer);
 
 REVOLC_API void buffer_udp_msg(UdpPeer *peer, const void *data, U32 size);
