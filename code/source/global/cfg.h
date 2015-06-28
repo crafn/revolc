@@ -1,7 +1,9 @@
 #ifndef REVOLC_GLOBAL_CFG_H
 #define REVOLC_GLOBAL_CFG_H
 
-// These options largely determine the memory usage and performance of the engine
+// These options largely determine the memory usage and performance of the engine.
+// Many of these will at some point be removed or moved to (game dependent) cfg files.
+
 #define FRAME_MEM_SIZE (1024*1024*20)
 
 #define MAX_BLOB_SIZE (1024*1024*512) // 0.5 Gb
@@ -51,5 +53,11 @@
 
 #define MAX_GUI_ELEM_COUNT 1024
 #define MAX_GUI_STACK_SIZE 32
+
+#define UDP_MAX_PACKET_SIZE 512
+#define UDP_MAX_PACKET_DATA_SIZE (UDP_MAX_PACKET_SIZE - sizeof(UdpPacketHeader)) 
+#define UDP_CONNECTION_TIMEOUT 2.0
+#define UDP_PACKET_ID_COUNT 256
+#define UDP_MAX_BUFFERED_PACKET_COUNT 16
 
 #endif // REVOLC_GLOBAL_CFG_H
