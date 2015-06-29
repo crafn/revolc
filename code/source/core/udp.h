@@ -7,8 +7,9 @@
 
 // A lightweight low-level protocol on top of UDP for message passing
 
-// @todo Message division to packets
 // @todo Heartbeat (essential for preventing timeout and rtt measurement)
+// @todo Maximum bandwidth usage limit
+// @todo Drop duplicate packets
 //
 // Things I dont care about:
 //  - endianness -- only supporting little endian platforms
@@ -21,6 +22,13 @@
 // @todo Packet timeout detection
 // @todo Compression (arithmetic coding)
 // @todo Redundant acking
+// @todo Warnings when buffers are too full (packet ids might get wrongly interpreted)
+
+typedef enum UdpPacketState {
+	UdpPacketState_free,
+	UdpPacketState_buffered,
+	UdpPacketState_waiting_ack,
+} UdpPacketState;
 
 // If an important packet gets lost, it will be buffered with a new
 // packet_id, but possibly with the same msg and frag id.
@@ -54,13 +62,19 @@ typedef struct UdpPeer {
 	U32 next_msg_id; // Non-wrapping multi-packet message
 	U8 next_packet_id; // Wrapping packet id
 
+	U32 sent_packet_count;
+	U32 acked_packet_count;
+
+	UdpPacketState send_buffer_state[UDP_MAX_BUFFERED_PACKET_COUNT];
+	UdpPacket send_buffer[UDP_MAX_BUFFERED_PACKET_COUNT];
+	F64 send_times[UDP_PACKET_ID_COUNT];
+	U32 packet_id_to_send_buffer_ix[UDP_PACKET_ID_COUNT];
+	U32 drop_count;
+
 	U32 recv_packet_count;
 	U8 remote_packet_id; // Largest received remote packet id (wrapping)
 	U32 prev_out_acks; // Bitfield relative to remote_packet_id
-
-	bool send_buffer_filled[UDP_MAX_BUFFERED_PACKET_COUNT]; // Not required - use data_Size = 0
-	UdpPacket send_buffer[UDP_MAX_BUFFERED_PACKET_COUNT];
-	F64 send_times[UDP_PACKET_ID_COUNT];
+	U32 cur_incomplete_recv_msg_count;
 
 	UdpPacket recv_buffer[UDP_MAX_BUFFERED_PACKET_COUNT];
 } UdpPeer;

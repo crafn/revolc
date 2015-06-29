@@ -6,7 +6,7 @@ UdpPeer *create_udp_peer(U16 local_port, U16 remote_port)
 	*peer= (UdpPeer) {
 		.socket= open_udp_socket(local_port),
 		.send_port= remote_port,
-		.rtt= 1.0, // Better to be too large than too small at the startup
+		.rtt= 0.5, // Better to be too large than too small at the startup
 	};
 	if (peer->socket == invalid_socket())
 		fail("Socket creation failed");
@@ -22,9 +22,12 @@ internal
 void buffer_udp_packet(	UdpPeer *peer, const void *data, U16 size,
 						U32 msg_id, U16 frag_i, U16 frag_count)
 {
+	ensure(size > 0);
+
 	// Not nice
 	U32 free_i= 0;
-	while (peer->send_buffer_filled[free_i] && free_i < UDP_MAX_BUFFERED_PACKET_COUNT)
+	while (	peer->send_buffer_state[free_i] != UdpPacketState_free &&
+			free_i < UDP_MAX_BUFFERED_PACKET_COUNT)
 		++free_i;
 
 	if (free_i >= UDP_MAX_BUFFERED_PACKET_COUNT)
@@ -40,12 +43,12 @@ void buffer_udp_packet(	UdpPeer *peer, const void *data, U16 size,
 		.msg_frag_i= frag_i,
 		.data_size= size,
 		.acked= peer->recv_packet_count > 0,
-		.ack_id= peer->remote_packet_id,
+		.ack_id= peer->remote_packet_id, // @todo Maybe set at send time?
 		.previous_acks= peer->prev_out_acks,
 	};
 
 	peer->send_buffer[free_i]= packet;
-	peer->send_buffer_filled[free_i]= true;
+	peer->send_buffer_state[free_i]= UdpPacketState_buffered;
 }
 
 void buffer_udp_msg(UdpPeer *peer, const void *data, U32 size)
@@ -89,20 +92,34 @@ REVOLC_API void upd_udp_peer(UdpPeer *peer, UdpMsg **msgs, U32 *msg_count)
 			127, 0, 0, 1,
 			peer->send_port
 		};
+		U32 frame_sent_bytes= 0;
 		for (U32 i= 0; i < UDP_MAX_BUFFERED_PACKET_COUNT; ++i) {
-			if (!peer->send_buffer_filled[i])
+			if (peer->send_buffer_state[i] != UdpPacketState_buffered)
 				continue;
 			UdpPacket *packet= &peer->send_buffer[i];
 			UdpPacketHeader *header= &packet->header;
+			U32 packet_size= sizeof(*header) + header->data_size;
+
+			if (frame_sent_bytes + packet_size > UDP_OUTGOING_LIMIT_FRAME)
+				break; // Limit sending to prevent packet loss in kernel
+
+			ensure(header->data_size > 0);
 			U32 bytes= send_packet(	peer->socket, addr,
-									packet, sizeof(*header) + header->data_size);
+									packet, packet_size);
 			if (bytes == 0)
 				critical_print("Packet lost at send: %i", packet->header.packet_id);
-			else if (bytes != header->data_size + sizeof(*header))
+			else if (bytes != packet_size)
 				fail("Udp packet with incorrect size sent");
-			peer->send_buffer_filled[i]= false;
+
+			frame_sent_bytes += packet_size;
+
 			peer->last_send_time= g_env.time_from_start;
 			peer->send_times[packet->header.packet_id]= g_env.time_from_start;
+			// Even unreliable packets wait for ack to measure drop rate
+			peer->send_buffer_state[i]= UdpPacketState_waiting_ack;
+			peer->packet_id_to_send_buffer_ix[header->packet_id]= i;
+
+			++peer->sent_packet_count;
 		}
 	}
 
@@ -126,7 +143,8 @@ REVOLC_API void upd_udp_peer(UdpPeer *peer, UdpMsg **msgs, U32 *msg_count)
 			if (bytes < sizeof(UdpPacketHeader))
 				fail("Corrupted UDP packet (header too small)");
 
-			if (	packet.header.data_size > UDP_MAX_PACKET_DATA_SIZE ||
+			if (	packet.header.data_size == 0 ||
+					packet.header.data_size > UDP_MAX_PACKET_DATA_SIZE ||
 					packet.header.data_size != bytes - sizeof(UdpPacketHeader))
 				fail("Corrupted UDP packet (wrong size)");
 
@@ -140,9 +158,9 @@ REVOLC_API void upd_udp_peer(UdpPeer *peer, UdpMsg **msgs, U32 *msg_count)
 
 			peer->last_recv_time= g_env.time_from_start;
 			++peer->recv_packet_count;
-		
+
 			U32 packet_id= packet.header.packet_id;
-			// Update next acks
+			// Update next acks to remote
 			if (packet_id > peer->remote_packet_id) {
 				U32 shift= packet_id - peer->remote_packet_id;
 				peer->prev_out_acks= peer->prev_out_acks << shift;
@@ -154,15 +172,35 @@ REVOLC_API void upd_udp_peer(UdpPeer *peer, UdpMsg **msgs, U32 *msg_count)
 				peer->prev_out_acks |= 1 << (shift - 1);
 			}
 
-			// Check which sent packets were acked
+			// Check which our packets were acked
 			if (packet.header.acked) {
-				U8 ack= packet.header.ack_id;
+				for (U32 ack_i= 0; ack_i < UDP_ACK_COUNT; ++ack_i) {
+					U8 ack= 0;
+					if (ack_i == 0) {
+						ack= packet.header.ack_id;
+					} else {
+						bool bit= (packet.header.previous_acks >> (ack_i - 1)) & 1;
+						if (!bit)
+							continue;
+						ack= packet.header.ack_id - ack_i;
+					}
 
-				F64 rtt_sample= g_env.time_from_start - peer->send_times[ack];
-				const F64 change_p= 0.1;
-				peer->rtt = peer->rtt*(1 - change_p) + rtt_sample*change_p;
+					U32 ix= peer->packet_id_to_send_buffer_ix[ack];
+					ensure(ix < UDP_MAX_BUFFERED_PACKET_COUNT);
 
-				// @todo Read previous_acks for redundant acking
+					if (peer->send_buffer_state[ix] != UdpPacketState_waiting_ack)
+						continue;
+
+					F64 rtt_sample= g_env.time_from_start - peer->send_times[ack];
+					const F64 change_p= 0.1;
+					peer->rtt= peer->rtt*(1 - change_p) + rtt_sample*change_p;
+					++peer->acked_packet_count;
+
+					// Remove succesfully transferred packet from send-buffer
+					if (peer->send_buffer_state[ix] != UdpPacketState_waiting_ack)
+						fail("Corrupted send buffer");
+					peer->send_buffer_state[ix]= UdpPacketState_free;
+				}
 			}
 
 			{ // Write received packet to buffer
@@ -208,6 +246,7 @@ REVOLC_API void upd_udp_peer(UdpPeer *peer, UdpMsg **msgs, U32 *msg_count)
 			}
 #endif
 
+			peer->cur_incomplete_recv_msg_count= 0;
 			U32 msg_begin_i= 0;
 			while (msg_begin_i < UDP_MAX_BUFFERED_PACKET_COUNT) {
 				// Check if message is complete
@@ -257,10 +296,38 @@ REVOLC_API void upd_udp_peer(UdpPeer *peer, UdpMsg **msgs, U32 *msg_count)
 					// Erase processed packets from buffer
 					for (U32 i= msg_begin_i; i < msg_end_i; ++i)
 						peer->recv_buffer[i].header.data_size= 0;
+				} else {
+					++peer->cur_incomplete_recv_msg_count;
 				}
 
 				msg_begin_i= msg_end_i;
 			}
+		}
+	}
+
+	{ // Detect dropped packets
+		for (U32 i= 0; i < UDP_MAX_BUFFERED_PACKET_COUNT; ++i) {
+			if (peer->send_buffer_state[i] != UdpPacketState_waiting_ack)
+				continue;
+
+			UdpPacketHeader header= peer->send_buffer[i].header;
+
+			// If we have waited too long, consider packet dropped
+			if (g_env.time_from_start - peer->send_times[header.packet_id] < 1.5) // @todo use rtt time
+				continue;
+
+			UdpPacket *packet= &peer->send_buffer[i];
+
+			debug_print(	"Packet %i dropped",
+							packet->header.packet_id);
+			++peer->drop_count;
+
+			{ // @todo Only for reliable messages
+				buffer_udp_packet(	peer, packet->data, packet->header.data_size,
+									packet->header.msg_id,
+									packet->header.msg_frag_i, packet->header.msg_frag_count);
+			}
+			peer->send_buffer_state[i]= UdpPacketState_free;
 		}
 	}
 }

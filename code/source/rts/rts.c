@@ -14,6 +14,7 @@
 typedef struct RtsEnv {
 	UdpPeer *peer;
 	bool authority; // Do we have authority over game world
+	F64 last_send_time;
 } RtsEnv;
 
 internal
@@ -54,11 +55,13 @@ MOD_API void upd_rts()
 {
 	UdpPeer *peer= rts_env()->peer;
 
-	if (peer->last_send_time + 0.5 < g_env.time_from_start) {
+	if (g_env.time_from_start - rts_env()->last_send_time > 0.5) {
+		rts_env()->last_send_time= g_env.time_from_start;
 		// Maintain connection
 		const char *msg = frame_str(rts_env()->authority ? "\1hello %i" : "\1world %i", peer->next_msg_id);
 		buffer_udp_msg(peer, msg, strlen(msg) + 1);
-		if (rts_env()->authority) {
+
+		if (peer->connected && rts_env()->authority && 0) {
 			// Stress test :::D
 			U32 buf_size= 1 + sizeof(g_env.physworld->grid);
 			U8 *buf= frame_alloc(buf_size);
@@ -66,6 +69,12 @@ MOD_API void upd_rts()
 			memcpy(buf + 1, g_env.physworld->grid, buf_size - 1);
 			buffer_udp_msg(peer, buf, buf_size);
 		}
+
+		// A bit too high because of RTT
+		debug_print("packet loss: %.1f%%", 100.0*peer->drop_count/peer->sent_packet_count);
+		//debug_print("sent packet count: %i", peer->sent_packet_count);
+		//debug_print("acked packet count: %i", peer->acked_packet_count);
+		//debug_print("current incomplete recv msgs %i", peer->cur_incomplete_recv_msg_count);
 	}
 
 	UdpMsg *msgs;

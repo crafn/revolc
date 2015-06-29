@@ -396,6 +396,10 @@ U32 send_packet(Socket sock, IpAddress addr, const void *data, U32 size)
 						(const char *)data, size,
 						0,
 						(struct sockaddr*)&to, sizeof(struct sockaddr_in));
+	if (bytes < 0) {
+		int err= WSAGetLastError();
+		fail("sendto failed: %i, %i", bytes, err);
+	}
 	ensure(bytes >= 0);
 	return (U32)bytes;
 }
