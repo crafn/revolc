@@ -198,10 +198,6 @@ int main(int argc, const char **argv)
 			}
 #			endif
 
-			if (d->key_down['t'])
-				set_grid_material_in_circle(cursor_on_world, 2.0, GRIDCELL_MATERIAL_AIR);
-			if (d->key_down['g'])
-				set_grid_material_in_circle(cursor_on_world, 1.0, GRIDCELL_MATERIAL_GROUND);
 
 			if (d->key_pressed['q'])
 				g_env.physworld->debug_draw= !g_env.physworld->debug_draw;

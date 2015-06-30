@@ -6,15 +6,16 @@
 #include "global/cfg.h"
 
 // A lightweight low-level protocol on top of UDP for message passing
-
+// @todo Metrics (rtt, drop rate, throughput)
 // @todo Maximum bandwidth usage limit
-// @todo Drop duplicate messages (but acknowledge the packets)
+// @todo Unreliable messages
 //
 // Things I dont care about:
 //  - endianness -- only supporting little endian platforms
 //  - different floating point binary formats -- only supporting x64 platforms
 //
 // Things I care about after working LAN networking:
+// @todo Drop duplicate messages (but acknowledge the packets)
 // @todo Drop too old incoming messages (to prevent id mixup)
 // @todo Greeting packet
 // @todo Congestion avoidance
