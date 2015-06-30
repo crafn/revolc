@@ -9,7 +9,9 @@ typedef struct IpAddress {
 	U16 port;
 } IpAddress;
 
-REVOLC_API const char *ip_str(IpAddress addr);
+REVOLC_API const char *ip_to_str(IpAddress addr);
+REVOLC_API IpAddress str_to_ip(const char *str);
+
 static bool ip_equals(IpAddress ip1, IpAddress ip2)
 { return	ip1.a == ip2.a && ip1.b == ip2.b &&
 		ip1.c == ip2.c && ip1.d == ip2.d &&

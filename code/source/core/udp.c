@@ -7,15 +7,20 @@ bool wrapped_gr(U32 s1, U32 s2, U32 max)
 { return	((s1 > s2) && (s1 - s2 <= max/2)) ||
 			((s2 > s1) && (s2 - s1 > max/2)); }
 
-UdpPeer *create_udp_peer(U16 local_port, U16 remote_port)
+UdpPeer *create_udp_peer(U16 local_port, IpAddress *remote_addr)
 {
 	UdpPeer *peer= malloc(sizeof(*peer));
 	*peer= (UdpPeer) {
 		.socket= open_udp_socket(local_port),
-		.send_port= remote_port,
+		.remote_addr= remote_addr ? *remote_addr : (IpAddress) {},
 		.rtt= 0.5, // Better to be too large than too small at the startup
 		.next_msg_id= 1, // 0 is heartbeat
 	};
+	if (remote_addr)
+		debug_print("Trying to connect: %s", ip_to_str(peer->remote_addr));
+	else
+		debug_print("Waiting for connection");
+
 	if (peer->socket == invalid_socket())
 		fail("Socket creation failed");
 	return peer;
@@ -95,14 +100,14 @@ int msg_packet_cmp(const void *a_, const void *b_)
 
 REVOLC_API void upd_udp_peer(UdpPeer *peer, UdpMsg **msgs, U32 *msg_count)
 {
-	if (g_env.time_from_start - peer->last_send_time > UDP_HEARTBEAT_INTERVAL)
+	bool has_target= peer->remote_addr.port != 0;
+
+	if (	has_target &&
+			g_env.time_from_start - peer->last_send_time > UDP_HEARTBEAT_INTERVAL)
 		buffer_udp_msg(peer, NULL, 0); // Heartbeat
 
-	{ // Send buffered packets
-		IpAddress peer_addr= {
-			127, 0, 0, 1,
-			peer->send_port
-		};
+	if (has_target) { // Send buffered packets
+		IpAddress peer_addr= peer->remote_addr;
 
 		U32 frame_sent_bytes= 0;
 		for (U32 i= 0; i < UDP_MAX_BUFFERED_PACKET_COUNT; ++i) {
@@ -149,7 +154,7 @@ REVOLC_API void upd_udp_peer(UdpPeer *peer, UdpMsg **msgs, U32 *msg_count)
 		U32 bytes= 0;
 		while (	(bytes= recv_packet(peer->socket, &addr, &packet, UDP_MAX_PACKET_SIZE))
 				> 0) {
-			if (peer->connected && !ip_equals(peer->connected_ip, addr))
+			if (peer->connected && !ip_equals(peer->remote_addr, addr))
 				continue; // Discard packets from others when connected
 
 			if (bytes < sizeof(UdpPacketHeader))
@@ -167,8 +172,8 @@ REVOLC_API void upd_udp_peer(UdpPeer *peer, UdpMsg **msgs, U32 *msg_count)
 
 			if (!peer->connected) {
 				peer->connected= true;
-				peer->connected_ip= addr;
-				debug_print("Connected to %s", ip_str(peer->connected_ip));
+				peer->remote_addr= addr;
+				debug_print("Connected to %s", ip_to_str(peer->remote_addr));
 			}
 
 			peer->last_recv_time= g_env.time_from_start;
@@ -246,7 +251,7 @@ REVOLC_API void upd_udp_peer(UdpPeer *peer, UdpMsg **msgs, U32 *msg_count)
 		if (	!packet_received && peer->connected &&
 				peer->last_recv_time + UDP_CONNECTION_TIMEOUT < g_env.time_from_start) {
 			peer->connected= false;
-			debug_print("Disconnected from %s", ip_str(peer->connected_ip));
+			debug_print("Disconnected from %s", ip_to_str(peer->remote_addr));
 		}
 
 		// Write complete messages to caller

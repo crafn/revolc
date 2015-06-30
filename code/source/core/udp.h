@@ -49,12 +49,11 @@ typedef struct UdpPacket {
 // Local peer possibly connected to somebody else
 typedef struct UdpPeer {
 	Socket socket;
-	U16 send_port;
 
 	F64 last_send_time;
 	F64 last_recv_time;
 	bool connected;
-	IpAddress connected_ip;
+	IpAddress remote_addr;
 	F64 rtt; // Round-trip time
 
 	U32 next_msg_id; // Non-wrapping multi-packet message
@@ -84,7 +83,8 @@ typedef struct UdpMsg {
 	void *data;
 } UdpMsg;
 
-REVOLC_API UdpPeer *create_udp_peer(U16 local_port, U16 remote_port);
+// If remote_addr == NULL we just wait for incoming connections.
+REVOLC_API UdpPeer *create_udp_peer(U16 local_port, IpAddress *remote_addr);
 REVOLC_API void destroy_udp_peer(UdpPeer *peer);
 
 REVOLC_API void buffer_udp_msg(UdpPeer *peer, const void *data, U32 size);

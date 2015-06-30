@@ -29,13 +29,21 @@ MOD_API void init_rts()
 	g_env.game_data= env;
 
 	bool authority= false;
+	bool connect= false;
+	IpAddress remote_addr= {};
 	for (U32 i= 0; i < g_env.argc; ++i) {
-		if (!strcmp(g_env.argv[i], "-authority"))
+		if (!strcmp(g_env.argv[i], "-authority")) {
 			authority= true;
+		} else if (g_env.argv[i][0] == '-') {
+			connect= true;
+			remote_addr= str_to_ip(g_env.argv[i] + 1);
+		}
 	}
+	remote_addr.port= authority ? RTS_CLIENT_PORT : RTS_AUTHORITY_PORT;
+
 	rts_env()->authority= authority;
 	rts_env()->peer= create_udp_peer(	authority ? RTS_AUTHORITY_PORT : RTS_CLIENT_PORT,
-										authority ? RTS_CLIENT_PORT : RTS_AUTHORITY_PORT);
+										connect ? &remote_addr : NULL);
 }
 
 MOD_API void deinit_rts()
@@ -55,12 +63,12 @@ MOD_API void upd_rts()
 {
 	UdpPeer *peer= rts_env()->peer;
 
-	if (g_env.time_from_start - rts_env()->last_send_time > 0.5) {
+	if (peer->connected && g_env.time_from_start - rts_env()->last_send_time > 0.5) {
 		rts_env()->last_send_time= g_env.time_from_start;
 		//const char *msg = frame_str(rts_env()->authority ? "\1hello %i" : "\1world %i", peer->next_msg_id);
 		//buffer_udp_msg(peer, msg, strlen(msg) + 1);
 
-		if (peer->connected && rts_env()->authority && 0) {
+		if (rts_env()->authority) {
 			// Stress test :::D
 			U32 buf_size= 1 + sizeof(g_env.physworld->grid);
 			U8 *buf= frame_alloc(buf_size);
