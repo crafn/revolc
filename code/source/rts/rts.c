@@ -57,9 +57,8 @@ MOD_API void upd_rts()
 
 	if (g_env.time_from_start - rts_env()->last_send_time > 0.5) {
 		rts_env()->last_send_time= g_env.time_from_start;
-		// Maintain connection
-		const char *msg = frame_str(rts_env()->authority ? "\1hello %i" : "\1world %i", peer->next_msg_id);
-		buffer_udp_msg(peer, msg, strlen(msg) + 1);
+		//const char *msg = frame_str(rts_env()->authority ? "\1hello %i" : "\1world %i", peer->next_msg_id);
+		//buffer_udp_msg(peer, msg, strlen(msg) + 1);
 
 		if (peer->connected && rts_env()->authority && 0) {
 			// Stress test :::D
@@ -70,8 +69,8 @@ MOD_API void upd_rts()
 			buffer_udp_msg(peer, buf, buf_size);
 		}
 
-		// A bit too high because of RTT
-		debug_print("packet loss: %.1f%%", 100.0*peer->drop_count/peer->sent_packet_count);
+		debug_print("packet loss: %.1f%%", 100.0*peer->drop_count/(peer->acked_packet_count + peer->drop_count));
+		debug_print("rtt: %.3f", peer->rtt);
 		//debug_print("sent packet count: %i", peer->sent_packet_count);
 		//debug_print("acked packet count: %i", peer->acked_packet_count);
 		//debug_print("current incomplete recv msgs %i", peer->cur_incomplete_recv_msg_count);

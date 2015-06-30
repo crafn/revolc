@@ -1,5 +1,12 @@
 #include "udp.h"
 
+#define UDP_HEARTBEAT_MSG_ID 0
+
+internal
+bool wrapped_gr(U32 s1, U32 s2, U32 max)
+{ return	((s1 > s2) && (s1 - s2 <= max/2)) ||
+			((s2 > s1) && (s2 - s1 > max/2)); }
+
 UdpPeer *create_udp_peer(U16 local_port, U16 remote_port)
 {
 	UdpPeer *peer= malloc(sizeof(*peer));
@@ -7,6 +14,7 @@ UdpPeer *create_udp_peer(U16 local_port, U16 remote_port)
 		.socket= open_udp_socket(local_port),
 		.send_port= remote_port,
 		.rtt= 0.5, // Better to be too large than too small at the startup
+		.next_msg_id= 1, // 0 is heartbeat
 	};
 	if (peer->socket == invalid_socket())
 		fail("Socket creation failed");
@@ -22,8 +30,6 @@ internal
 void buffer_udp_packet(	UdpPeer *peer, const void *data, U16 size,
 						U32 msg_id, U16 frag_i, U16 frag_count)
 {
-	ensure(size > 0);
-
 	// Not nice
 	U32 free_i= 0;
 	while (	peer->send_buffer_state[free_i] != UdpPacketState_free &&
@@ -53,14 +59,16 @@ void buffer_udp_packet(	UdpPeer *peer, const void *data, U16 size,
 
 void buffer_udp_msg(UdpPeer *peer, const void *data, U32 size)
 {
-	ensure(size > 0);
-	U32 frag_count= (size - 1)/ UDP_MAX_PACKET_DATA_SIZE + 1;
+	ensure(!data || size > 0);
+	U32 frag_count= 1;
+	if (size > 0)
+		frag_count= (size - 1)/UDP_MAX_PACKET_DATA_SIZE + 1;
 	U32 left_size= size;
 	for (U32 i= 0; i < frag_count; ++i) {
 		buffer_udp_packet(	peer,
 							(const U8*)data + i*UDP_MAX_PACKET_DATA_SIZE,
 							MIN(left_size, UDP_MAX_PACKET_DATA_SIZE),
-							peer->next_msg_id,
+							data ? peer->next_msg_id : UDP_HEARTBEAT_MSG_ID,
 							i,
 							frag_count);
 		left_size -= UDP_MAX_PACKET_DATA_SIZE;
@@ -87,11 +95,15 @@ int msg_packet_cmp(const void *a_, const void *b_)
 
 REVOLC_API void upd_udp_peer(UdpPeer *peer, UdpMsg **msgs, U32 *msg_count)
 {
+	if (g_env.time_from_start - peer->last_send_time > UDP_HEARTBEAT_INTERVAL)
+		buffer_udp_msg(peer, NULL, 0); // Heartbeat
+
 	{ // Send buffered packets
-		IpAddress addr= {
+		IpAddress peer_addr= {
 			127, 0, 0, 1,
 			peer->send_port
 		};
+
 		U32 frame_sent_bytes= 0;
 		for (U32 i= 0; i < UDP_MAX_BUFFERED_PACKET_COUNT; ++i) {
 			if (peer->send_buffer_state[i] != UdpPacketState_buffered)
@@ -103,8 +115,8 @@ REVOLC_API void upd_udp_peer(UdpPeer *peer, UdpMsg **msgs, U32 *msg_count)
 			if (frame_sent_bytes + packet_size > UDP_OUTGOING_LIMIT_FRAME)
 				break; // Limit sending to prevent packet loss in kernel
 
-			ensure(header->data_size > 0);
-			U32 bytes= send_packet(	peer->socket, addr,
+			ensure(header->msg_id == UDP_HEARTBEAT_MSG_ID || header->data_size > 0);
+			U32 bytes= send_packet(	peer->socket, peer_addr,
 									packet, packet_size);
 			if (bytes == 0)
 				critical_print("Packet lost at send: %i", packet->header.packet_id);
@@ -143,11 +155,14 @@ REVOLC_API void upd_udp_peer(UdpPeer *peer, UdpMsg **msgs, U32 *msg_count)
 			if (bytes < sizeof(UdpPacketHeader))
 				fail("Corrupted UDP packet (header too small)");
 
-			if (	packet.header.data_size == 0 ||
+			if (	(	packet.header.data_size == 0 &&
+						packet.header.msg_id != UDP_HEARTBEAT_MSG_ID) ||
 					packet.header.data_size > UDP_MAX_PACKET_DATA_SIZE ||
 					packet.header.data_size != bytes - sizeof(UdpPacketHeader))
 				fail("Corrupted UDP packet (wrong size)");
 
+			//if (packet.header.msg_id == UDP_HEARTBEAT_MSG_ID)
+			//	debug_print("Heartbeat: %i", packet.header.packet_id);
 			packet_received= true;
 
 			if (!peer->connected) {
@@ -161,13 +176,15 @@ REVOLC_API void upd_udp_peer(UdpPeer *peer, UdpMsg **msgs, U32 *msg_count)
 
 			U32 packet_id= packet.header.packet_id;
 			// Update next acks to remote
-			if (packet_id > peer->remote_packet_id) {
+			if (wrapped_gr(packet_id, peer->remote_packet_id, UDP_PACKET_ID_COUNT)) {
+				// Received more recent remote packet
 				U32 shift= packet_id - peer->remote_packet_id;
 				peer->prev_out_acks= peer->prev_out_acks << shift;
 				peer->prev_out_acks |= 1 << (shift - 1);
 
 				peer->remote_packet_id= packet_id;
-			} else if (packet_id < peer->remote_packet_id) {
+			} else if (packet_id != peer->remote_packet_id) {
+				// Received older than recent remote packet
 				U32 shift= peer->remote_packet_id - packet_id;
 				peer->prev_out_acks |= 1 << (shift - 1);
 			}
@@ -192,6 +209,9 @@ REVOLC_API void upd_udp_peer(UdpPeer *peer, UdpMsg **msgs, U32 *msg_count)
 						continue;
 
 					F64 rtt_sample= g_env.time_from_start - peer->send_times[ack];
+					//debug_print("ack %i", ack);
+					//debug_print("rtt_sample: %f, %f - %f",
+					//		rtt_sample, g_env.time_from_start, peer->send_times[ack]);
 					const F64 change_p= 0.1;
 					peer->rtt= peer->rtt*(1 - change_p) + rtt_sample*change_p;
 					++peer->acked_packet_count;
@@ -203,7 +223,8 @@ REVOLC_API void upd_udp_peer(UdpPeer *peer, UdpMsg **msgs, U32 *msg_count)
 				}
 			}
 
-			{ // Write received packet to buffer
+			// Write received packet to buffer
+			if (packet.header.msg_id != UDP_HEARTBEAT_MSG_ID) {
 				U32 free_i= 0;
 				while (	peer->recv_buffer[free_i].header.data_size > 0 &&
 						free_i < UDP_MAX_BUFFERED_PACKET_COUNT)
@@ -310,19 +331,20 @@ REVOLC_API void upd_udp_peer(UdpPeer *peer, UdpMsg **msgs, U32 *msg_count)
 			if (peer->send_buffer_state[i] != UdpPacketState_waiting_ack)
 				continue;
 
-			UdpPacketHeader header= peer->send_buffer[i].header;
+			UdpPacket *packet= &peer->send_buffer[i];
 
 			// If we have waited too long, consider packet dropped
-			if (g_env.time_from_start - peer->send_times[header.packet_id] < 1.5) // @todo use rtt time
+			if (	g_env.time_from_start - peer->send_times[packet->header.packet_id]
+					< peer->rtt*3)
 				continue;
 
-			UdpPacket *packet= &peer->send_buffer[i];
 
 			debug_print(	"Packet %i dropped",
 							packet->header.packet_id);
 			++peer->drop_count;
 
-			{ // @todo Only for reliable messages
+			// @todo Only for reliable messages
+			if (packet->header.msg_id != UDP_HEARTBEAT_MSG_ID) {
 				buffer_udp_packet(	peer, packet->data, packet->header.data_size,
 									packet->header.msg_id,
 									packet->header.msg_frag_i, packet->header.msg_frag_count);

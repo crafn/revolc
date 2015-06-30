@@ -7,21 +7,19 @@
 
 // A lightweight low-level protocol on top of UDP for message passing
 
-// @todo Heartbeat (essential for preventing timeout and rtt measurement)
 // @todo Maximum bandwidth usage limit
-// @todo Drop duplicate packets
+// @todo Drop duplicate messages (but acknowledge the packets)
 //
 // Things I dont care about:
 //  - endianness -- only supporting little endian platforms
 //  - different floating point binary formats -- only supporting x64 platforms
 //
 // Things I care about after working LAN networking:
+// @todo Drop too old incoming messages (to prevent id mixup)
 // @todo Greeting packet
 // @todo Congestion avoidance
 // @todo Priority settings (latency, throughput, reliability)
-// @todo Packet timeout detection
 // @todo Compression (arithmetic coding)
-// @todo Redundant acking
 // @todo Warnings when buffers are too full (packet ids might get wrongly interpreted)
 
 typedef enum UdpPacketState {
@@ -62,13 +60,12 @@ typedef struct UdpPeer {
 	U32 next_msg_id; // Non-wrapping multi-packet message
 	U8 next_packet_id; // Wrapping packet id
 
-	U32 sent_packet_count;
-	U32 acked_packet_count;
-
 	UdpPacketState send_buffer_state[UDP_MAX_BUFFERED_PACKET_COUNT];
 	UdpPacket send_buffer[UDP_MAX_BUFFERED_PACKET_COUNT];
 	F64 send_times[UDP_PACKET_ID_COUNT];
 	U32 packet_id_to_send_buffer_ix[UDP_PACKET_ID_COUNT];
+	U32 sent_packet_count;
+	U32 acked_packet_count;
 	U32 drop_count;
 
 	U32 recv_packet_count;
@@ -76,6 +73,7 @@ typedef struct UdpPeer {
 	U32 prev_out_acks; // Bitfield relative to remote_packet_id
 	U32 cur_incomplete_recv_msg_count;
 
+	// Contains packets of incomplete messages
 	UdpPacket recv_buffer[UDP_MAX_BUFFERED_PACKET_COUNT];
 } UdpPeer;
 
