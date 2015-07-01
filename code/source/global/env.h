@@ -28,6 +28,7 @@ typedef struct Env {
 	const char **argv;
 
 	F64 time_from_start;
+	F64 dt;
 
 	void *game_data; // Pointer to be used by the game module
 

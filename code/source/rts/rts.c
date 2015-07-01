@@ -12,16 +12,29 @@
 
 #define RTS_AUTHORITY_PORT 19995
 #define RTS_CLIENT_PORT 19996
+#define RTS_SNAPSHOT_INTERVAL 0.3
+
+typedef enum RtsMsg {
+	RtsMsg_chat = 1,
+	RtsMsg_grid,
+	RtsMsg_brushaction,
+} RtsMsg;
+
+typedef struct RtsMsgHeader {
+	RtsMsg type;
+	//F64 time; // Game time
+} PACKED RtsMsgHeader;
 
 typedef struct RtsEnv {
 	UdpPeer *peer;
 	bool authority; // Do we have authority over game world
-	F64 last_send_time;
+	F64 game_time; // Same at client and server
+
+	F64 snapshot_time;
 } RtsEnv;
 
 internal
 RtsEnv *rts_env() { return g_env.game_data; }
-
 
 MOD_API void init_rts()
 {
@@ -56,12 +69,6 @@ MOD_API void deinit_rts()
 	free(rts_env());
 }
 
-typedef enum RtsMsg {
-	RtsMsg_chat = 1,
-	RtsMsg_grid,
-	RtsMsg_brush_action,
-} RtsMsg;
-
 typedef struct BrushAction { // @todo Range and precision "attributes"
 	V2d pos;
 	F64 size;
@@ -69,56 +76,75 @@ typedef struct BrushAction { // @todo Range and precision "attributes"
 } BrushAction;
 
 internal
-void local_brushaction(BrushAction action)
+void local_brushaction(BrushAction *action)
 {
-	set_grid_material_in_circle(action.pos, action.size, action.material);
+	set_grid_material_in_circle(action->pos, action->size, action->material);
 }
 
 internal
-void brushaction(BrushAction action)
+void send_rts_msg(RtsMsg type, void *data, U32 data_size)
 {
-	// @todo Generate this
-	local_brushaction(action); // Client prediction
+	RtsMsgHeader *header;
+	U32 buf_size= sizeof(*header) + data_size;
+	U8 *buf= frame_alloc(buf_size);
+	header= (void*)buf;
+	header->type= type;
+	memcpy(buf + sizeof(*header), data, buf_size - sizeof(*header));
+	buffer_udp_msg(rts_env()->peer, buf, buf_size);
+	//debug_print("Send %i: %i", type, buf_size);
+}
 
-	if (!rts_env()->authority) {
-		// Send action to server
-		const U32 buf_size= 1 + sizeof(action);
-		U8 buf[buf_size];
-		buf[0]= RtsMsg_brush_action;
-		memcpy(buf + 1, &action, buf_size - 1);
-		buffer_udp_msg(rts_env()->peer, buf, buf_size);
+internal
+void brushaction(BrushAction *action)
+{ // @todo Generate this function
+	if (rts_env()->authority) {
+		local_brushaction(action);
+	} else {
+		send_rts_msg(RtsMsg_brushaction, action, sizeof(*action));
 	}
+}
+
+internal
+void apply_world_state(void *data, U32 data_size)
+{
+	GridCell *grid= data;
+	if (data_size != sizeof(g_env.physworld->grid))
+		fail("Corrupted world state");
+	memcpy(g_env.physworld->grid, grid, data_size);
 }
 
 MOD_API void upd_rts()
 {
+	rts_env()->game_time += g_env.dt;
+
 	{ // UI
 		Device *d= g_env.device;
 		V2d cursor_on_world= screen_to_world_point(g_env.device->cursor_pos);
 		if (d->key_down['t']) {
-			brushaction((BrushAction) {cursor_on_world, 2.0, GRIDCELL_MATERIAL_AIR});
+			brushaction(&(BrushAction) {cursor_on_world, 2.0, GRIDCELL_MATERIAL_AIR});
 		}
 		if (d->key_down['g']) {
-			brushaction((BrushAction) {cursor_on_world, 1.0, GRIDCELL_MATERIAL_GROUND});
+			brushaction(&(BrushAction) {cursor_on_world, 1.0, GRIDCELL_MATERIAL_GROUND});
 		}
 	}
 
 	{ // Networking
 		UdpPeer *peer= rts_env()->peer;
 
-		if (peer->connected && g_env.time_from_start - rts_env()->last_send_time > 0.5) {
-			rts_env()->last_send_time= g_env.time_from_start;
+		// World sync
+		if (	rts_env()->authority && peer->connected &&
+				rts_env()->game_time - rts_env()->snapshot_time > RTS_SNAPSHOT_INTERVAL) {
+			rts_env()->snapshot_time= rts_env()->game_time;
+
+			// Send a snapshot.
+			// This might not include the most recent client commands (latency), but
+			// they will be rescheduled after the snapshot instead dropping.
+	
+			send_rts_msg(RtsMsg_grid,  g_env.physworld->grid, sizeof(g_env.physworld->grid));
+			rts_env()->snapshot_time= rts_env()->game_time;
+
 			//const char *msg = frame_str(rts_env()->authority ? "\1hello %i" : "\1world %i", peer->next_msg_id);
 			//buffer_udp_msg(peer, msg, strlen(msg) + 1);
-
-			if (rts_env()->authority) {
-				// Stress test :::D
-				U32 buf_size= 1 + sizeof(g_env.physworld->grid);
-				U8 *buf= frame_alloc(buf_size);
-				buf[0]= RtsMsg_grid;
-				memcpy(buf + 1, g_env.physworld->grid, buf_size - 1);
-				buffer_udp_msg(peer, buf, buf_size);
-			}
 
 			debug_print("packet loss: %.1f%%", 100.0*peer->drop_count/(peer->acked_packet_count + peer->drop_count));
 			debug_print("rtt: %.3f", peer->rtt);
@@ -135,26 +161,26 @@ MOD_API void upd_rts()
 			if (msgs[i].data_size < 2) // RtsMsg takes 1 byte
 				fail("Corrupted message");
 
-			U8 msg_type= *(U8*)msgs[i].data;
-			void *data= (U8*)msgs[i].data + 1;
-			U32 data_size= msgs[i].data_size - 1;
-			switch (msg_type) {
+			RtsMsgHeader *header= msgs[i].data;
+			void *data= header + 1;
+			U32 data_size= msgs[i].data_size - sizeof(*header);
+
+			//debug_print("Recv %i: %i", header->type, msgs[i].data_size);
+
+			switch (header->type) {
 				case RtsMsg_chat:
 					debug_print("> %.*s", data_size, data);
 				break;
 
 				case RtsMsg_grid: {
-					debug_print("grid received");
-					GridCell *recv_grid= data;
-					if (data_size != sizeof(g_env.physworld->grid))
-						fail("Corrupted grid message");
-					memcpy(g_env.physworld->grid, recv_grid, data_size);
+					apply_world_state(data, data_size);
 				} break;
-				
-				case RtsMsg_brush_action: {
-					local_brushaction(*(BrushAction*)data);
+
+				case RtsMsg_brushaction: {
+					ensure(data_size == sizeof(BrushAction));
+					local_brushaction(data);
 				} break;
-				default: fail("Unknown message type: %i", msg_type);
+				default: fail("Unknown message type: %i", header->type);
 			}
 		}
 	}

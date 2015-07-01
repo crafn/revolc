@@ -131,6 +131,7 @@ int main(int argc, const char **argv)
 
 			F32 dt= d->dt;
 			g_env.time_from_start += dt;
+			g_env.dt= dt;
 			F32 spd= 25.0;
 			if (d->key_down[KEY_UP])
 				g_env.renderer->cam_pos.y += spd*dt;
