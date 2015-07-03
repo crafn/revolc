@@ -12,7 +12,7 @@
 
 #define RTS_AUTHORITY_PORT 19995
 #define RTS_CLIENT_PORT 19996
-#define RTS_SNAPSHOT_INTERVAL 0.3
+#define RTS_SNAPSHOT_INTERVAL 10.0
 
 typedef enum RtsMsg {
 	RtsMsg_chat = 1,
@@ -59,6 +59,7 @@ MOD_API void init_rts()
 	rts_env()->authority= authority;
 	rts_env()->peer= create_udp_peer(	authority ? RTS_AUTHORITY_PORT : RTS_CLIENT_PORT,
 										connect ? &remote_addr : NULL);
+	rts_env()->snapshot_time= -10000.0;
 }
 
 MOD_API void deinit_rts()
@@ -91,7 +92,7 @@ void send_rts_msg(RtsMsg type, void *data, U32 data_size)
 	header->type= type;
 	memcpy(buf + sizeof(*header), data, buf_size - sizeof(*header));
 	buffer_udp_msg(rts_env()->peer, buf, buf_size);
-	//debug_print("Send %i: %i", type, buf_size);
+	debug_print("rts send %i: %ikb", type, buf_size/1024);
 }
 
 internal
@@ -107,10 +108,13 @@ void brushaction(BrushAction *action)
 internal
 void apply_world_state(void *data, U32 data_size)
 {
-	GridCell *grid= data;
-	if (data_size != sizeof(g_env.physworld->grid))
+	debug_print("Grid received");
+	U8 *mat_grid= data;
+	if (data_size != GRID_CELL_COUNT)
 		fail("Corrupted world state");
-	memcpy(g_env.physworld->grid, grid, data_size);
+
+	for (U32 i= 0; i < GRID_CELL_COUNT; ++i)
+		g_env.physworld->grid[i].material= mat_grid[i];
 }
 
 MOD_API void upd_rts()
@@ -132,23 +136,34 @@ MOD_API void upd_rts()
 		UdpPeer *peer= rts_env()->peer;
 
 		// World sync
-		if (	rts_env()->authority && peer->connected &&
+		if (	peer->connected &&
 				rts_env()->game_time - rts_env()->snapshot_time > RTS_SNAPSHOT_INTERVAL) {
-			rts_env()->snapshot_time= rts_env()->game_time;
+			if (rts_env()->authority) {
+				rts_env()->snapshot_time= rts_env()->game_time;
 
-			// Send a snapshot.
-			// This might not include the most recent client commands (latency), but
-			// they will be rescheduled after the snapshot instead dropping.
-	
-			send_rts_msg(RtsMsg_grid,  g_env.physworld->grid, sizeof(g_env.physworld->grid));
-			rts_env()->snapshot_time= rts_env()->game_time;
+				// Send a snapshot.
+				// This might not include the most recent client commands (latency), but
+				// they will be rescheduled after the snapshot instead dropping.
+		
+				const U32 mat_grid_size= GRID_CELL_COUNT;
+				U8 *mat_grid= frame_alloc(mat_grid_size);
+				for (U32 i= 0; i < GRID_CELL_COUNT; ++i)
+					mat_grid[i]= g_env.physworld->grid[i].material;
+				send_rts_msg(RtsMsg_grid, mat_grid, mat_grid_size);
+				rts_env()->snapshot_time= rts_env()->game_time;
+			}
 
 			//const char *msg = frame_str(rts_env()->authority ? "\1hello %i" : "\1world %i", peer->next_msg_id);
 			//buffer_udp_msg(peer, msg, strlen(msg) + 1);
 
 			debug_print("packet loss: %.1f%%", 100.0*peer->drop_count/(peer->acked_packet_count + peer->drop_count));
 			debug_print("rtt: %.3f", peer->rtt);
-			//debug_print("sent packet count: %i", peer->sent_packet_count);
+			debug_print("sent packet count: %i", peer->sent_packet_count);
+			debug_print("recv packet count: %i", peer->recv_packet_count);
+			debug_print("recv msg count: %i", peer->recv_msg_count);
+			debug_print("recv incomplete msg count: %i", peer->cur_incomplete_recv_msg_count);
+			debug_print("waiting sending count: %i", peer->packets_waiting_send_count);
+
 			//debug_print("acked packet count: %i", peer->acked_packet_count);
 			//debug_print("current incomplete recv msgs %i", peer->cur_incomplete_recv_msg_count);
 		}
@@ -188,5 +203,6 @@ MOD_API void upd_rts()
 
 MOD_API void worldgen_rts(World *w)
 {
-	generate_test_world(w);
+	if (rts_env()->authority)
+		generate_test_world(w);
 }

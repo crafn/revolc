@@ -7,7 +7,7 @@
 
 // A lightweight low-level protocol on top of UDP for message passing
 // @todo Metrics (rtt, drop rate, throughput)
-// @todo Maximum bandwidth usage limit
+// @todo Maximum bandwidth usage limit + packet count
 // @todo Unreliable messages
 //
 // Things I dont care about:
@@ -22,6 +22,7 @@
 // @todo Priority settings (latency, throughput, reliability)
 // @todo Compression (arithmetic coding)
 // @todo Warnings when buffers are too full (packet ids might get wrongly interpreted)
+// @todo Threading (fps dependency is not nice)
 
 typedef enum UdpPacketState {
 	UdpPacketState_free,
@@ -35,11 +36,11 @@ typedef struct UdpPacketHeader {
 	U8 packet_id;
 	U32 msg_id; // Could use smaller type and wrapping
 	U16 msg_frag_count; // Single msg can be divided to multiple packets
-	U16 msg_frag_i; 
+	U16 msg_frag_ix; 
 	U16 data_size;
 	bool acked;
 	U8 ack_id;
-	U32 previous_acks;
+	U64 previous_acks;
 } PACKED UdpPacketHeader;
 
 typedef struct UdpPacket {
@@ -64,13 +65,16 @@ typedef struct UdpPeer {
 	UdpPacket send_buffer[UDP_MAX_BUFFERED_PACKET_COUNT];
 	F64 send_times[UDP_PACKET_ID_COUNT];
 	U32 packet_id_to_send_buffer_ix[UDP_PACKET_ID_COUNT];
+	U32 packets_waiting_send_count;
 	U32 sent_packet_count;
 	U32 acked_packet_count;
 	U32 drop_count;
 
 	U32 recv_packet_count;
+	U32 recv_msg_count;
 	U8 remote_packet_id; // Largest received remote packet id (wrapping)
 	U32 prev_out_acks; // Bitfield relative to remote_packet_id
+	U8 last_sent_ack_id; // Most recent remote_packet_id sent
 	U32 cur_incomplete_recv_msg_count;
 
 	// Contains packets of incomplete messages

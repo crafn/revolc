@@ -372,6 +372,13 @@ Socket open_udp_socket(U16 port)
 	u_long iMode=1;
 	ioctlsocket(fd, FIONBIO, &iMode);
 
+	// Set send and recv buffer sizes
+	int buf_size= UDP_KERNEL_BUFFER_SIZE;
+	if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, (char*)&buf_size, sizeof(buf_size)) < 0)
+		fail("Error calling setsockopt (send)");
+	if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, (char*)&buf_size, sizeof(buf_size)) < 0)
+		fail("Error calling setsockopt (recv)");
+
 	struct sockaddr_in servaddr;
 	memset(&servaddr, 0, sizeof(servaddr));
 	servaddr.sin_family      = AF_INET;

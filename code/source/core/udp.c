@@ -33,7 +33,7 @@ void destroy_udp_peer(UdpPeer *peer)
 
 internal
 void buffer_udp_packet(	UdpPeer *peer, const void *data, U16 size,
-						U32 msg_id, U16 frag_i, U16 frag_count)
+						U32 msg_id, U16 frag_ix, U16 frag_count)
 {
 	// Not nice
 	U32 free_i= 0;
@@ -48,18 +48,17 @@ void buffer_udp_packet(	UdpPeer *peer, const void *data, U16 size,
 	memcpy(packet.data, data, size);
 
 	packet.header= (UdpPacketHeader) {
-		.packet_id= peer->next_packet_id++,
+		.packet_id= 42, // id set at packet send time
 		.msg_id= msg_id,
 		.msg_frag_count= frag_count,
-		.msg_frag_i= frag_i,
+		.msg_frag_ix= frag_ix,
 		.data_size= size,
-		.acked= peer->recv_packet_count > 0,
-		.ack_id= peer->remote_packet_id, // @todo Maybe set at send time?
-		.previous_acks= peer->prev_out_acks,
+		.acked= false, // acks set at packet send time
 	};
 
 	peer->send_buffer[free_i]= packet;
 	peer->send_buffer_state[free_i]= UdpPacketState_buffered;
+	++peer->packets_waiting_send_count;
 }
 
 void buffer_udp_msg(UdpPeer *peer, const void *data, U32 size)
@@ -81,20 +80,44 @@ void buffer_udp_msg(UdpPeer *peer, const void *data, U32 size)
 	++peer->next_msg_id;
 }
 
+struct SendPriority {
+	U32 buf_ix; // send_buffer
+	U32 msg_id;
+	U16 msg_frag_ix;
+	UdpPacketState state;
+};
+
 internal
-int msg_packet_cmp(const void *a_, const void *b_)
+int send_priority_cmp(const void *a_, const void *b_)
 {
-	const UdpPacket *a= a_, *b= b_;
-	const UdpPacketHeader *h1= &a->header, *h2= &b->header;
-	if (h1->data_size == 0 && h2->data_size > 0) {
+	const struct SendPriority *a= a_, *b= b_;
+	if (	a->state != UdpPacketState_buffered &&
+			b->state == UdpPacketState_buffered) {
 		return 1;
-	} else if (h1->data_size > 0 && h2->data_size == 0) {
+	} else if (	a->state == UdpPacketState_buffered &&
+				b->state != UdpPacketState_buffered) {
 		return -1;
 	} else {
-		if (h1->msg_id != h2->msg_id)
-			return h1->msg_id - h2->msg_id;
+		if (a->msg_id != b->msg_id)
+			return a->msg_id - b->msg_id;
 		else
-			return h1->msg_frag_i - h2->msg_frag_i;
+			return a->msg_frag_ix - b->msg_frag_ix;
+	}
+}
+
+internal
+int recv_packet_cmp(const void *a_, const void *b_)
+{
+	const UdpPacketHeader *a= a_, *b= b_;
+	if (a->data_size == 0 && b->data_size > 0) {
+		return 1;
+	} else if (a->data_size > 0 && b->data_size == 0) {
+		return -1;
+	} else {
+		if (a->msg_id != b->msg_id)
+			return a->msg_id - b->msg_id;
+		else
+			return a->msg_frag_ix - b->msg_frag_ix;
 	}
 }
 
@@ -109,16 +132,55 @@ REVOLC_API void upd_udp_peer(UdpPeer *peer, UdpMsg **msgs, U32 *msg_count)
 	if (has_target) { // Send buffered packets
 		IpAddress peer_addr= peer->remote_addr;
 
-		U32 frame_sent_bytes= 0;
+		// Form a priority order
+		struct SendPriority *priority_buf=
+			frame_alloc(sizeof(*priority_buf)*UDP_MAX_BUFFERED_PACKET_COUNT);
 		for (U32 i= 0; i < UDP_MAX_BUFFERED_PACKET_COUNT; ++i) {
+			priority_buf[i]= (struct SendPriority) {
+				.buf_ix= i,
+				.msg_id= peer->send_buffer[i].header.msg_id,
+				.msg_frag_ix= peer->send_buffer[i].header.msg_frag_ix,
+				.state= peer->send_buffer_state[i],
+			};
+		}
+		qsort(priority_buf, UDP_MAX_BUFFERED_PACKET_COUNT,
+				sizeof(*priority_buf), send_priority_cmp);
+
+		// Send packets with highest priority first
+		bool first_packet= true;
+		U8 first_packet_id= 0;
+		U32 frame_sent_bytes= 0;
+		U32 frame_sent_count= 0;
+		for (U32 priority_i= 0; priority_i < UDP_MAX_BUFFERED_PACKET_COUNT; ++priority_i) {
+			U32 i= priority_buf[priority_i].buf_ix;
 			if (peer->send_buffer_state[i] != UdpPacketState_buffered)
 				continue;
 			UdpPacket *packet= &peer->send_buffer[i];
 			UdpPacketHeader *header= &packet->header;
+			header->packet_id= peer->next_packet_id++;
+			header->acked= peer->recv_packet_count > 0;
+			header->ack_id= peer->remote_packet_id;
+			header->previous_acks= peer->prev_out_acks;
 			U32 packet_size= sizeof(*header) + header->data_size;
 
-			if (frame_sent_bytes + packet_size > UDP_OUTGOING_LIMIT_FRAME)
+			if (first_packet) {
+				first_packet= false;
+				first_packet_id= header->packet_id;
+			}
+
+			if (wrapped_gr(first_packet_id, header->packet_id, UDP_PACKET_ID_COUNT)) {
+				fail("Sending too many packets at once");
+			}
+
+			if (frame_sent_bytes + packet_size > UDP_OUTGOING_LIMIT_FRAME) {
+				debug_print("Limiting sending (bandwidth)");
 				break; // Limit sending to prevent packet loss in kernel
+			}
+
+			if (frame_sent_count > UDP_ACK_COUNT/2) {
+				debug_print("Limiting sending (packet count)");
+				break; // Don't overflow ack id's. Could be done without limiting by gradual ack_id change
+			}
 
 			ensure(header->msg_id == UDP_HEARTBEAT_MSG_ID || header->data_size > 0);
 			U32 bytes= send_packet(	peer->socket, peer_addr,
@@ -128,8 +190,11 @@ REVOLC_API void upd_udp_peer(UdpPeer *peer, UdpMsg **msgs, U32 *msg_count)
 			else if (bytes != packet_size)
 				fail("Udp packet with incorrect size sent");
 
+			--peer->packets_waiting_send_count;
 			frame_sent_bytes += packet_size;
+			++frame_sent_count;
 
+			peer->last_sent_ack_id= header->ack_id;
 			peer->last_send_time= g_env.time_from_start;
 			peer->send_times[packet->header.packet_id]= g_env.time_from_start;
 			// Even unreliable packets wait for ack to measure drop rate
@@ -169,17 +234,19 @@ REVOLC_API void upd_udp_peer(UdpPeer *peer, UdpMsg **msgs, U32 *msg_count)
 			//if (packet.header.msg_id == UDP_HEARTBEAT_MSG_ID)
 			//	debug_print("Heartbeat: %i", packet.header.packet_id);
 			packet_received= true;
-
 			if (!peer->connected) {
 				peer->connected= true;
 				peer->remote_addr= addr;
 				debug_print("Connected to %s", ip_to_str(peer->remote_addr));
 			}
 
+			U32 packet_id= packet.header.packet_id;
+			if (wrapped_gr(peer->last_sent_ack_id, packet_id, UDP_PACKET_ID_COUNT))
+				fail("Too many recvs, not enough sends (to ack)");
+
 			peer->last_recv_time= g_env.time_from_start;
 			++peer->recv_packet_count;
 
-			U32 packet_id= packet.header.packet_id;
 			// Update next acks to remote
 			if (wrapped_gr(packet_id, peer->remote_packet_id, UDP_PACKET_ID_COUNT)) {
 				// Received more recent remote packet
@@ -258,17 +325,17 @@ REVOLC_API void upd_udp_peer(UdpPeer *peer, UdpMsg **msgs, U32 *msg_count)
 		if (packet_received) {
 			// Sort recv buffer so that messages are contiguous,
 			// makes finding complete messages easy.
-
+			// Can sort in-place because no indices are taken to the buf.
 			qsort(peer->recv_buffer, UDP_MAX_BUFFERED_PACKET_COUNT,
-					sizeof(*peer->recv_buffer), msg_packet_cmp);
+					sizeof(*peer->recv_buffer), recv_packet_cmp);
 
-#ifdef NET_DEBUG
+#if 0
 			for (U32 i= 0; i < UDP_MAX_BUFFERED_PACKET_COUNT; ++i) {
-				debug_print(	"%i: data_size: %i, msg_id: %i, frag_i: %i",
+				debug_print(	"%i: data_size: %i, msg_id: %i, frag_ix: %i",
 								i,
 								peer->recv_buffer[i].header.data_size,
 								peer->recv_buffer[i].header.msg_id,
-								peer->recv_buffer[i].header.msg_frag_i);
+								peer->recv_buffer[i].header.msg_frag_ix);
 			}
 #endif
 
@@ -289,9 +356,9 @@ REVOLC_API void upd_udp_peer(UdpPeer *peer, UdpMsg **msgs, U32 *msg_count)
 					U32 i= msg_end_i;
 					UdpPacketHeader *h= &peer->recv_buffer[i].header;
 					if (	h->msg_id != first_header.msg_id ||
-							h->msg_frag_i >= first_header.msg_frag_count)
+							h->msg_frag_ix >= first_header.msg_frag_count)
 						break;
-					if (h->msg_frag_i == cur_frag_i) {
+					if (h->msg_frag_ix == cur_frag_i) {
 						++cur_frag_i;
 						msg_data_size += h->data_size;
 					}
@@ -306,7 +373,7 @@ REVOLC_API void upd_udp_peer(UdpPeer *peer, UdpMsg **msgs, U32 *msg_count)
 					U32 cur_frag_i= 0;
 					for (U32 i= msg_begin_i; i < msg_end_i; ++i) {
 						UdpPacket *packet= &peer->recv_buffer[i];
-						if (packet->header.msg_frag_i != cur_frag_i)
+						if (packet->header.msg_frag_ix != cur_frag_i)
 							continue;
 						memcpy(copied_data, packet->data, packet->header.data_size);
 						copied_data += packet->header.data_size;
@@ -322,6 +389,7 @@ REVOLC_API void upd_udp_peer(UdpPeer *peer, UdpMsg **msgs, U32 *msg_count)
 					// Erase processed packets from buffer
 					for (U32 i= msg_begin_i; i < msg_end_i; ++i)
 						peer->recv_buffer[i].header.data_size= 0;
+					++peer->recv_msg_count;
 				} else {
 					++peer->cur_incomplete_recv_msg_count;
 				}
@@ -340,19 +408,22 @@ REVOLC_API void upd_udp_peer(UdpPeer *peer, UdpMsg **msgs, U32 *msg_count)
 
 			// If we have waited too long, consider packet dropped
 			if (	g_env.time_from_start - peer->send_times[packet->header.packet_id]
-					< peer->rtt*3)
+					< peer->rtt*UDP_DROP_RTT_MUL)
 				continue;
 
-
-			debug_print(	"Packet %i dropped",
-							packet->header.packet_id);
+			debug_print(	"Packet id %i, %i (%i/%i) dropped (rtt %f)",
+							packet->header.packet_id,
+							packet->header.msg_id,
+							packet->header.msg_frag_ix,
+							packet->header.msg_frag_count,
+							peer->rtt);
 			++peer->drop_count;
 
 			// @todo Only for reliable messages
 			if (packet->header.msg_id != UDP_HEARTBEAT_MSG_ID) {
 				buffer_udp_packet(	peer, packet->data, packet->header.data_size,
 									packet->header.msg_id,
-									packet->header.msg_frag_i, packet->header.msg_frag_count);
+									packet->header.msg_frag_ix, packet->header.msg_frag_count);
 			}
 			peer->send_buffer_state[i]= UdpPacketState_free;
 		}
