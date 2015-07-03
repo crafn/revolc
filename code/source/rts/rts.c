@@ -12,7 +12,7 @@
 
 #define RTS_AUTHORITY_PORT 19995
 #define RTS_CLIENT_PORT 19996
-#define RTS_SNAPSHOT_INTERVAL 10.0
+#define RTS_SNAPSHOT_INTERVAL 5.0
 
 typedef enum RtsMsg {
 	RtsMsg_chat = 1,
@@ -60,6 +60,8 @@ MOD_API void init_rts()
 	rts_env()->peer= create_udp_peer(	authority ? RTS_AUTHORITY_PORT : RTS_CLIENT_PORT,
 										connect ? &remote_addr : NULL);
 	rts_env()->snapshot_time= -10000.0;
+
+	g_env.physworld->debug_draw= true;
 }
 
 MOD_API void deinit_rts()
@@ -92,7 +94,7 @@ void send_rts_msg(RtsMsg type, void *data, U32 data_size)
 	header->type= type;
 	memcpy(buf + sizeof(*header), data, buf_size - sizeof(*header));
 	buffer_udp_msg(rts_env()->peer, buf, buf_size);
-	debug_print("rts send %i: %ikb", type, buf_size/1024);
+	debug_print("rts send %i: %.3fkb", type, 1.0*buf_size/1024);
 }
 
 internal
@@ -111,10 +113,11 @@ void apply_world_state(void *data, U32 data_size)
 	debug_print("Grid received");
 	U8 *mat_grid= data;
 	if (data_size != GRID_CELL_COUNT)
-		fail("Corrupted world state");
+		fail("Corrupted world state, %i != %i", GRID_CELL_COUNT, data_size);
 
 	for (U32 i= 0; i < GRID_CELL_COUNT; ++i)
 		g_env.physworld->grid[i].material= mat_grid[i];
+	g_env.physworld->grid_modified= true;
 }
 
 MOD_API void upd_rts()
@@ -138,8 +141,8 @@ MOD_API void upd_rts()
 		// World sync
 		if (	peer->connected &&
 				rts_env()->game_time - rts_env()->snapshot_time > RTS_SNAPSHOT_INTERVAL) {
+			rts_env()->snapshot_time= rts_env()->game_time;
 			if (rts_env()->authority) {
-				rts_env()->snapshot_time= rts_env()->game_time;
 
 				// Send a snapshot.
 				// This might not include the most recent client commands (latency), but

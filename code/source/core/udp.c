@@ -241,8 +241,12 @@ REVOLC_API void upd_udp_peer(UdpPeer *peer, UdpMsg **msgs, U32 *msg_count)
 			}
 
 			U32 packet_id= packet.header.packet_id;
-			if (wrapped_gr(peer->last_sent_ack_id, packet_id, UDP_PACKET_ID_COUNT))
-				fail("Too many recvs, not enough sends (to ack)");
+			if (wrapped_gr(	peer->last_sent_ack_id,
+							packet_id,
+							UDP_PACKET_ID_COUNT)) {
+				debug_print("Too many recvs, not enough sends (to ack), dropping");
+				continue;
+			}
 
 			peer->last_recv_time= g_env.time_from_start;
 			++peer->recv_packet_count;

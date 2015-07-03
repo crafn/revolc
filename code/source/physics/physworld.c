@@ -1209,7 +1209,7 @@ void upd_phys_rendering()
 	{ // Update occlusion grid for graphics
 		U8 *grid= g_env.renderer->occlusion_grid;
 		for (U32 i= 0; i < GRID_CELL_COUNT; ++i) {
-			grid[i]= MIN(	w->grid[i].material != GRIDCELL_MATERIAL_AIR ? 255 : 0 +
+			grid[i]= MIN(	w->grid[i].material*255 +
 							w->grid[i].body_portion*8,
 							255);
 		}

@@ -79,7 +79,7 @@ int main(int argc, const char **argv)
 
 	init_env(argc, argv);
 
-	Device *d= plat_init(frame_str("Revolc engine - %s", game), (V2i) {1024, 768});
+	Device *d= plat_init(frame_str("Revolc engine - %s", game), (V2i) {400, 300});
 
 	if (!file_exists(blob_path(game)))
 		make_main_blob(blob_path(game), game);
@@ -293,7 +293,7 @@ int main(int argc, const char **argv)
 		post_upd_physworld();
 		upd_phys_rendering();
 
-		{ // Test ground drawing
+		if (0) { // Test ground drawing
 
 			const Model *model= (Model*)res_by_name(g_env.resblob, ResType_Model, "dirt");
 			const Mesh *mesh= model_mesh(model);
