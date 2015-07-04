@@ -1,3 +1,4 @@
+#include "core/archive.h"
 #include "core/ensure.h"
 #include "core/debug_print.h"
 #include "core/malloc.h"
@@ -6,8 +7,10 @@
 #include "global/env.h"
 #include "game/world.h"
 #include "game/worldgen.h"
+#include "minion.h"
 #include "platform/device.h"
 #include "physics/physworld.h"
+#include "resources/resblob.h"
 #include "visual/renderer.h"
 
 #define RTS_AUTHORITY_PORT 19995
@@ -16,7 +19,7 @@
 
 typedef enum RtsMsg {
 	RtsMsg_chat = 1,
-	RtsMsg_grid,
+	RtsMsg_snapshot,
 	RtsMsg_brushaction,
 } RtsMsg;
 
@@ -78,6 +81,7 @@ typedef struct BrushAction { // @todo Range and precision "attributes"
 	U8 material;
 } BrushAction;
 
+
 internal
 void local_brushaction(BrushAction *action)
 {
@@ -107,17 +111,79 @@ void brushaction(BrushAction *action)
 	}
 }
 
+// @todo Proof of concept, bad performance. Nodes should be processed by type.
+// (which shouldn't be too hard as they're in buffers by types already)
 internal
-void apply_world_state(void *data, U32 data_size)
+void pack_nodeinfo(WArchive *ar, NodeInfo *node)
 {
-	debug_print("Grid received");
-	U8 *mat_grid= data;
-	if (data_size != GRID_CELL_COUNT)
-		fail("Corrupted world state, %i != %i", GRID_CELL_COUNT, data_size);
+	pack_u64(ar, &node->node_id);
+	pack_u64(ar, &node->group_id);
+	pack_strbuf(ar, node->type_name, sizeof(node->type_name));
+}
+internal
+void unpack_nodeinfo(RArchive *ar, NodeInfo *node)
+{
+	unpack_u64(ar, &node->node_id);
+	unpack_u64(ar, &node->group_id);
+	unpack_strbuf(ar, node->type_name, sizeof(node->type_name));
+}
 
+internal
+void pack_world(WArchive *ar)
+{
+	// @todo Grid(s) should be nodes
+	const U32 mat_grid_size= GRID_CELL_COUNT;
+	U8 *mat_grid= frame_alloc(mat_grid_size);
+	for (U32 i= 0; i < GRID_CELL_COUNT; ++i)
+		mat_grid[i]= g_env.physworld->grid[i].material;
+	pack_buf(ar, mat_grid, mat_grid_size);
+
+	U32 packed_count= 0;
+	const U32 node_count= g_env.world->node_count; 
+	pack_u32(ar, &node_count);
+	for (U32 i= 0; i < MAX_NODE_COUNT; ++i) {
+		NodeInfo *node= &g_env.world->nodes[i];
+		if (!node->allocated)
+			continue;
+
+		ensure(packed_count < node_count);
+		pack_nodeinfo(ar, node);
+		if (!strcmp(node->type_name, "Minion")) {
+			Minion *minion= node_impl(g_env.world, NULL, node);
+			pack_minion(ar, minion);
+		}
+		++packed_count;
+	}
+}
+
+internal
+void unpack_world(RArchive *ar)
+{
+	destroy_world(g_env.world);
+	g_env.world= create_world();
+
+	// @todo Grid(s) should be nodes
+	const U32 mat_grid_size= GRID_CELL_COUNT;
+	U8 *mat_grid= frame_alloc(mat_grid_size);
+	unpack_buf(ar, mat_grid, mat_grid_size);
 	for (U32 i= 0; i < GRID_CELL_COUNT; ++i)
 		g_env.physworld->grid[i].material= mat_grid[i];
 	g_env.physworld->grid_modified= true;
+
+	U32 node_count;
+	unpack_u32(ar, &node_count);
+	debug_print("node count: %i", node_count);
+	for (U32 i= 0; i < node_count; ++i) {
+		NodeInfo node= {};
+		unpack_nodeinfo(ar, &node);
+		debug_print("node: %s", node.type_name);
+		if (!strcmp(node.type_name, "Minion")) {
+			Minion minion;
+			unpack_minion(ar, &minion);
+
+			debug_print("@todo create minion");
+		}
+	}
 }
 
 MOD_API void upd_rts()
@@ -147,12 +213,17 @@ MOD_API void upd_rts()
 				// Send a snapshot.
 				// This might not include the most recent client commands (latency), but
 				// they will be rescheduled after the snapshot instead dropping.
+
+				WArchive measure= create_warchive(ArchiveType_measure, 0);
+				pack_world(&measure);
+				U32 world_size= measure.data_size;
+				destroy_warchive(&measure);
 		
-				const U32 mat_grid_size= GRID_CELL_COUNT;
-				U8 *mat_grid= frame_alloc(mat_grid_size);
-				for (U32 i= 0; i < GRID_CELL_COUNT; ++i)
-					mat_grid[i]= g_env.physworld->grid[i].material;
-				send_rts_msg(RtsMsg_grid, mat_grid, mat_grid_size);
+				WArchive ar= create_warchive(ArchiveType_binary, world_size);
+				pack_world(&ar);
+				send_rts_msg(RtsMsg_snapshot, ar.data, ar.data_size);
+				destroy_warchive(&ar);
+
 				rts_env()->snapshot_time= rts_env()->game_time;
 			}
 
@@ -190,8 +261,10 @@ MOD_API void upd_rts()
 					debug_print("> %.*s", data_size, data);
 				break;
 
-				case RtsMsg_grid: {
-					apply_world_state(data, data_size);
+				case RtsMsg_snapshot: {
+					RArchive ar= create_rarchive(ArchiveType_binary, data, data_size);
+					unpack_world(&ar);
+					destroy_rarchive(&ar);
 				} break;
 
 				case RtsMsg_brushaction: {
@@ -206,6 +279,16 @@ MOD_API void upd_rts()
 
 MOD_API void worldgen_rts(World *w)
 {
-	if (rts_env()->authority)
-		generate_test_world(w);
+	if (!rts_env()->authority)
+		return; // Only server generates world
+
+	generate_test_world(w);
+
+	V3d pos= {0, 5, 0};
+	SlotVal init_vals[]= {
+		{"minion", "pos", WITH_DEREF_SIZEOF(&pos)},
+	};
+	NodeGroupDef *def=
+		(NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, "minion");
+	create_nodes(g_env.world, def, WITH_ARRAY_COUNT(init_vals), 0);
 }

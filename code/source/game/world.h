@@ -45,7 +45,8 @@ typedef struct SlotCmd {
 typedef struct NodeInfo {
 	SlotCmd cmds[MAX_NODE_CMD_COUNT];
 	char type_name[RES_NAME_SIZE];
-	NodeType *type;
+	NodeType *type; // @todo Resource id
+	U64 node_id; // Unique id
 	U64 group_id; // Entity id
 	U32 impl_handle; // e.g. Handle to ModelEntity
 	U32 cmd_count;
@@ -71,6 +72,7 @@ typedef struct World {
 	NodeInfo nodes[MAX_NODE_COUNT];
 	U32 next_node;
 	U32 node_count;
+	U64 next_node_id;
 
 	// Storages for node types specified with auto_impl_mgmt
 	AutoNodeImplStorage *auto_storages;
@@ -95,6 +97,7 @@ REVOLC_API void free_node(World *w, U32 handle);
 REVOLC_API void free_node_group(World *w, U64 group_id);
 REVOLC_API void remove_node_group(World *w, void *node_impl_in_group);
 REVOLC_API U32 node_impl_handle(World *w, U32 node_handle);
+REVOLC_API void * node_impl(World *w, U32 *size, NodeInfo *node);
 
 void world_on_res_reload(struct ResBlob *old);
 

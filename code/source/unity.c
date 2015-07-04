@@ -4,6 +4,7 @@
 #include "animation/joint.c"
 #include "audio/audiosystem.c"
 #include "audio/sound.c"
+#include "core/archive.c"
 #include "core/array.c"
 #include "core/debug_print.c"
 #include "core/ensure.c"

@@ -5,22 +5,6 @@
 #include "platform/math.h"
 
 internal
-void * node_impl(World *w, U32 *size, NodeInfo *node)
-{
-	if (size)
-		*size= node->type->size;
-
-	U32 offset= node->type->size*node->impl_handle;
-	if (node->type->auto_impl_mgmt) {
-		ensure(node->type->auto_storage_handle < w->auto_storage_count);
-		U8 *storage= w->auto_storages[node->type->auto_storage_handle].storage;
-		return storage + offset;
-	} else {
-		return (U8*)node->type->storage() + offset;
-	}
-}
-
-internal
 void resurrect_node_impl(World *w, NodeInfo *n, void *dead_impl_bytes)
 {
 	if (n->type->auto_impl_mgmt) {
@@ -53,7 +37,7 @@ void resurrect_node_impl(World *w, NodeInfo *n, void *dead_impl_bytes)
 }
 
 internal
-U32 alloc_node_without_impl(World *w, NodeType *type, U64 group_id)
+U32 alloc_node_without_impl(World *w, NodeType *type, U64 node_id, U64 group_id)
 {
 	if (w->node_count == MAX_NODE_COUNT)
 		fail("Too many nodes");
@@ -61,6 +45,7 @@ U32 alloc_node_without_impl(World *w, NodeType *type, U64 group_id)
 	NodeInfo info= {
 		.allocated= true,
 		.type= type,
+		.node_id= node_id,
 		.group_id= group_id,
 	};
 	fmt_str(info.type_name, sizeof(info.type_name), "%s", type->res.name);
@@ -80,6 +65,7 @@ World * create_world()
 	World *w= zero_malloc(sizeof(*w));
 
 	// Initialize storage for automatically allocated node impls
+	// @todo Alignment
 
 	U32 ntypes_count;
 	NodeType **ntypes=
@@ -334,6 +320,7 @@ void load_world(World *w, const char *path)
 					g_env.resblob,
 					ResType_NodeType,
 					dead_node.info.type_name),
+				dead_node.info.node_id,
 				dead_node.info.group_id);
 		ensure(node_h == node_i); // Must retain handles because of cmds
 		++node_count;
@@ -342,6 +329,7 @@ void load_world(World *w, const char *path)
 		memcpy(n->type_name, dead_node.info.type_name, sizeof(n->type_name));
 		memcpy(n->cmds, dead_node.info.cmds, sizeof(n->cmds));
 		n->cmd_count= dead_node.info.cmd_count;
+		n->node_id= dead_node.info.node_id;
 		n->group_id= dead_node.info.group_id;
 
 		// Set func pointers
@@ -421,6 +409,7 @@ void create_nodes(	World *w,
 							(NodeType*)res_by_name(	g_env.resblob,
 													ResType_NodeType,
 													node_def->type_name),
+							w->next_node_id++,
 							group_id);
 		handles[node_i]= h;
 		NodeInfo *node= &w->nodes[h];
@@ -576,6 +565,21 @@ U32 node_impl_handle(World *w, U32 node_handle)
 {
 	ensure(node_handle < MAX_NODE_COUNT);
 	return w->nodes[node_handle].impl_handle;
+}
+
+void * node_impl(World *w, U32 *size, NodeInfo *node)
+{
+	if (size)
+		*size= node->type->size;
+
+	U32 offset= node->type->size*node->impl_handle;
+	if (node->type->auto_impl_mgmt) {
+		ensure(node->type->auto_storage_handle < w->auto_storage_count);
+		U8 *storage= w->auto_storages[node->type->auto_storage_handle].storage;
+		return storage + offset;
+	} else {
+		return (U8*)node->type->storage() + offset;
+	}
 }
 
 void world_on_res_reload(ResBlob *old)
