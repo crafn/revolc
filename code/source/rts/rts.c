@@ -97,8 +97,9 @@ void send_rts_msg(RtsMsg type, void *data, U32 data_size)
 	header= (void*)buf;
 	header->type= type;
 	memcpy(buf + sizeof(*header), data, buf_size - sizeof(*header));
-	buffer_udp_msg(rts_env()->peer, buf, buf_size);
+
 	debug_print("rts send %i: %.3fkb", type, 1.0*buf_size/1024);
+	buffer_udp_msg(rts_env()->peer, buf, buf_size);
 }
 
 internal
@@ -111,6 +112,7 @@ void brushaction(BrushAction *action)
 	}
 }
 
+/*
 // @todo Proof of concept, bad performance. Nodes should be processed by type.
 // (which shouldn't be too hard as they're in buffers by types already)
 internal
@@ -127,6 +129,7 @@ void unpack_nodeinfo(RArchive *ar, NodeInfo *node)
 	unpack_u64(ar, &node->group_id);
 	unpack_strbuf(ar, node->type_name, sizeof(node->type_name));
 }
+*/
 
 internal
 void pack_world(WArchive *ar)
@@ -138,6 +141,8 @@ void pack_world(WArchive *ar)
 		mat_grid[i]= g_env.physworld->grid[i].material;
 	pack_buf(ar, mat_grid, mat_grid_size);
 
+	save_world(g_env.world, ar);
+/*
 	U32 packed_count= 0;
 	const U32 node_count= g_env.world->node_count; 
 	pack_u32(ar, &node_count);
@@ -151,9 +156,15 @@ void pack_world(WArchive *ar)
 		if (!strcmp(node->type_name, "Minion")) {
 			Minion *minion= node_impl(g_env.world, NULL, node);
 			pack_minion(ar, minion);
+		} else {
+			// @todo Automatic serialization for every node
+			//U32 data_size;
+			//void *data= node_impl(g_env.world, &data_size, node);
+			//pack_buf(ar, data, data_size);
 		}
 		++packed_count;
 	}
+*/
 }
 
 internal
@@ -170,6 +181,8 @@ void unpack_world(RArchive *ar)
 		g_env.physworld->grid[i].material= mat_grid[i];
 	g_env.physworld->grid_modified= true;
 
+	load_world(g_env.world, ar);
+/*
 	U32 node_count;
 	unpack_u32(ar, &node_count);
 	debug_print("node count: %i", node_count);
@@ -182,8 +195,12 @@ void unpack_world(RArchive *ar)
 			unpack_minion(ar, &minion);
 
 			debug_print("@todo create minion");
+		} else {
+			//U8 buf[];
+			//unpack_buf(ar, 
 		}
 	}
+*/
 }
 
 MOD_API void upd_rts()

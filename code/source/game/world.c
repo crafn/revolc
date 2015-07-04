@@ -3,63 +3,6 @@
 #include "game/world.h"
 #include "global/env.h"
 #include "platform/math.h"
-
-internal
-void resurrect_node_impl(World *w, NodeInfo *n, void *dead_impl_bytes)
-{
-	if (n->type->auto_impl_mgmt) {
-		// Automatically manage impl memory
-		ensure(n->type->auto_storage_handle < w->auto_storage_count);
-		AutoNodeImplStorage *st= &w->auto_storages[n->type->auto_storage_handle];
-
-		if (st->count >= st->max_count)
-			fail("Too many %s", n->type->res.name);
-
-		while (st->allocated[st->next])
-			st->next= (st->next + 1) % st->max_count;
-		++st->count;
-
-		const U32 h= st->next;
-		void *e= (U8*)st->storage + h*st->size;
-		memcpy(e, dead_impl_bytes, st->size);
-		st->allocated[h]= true;
-
-		// In-place resurrection
-		if (n->type->resurrect) {
-			U32 ret= n->type->resurrect(e);
-			ensure(ret == NULL_HANDLE);
-		}
-		n->impl_handle= h;
-	} else {
-		// Manual memory management
-		n->impl_handle= n->type->resurrect(dead_impl_bytes);
-	}
-}
-
-internal
-U32 alloc_node_without_impl(World *w, NodeType *type, U64 node_id, U64 group_id)
-{
-	if (w->node_count == MAX_NODE_COUNT)
-		fail("Too many nodes");
-
-	NodeInfo info= {
-		.allocated= true,
-		.type= type,
-		.node_id= node_id,
-		.group_id= group_id,
-	};
-	fmt_str(info.type_name, sizeof(info.type_name), "%s", type->res.name);
-
-	while (w->nodes[w->next_node].allocated)
-		w->next_node= (w->next_node + 1) % MAX_NODE_COUNT;
-
-	ensure(w->next_node < MAX_NODE_COUNT);
-	ensure(!w->nodes[w->next_node].allocated);
-	++w->node_count;
-	w->nodes[w->next_node]= info;
-	return w->next_node;
-}
-
 World * create_world()
 {
 	World *w= zero_malloc(sizeof(*w));
@@ -283,9 +226,51 @@ typedef struct SaveNode {
 	U32 cmd_count;
 } PACKED SaveNode;
 
-void load_world(World *w, const char *path)
+void save_world(World *w, WArchive *ar)
 {
-	debug_print("load_world: %s", path);
+	debug_print("save_world: %i nodes", w->node_count);
+
+	SaveHeader header= {
+		.version= 1,
+		.node_count= MAX_NODE_COUNT,
+	};
+
+	// @todo So much useless information is saved
+	// @todo Customization of saved information in nodes
+
+	pack_buf(ar, &header, sizeof(header));
+	for (U32 node_i= 0; node_i < MAX_NODE_COUNT; ++node_i) {
+		NodeInfo *node= &w->nodes[node_i];
+		SaveNode savenode= {.info= *node};
+
+		// Must use names of func ptrs
+		if (node->allocated) {
+			for (U32 i= 0; i < node->cmd_count; ++i) {
+				SlotCmd *cmd= &node->cmds[i];
+				if (cmd->type != CmdType_call)
+					continue;
+				fmt_str(savenode.cmds[i].func_name,
+						sizeof(savenode.cmds[i].func_name),
+						"%s", rtti_sym_name(cmd->fptr));
+			}
+		}
+
+		// Save all, even non-allocated nodes
+		// Easy way to keep cmd handles valid
+		// @todo Use id's, not direct handles
+		pack_buf(ar, &savenode, sizeof(savenode));
+		if (!node->allocated)
+			continue;
+
+		U32 impl_size;
+		void *impl= node_impl(w, &impl_size, node);
+		pack_buf(ar, impl, impl_size);
+	}
+}
+
+void load_world(World *w, RArchive *ar)
+{
+	debug_print("load_world");
 	if (w->node_count > 0) {
 		debug_print("load_world: destroying current world");
 		for (U32 i= 0; i < MAX_NODE_COUNT; ++i) {
@@ -295,14 +280,8 @@ void load_world(World *w, const char *path)
 	}
 	ensure(w->node_count == 0);
 
-	FILE *file= fopen(path, "rb");
-	if (!file)
-		fail("load_world: Couldn't open: %s", path);
-
 	SaveHeader header;
-	int len= fread(&header, 1, sizeof(header), file);
-	if (len != sizeof(header))
-		fail("load_world: Read error");
+	unpack_buf(ar, &header, sizeof(header));
 
 	U32 node_count= 0;
 	for (U32 node_i= 0; node_i < header.node_count;
@@ -310,7 +289,7 @@ void load_world(World *w, const char *path)
 		ensure(w->next_node == node_i);
 		// New NodeInfo from binary
 		SaveNode dead_node;
-		fread(&dead_node, 1, sizeof(dead_node), file);
+		unpack_buf(ar, &dead_node, sizeof(dead_node));
 		if (!dead_node.info.allocated)
 			continue;
 
@@ -342,55 +321,11 @@ void load_world(World *w, const char *path)
 
 		// New Node implementation from binary
 		U8 dead_impl_bytes[n->type->size]; /// @todo Alignment!!!
-		fread(dead_impl_bytes, 1, n->type->size, file);
+		unpack_buf(ar, dead_impl_bytes, n->type->size);
 		resurrect_node_impl(w, n, dead_impl_bytes);
 	}
 
 	ensure(node_count == w->node_count);
-	fclose(file);
-}
-
-void save_world(World *w, const char *path)
-{
-	debug_print("save_world: %s, %i nodes", path, w->node_count);
-	FILE *file= fopen(path, "wb");
-	if (!file)
-		fail("save_world: Couldn't open: %s", path);
-
-	SaveHeader header= {
-		.version= 1,
-		.node_count= MAX_NODE_COUNT,
-	};
-
-	fwrite(&header, 1, sizeof(header), file);
-	for (U32 node_i= 0; node_i < MAX_NODE_COUNT; ++node_i) {
-		NodeInfo *node= &w->nodes[node_i];
-		SaveNode savenode= {.info= *node};
-
-		// Must use names of func ptrs
-		if (node->allocated) {
-			for (U32 i= 0; i < node->cmd_count; ++i) {
-				SlotCmd *cmd= &node->cmds[i];
-				if (cmd->type != CmdType_call)
-					continue;
-				fmt_str(savenode.cmds[i].func_name,
-						sizeof(savenode.cmds[i].func_name),
-						"%s", rtti_sym_name(cmd->fptr));
-			}
-		}
-
-		// Save all, even non-allocated nodes
-		// Easy way to keep cmd handles valid
-		fwrite(&savenode, 1, sizeof(savenode), file);
-		if (!node->allocated)
-			continue;
-
-		U32 impl_size;
-		void *impl= node_impl(w, &impl_size, node);
-		fwrite(impl, 1, impl_size, file);
-	}
-
-	fclose(file);
 }
 
 void create_nodes(	World *w,
@@ -581,6 +516,61 @@ void * node_impl(World *w, U32 *size, NodeInfo *node)
 		return (U8*)node->type->storage() + offset;
 	}
 }
+
+void resurrect_node_impl(World *w, NodeInfo *n, void *dead_impl_bytes)
+{
+	if (n->type->auto_impl_mgmt) {
+		// Automatically manage impl memory
+		ensure(n->type->auto_storage_handle < w->auto_storage_count);
+		AutoNodeImplStorage *st= &w->auto_storages[n->type->auto_storage_handle];
+
+		if (st->count >= st->max_count)
+			fail("Too many %s", n->type->res.name);
+
+		while (st->allocated[st->next])
+			st->next= (st->next + 1) % st->max_count;
+		++st->count;
+
+		const U32 h= st->next;
+		void *e= (U8*)st->storage + h*st->size;
+		memcpy(e, dead_impl_bytes, st->size);
+		st->allocated[h]= true;
+
+		// In-place resurrection
+		if (n->type->resurrect) {
+			U32 ret= n->type->resurrect(e);
+			ensure(ret == NULL_HANDLE);
+		}
+		n->impl_handle= h;
+	} else {
+		// Manual memory management
+		n->impl_handle= n->type->resurrect(dead_impl_bytes);
+	}
+}
+
+U32 alloc_node_without_impl(World *w, NodeType *type, U64 node_id, U64 group_id)
+{
+	if (w->node_count == MAX_NODE_COUNT)
+		fail("Too many nodes");
+
+	NodeInfo info= {
+		.allocated= true,
+		.type= type,
+		.node_id= node_id,
+		.group_id= group_id,
+	};
+	fmt_str(info.type_name, sizeof(info.type_name), "%s", type->res.name);
+
+	while (w->nodes[w->next_node].allocated)
+		w->next_node= (w->next_node + 1) % MAX_NODE_COUNT;
+
+	ensure(w->next_node < MAX_NODE_COUNT);
+	ensure(!w->nodes[w->next_node].allocated);
+	++w->node_count;
+	w->nodes[w->next_node]= info;
+	return w->next_node;
+}
+
 
 void world_on_res_reload(ResBlob *old)
 {

@@ -11,7 +11,7 @@ typedef struct Minion {
 } Minion;
 
 MOD_API void upd_minion(Minion *minion_begin, Minion *minion_end);
-MOD_API void pack_minion(struct WArchive *ar, Minion *minion);
-MOD_API void unpack_minion(struct RArchive *ar, Minion *minion);
+//MOD_API void pack_minion(struct WArchive *ar, Minion *minion);
+//MOD_API void unpack_minion(struct RArchive *ar, Minion *minion);
 
 #endif // REVOLC_RTS_MINION_H

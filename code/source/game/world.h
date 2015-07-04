@@ -2,6 +2,7 @@
 #define REVOLC_GAME_WORLD_H
 
 #include "build.h"
+#include "core/archive.h"
 #include "core/quaternion.h"
 #include "core/vector.h"
 #include "global/cfg.h"
@@ -86,8 +87,8 @@ REVOLC_API void destroy_world(World *w);
 
 REVOLC_API void upd_world(World *w, F64 dt);
 
-REVOLC_API void load_world(World *w, const char *path);
-REVOLC_API void save_world(World *w, const char *path);
+REVOLC_API void save_world(World *w, WArchive *ar);
+REVOLC_API void load_world(World *w, RArchive *ar);
 
 REVOLC_API void create_nodes(	World *w,
 								const NodeGroupDef *def,
@@ -97,7 +98,11 @@ REVOLC_API void free_node(World *w, U32 handle);
 REVOLC_API void free_node_group(World *w, U64 group_id);
 REVOLC_API void remove_node_group(World *w, void *node_impl_in_group);
 REVOLC_API U32 node_impl_handle(World *w, U32 node_handle);
+
+// Not intended to be widely used
 REVOLC_API void * node_impl(World *w, U32 *size, NodeInfo *node);
+REVOLC_API void resurrect_node_impl(World *w, NodeInfo *n, void *dead_impl_bytes);
+REVOLC_API U32 alloc_node_without_impl(World *w, NodeType *type, U64 node_id, U64 group_id);
 
 void world_on_res_reload(struct ResBlob *old);
 

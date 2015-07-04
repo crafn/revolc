@@ -4,7 +4,7 @@
 // These options largely determine the memory usage and performance of the engine.
 // Many of these will at some point be removed or moved to (game dependent) cfg files.
 
-#define FRAME_MEM_SIZE (1024*1024*20)
+#define FRAME_MEM_SIZE (1024*1024*50)
 
 #define MAX_BLOB_SIZE (1024*1024*512) // 0.5 Gb
 #define MAX_RES_FILES 64

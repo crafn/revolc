@@ -99,7 +99,7 @@ int main(int argc, const char **argv)
 
 	// Init/load world
 	if (file_exists(SAVEFILE_PATH)) {
-		load_world(world, SAVEFILE_PATH);
+		//load_world(world, SAVEFILE_PATH);
 	} else {
 		worldgen_for_modules(world);
 	}
@@ -249,13 +249,13 @@ int main(int argc, const char **argv)
 					break;
 			}
 
-			if (d->key_pressed['p'])
+			/*if (d->key_pressed['p'])
 				save_world(world, SAVEFILE_PATH);
 			if (d->key_pressed['o']) {
 				destroy_world(world);
 				world= g_env.world= create_world();
 				load_world(world, SAVEFILE_PATH);
-			}
+			}*/
 
 			if (g_env.editor->state == EditorState_invisible) {
 				local_persist cpBody *body= NULL;

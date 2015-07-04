@@ -26,7 +26,7 @@ void upd_minion(Minion *minion_begin, Minion *minion_end)
 		minion->pos.x += 0.5*dt;
 	}
 }
-
+/*
 void pack_minion(WArchive *ar, Minion *minion)
 { // @todo Generate this function. Use arrays.
 	pack_f64(ar, &minion->pos.x);
@@ -38,3 +38,4 @@ void unpack_minion(RArchive *ar, Minion *minion)
 	unpack_f64(ar, &minion->pos.x);
 	unpack_f64(ar, &minion->pos.y);
 }
+*/
