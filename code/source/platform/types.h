@@ -18,6 +18,9 @@ typedef	signed long long S64;
 typedef float F32;
 typedef double F64;
 
+typedef U32 Handle;
+typedef U64 Id;
+
 typedef void (*VoidFunc)();
 
 #define U8_MAX 255

@@ -1,7 +1,7 @@
 #include "core/archive.h"
 #include "core/ensure.h"
 #include "core/debug_print.h"
-#include "core/malloc.h"
+#include "core/memory.h"
 #include "core/udp.h"
 #include "core/string.h"
 #include "global/env.h"
@@ -12,6 +12,7 @@
 #include "physics/physworld.h"
 #include "resources/resblob.h"
 #include "visual/renderer.h"
+
 
 #define RTS_AUTHORITY_PORT 19995
 #define RTS_CLIENT_PORT 19996
@@ -43,7 +44,7 @@ MOD_API void init_rts()
 {
 	debug_print("init_rts()");
 
-	RtsEnv *env= zero_malloc(sizeof(*env));
+	RtsEnv *env= ZERO_ALLOC(gen_ator(), sizeof(*env), "rts_env");
 	g_env.game_data= env;
 
 	bool authority= false;
@@ -72,7 +73,7 @@ MOD_API void deinit_rts()
 	debug_print("deinit_rts()");
 
 	destroy_udp_peer(rts_env()->peer);
-	free(rts_env());
+	FREE(gen_ator(), rts_env());
 }
 
 typedef struct BrushAction { // @todo Range and precision "attributes"
@@ -170,8 +171,7 @@ void pack_world(WArchive *ar)
 internal
 void unpack_world(RArchive *ar)
 {
-	destroy_world(g_env.world);
-	g_env.world= create_world();
+	clear_world_nodes(g_env.world);
 
 	// @todo Grid(s) should be nodes
 	const U32 mat_grid_size= GRID_CELL_COUNT;

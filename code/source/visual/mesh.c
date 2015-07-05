@@ -77,8 +77,8 @@ int json_mesh_to_blob(struct BlobBuf *buf, JsonTok j)
 	{
 		const U32 v_count= json_member_count(j_pos);
 		const U32 i_count= json_member_count(j_ind);
-		TriMeshVertex *vertices= zero_malloc(sizeof(*vertices)*v_count);
-		MeshIndexType *indices= zero_malloc(sizeof(*indices)*i_count);
+		TriMeshVertex *vertices= ZERO_ALLOC(dev_ator(), sizeof(*vertices)*v_count, "verts");
+		MeshIndexType *indices= ZERO_ALLOC(dev_ator(), sizeof(*indices)*i_count, "inds");
 		for (U32 i= 0; i < v_count; ++i) {
 			JsonTok j_p= json_member(j_pos, i);
 			V3f p= {};
@@ -110,8 +110,8 @@ int json_mesh_to_blob(struct BlobBuf *buf, JsonTok j)
 		blob_write(buf, &vertices[0], sizeof(*vertices)*v_count);
 		blob_write(buf, &indices[0], sizeof(*indices)*i_count);
 
-		free(vertices);
-		free(indices);
+		FREE(dev_ator(), vertices);
+		FREE(dev_ator(), indices);
 	}
 
 	return 0;
@@ -143,14 +143,14 @@ internal
 void destroy_rt_mesh(Resource *res)
 {
 	Mesh *m= (Mesh*)res;
-	dev_free(blob_ptr(res, m->v_offset));
-	dev_free(blob_ptr(res, m->i_offset));
-	dev_free(m);
+	FREE(dev_ator(), blob_ptr(res, m->v_offset));
+	FREE(dev_ator(), blob_ptr(res, m->i_offset));
+	FREE(dev_ator(), m);
 }
 
 Mesh *create_rt_mesh(Mesh *src)
 {
-	Mesh *rt_mesh= dev_malloc(sizeof(*rt_mesh));
+	Mesh *rt_mesh= ALLOC(dev_ator(), sizeof(*rt_mesh), "rt_mesh");
 	*rt_mesh= *src;
 	substitute_res(&src->res, &rt_mesh->res, destroy_rt_mesh);
 

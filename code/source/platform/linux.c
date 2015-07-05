@@ -221,7 +221,6 @@ void plat_quit_impl(Device *d)
 
 	free(d->impl);
 	d->impl= NULL;
-	free(d);
 }
 
 void plat_update_impl(Device *d)

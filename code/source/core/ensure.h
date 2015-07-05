@@ -4,7 +4,8 @@
 #include "build.h"
 #include "platform/assert.h"
 
-/// @todo ensure
+// @todo ensure
+// @todo CAPS
 #define ensure assert
 
 REVOLC_API NORETURN

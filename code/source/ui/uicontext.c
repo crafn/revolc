@@ -4,13 +4,13 @@
 
 void create_uicontext()
 {
-	UiContext *ctx= zero_malloc(sizeof(*ctx));
+	UiContext *ctx= ZERO_ALLOC(gen_ator(), sizeof(*ctx), "uicontext");
 	g_env.uicontext= ctx;
 }
 
 void destroy_uicontext()
 {
-	free(g_env.uicontext);
+	FREE(gen_ator(), g_env.uicontext);
 	g_env.uicontext= NULL;
 }
 

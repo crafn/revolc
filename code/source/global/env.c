@@ -1,5 +1,6 @@
 #include "env.h"
 #include "symbol.h"
+#include "memory.h"
 
 Env g_env;
 
@@ -10,30 +11,19 @@ void init_env(U32 argc, const char **argv)
 
 	{ // Frame allocator
 		ensure(g_env.frame_mem_begin == NULL);
-		g_env.frame_mem_begin= g_env.frame_mem= malloc(FRAME_MEM_SIZE);
+		g_env.frame_mem_begin= g_env.frame_mem=
+			ZERO_ALLOC(gen_ator(), FRAME_MEM_SIZE, "frame");
 		g_env.frame_mem_end= g_env.frame_mem_begin + FRAME_MEM_SIZE;
 		ensure(g_env.frame_mem_begin != NULL);
 	}
 
-	g_env.used_rtti_symbols= zero_malloc(sizeof(*g_env.used_rtti_symbols));
+	g_env.used_rtti_symbols=
+		ZERO_ALLOC(gen_ator(), sizeof(*g_env.used_rtti_symbols), "rtti_symbols");
 }
 
 void deinit_env()
 {
-	free(g_env.used_rtti_symbols);
-	free(g_env.frame_mem_begin);
+	FREE(gen_ator(), g_env.used_rtti_symbols);
+	FREE(gen_ator(), g_env.frame_mem_begin);
 }
 
-void * frame_alloc(U32 size)
-{
-	/// @todo ALIGNMENT
-	U8 *block= (void*)((U64)(g_env.frame_mem + 15) & ~0x0F); // 16-aligned
-	g_env.frame_mem= block + size;
-	ensure(g_env.frame_mem < g_env.frame_mem_end && "Frame allocator out of space");
-	return block;
-}
-
-void reset_frame_alloc()
-{
-	g_env.frame_mem= g_env.frame_mem_begin;
-}

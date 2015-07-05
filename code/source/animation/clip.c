@@ -1,7 +1,7 @@
 #include "armature.h"
 #include "clip.h"
 #include "core/array.h"
-#include "core/malloc.h"
+#include "core/memory.h"
 #include "resources/resblob.h"
 
 U32 clip_sample_count(const Clip *c)

@@ -1,6 +1,6 @@
 #include "chipmunk_util.h"
 #include "core/color.h"
-#include "core/malloc.h"
+#include "core/memory.h"
 #include "global/env.h"
 #include "physworld.h"
 #include "visual/renderer.h" // Debug draw
@@ -262,7 +262,7 @@ void cp_destroy_body(cpSpace *space, cpBody *body)
 
 void create_physworld()
 {
-	PhysWorld *w= zero_malloc(sizeof(*w));
+	PhysWorld *w= ZERO_ALLOC(gen_ator(), sizeof(*w), "physworld");
 	ensure(!g_env.physworld);
 	g_env.physworld= w;
 
@@ -316,7 +316,7 @@ void destroy_physworld()
 
 	cpSpaceFree(w->cp_space);
 
-	free(w);
+	FREE(gen_ator(), w);
 }
 
 internal

@@ -1,7 +1,7 @@
 #include "armature.h"
 #include "core/debug_print.h"
 #include "core/ensure.h"
-#include "core/malloc.h"
+#include "core/memory.h"
 #include "resources/resblob.h"
 #include "platform/io.h"
 #include "platform/stdlib.h"

@@ -5,7 +5,7 @@
 #include "core/debug_print.h"
 #include "core/ensure.h"
 #include "core/grid.h"
-#include "core/malloc.h"
+#include "core/memory.h"
 #include "core/random.h"
 #include "core/vector.h"
 #include "core/scalar.h"

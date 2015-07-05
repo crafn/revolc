@@ -2,7 +2,7 @@
 #include "platform/gl.h"
 #include "platform/io.h"
 #include "platform/stdlib.h"
-#include "core/malloc.h"
+#include "core/memory.h"
 
 // Define these functions in platform dependent code
 VoidFunc plat_query_gl_func_impl(const char *name);
@@ -33,7 +33,7 @@ Device * plat_init(const char* title, V2i reso)
 	}
 	plat_flush_denormals(true); // For perf
 
-	Device *d= zero_malloc(sizeof(*d));
+	Device *d= ZERO_ALLOC(gen_ator(), sizeof(*d), "device");
 	if (g_env.device == NULL)
 		g_env.device= d;
 
@@ -106,6 +106,7 @@ void plat_quit(Device *d)
 
 	plat_quit_impl(d);
 
+	FREE(gen_ator(), d);
 	debug_print("plat_quit successful");
 }
 
@@ -116,7 +117,7 @@ void plat_update(Device *d)
 char ** plat_find_paths_with_end(const char *path_to_dir, const char *end)
 {
 	U32 path_count= 0;
-	char **path_table= zero_malloc(sizeof(*path_table)*PATH_MAX_TABLE_SIZE);
+	char **path_table= ZERO_ALLOC(gen_ator(), sizeof(*path_table)*PATH_MAX_TABLE_SIZE, "path_table");
 
 	plat_find_paths_with_end_impl(path_table, &path_count, PATH_MAX_TABLE_SIZE, path_to_dir, 0, end);
 	return path_table;

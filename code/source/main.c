@@ -39,9 +39,9 @@ void make_main_blob(const char *blob_path, const char *game)
 
 	make_blob(blob_path, res_paths);
 	for (U32 i= 0; res_paths[i]; ++i)
-		free(res_paths[i]);
-	free(engine_res_paths);
-	free(game_res_paths);
+		FREE(gen_ator(), res_paths[i]);
+	FREE(gen_ator(), engine_res_paths);
+	FREE(gen_ator(), game_res_paths);
 }
 
 const char *blob_path(const char *game)
@@ -106,6 +106,8 @@ int main(int argc, const char **argv)
 
 	F64 time_accum= 0.0; // For fps
 	U32 frame= 0;
+	
+	g_env.os_allocs_forbidden= true;
 	while (1) {
 		reset_frame_alloc();
 
@@ -354,6 +356,7 @@ int main(int argc, const char **argv)
 		gl_check_errors("loop");
 		plat_sleep(1);
 	}
+	g_env.os_allocs_forbidden= false;
 
 	deinit_for_modules();
 
@@ -368,6 +371,8 @@ int main(int argc, const char **argv)
 
 	unload_blob(g_env.resblob);
 	g_env.resblob= NULL;
+
+	debug_print("Heap allocation count: %i", g_env.prod_heap_alloc_count);
 
 	plat_quit(d);
 

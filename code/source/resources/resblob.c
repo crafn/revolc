@@ -129,12 +129,12 @@ void free_blob(ResBlob *blob)
 		if (res->rt_free) {
 			res->rt_free(res->res);
 		} else {
-			dev_free(res->res);
+			FREE(dev_ator(), res->res);
 		}
-		dev_free(res);
+		FREE(dev_ator(), res);
 		res= next;
 	}
-	free(blob);
+	FREE(gen_ator(), blob);
 }
 
 void unload_blob(ResBlob *blob)
@@ -188,11 +188,11 @@ Resource * res_by_name(ResBlob *blob, ResType type, const char *name)
 		res_header.blob= blob;
 		res_header.is_runtime_res= true;
 
-		RuntimeResource *new_res= dev_malloc(sizeof(*new_res));
+		RuntimeResource *new_res= ALLOC(dev_ator(), sizeof(*new_res), "new_res");
 		*new_res= (RuntimeResource) {};
 
 		const U32 missing_res_max_size= 1024*4;
-		new_res->res= dev_malloc(missing_res_max_size);
+		new_res->res= ALLOC(dev_ator(), missing_res_max_size, "new_res->res");
 		memset(new_res->res, 0, missing_res_max_size);
 
 		BlobBuf buf= {
@@ -405,7 +405,7 @@ void make_blob(const char *dst_file_path, char **res_file_paths)
 
 	// Parse all resource files
 	ParsedJsonFile *parsed_jsons=
-		zero_malloc(sizeof(*parsed_jsons)*res_file_count);
+		ZERO_ALLOC(dev_ator(), sizeof(*parsed_jsons)*res_file_count, "parsed_jsons");
 	for (U32 i= 0; i < res_file_count; ++i) {
 		parsed_jsons[i]= malloc_parsed_json_file(res_file_paths[i]);
 		if (parsed_jsons[i].tokens == NULL)
@@ -414,7 +414,7 @@ void make_blob(const char *dst_file_path, char **res_file_paths)
 
 	U32 res_info_count= 0;
 	U32 res_info_capacity= 1024;
-	res_infos= malloc(sizeof(*res_infos)*res_info_capacity);
+	res_infos= ALLOC(dev_ator(), sizeof(*res_infos)*res_info_capacity, "res_infos");
 	{ // Scan throught JSON and gather ResInfos
 		for (U32 json_i= 0; json_i < res_file_count; ++json_i) {
 			debug_print(
@@ -468,7 +468,7 @@ void make_blob(const char *dst_file_path, char **res_file_paths)
 
 	{ // Output file
 		buf= (BlobBuf) {
-			.data= malloc(MAX_BLOB_SIZE),
+			.data= ALLOC(dev_ator(), MAX_BLOB_SIZE, "output_file"),
 			.max_size= MAX_BLOB_SIZE,
 		};
 
@@ -486,7 +486,7 @@ void make_blob(const char *dst_file_path, char **res_file_paths)
 		BlobOffset offset_of_offset_table= buf.offset;
 
 		// Write zeros as offsets and fix them afterwards, as they aren't yet known
-		res_offsets= zero_malloc(sizeof(*res_offsets)*header.res_count);
+		res_offsets= ZERO_ALLOC(dev_ator(), sizeof(*res_offsets)*header.res_count, "res_offsets");
 		blob_write(&buf, &res_offsets[0], sizeof(*res_offsets)*header.res_count);
 
 		buf.res_offsets= res_offsets;
@@ -529,14 +529,14 @@ exit:
 	{
 		for (U32 i= 0; i < res_file_count; ++i)
 			free_parsed_json_file(parsed_jsons[i]);
-		free(parsed_jsons);
+		FREE(dev_ator(), parsed_jsons);
 	}
-	free(res_offsets);
+	FREE(dev_ator(), res_offsets);
 	if (blob_file)
 		fclose(blob_file);
-	free(buf.data);
-	free(res_infos);
-	free(data);
+	FREE(dev_ator(), buf.data);
+	FREE(dev_ator(), res_infos);
+	FREE(dev_ator(), data);
 
 	return;
 
@@ -551,7 +551,7 @@ void substitute_res(Resource *stale, Resource *new_res, RtResFree rt_free)
 	*new_res= *stale;
 	new_res->is_runtime_res= true;
 
-	RuntimeResource *rt_res= dev_malloc(sizeof(*rt_res));
+	RuntimeResource *rt_res= ALLOC(dev_ator(), sizeof(*rt_res), "rt_res");
 	*rt_res= (RuntimeResource) {
 		.res= new_res,
 		.next= stale->blob->first_runtime_res,
@@ -569,7 +569,7 @@ BlobOffset alloc_substitute_res_member(	Resource *dst,
 										U32 size)
 {
 	ensure(dst->is_runtime_res);
-	void *data= dev_malloc(size);
+	void *data= ALLOC(dev_ator(), size, "substitute_res_member");
 	memcpy(data, blob_ptr(src, member), size);
 	return blob_offset(dst, data);
 }

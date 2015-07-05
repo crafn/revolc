@@ -1,6 +1,6 @@
 #include "core/debug_print.h"
 #include "core/ensure.h"
-#include "core/malloc.h"
+#include "core/memory.h"
 #include "core/matrix.h"
 #include "core/vector.h"
 #include "model.h"
@@ -507,7 +507,7 @@ void recreate_rendering_pipeline(Renderer *r)
 void create_renderer()
 {
 	gl_check_errors("create_renderer: begin");
-	Renderer *r= zero_malloc(sizeof(*r));
+	Renderer *r= ZERO_ALLOC(gen_ator(), sizeof(*r), "renderer");
 
 	r->cam_pos.y= 5.0;
 	r->cam_pos.z= 7.0;
@@ -615,7 +615,7 @@ void destroy_renderer()
 	glDeleteTextures(1, &r->occlusion_grid_tex);
 	glDeleteTextures(1, &r->grid_ddraw_tex);
 
-	free(r);
+	FREE(gen_ator(), r);
 }
 
 void drawcmd(	T3d tf,

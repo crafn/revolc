@@ -1,7 +1,7 @@
 #include "audiosystem.h"
 #include "core/debug_print.h"
 #include "core/ensure.h"
-#include "core/malloc.h"
+#include "core/memory.h"
 #include "global/cfg.h"
 #include "global/env.h"
 #include "platform/memory.h"
@@ -84,7 +84,7 @@ int audio_callback(	const void* input_data, void* output_data,
 
 void create_audiosystem()
 {
-	AudioSystem *a= zero_malloc(sizeof(*a));
+	AudioSystem *a= ZERO_ALLOC(gen_ator(), sizeof(*a), "audiosystem");
 	ensure(!g_env.audiosystem);
 	g_env.audiosystem= a;
 
@@ -210,7 +210,7 @@ void destroy_audiosystem()
 		}
 	}
 
-	free(g_env.audiosystem);
+	FREE(gen_ator(), g_env.audiosystem);
 	g_env.audiosystem= NULL;
 }
 

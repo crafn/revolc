@@ -1,11 +1,12 @@
 #include "core/file.h"
-#include "core/malloc.h"
+#include "core/memory.h"
 #include "game/world.h"
 #include "global/env.h"
 #include "platform/math.h"
+
 World * create_world()
 {
-	World *w= zero_malloc(sizeof(*w));
+	World *w= ALLOC(gen_ator(), sizeof(*w), "world");
 
 	// Initialize storage for automatically allocated node impls
 	// @todo Alignment
@@ -24,7 +25,9 @@ World * create_world()
 	}
 
 	w->auto_storages=
-		zero_malloc(sizeof(*w->auto_storages)*ntype_count_with_auto_mgmt);
+		ZERO_ALLOC(	gen_ator(),
+						(sizeof(*w->auto_storages)*ntype_count_with_auto_mgmt),
+						"auto_storage");
 	w->auto_storage_count= ntype_count_with_auto_mgmt;
 
 	U32 st_i= 0;
@@ -34,9 +37,13 @@ World * create_world()
 			continue;
 
 		AutoNodeImplStorage *st= &w->auto_storages[st_i];
-		st->storage= zero_malloc(type->size*type->auto_impl_max_count);
+		st->storage= ZERO_ALLOC(gen_ator(),
+								(type->size*type->auto_impl_max_count),
+								"auto_storage.storage");
 		st->allocated=
-			zero_malloc(sizeof(*st->allocated)*type->auto_impl_max_count);
+			ZERO_ALLOC(	gen_ator(),
+						sizeof(*st->allocated)*type->auto_impl_max_count,
+						"auto_storage.allocated");
 		st->size= type->size;
 		st->max_count= type->auto_impl_max_count;
 
@@ -44,22 +51,34 @@ World * create_world()
 		type->auto_storage_handle= st_i++;
 	}
 
+	w->id_to_handle= create_id_handle_tbl(gen_ator(), MAX_NODE_COUNT);
+
 	return w;
 }
 
 void destroy_world(World *w)
 {
 	debug_print("destroy_world: %i nodes", w->node_count);
+	destroy_id_handle_tbl(&w->id_to_handle);
+
 	for (U32 i= 0; i < MAX_NODE_COUNT; ++i) {
 		if (w->nodes[i].allocated)
 			free_node(w, i);
 	}
 	for (U32 i= 0; i < w->auto_storage_count; ++i) {
-		free(w->auto_storages[i].storage);
-		free(w->auto_storages[i].allocated);
+		FREE(gen_ator(), w->auto_storages[i].storage);
+		FREE(gen_ator(), w->auto_storages[i].allocated);
 	}
-	free(w->auto_storages);
-	free(w);
+	FREE(gen_ator(), w->auto_storages);
+	FREE(gen_ator(), w);
+}
+
+void clear_world_nodes(World *w)
+{
+	for (U32 i= 0; i < MAX_NODE_COUNT; ++i) {
+		if (w->nodes[i].allocated)
+			free_node(w, i);
+	}
 }
 
 internal
@@ -219,6 +238,8 @@ typedef struct SaveHeader {
 
 typedef struct SaveCmd {
 	char func_name[MAX_FUNC_NAME_SIZE];
+	Id cond_node_id;
+	Id src_node_id;
 } PACKED SaveCmd;
 typedef struct SaveNode {
 	NodeInfo info;
@@ -232,51 +253,55 @@ void save_world(World *w, WArchive *ar)
 
 	SaveHeader header= {
 		.version= 1,
-		.node_count= MAX_NODE_COUNT,
+		.node_count= w->node_count,
 	};
 
 	// @todo So much useless information is saved
-	// @todo Customization of saved information in nodes
+	// @todo Customization of saved information in nodes (pointers etc)
+	//       ^ archive packing for NodeInfos and impls
 
 	pack_buf(ar, &header, sizeof(header));
+	U32 saved_node_count= 0;
 	for (U32 node_i= 0; node_i < MAX_NODE_COUNT; ++node_i) {
 		NodeInfo *node= &w->nodes[node_i];
-		SaveNode savenode= {.info= *node};
+		if (!node->allocated)
+			continue;
 
-		// Must use names of func ptrs
-		if (node->allocated) {
-			for (U32 i= 0; i < node->cmd_count; ++i) {
-				SlotCmd *cmd= &node->cmds[i];
-				if (cmd->type != CmdType_call)
-					continue;
+		SaveNode savenode= {.info= *node};
+		for (U32 i= 0; i < node->cmd_count; ++i) {
+			SlotCmd *cmd= &node->cmds[i];
+			if (cmd->has_condition)
+				savenode.cmds[i].cond_node_id=
+					node_handle_to_id(w, cmd->cond_node_h);
+			if (cmd->type == CmdType_call) {
 				fmt_str(savenode.cmds[i].func_name,
 						sizeof(savenode.cmds[i].func_name),
 						"%s", rtti_sym_name(cmd->fptr));
+			} else if (cmd->type == CmdType_memcpy)  {
+				savenode.cmds[i].src_node_id=
+					node_handle_to_id(w, cmd->src_node);
 			}
 		}
 
-		// Save all, even non-allocated nodes
-		// Easy way to keep cmd handles valid
-		// @todo Use id's, not direct handles
 		pack_buf(ar, &savenode, sizeof(savenode));
-		if (!node->allocated)
-			continue;
 
 		U32 impl_size;
 		void *impl= node_impl(w, &impl_size, node);
 		pack_buf(ar, impl, impl_size);
+
+		ensure(saved_node_count < header.node_count);
+		++saved_node_count;
 	}
+
+	debug_print("saved node count: %i", saved_node_count);
 }
 
 void load_world(World *w, RArchive *ar)
 {
 	debug_print("load_world");
 	if (w->node_count > 0) {
-		debug_print("load_world: destroying current world");
-		for (U32 i= 0; i < MAX_NODE_COUNT; ++i) {
-			if (w->nodes[i].allocated)
-				free_node(w, i);
-		}
+		debug_print("load_world: cleaning current world");
+		clear_world_nodes(w);
 	}
 	ensure(w->node_count == 0);
 
@@ -286,12 +311,10 @@ void load_world(World *w, RArchive *ar)
 	U32 node_count= 0;
 	for (U32 node_i= 0; node_i < header.node_count;
 			++node_i, w->next_node= (w->next_node + 1) % MAX_NODE_COUNT) {
-		ensure(w->next_node == node_i);
 		// New NodeInfo from binary
 		SaveNode dead_node;
 		unpack_buf(ar, &dead_node, sizeof(dead_node));
-		if (!dead_node.info.allocated)
-			continue;
+		ensure(dead_node.info.allocated);
 
 		U32 node_h= alloc_node_without_impl(
 				w,
@@ -301,7 +324,6 @@ void load_world(World *w, RArchive *ar)
 					dead_node.info.type_name),
 				dead_node.info.node_id,
 				dead_node.info.group_id);
-		ensure(node_h == node_i); // Must retain handles because of cmds
 		++node_count;
 
 		NodeInfo *n= &w->nodes[node_h];
@@ -311,11 +333,21 @@ void load_world(World *w, RArchive *ar)
 		n->node_id= dead_node.info.node_id;
 		n->group_id= dead_node.info.group_id;
 
-		// Set func pointers
+		debug_print("deserializing %s", dead_node.info.type_name);
+
+		// Deserialize SaveNode
+		// @todo Cmd handles should be assigned after every node has been spawned
 		for (U32 i= 0; i < n->cmd_count; ++i) {
+			if (n->cmds[i].has_condition)
+				n->cmds[i].cond_node_h=
+					node_id_to_handle(w, dead_node.cmds[i].cond_node_id);
 			if (n->cmds[i].type == CmdType_call) {
 				n->cmds[i].fptr=
 					rtti_func_ptr(dead_node.cmds[i].func_name);
+			} else if (n->cmds[i].type == CmdType_memcpy) {
+				n->cmds[i].src_node=
+					node_id_to_handle(w, dead_node.cmds[i].src_node_id);
+				ensure(n->cmds[i].src_node != NULL_HANDLE);
 			}
 		}
 
@@ -502,6 +534,16 @@ U32 node_impl_handle(World *w, U32 node_handle)
 	return w->nodes[node_handle].impl_handle;
 }
 
+Id node_handle_to_id(World *w, Handle handle)
+{
+	return w->nodes[handle].node_id;
+}
+
+Handle node_id_to_handle(World *w, Id id)
+{
+	return get_id_handle_tbl(&w->id_to_handle, id);
+}
+
 void * node_impl(World *w, U32 *size, NodeInfo *node)
 {
 	if (size)
@@ -525,7 +567,8 @@ void resurrect_node_impl(World *w, NodeInfo *n, void *dead_impl_bytes)
 		AutoNodeImplStorage *st= &w->auto_storages[n->type->auto_storage_handle];
 
 		if (st->count >= st->max_count)
-			fail("Too many %s", n->type->res.name);
+			fail(	"Too many nodes '%s': %i > %i",
+					n->type->res.name, st->count + 1, st->max_count);
 
 		while (st->allocated[st->next])
 			st->next= (st->next + 1) % st->max_count;
@@ -568,6 +611,7 @@ U32 alloc_node_without_impl(World *w, NodeType *type, U64 node_id, U64 group_id)
 	ensure(!w->nodes[w->next_node].allocated);
 	++w->node_count;
 	w->nodes[w->next_node]= info;
+	set_id_handle_tbl(&w->id_to_handle, node_id, w->next_node);
 	return w->next_node;
 }
 

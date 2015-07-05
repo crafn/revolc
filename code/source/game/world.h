@@ -3,6 +3,7 @@
 
 #include "build.h"
 #include "core/archive.h"
+#include "core/hashtable.h"
 #include "core/quaternion.h"
 #include "core/vector.h"
 #include "global/cfg.h"
@@ -75,6 +76,8 @@ typedef struct World {
 	U32 node_count;
 	U64 next_node_id;
 
+	Id_Handle_Tbl id_to_handle;
+
 	// Storages for node types specified with auto_impl_mgmt
 	AutoNodeImplStorage *auto_storages;
 	U32 auto_storage_count;
@@ -84,6 +87,7 @@ typedef struct World {
 
 REVOLC_API WARN_UNUSED World * create_world();
 REVOLC_API void destroy_world(World *w);
+REVOLC_API void clear_world_nodes(World *w);
 
 REVOLC_API void upd_world(World *w, F64 dt);
 
@@ -98,6 +102,9 @@ REVOLC_API void free_node(World *w, U32 handle);
 REVOLC_API void free_node_group(World *w, U64 group_id);
 REVOLC_API void remove_node_group(World *w, void *node_impl_in_group);
 REVOLC_API U32 node_impl_handle(World *w, U32 node_handle);
+
+REVOLC_API Id node_handle_to_id(World *w, Handle handle);
+REVOLC_API Handle node_id_to_handle(World *w, Id id);
 
 // Not intended to be widely used
 REVOLC_API void * node_impl(World *w, U32 *size, NodeInfo *node);

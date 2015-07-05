@@ -1,5 +1,5 @@
 #include "string.h"
-#include "core/malloc.h"
+#include "core/memory.h"
 
 void joined_path(char *dst, const char *a, const char *b)
 {

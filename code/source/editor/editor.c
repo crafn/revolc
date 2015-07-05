@@ -1,5 +1,5 @@
 #include "armature_editor.h"
-#include "core/malloc.h"
+#include "core/memory.h"
 #include "core/misc.h"
 #include "editor.h"
 #include "editor_util.h"
@@ -135,7 +135,7 @@ void editor_revert_res_state()
 
 void create_editor()
 {
-	Editor* e= zero_malloc(sizeof(*e));
+	Editor* e= ZERO_ALLOC(dev_ator(), sizeof(*e), "editor");
 	e->cur_model_h= NULL_HANDLE;
 	e->ae_state.comp_h= NULL_HANDLE;
 
@@ -145,7 +145,7 @@ void create_editor()
 void destroy_editor()
 {
 	editor_free_res_state();
-	free(g_env.editor);
+	FREE(dev_ator(), g_env.editor);
 	g_env.editor= NULL;
 }
 

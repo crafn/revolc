@@ -1,5 +1,5 @@
 #include "core/debug_print.h"
-#include "core/malloc.h"
+#include "core/memory.h"
 #include "core/socket.h"
 #include "core/vector.h"
 #include "platform/device.h"
@@ -53,7 +53,7 @@ LRESULT CALLBACK wndproc(
 void plat_init_impl(Device* d, const char* title, V2i reso)
 {
 	d->win_size= reso;
-	d->impl= zero_malloc(sizeof(*d->impl));
+	d->impl= ZERO_ALLOC(gen_ator(), sizeof(*d->impl), "windows_device");
 
 	{ // Window
 		WNDCLASS wc= {}; 
@@ -118,9 +118,8 @@ void plat_quit_impl(Device *d)
 
 	wglDeleteContext(d->impl->hGlrc);
 
-	free(d->impl);
+	FREE(gen_ator(), d->impl);
 	d->impl= NULL;
-	free(d);
 }
 
 void plat_update_impl(Device *d)
