@@ -107,7 +107,7 @@ int main(int argc, const char **argv)
 	F64 time_accum= 0.0; // For fps
 	U32 frame= 0;
 	
-	g_env.os_allocs_forbidden= true;
+	g_env.os_allocs_forbidden= true; // Keep fps steady
 	while (1) {
 		reset_frame_alloc();
 
@@ -173,8 +173,8 @@ int main(int argc, const char **argv)
 				};
 			}
 
-			if (d->key_down['e'])
-				spawn_entity(world, g_env.resblob, cursor_on_world);
+			//if (d->key_down['e'])
+			//	spawn_entity(world, g_env.resblob, cursor_on_world);
 
 #			ifdef USE_FLUID
 			if (d->key_down['r']) {

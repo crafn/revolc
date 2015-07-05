@@ -20,12 +20,15 @@
 
 void upd_minion(Minion *minion_begin, Minion *minion_end)
 {
-	F64 dt= g_env.world->dt;
+	if (!rts_env()->authority)
+		return;
 
+	F64 dt= g_env.world->dt;
 	for (Minion *minion= minion_begin; minion != minion_end; ++minion) {
 		minion->pos.x += 0.5*dt;
 	}
 }
+
 /*
 void pack_minion(WArchive *ar, Minion *minion)
 { // @todo Generate this function. Use arrays.

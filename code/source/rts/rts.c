@@ -11,17 +11,14 @@
 #include "platform/device.h"
 #include "physics/physworld.h"
 #include "resources/resblob.h"
+#include "rts.h"
 #include "visual/renderer.h"
-
-
-#define RTS_AUTHORITY_PORT 19995
-#define RTS_CLIENT_PORT 19996
-#define RTS_SNAPSHOT_INTERVAL 5.0
 
 typedef enum RtsMsg {
 	RtsMsg_chat = 1,
 	RtsMsg_snapshot,
-	RtsMsg_brushaction,
+	RtsMsg_brush_action,
+	RtsMsg_spawn_action,
 } RtsMsg;
 
 typedef struct RtsMsgHeader {
@@ -29,15 +26,20 @@ typedef struct RtsMsgHeader {
 	//F64 time; // Game time
 } PACKED RtsMsgHeader;
 
-typedef struct RtsEnv {
-	UdpPeer *peer;
-	bool authority; // Do we have authority over game world
-	F64 game_time; // Same at client and server
-
-	F64 snapshot_time;
-} RtsEnv;
-
 internal
+void send_rts_msg(RtsMsg type, void *data, U32 data_size)
+{
+	RtsMsgHeader *header;
+	U32 buf_size= sizeof(*header) + data_size;
+	U8 *buf= frame_alloc(buf_size);
+	header= (void*)buf;
+	header->type= type;
+	memcpy(buf + sizeof(*header), data, buf_size - sizeof(*header));
+
+	debug_print("rts send %i: %.3fkb", type, 1.0*buf_size/1024);
+	buffer_udp_msg(rts_env()->peer, buf, buf_size);
+}
+
 RtsEnv *rts_env() { return g_env.game_data; }
 
 MOD_API void init_rts()
@@ -84,53 +86,46 @@ typedef struct BrushAction { // @todo Range and precision "attributes"
 
 
 internal
-void local_brushaction(BrushAction *action)
+void local_brush_action(BrushAction *action)
 {
 	set_grid_material_in_circle(action->pos, action->size, action->material);
 }
 
 internal
-void send_rts_msg(RtsMsg type, void *data, U32 data_size)
-{
-	RtsMsgHeader *header;
-	U32 buf_size= sizeof(*header) + data_size;
-	U8 *buf= frame_alloc(buf_size);
-	header= (void*)buf;
-	header->type= type;
-	memcpy(buf + sizeof(*header), data, buf_size - sizeof(*header));
-
-	debug_print("rts send %i: %.3fkb", type, 1.0*buf_size/1024);
-	buffer_udp_msg(rts_env()->peer, buf, buf_size);
-}
-
-internal
-void brushaction(BrushAction *action)
+void brush_action(BrushAction *action)
 { // @todo Generate this function
-	if (rts_env()->authority) {
-		local_brushaction(action);
-	} else {
-		send_rts_msg(RtsMsg_brushaction, action, sizeof(*action));
-	}
+	if (rts_env()->authority)
+		local_brush_action(action);
+	else
+		send_rts_msg(RtsMsg_brush_action, action, sizeof(*action));
 }
 
-/*
-// @todo Proof of concept, bad performance. Nodes should be processed by type.
-// (which shouldn't be too hard as they're in buffers by types already)
+typedef struct SpawnAction {
+	char name[RES_NAME_SIZE];
+	V2d pos;
+} SpawnAction;
+
+
 internal
-void pack_nodeinfo(WArchive *ar, NodeInfo *node)
+void local_spawn_action(SpawnAction *action)
 {
-	pack_u64(ar, &node->node_id);
-	pack_u64(ar, &node->group_id);
-	pack_strbuf(ar, node->type_name, sizeof(node->type_name));
+	V3d pos= {action->pos.x, action->pos.y, 0};
+	SlotVal init_vals[]= {
+		{"logic", "pos", WITH_DEREF_SIZEOF(&pos)},
+	};
+	NodeGroupDef *def=
+		(NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, action->name);
+	create_nodes(g_env.world, def, WITH_ARRAY_COUNT(init_vals), 0);
 }
+
 internal
-void unpack_nodeinfo(RArchive *ar, NodeInfo *node)
-{
-	unpack_u64(ar, &node->node_id);
-	unpack_u64(ar, &node->group_id);
-	unpack_strbuf(ar, node->type_name, sizeof(node->type_name));
+void spawn_action(SpawnAction *action)
+{ // @todo Generate this function
+	if (rts_env()->authority)
+		local_spawn_action(action);
+	else
+		send_rts_msg(RtsMsg_spawn_action, action, sizeof(*action));
 }
-*/
 
 internal
 void pack_world(WArchive *ar)
@@ -143,29 +138,6 @@ void pack_world(WArchive *ar)
 	pack_buf(ar, mat_grid, mat_grid_size);
 
 	save_world(g_env.world, ar);
-/*
-	U32 packed_count= 0;
-	const U32 node_count= g_env.world->node_count; 
-	pack_u32(ar, &node_count);
-	for (U32 i= 0; i < MAX_NODE_COUNT; ++i) {
-		NodeInfo *node= &g_env.world->nodes[i];
-		if (!node->allocated)
-			continue;
-
-		ensure(packed_count < node_count);
-		pack_nodeinfo(ar, node);
-		if (!strcmp(node->type_name, "Minion")) {
-			Minion *minion= node_impl(g_env.world, NULL, node);
-			pack_minion(ar, minion);
-		} else {
-			// @todo Automatic serialization for every node
-			//U32 data_size;
-			//void *data= node_impl(g_env.world, &data_size, node);
-			//pack_buf(ar, data, data_size);
-		}
-		++packed_count;
-	}
-*/
 }
 
 internal
@@ -182,25 +154,6 @@ void unpack_world(RArchive *ar)
 	g_env.physworld->grid_modified= true;
 
 	load_world(g_env.world, ar);
-/*
-	U32 node_count;
-	unpack_u32(ar, &node_count);
-	debug_print("node count: %i", node_count);
-	for (U32 i= 0; i < node_count; ++i) {
-		NodeInfo node= {};
-		unpack_nodeinfo(ar, &node);
-		debug_print("node: %s", node.type_name);
-		if (!strcmp(node.type_name, "Minion")) {
-			Minion minion;
-			unpack_minion(ar, &minion);
-
-			debug_print("@todo create minion");
-		} else {
-			//U8 buf[];
-			//unpack_buf(ar, 
-		}
-	}
-*/
 }
 
 MOD_API void upd_rts()
@@ -210,12 +163,12 @@ MOD_API void upd_rts()
 	{ // UI
 		Device *d= g_env.device;
 		V2d cursor_on_world= screen_to_world_point(g_env.device->cursor_pos);
-		if (d->key_down['t']) {
-			brushaction(&(BrushAction) {cursor_on_world, 2.0, GRIDCELL_MATERIAL_AIR});
-		}
-		if (d->key_down['g']) {
-			brushaction(&(BrushAction) {cursor_on_world, 1.0, GRIDCELL_MATERIAL_GROUND});
-		}
+		if (d->key_down['t'])
+			brush_action(&(BrushAction) {cursor_on_world, 2.0, GRIDCELL_MATERIAL_AIR});
+		if (d->key_down['g'])
+			brush_action(&(BrushAction) {cursor_on_world, 1.0, GRIDCELL_MATERIAL_GROUND});
+		if (d->key_pressed['e'])
+			spawn_action(&(SpawnAction) {"minion", cursor_on_world});
 	}
 
 	{ // Networking
@@ -284,9 +237,13 @@ MOD_API void upd_rts()
 					destroy_rarchive(&ar);
 				} break;
 
-				case RtsMsg_brushaction: {
+				case RtsMsg_brush_action: {
 					ensure(data_size == sizeof(BrushAction));
-					local_brushaction(data);
+					local_brush_action(data);
+				} break;
+				case RtsMsg_spawn_action: {
+					ensure(data_size == sizeof(SpawnAction));
+					local_spawn_action(data);
 				} break;
 				default: fail("Unknown message type: %i", header->type);
 			}
@@ -301,11 +258,5 @@ MOD_API void worldgen_rts(World *w)
 
 	generate_test_world(w);
 
-	V3d pos= {0, 5, 0};
-	SlotVal init_vals[]= {
-		{"minion", "pos", WITH_DEREF_SIZEOF(&pos)},
-	};
-	NodeGroupDef *def=
-		(NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, "minion");
-	create_nodes(g_env.world, def, WITH_ARRAY_COUNT(init_vals), 0);
+	spawn_action(&(SpawnAction) {"minion", {0, 5}});
 }
