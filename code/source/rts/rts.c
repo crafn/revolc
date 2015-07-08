@@ -17,6 +17,7 @@
 typedef enum RtsMsg {
 	RtsMsg_chat = 1,
 	RtsMsg_snapshot,
+	RtsMsg_delta,
 	RtsMsg_brush_action,
 	RtsMsg_spawn_action,
 } RtsMsg;
@@ -130,12 +131,8 @@ void spawn_action(SpawnAction *action)
 internal
 void pack_world(WArchive *ar)
 {
-	// @todo Grid(s) should be nodes
-	const U32 mat_grid_size= GRID_CELL_COUNT;
-	U8 *mat_grid= frame_alloc(mat_grid_size);
-	for (U32 i= 0; i < GRID_CELL_COUNT; ++i)
-		mat_grid[i]= g_env.physworld->grid[i].material;
-	pack_buf(ar, mat_grid, mat_grid_size);
+	++rts_env()->snapshot_id;
+	pack_u32(ar, &rts_env()->snapshot_id);
 
 	save_world(g_env.world, ar);
 }
@@ -143,17 +140,21 @@ void pack_world(WArchive *ar)
 internal
 void unpack_world(RArchive *ar)
 {
+	unpack_u32(ar, &rts_env()->snapshot_id);
+
 	clear_world_nodes(g_env.world);
 
-	// @todo Grid(s) should be nodes
-	const U32 mat_grid_size= GRID_CELL_COUNT;
-	U8 *mat_grid= frame_alloc(mat_grid_size);
-	unpack_buf(ar, mat_grid, mat_grid_size);
-	for (U32 i= 0; i < GRID_CELL_COUNT; ++i)
-		g_env.physworld->grid[i].material= mat_grid[i];
-	g_env.physworld->grid_modified= true;
-
 	load_world(g_env.world, ar);
+	g_env.physworld->grid.modified= true;
+}
+
+internal
+bool is_compatible_delta(	const void *delta,		U32 delta_size,
+							const void *snapshot,	U32 snapshot_size)
+{
+	if (delta_size < sizeof(U32) || snapshot_size < sizeof(U32))
+		return false;
+	return !memcmp(delta, snapshot, sizeof(U32));
 }
 
 MOD_API void upd_rts()
@@ -192,6 +193,12 @@ MOD_API void upd_rts()
 				WArchive ar= create_warchive(ArchiveType_binary, world_size);
 				pack_world(&ar);
 				send_rts_msg(RtsMsg_snapshot, ar.data, ar.data_size);
+
+				if (ar.data_size > RTS_SNAPSHOT_SIZE)
+					fail("Too large world");
+				memcpy(rts_env()->snapshot, ar.data, ar.data_size);
+				rts_env()->snapshot_size= ar.data_size;
+				
 				destroy_warchive(&ar);
 
 				rts_env()->snapshot_time= rts_env()->game_time;

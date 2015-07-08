@@ -6,7 +6,14 @@
 #define RTS_AUTHORITY_PORT 19995
 #define RTS_CLIENT_PORT 19996
 #define RTS_SNAPSHOT_INTERVAL 5.0
-#define RTS_WORLD_STATE_SIZE (1024*1024*10)
+#define RTS_SNAPSHOT_SIZE (1024*1024*10)
+#define RTS_DELTA_INTERVAL 0.3
+
+typedef struct RtsClient {
+} RtsClient;
+
+typedef struct RtsServer {
+} RtsServer;
 
 typedef struct RtsEnv {
 	UdpPeer *peer;
@@ -14,7 +21,11 @@ typedef struct RtsEnv {
 	F64 game_time; // Same at client and server
 
 	F64 snapshot_time;
-	U8 world_state[RTS_WORLD_STATE_SIZE];
+	U8 snapshot[RTS_SNAPSHOT_SIZE];
+	U32 snapshot_id;
+	U32 snapshot_size;
+
+	F64 delta_time;
 } RtsEnv;
 
 MOD_API RtsEnv *rts_env();

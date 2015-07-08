@@ -49,15 +49,19 @@ typedef struct GridCell {
 #endif
 } GridCell;
 
+typedef struct PhysGrid {
+	GridDef def;
+	GridCell cells[GRID_CELL_COUNT];
+	bool modified; // Set to true after making changes to grid
+} PhysGrid;
+
 typedef struct PhysWorld {
 	bool debug_draw;
 
 	RigidBody bodies[MAX_RIGIDBODY_COUNT];
 	U32 next_body, body_count;
 
-	GridDef griddef;
-	GridCell grid[GRID_CELL_COUNT];
-	bool grid_modified; // Set to true after making changes to grid
+	PhysGrid grid;
 
 	cpSpace *cp_space;
 	cpBody *cp_ground_body; // Recreated when 
@@ -72,6 +76,7 @@ REVOLC_API U32 resurrect_rigidbody(const RigidBody *dead);
 REVOLC_API void free_rigidbody(RigidBody *b);
 REVOLC_API void * storage_rigidbody();
 REVOLC_API RigidBody * get_rigidbody(U32 h);
+REVOLC_API void *storage_physgrid();
 
 REVOLC_API void upd_physworld(F64 dt);
 REVOLC_API void post_upd_physworld();

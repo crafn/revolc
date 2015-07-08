@@ -69,7 +69,7 @@ typedef struct NodeGroupDef_Node {
 
 typedef struct NodeGroupDef {
 	Resource res;
-	// Allocate separately if sizes grow much
+	// @todo Allocate separately if sizes grow much
 	NodeGroupDef_Node nodes[MAX_NODES_IN_GROUP_DEF];
 	U32 node_count;
 

@@ -68,8 +68,8 @@ void choose_safe_route(DirtBug *bug)
 			for (U32 i= 0; i < head_count; ++i) {
 				const U32 cur= heads[i][head_pool];
 
-				U32 phys_cur= gix_to_gix(g_env.physworld->griddef, grid, cur);
-				bool ground_at_cur = g_env.physworld->grid[phys_cur].material != GRIDCELL_MATERIAL_AIR; // @todo Crashes near edges :::D
+				U32 phys_cur= gix_to_gix(g_env.physworld->grid.def, grid, cur);
+				bool ground_at_cur = g_env.physworld->grid.cells[phys_cur].material != GRIDCELL_MATERIAL_AIR; // @todo Crashes near edges :::D
 				if (ground_at_cur)
 					continue;
 
@@ -87,8 +87,8 @@ void choose_safe_route(DirtBug *bug)
 					if (distance[side] != 0)
 						continue; // Skip visited cells
 
-					U32 phys_side= gix_to_gix(g_env.physworld->griddef, grid, side);
-					bool ground_at_side = g_env.physworld->grid[phys_side].material != GRIDCELL_MATERIAL_AIR; // @todo Crashes near edges :::D
+					U32 phys_side= gix_to_gix(g_env.physworld->grid.def, grid, side);
+					bool ground_at_side = g_env.physworld->grid.cells[phys_side].material != GRIDCELL_MATERIAL_AIR; // @todo Crashes near edges :::D
 					if (ground_at_side && s == 3) {
 						ensure(candidate_count < MAX_CANDIDATES);
 						candidates[candidate_count++]= cur;
@@ -139,8 +139,8 @@ void choose_safe_route(DirtBug *bug)
 			bug->waypoints[cur_dist]= gix_to_wvec_center(grid, cur_cell);
 			bug->waypoints[cur_dist].y += 1.5;
 
-			U32 phys_side= gix_to_gix(g_env.physworld->griddef, grid, cur_cell);
-			g_env.physworld->grid[phys_side].draw_something= 1;
+			U32 phys_side= gix_to_gix(g_env.physworld->grid.def, grid, cur_cell);
+			g_env.physworld->grid.cells[phys_side].draw_something= 1;
 
 			// @todo Compress
 			const U32 sides[4]= {

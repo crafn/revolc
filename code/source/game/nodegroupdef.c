@@ -301,7 +301,9 @@ void init_nodegroupdef(NodeGroupDef *def)
 		NodeGroupDef_Node *node= &def->nodes[i];
 
 		node->default_struct_size= rtti_struct_size(node->type_name);
-		ensure(node->default_struct_size < MAX_DEFAULT_STRUCT_SIZE);
+		if (node->default_struct_size > MAX_DEFAULT_STRUCT_SIZE)
+			fail("Too large node struct: %i > %i",
+					node->default_struct_size, MAX_DEFAULT_STRUCT_SIZE);
 	}
 
 	for (U32 node_i= 0; node_i < def->node_count; ++node_i) {

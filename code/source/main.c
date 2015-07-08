@@ -106,7 +106,7 @@ int main(int argc, const char **argv)
 
 	F64 time_accum= 0.0; // For fps
 	U32 frame= 0;
-	
+
 	g_env.os_allocs_forbidden= true; // Keep fps steady
 	while (1) {
 		reset_frame_alloc();
@@ -312,7 +312,7 @@ int main(int argc, const char **argv)
 			for (int x= ll.x - 3; x < tr.x + 1; ++x) {
 				if (x < 0 || y < 0 || x >= GRID_WIDTH_IN_CELLS || y >= GRID_WIDTH_IN_CELLS)
 					continue;
-				if (g_env.physworld->grid[GRID_INDEX(x, y)].material == GRIDCELL_MATERIAL_AIR)
+				if (g_env.physworld->grid.cells[GRID_INDEX(x, y)].material == GRIDCELL_MATERIAL_AIR)
 					continue;
 
 				U64 seed= x + y*10000;

@@ -53,6 +53,15 @@ World * create_world()
 
 	w->id_to_handle= create_id_handle_tbl(gen_ator(), MAX_NODE_COUNT);
 
+	{ // Builtin engine nodes
+		SlotVal init_vals[]= {};
+		NodeGroupDef *def=
+			(NodeGroupDef*)res_by_name(	g_env.resblob,
+										ResType_NodeGroupDef,
+										"builtin");
+		create_nodes(w, def, WITH_ARRAY_COUNT(init_vals), (U64)-1);
+	}
+
 	return w;
 }
 

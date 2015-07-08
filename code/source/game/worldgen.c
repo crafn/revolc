@@ -120,8 +120,8 @@ void generate_test_world(World *w)
 				continue;
 			if ((wpos.x + 14)*(wpos.x + 14) + wpos.y*wpos.y < 6*6)
 				continue;
-			g_env.physworld->grid[GRID_INDEX(x, y)].material= GRIDCELL_MATERIAL_GROUND;
+			g_env.physworld->grid.cells[GRID_INDEX(x, y)].material= GRIDCELL_MATERIAL_GROUND;
 		}
 	}
-	g_env.physworld->grid_modified= true;
+	g_env.physworld->grid.modified= true;
 }
