@@ -117,14 +117,3 @@ JointId joint_id_by_name(const Armature *a, const char *name)
 	}
 	return NULL_JOINT_ID;
 }
-
-
-void recache_ptrs_to_armatures();
-Armature *create_rt_armature(Armature *src)
-{
-	Armature *rt_armature= dev_malloc(sizeof(*rt_armature));
-	*rt_armature= *src;
-	substitute_res(&src->res, &rt_armature->res, NULL);
-	recache_ptrs_to_armatures();
-	return rt_armature;
-}

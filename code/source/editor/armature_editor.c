@@ -14,8 +14,6 @@ Clip *get_or_create_rt_clip(const char *name)
 		(Clip*)res_by_name(	g_env.resblob,
 							ResType_Clip,
 							name);
-	if (!clip->res.is_runtime_res)
-		clip= create_rt_clip(clip);
 	return clip;
 }
 
@@ -73,8 +71,6 @@ bool gui_armature_overlay(ArmatureEditor *state, bool is_edit_mode)
 			editing_happening= true;
 
 			if (state->clip_is_bind_pose) {
-				if (!a->res.is_runtime_res)
-					a= create_rt_armature(a);
 				a->res.needs_saving= true;
 
 				// Modify bind pose

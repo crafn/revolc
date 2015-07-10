@@ -3,6 +3,7 @@
 
 #include "build.h"
 #include "core/json.h"
+#include "core/ptr.h"
 #include "joint.h"
 #include "resources/resource.h"
 
@@ -34,12 +35,12 @@ typedef struct Clip {
 
 	// @todo #if away from release build -- only for editor/saving
 	char armature_name[RES_NAME_SIZE];
-	BlobOffset keys_offset; // Clip_Key[]
+	REL_PTR(Clip_Key) keys;
 	U32 key_count;
 
 	U32 joint_count;
 	U32 frame_count; // Last frame is only interpolation target
-	BlobOffset local_samples_offset; // joint_count*frame_count elements, T3f
+	REL_PTR(T3f) local_samples; // joint_count*frame_count elements
 } PACKED Clip;
 
 REVOLC_API U32 clip_sample_count(const Clip *c);
@@ -59,8 +60,6 @@ REVOLC_API JointPoseArray calc_clip_pose(const Clip *c, F64 t);
 //  maybe better that they're near Clip
 //
 
-// Creates modifiable substitute for a Clip resource
-REVOLC_API Clip *create_rt_clip(Clip *src);
 // Add or update key
 REVOLC_API void update_rt_clip_key(Clip *c, Clip_Key key);
 REVOLC_API void delete_rt_clip_key(Clip *c, U32 del_i);

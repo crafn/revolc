@@ -251,8 +251,6 @@ Resource * find_res_by_name(const ResBlob *b, ResType t, const char *n)
 	for (U32 i= 0; i < b->res_count; ++i) {
 		Resource* res= res_by_index(b, i);
 		if (res->type == t && !strcmp(n, res->name)) {
-			if (res->substitute)
-				return res->substitute;
 			return res;
 		}
 	}
@@ -267,8 +265,6 @@ Resource * find_res_by_name_from_blobbuf(	const BlobBuf *buf,
 	for (U32 i= 0; i < buf->res_count; ++i) {
 		Resource* res= (Resource*)((U8*)buf->data + buf->res_offsets[i]);
 		if (res->type == t && !strcmp(n, res->name)) {
-			if (res->substitute)
-				return res->substitute;
 			return res;
 		}
 	}
@@ -283,7 +279,7 @@ Resource ** all_res_by_type(	U32 *count,
 	{ // Find count
 		for (U32 i= 0; i < blob->res_count; ++i) {
 			Resource *res= res_by_index(blob, i);
-			if (res->type == t && !res->substitute)
+			if (res->type == t)
 				++*count;
 		}
 		RuntimeResource *res= blob->first_runtime_res;
@@ -299,7 +295,7 @@ Resource ** all_res_by_type(	U32 *count,
 	{
 		for (U32 i= 0; i < blob->res_count; ++i) {
 			Resource *res= res_by_index(blob, i);
-			if (res->type == t && !res->substitute)
+			if (res->type == t)
 				*(res_it++)= res;
 		}
 		RuntimeResource *res= blob->first_runtime_res;
@@ -366,6 +362,12 @@ void blob_write(BlobBuf *buf, const void *data, U32 byte_count)
 	ensure(buf->offset + byte_count <= buf->max_size);
 	memcpy(buf->data + buf->offset, data, byte_count);
 	buf->offset += byte_count;
+}
+
+void blob_patch_rel_ptr(BlobBuf *buf, U32 offset_to_ptr)
+{
+	RelPtr ptr = { .value= buf->offset - offset_to_ptr };
+	memcpy(buf->data + offset_to_ptr, &ptr, sizeof(ptr));
 }
 
 /// Used only in blob making
@@ -478,7 +480,7 @@ void make_blob(const char *dst_file_path, char **res_file_paths)
 			.res_file_count= res_file_count,
 		};
 		for (U32 i= 0; i < res_file_count; ++i) {
-			fmt_str(	header.res_file_paths[i], sizeof(header.res_file_paths),
+			fmt_str(	header.res_file_paths[i], sizeof(header.res_file_paths[i]),
 						"%s", parsed_jsons[i].json_path);
 		}
 		blob_write(&buf, &header, sizeof(header));
@@ -545,34 +547,25 @@ error:
 	goto exit;
 }
 
-void substitute_res(Resource *stale, Resource *new_res, RtResFree rt_free)
+void realloc_res_member(RelPtr *member, U32 size, U32 old_size)
 {
-	ensure(!stale->substitute);
-	*new_res= *stale;
-	new_res->is_runtime_res= true;
+	// @todo
+	//if (inside_blob(g_env.resblob, rel_ptr(member)))
+	//	FREE(leakable_dev_ator());
 
-	RuntimeResource *rt_res= ALLOC(dev_ator(), sizeof(*rt_res), "rt_res");
-	*rt_res= (RuntimeResource) {
-		.res= new_res,
-		.next= stale->blob->first_runtime_res,
-		.rt_free= rt_free,
-	};
-	// Adding as first runtime res ensures reverse destruction
-	stale->blob->first_runtime_res= rt_res;
-
-	stale->substitute= new_res;
+	void *data= ZERO_ALLOC(leakable_dev_ator(), size, "substitute_res_member");
+	memcpy(data, rel_ptr(member), old_size);
+	set_rel_ptr(member, data);
 }
 
-BlobOffset alloc_substitute_res_member(	Resource *dst,
-										const Resource *src,
-										BlobOffset member,
-										U32 size)
+/*
+void alloc_substitute_res_member(	Resource *dst,
+									RelPtr *member,
+									void *src_data,
+									U32 src_size)
 {
-	ensure(dst->is_runtime_res);
-	void *data= ALLOC(dev_ator(), size, "substitute_res_member");
-	memcpy(data, blob_ptr(src, member), size);
-	return blob_offset(dst, data);
 }
+*/
 
 // Mirror possibly modified resource to json
 internal
@@ -620,8 +613,6 @@ U32 mirror_blob_modifications(ResBlob *blob)
 	while (rt_res) {
 		Resource *res= rt_res->res;
 		if (res->needs_saving) {
-			ensure(res->is_runtime_res);
-			ensure(!res->substitute);
 			// Reloading & writing json for every modified resource
 			// shouldn't be a problem, because typically few resources
 			// are modified at once

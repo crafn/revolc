@@ -83,6 +83,9 @@ Ator gen_ator()
 Ator dev_ator()
 { return (Ator) { .type= AtorType_dev }; }
 
+Ator leakable_dev_ator()
+{ return (Ator) { .type= AtorType_dev }; }
+
 Ator frame_ator()
 { return (Ator) { .type= AtorType_frame }; }
 

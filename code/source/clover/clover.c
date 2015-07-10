@@ -175,6 +175,62 @@ MOD_API void upd_worldenv(WorldEnv *w, WorldEnv *e)
 		adjust_soundtrack("ambient_day", ambient_fade);
 		adjust_soundtrack("ambient_night", 1 - ambient_fade);
 	}
+
+	{ // Test ground drawing
+
+		const Model *model= (Model*)res_by_name(g_env.resblob, ResType_Model, "dirt");
+		const Mesh *mesh= model_mesh(model);
+
+		V2i px_ll= {0, g_env.device->win_size.y};
+		V2i px_tr= {g_env.device->win_size.x, 0};
+		V3d w_ll= px_tf(px_ll, (V2i) {0}).pos;
+		V3d w_tr= px_tf(px_tr, (V2i) {0}).pos;
+		V2i ll= GRID_VEC_W(w_ll.x, w_ll.y);
+		V2i tr= GRID_VEC_W(w_tr.x, w_tr.y);
+
+		int draw_count= 0;
+		for (int y= ll.y - 3; y < tr.y + 1; ++y) {
+		for (int x= ll.x - 3; x < tr.x + 1; ++x) {
+			if (x < 0 || y < 0 || x >= GRID_WIDTH_IN_CELLS || y >= GRID_WIDTH_IN_CELLS)
+				continue;
+			if (g_env.physworld->grid.cells[GRID_INDEX(x, y)].material == GRIDCELL_MATERIAL_AIR)
+				continue;
+
+			U64 seed= x + y*10000;
+			float z= random_f32(-0.1, 0.05, &seed);
+			float scale= 1.3*random_f32(1.5, 1.8, &seed);
+			float rot= random_f32(-0.7, 0.7, &seed);
+			float brightness= random_f32(0.7, 1.0, &seed);
+			float x_dif= random_f32(-0.07, 0.07, &seed);
+			float y_dif= random_f32(-0.07, 0.07, &seed);
+			/*
+			float z= 0;
+			float scale= 1;
+			float rot= 0;
+			float brightness= 1;
+			float x_dif= 0;
+			float y_dif= 0;
+			*/
+
+			V3d size= {scale/GRID_RESO_PER_UNIT, scale/GRID_RESO_PER_UNIT, 1.0};
+			V3d pos= {
+				(x + 0.5)/GRID_RESO_PER_UNIT - GRID_WIDTH/2 + x_dif,
+				(y + 0.5)/GRID_RESO_PER_UNIT - GRID_WIDTH/2 + y_dif,
+				z
+			};
+			// @todo Cache mesh so we don't need to recalculate everything every frame
+			drawcmd((T3d) {size, qd_by_axis((V3d) {0, 0, 1}, rot), pos},
+					mesh_vertices(mesh), mesh->v_count,
+					mesh_indices(mesh), mesh->i_count,
+					model_texture(model, 0)->atlas_uv,
+					(Color) {brightness, brightness, brightness, 1},
+					0,
+					0.0,
+					2);
+			++draw_count;
+		}
+		}
+	}
 }
 
 // Character

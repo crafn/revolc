@@ -10,6 +10,7 @@ typedef enum AtorType {
 	AtorType_gen, 	// malloc/calloc/realloc/free
 	AtorType_frame, // alloc_frame // @todo change to general linear
 	AtorType_dev,
+	AtorType_leakable_dev, // Use for one-off allocations if lazy.
 } AtorType;
 
 typedef struct Ator {
@@ -41,6 +42,7 @@ typedef struct Ator {
 REVOLC_API WARN_UNUSED Ator stack_ator(); // No need to free
 REVOLC_API WARN_UNUSED Ator gen_ator();
 REVOLC_API WARN_UNUSED Ator dev_ator();
+REVOLC_API WARN_UNUSED Ator leakable_dev_ator();
 REVOLC_API WARN_UNUSED Ator frame_ator(); // No need to free (valid for this frame)
 
 REVOLC_API WARN_UNUSED

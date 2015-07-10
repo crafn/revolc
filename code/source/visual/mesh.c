@@ -47,16 +47,14 @@ U32 vertex_size(MeshType type)
 }
 
 TriMeshVertex * mesh_vertices(const Mesh *m)
-{ return blob_ptr(&m->res, m->v_offset); }
+{ return rel_ptr(&m->vertices); }
 
 MeshIndexType * mesh_indices(const Mesh *m)
-{ return (MeshIndexType*)blob_ptr(&m->res, m->i_offset); }
+{ return rel_ptr(&m->indices); }
 
 int json_mesh_to_blob(struct BlobBuf *buf, JsonTok j)
 {
 	MeshType type= MeshType_tri;
-	BlobOffset v_offset= 0;
-	BlobOffset i_offset= 0;
 
 	JsonTok j_pos= json_value_by_key(j, "pos");
 	JsonTok j_uv= json_value_by_key(j, "uv");
@@ -97,17 +95,23 @@ int json_mesh_to_blob(struct BlobBuf *buf, JsonTok j)
 		for (U32 i= 0; i < i_count; ++i)
 			indices[i]= json_integer(json_member(j_ind, i));
 
+		// @todo Fill Mesh and write it instead of individual members
+
 		blob_write(buf, &type, sizeof(type));
 		blob_write(buf, &v_count, sizeof(v_count));
 		blob_write(buf, &i_count, sizeof(i_count));
 
-		v_offset= buf->offset + sizeof(v_offset) + sizeof(i_offset);
-		blob_write(buf, &v_offset, sizeof(v_offset));
+		U32 v_offset= buf->offset;
+		RelPtr rel_ptr= {};
+		blob_write(buf, &rel_ptr, sizeof(rel_ptr));
 
-		i_offset= buf->offset + sizeof(i_offset) + sizeof(*vertices)*v_count;
-		blob_write(buf, &i_offset, sizeof(i_offset));
+		U32 i_offset= buf->offset;
+		blob_write(buf, &rel_ptr, sizeof(rel_ptr));
 
+		blob_patch_rel_ptr(buf, v_offset);
 		blob_write(buf, &vertices[0], sizeof(*vertices)*v_count);
+
+		blob_patch_rel_ptr(buf, i_offset);
 		blob_write(buf, &indices[0], sizeof(*indices)*i_count);
 
 		FREE(dev_ator(), vertices);
@@ -139,6 +143,7 @@ void mesh_to_json(WJson *j, const Mesh *m)
 	}
 }
 
+/*
 internal
 void destroy_rt_mesh(Resource *res)
 {
@@ -167,4 +172,5 @@ Mesh *create_rt_mesh(Mesh *src)
 
 	return rt_mesh;
 }
+*/
 

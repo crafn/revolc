@@ -4,6 +4,7 @@
 #include "build.h"
 #include "global/cfg.h"
 
+// Don't use this for members. Use RelPtr in core/ptr.h
 typedef U64 BlobOffset;
 
 #define RES_ATTRIB_MISSING(name) \
@@ -38,9 +39,8 @@ typedef struct Resource {
 
 	// Dev info
 	U32 res_file_index;
-	bool is_runtime_res; // true if Resource is owned by RuntimeResource
+	bool is_runtime_res; // true if Resource is owned by RuntimeResource (missing/created)
 	bool needs_saving; // Can be true only for RuntimeResources
-	struct Resource *substitute; // Runtime res. Used for editing
 } PACKED Resource;
 
 // RuntimeResource are created on demand to separately allocated

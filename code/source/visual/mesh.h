@@ -3,6 +3,7 @@
 
 #include "build.h"
 #include "core/color.h"
+#include "core/ptr.h"
 #include "core/vector.h"
 #include "core/json.h"
 #include "resources/resource.h"
@@ -54,8 +55,8 @@ typedef struct Mesh {
 	MeshType mesh_type;
 	U32 v_count;
 	U32 i_count;
-	BlobOffset v_offset;
-	BlobOffset i_offset;
+	REL_PTR(TriMeshVertex) vertices;
+	REL_PTR(MeshIndexType) indices;
 } PACKED Mesh;
 
 REVOLC_API TriMeshVertex * mesh_vertices(const Mesh *m);
@@ -65,8 +66,5 @@ REVOLC_API WARN_UNUSED
 int json_mesh_to_blob(struct BlobBuf *buf, JsonTok j);
 REVOLC_API
 void mesh_to_json(WJson *j, const Mesh *m);
-
-// Creates modifiable substitute for static mesh resource
-Mesh *create_rt_mesh(Mesh *src);
 
 #endif // REVOLC_VISUAL_MESH_H

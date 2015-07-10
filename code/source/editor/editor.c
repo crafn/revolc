@@ -87,12 +87,12 @@ void editor_revert_res_state()
 													m->model_name));
 		if (mesh->res.is_runtime_res) {
 			// Free old mesh
-			dev_free(blob_ptr(&mesh->res, mesh->v_offset));
-			dev_free(blob_ptr(&mesh->res, mesh->i_offset));
+			FREE(leakable_dev_ator(), mesh_vertices(mesh));
+			FREE(leakable_dev_ator(), mesh_indices(mesh));
 
 			// Move stored mesh
-			mesh->v_offset= blob_offset(&mesh->res, e->stored.vertices);
-			mesh->i_offset= blob_offset(&mesh->res, e->stored.indices);
+			set_rel_ptr(&mesh->vertices, e->stored.vertices);
+			set_rel_ptr(&mesh->indices, e->stored.indices);
 			mesh->v_count= e->stored.v_count;
 			mesh->i_count= e->stored.i_count;
 			e->stored.vertices= NULL;
@@ -117,15 +117,16 @@ void editor_revert_res_state()
 									ResType_Clip,
 									e->ae_state.clip_name);
 		// Free old
-		dev_free(blob_ptr(&clip->res, clip->keys_offset));
-		dev_free(blob_ptr(&clip->res, clip->local_samples_offset));
+		// @todo Automate
+		FREE(leakable_dev_ator(), rel_ptr(&clip->keys));
+		FREE(leakable_dev_ator(), rel_ptr(&clip->local_samples));
 
 		// Move stored
-		clip->keys_offset= blob_offset(&clip->res, e->stored.keys);
+		set_rel_ptr(&clip->keys, e->stored.keys);
 		clip->key_count= e->stored.key_count;
 		e->stored.keys= NULL;
 
-		clip->local_samples_offset= blob_offset(&clip->res, e->stored.samples);
+		set_rel_ptr(&clip->local_samples, e->stored.samples);
 		e->stored.samples= NULL;
 
 		recache_ptrs_to_clips();
