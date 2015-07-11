@@ -106,7 +106,7 @@ void init_module(Module *mod)
 		if (!mod->upd)
 			fail("upd_func not found: '%s'", mod->upd_func_name);
 	}
-	
+
 	debug_print("DLL loaded: %s", mod->extless_file);
 }
 

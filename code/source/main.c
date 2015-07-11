@@ -96,7 +96,6 @@ int main(int argc, const char **argv)
 
 	World *world= g_env.world= create_world();
 
-
 	// Init/load world
 	if (file_exists(SAVEFILE_PATH)) {
 		//load_world(world, SAVEFILE_PATH);

@@ -297,13 +297,15 @@ void parse_cmd(NodeGroupDef_Cmd *cmd, const Token *toks, U32 tok_count, const No
 
 void init_nodegroupdef(NodeGroupDef *def)
 {
-	for (U32 i= 0; i < def->node_count; ++i) {
-		NodeGroupDef_Node *node= &def->nodes[i];
-
-		node->default_struct_size= rtti_struct_size(node->type_name);
-		if (node->default_struct_size > MAX_DEFAULT_STRUCT_SIZE)
-			fail("Too large node struct: %i > %i",
-					node->default_struct_size, MAX_DEFAULT_STRUCT_SIZE);
+	for (U32 node_i= 0; node_i < def->node_count; ++node_i) {
+		NodeGroupDef_Node *node= &def->nodes[node_i];
+		node->default_struct_size=
+			rtti_struct_size(node->type_name);
+		ensure(node->default_struct_size > 0);
+		node->default_struct=
+			ZERO_ALLOC(gen_ator(), node->default_struct_size, "default_struct");
+		node->default_struct_set_bytes=
+			ZERO_ALLOC(gen_ator(), node->default_struct_size, "default_struct_set_bytes");
 	}
 
 	for (U32 node_i= 0; node_i < def->node_count; ++node_i) {
@@ -317,10 +319,12 @@ void init_nodegroupdef(NodeGroupDef *def)
 			U32 offset= rtti_member_offset(node->type_name, field_str);
 
 			const U32 value_size= strlen(value_str) + 1;
-			ensure(offset + size < MAX_DEFAULT_STRUCT_SIZE);
+			ensure(offset + size < node->default_struct_size);
 			ensure(value_size <= size);
-			memcpy(node->default_struct + offset, value_str, value_size);
-			memset(node->default_struct_set_bytes + offset, 1, value_size);
+			memcpy(	node->default_struct + offset, value_str,
+					value_size);
+			memset(	node->default_struct_set_bytes + offset, 1,
+					value_size);
 		}
 	}
 
@@ -403,8 +407,33 @@ int json_nodegroupdef_to_blob(struct BlobBuf *buf, JsonTok j)
 	blob_write(	buf,
 				(U8*)&def + sizeof(Resource),
 				sizeof(def) - sizeof(Resource));
+
+/*
+	for (U32 i= 0; i < def.node_count; ++i) {
+		U32 default_struct_offset=
+			res_offset + offsetof(NodeGroupDef, nodes[i])
+			+ offsetof(NodeGroupDef_Node, default_struct);
+		blob_patch_rel_ptr(buf, default_struct_offset);
+		blob_write(buf, NULL, def.nodes[i].default_struct_size);
+
+		U32 default_struct_set_bytes_offset=
+			res_offset + offsetof(NodeGroupDef, nodes[i])
+			+ offsetof(NodeGroupDef_Node, default_struct_set_bytes);
+		blob_patch_rel_ptr(buf, default_struct_set_bytes_offset);
+		blob_write(buf, NULL, def.nodes[i].default_struct_size);
+	}
+*/
+
 	return 0;
 
 error:
 	return 1;
+}
+
+void deinit_nodegroupdef(NodeGroupDef *def)
+{
+	for (U32 i= 0; i < def->node_count; ++i) {
+		FREE(gen_ator(), def->nodes[i].default_struct);
+		FREE(gen_ator(), def->nodes[i].default_struct_set_bytes);
+	}
 }

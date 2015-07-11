@@ -6,7 +6,7 @@
 
 World * create_world()
 {
-	World *w= ALLOC(gen_ator(), sizeof(*w), "world");
+	World *w= ZERO_ALLOC(gen_ator(), sizeof(*w), "world");
 
 	// Initialize storage for automatically allocated node impls
 	// @todo Alignment
@@ -59,7 +59,7 @@ World * create_world()
 			(NodeGroupDef*)res_by_name(	g_env.resblob,
 										ResType_NodeGroupDef,
 										"builtin");
-		create_nodes(w, def, WITH_ARRAY_COUNT(init_vals), (U64)-1);
+		create_nodes(w, def, WITH_ARRAY_COUNT(init_vals), 0);
 	}
 
 	return w;
@@ -361,7 +361,7 @@ void load_world(World *w, RArchive *ar)
 		}
 
 		// New Node implementation from binary
-		U8 dead_impl_bytes[n->type->size]; /// @todo Alignment!!!
+		U8 *dead_impl_bytes= ALLOC(frame_ator(), n->type->size, "dead_impl_bytes");
 		unpack_buf(ar, dead_impl_bytes, n->type->size);
 		resurrect_node_impl(w, n, dead_impl_bytes);
 	}
@@ -389,15 +389,20 @@ void create_nodes(	World *w,
 							group_id);
 		handles[node_i]= h;
 		NodeInfo *node= &w->nodes[h];
+		
+		ensure(node_def->default_struct_size > 0);
 
-		U8 default_struct[sizeof(node_def->default_struct)]= {};
+		U8 *default_struct= ZERO_ALLOC(frame_ator(), node_def->default_struct_size, "default_struct");
 		if (node->type->init)
 			node->type->init(default_struct);
 
 		// Default values in NodeGroupDef override struct init values
 		for (U32 i= 0; i < node_def->default_struct_size; ++i) {
-			if (node_def->default_struct_set_bytes[i])
-				default_struct[i]= node_def->default_struct[i];
+			U8 *set_bytes= node_def->default_struct_set_bytes;
+			if (set_bytes[i]) {
+				U8 *default_bytes= node_def->default_struct;
+				default_struct[i]= default_bytes[i];
+			}
 		}
 
 		// Passed init values override default values of NodeGroupDef
@@ -498,7 +503,8 @@ void free_node(World *w, U32 handle)
 		ensure(impl_handle < st->max_count);
 		st->allocated[impl_handle]= false;
 	} else {
-		n->type->free(node_impl(w, NULL, n));
+		if (n->type->free)
+			n->type->free(node_impl(w, NULL, n));
 	}
 
 	--w->node_count;
@@ -596,6 +602,7 @@ void resurrect_node_impl(World *w, NodeInfo *n, void *dead_impl_bytes)
 		n->impl_handle= h;
 	} else {
 		// Manual memory management
+		ensure(n->type->resurrect);
 		n->impl_handle= n->type->resurrect(dead_impl_bytes);
 	}
 }

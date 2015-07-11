@@ -490,6 +490,15 @@ void * storage_rigidbody()
 RigidBody * get_rigidbody(U32 h)
 { return g_env.physworld->bodies + h; }
 
+
+U32 resurrect_physgrid(const PhysGrid *dead)
+{
+	if (dead->def.cell_count == 0)
+		return 0; // Skip the creation of PhysGrid node -- init already at physworld
+	g_env.physworld->grid= *dead;
+	return 0;
+}
+
 void *storage_physgrid()
 { return &g_env.physworld->grid; }
 

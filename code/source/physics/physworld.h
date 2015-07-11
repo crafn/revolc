@@ -76,6 +76,8 @@ REVOLC_API U32 resurrect_rigidbody(const RigidBody *dead);
 REVOLC_API void free_rigidbody(RigidBody *b);
 REVOLC_API void * storage_rigidbody();
 REVOLC_API RigidBody * get_rigidbody(U32 h);
+
+REVOLC_API U32 resurrect_physgrid(const PhysGrid *dead);
 REVOLC_API void *storage_physgrid();
 
 REVOLC_API void upd_physworld(F64 dt);

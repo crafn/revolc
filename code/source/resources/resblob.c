@@ -360,7 +360,10 @@ void print_blob(const ResBlob *blob)
 void blob_write(BlobBuf *buf, const void *data, U32 byte_count)
 {
 	ensure(buf->offset + byte_count <= buf->max_size);
-	memcpy(buf->data + buf->offset, data, byte_count);
+	if (data)
+		memcpy(buf->data + buf->offset, data, byte_count);
+	else
+		memset(buf->data + buf->offset, 0, byte_count);
 	buf->offset += byte_count;
 }
 
@@ -402,8 +405,8 @@ void make_blob(const char *dst_file_path, char **res_file_paths)
 	BlobOffset *res_offsets= NULL;
 
 	U32 res_file_count= 0;
-	for (; res_file_paths[res_file_count]; ++res_file_count)
-		;
+	while (res_file_paths[res_file_count])
+		++res_file_count;
 
 	// Parse all resource files
 	ParsedJsonFile *parsed_jsons=

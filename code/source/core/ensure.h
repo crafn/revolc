@@ -6,7 +6,8 @@
 
 // @todo ensure
 // @todo CAPS
-#define ensure assert
+#define ensure(x) \
+	do { if (!(x)) fail("ensure failed: %s", #x); } while(0)
 
 REVOLC_API NORETURN
 void fail(const char *format, ...);

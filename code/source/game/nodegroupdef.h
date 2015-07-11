@@ -4,9 +4,9 @@
 #include "build.h"
 #include "resources/resource.h"
 #include "core/json.h"
+#include "core/ptr.h"
 
 #define MAX_NODES_IN_GROUP_DEF 16
-#define MAX_DEFAULT_STRUCT_SIZE (1024*2)
 #define MAX_CMDS_IN_GROUP_DEF 8
 #define MAX_CMD_CALL_PARAMS 4
 #define MAX_CMD_STR_SIZE 128
@@ -45,12 +45,12 @@ typedef struct NodeGroupDef_Cmd {
 			U32 p_count;
 		};
 	};
-} NodeGroupDef_Cmd;
+} PACKED NodeGroupDef_Cmd;
 
 typedef struct NodeGroupDef_Node_Defaults {
 	char dst[RES_NAME_SIZE];
 	char src[RES_NAME_SIZE];
-} NodeGroupDef_Node_Defaults;
+} PACKED NodeGroupDef_Node_Defaults;
 
 typedef struct NodeGroupDef_Node {
 	char type_name[RES_NAME_SIZE];
@@ -59,13 +59,15 @@ typedef struct NodeGroupDef_Node {
 	NodeGroupDef_Node_Defaults defaults[MAX_NODE_DEFAULTS];
 	U32 defaults_count;
 
+	// Would like to write these to blob, but that would require modules
+	// to be loaded at make_blob...
 	// Bytes of default node struct, which can be resurrected
-	U8 default_struct[MAX_DEFAULT_STRUCT_SIZE];
+	U8* default_struct;
 	// 1 if corresponding byte is set in default_struct
-	U8 default_struct_set_bytes[MAX_DEFAULT_STRUCT_SIZE];
+	U8* default_struct_set_bytes;
 	U32 default_struct_size;
 
-} NodeGroupDef_Node;
+} PACKED NodeGroupDef_Node;
 
 typedef struct NodeGroupDef {
 	Resource res;
@@ -80,6 +82,7 @@ typedef struct NodeGroupDef {
 } PACKED NodeGroupDef;
 
 REVOLC_API void init_nodegroupdef(NodeGroupDef *def);
+REVOLC_API void deinit_nodegroupdef(NodeGroupDef *def);
 
 REVOLC_API WARN_UNUSED
 int json_nodegroupdef_to_blob(struct BlobBuf *buf, JsonTok j);
