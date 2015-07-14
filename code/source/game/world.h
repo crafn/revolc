@@ -85,14 +85,20 @@ typedef struct World {
 	NodeInfo sort_space[MAX_NODE_COUNT];
 } World;
 
+typedef struct DeadWorld {
+	U32 size; // Size of this blob
+	Id_U32_Tbl id_to_offset;
+	REL_PTR(U8) node_data;
+} DeadWorld;
+
 REVOLC_API WARN_UNUSED World * create_world();
 REVOLC_API void destroy_world(World *w);
 REVOLC_API void clear_world_nodes(World *w);
 
 REVOLC_API void upd_world(World *w, F64 dt);
 
-REVOLC_API void save_world(World *w, WArchive *ar);
-REVOLC_API void load_world(World *w, RArchive *ar);
+REVOLC_API void save_world(WArchive *ar, World *w);
+REVOLC_API void load_world(RArchive *ar, World *w);
 
 REVOLC_API void create_nodes(	World *w,
 								const NodeGroupDef *def,
@@ -109,7 +115,7 @@ REVOLC_API Handle node_id_to_handle(World *w, Id id);
 // Not intended to be widely used
 REVOLC_API void * node_impl(World *w, U32 *size, NodeInfo *node);
 REVOLC_API void resurrect_node_impl(World *w, NodeInfo *n, void *dead_impl_bytes);
-REVOLC_API U32 alloc_node_without_impl(World *w, NodeType *type, U64 node_id, U64 group_id);
+REVOLC_API U32 alloc_node_without_impl(World *w, NodeType *n, U64 node_id, U64 group_id);
 
 void world_on_res_reload(struct ResBlob *old);
 

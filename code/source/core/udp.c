@@ -61,23 +61,24 @@ void buffer_udp_packet(	UdpPeer *peer, const void *data, U16 size,
 	++peer->packets_waiting_send_count;
 }
 
-void buffer_udp_msg(UdpPeer *peer, const void *data, U32 size)
+U32 buffer_udp_msg(UdpPeer *peer, const void *data, U32 size)
 {
 	ensure(!data || size > 0);
 	U32 frag_count= 1;
 	if (size > 0)
 		frag_count= (size - 1)/UDP_MAX_PACKET_DATA_SIZE + 1;
 	U32 left_size= size;
+	U32 msg_id= data ? peer->next_msg_id++ : UDP_HEARTBEAT_MSG_ID;
 	for (U32 i= 0; i < frag_count; ++i) {
 		buffer_udp_packet(	peer,
 							(const U8*)data + i*UDP_MAX_PACKET_DATA_SIZE,
 							MIN(left_size, UDP_MAX_PACKET_DATA_SIZE),
-							data ? peer->next_msg_id : UDP_HEARTBEAT_MSG_ID,
+							msg_id,
 							i,
 							frag_count);
 		left_size -= UDP_MAX_PACKET_DATA_SIZE;
 	}
-	++peer->next_msg_id;
+	return msg_id;
 }
 
 struct SendPriority {
@@ -121,7 +122,9 @@ int recv_packet_cmp(const void *a_, const void *b_)
 	}
 }
 
-REVOLC_API void upd_udp_peer(UdpPeer *peer, UdpMsg **msgs, U32 *msg_count)
+void upd_udp_peer(	UdpPeer *peer,
+					UdpMsg **msgs, U32 *msg_count,
+					U32 **acked_msgs, U32 *acked_msg_count)
 {
 	bool has_target= peer->remote_addr.port != 0;
 

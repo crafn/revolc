@@ -10,6 +10,8 @@ void init_nodetype(NodeType *node)
 	bool has_resurrect= node->resurrect_func_name[0] != 0;
 	bool has_upd= node->upd_func_name[0] != 0;
 	bool has_free= node->free_func_name[0] != 0;
+	bool has_pack= node->pack_func_name[0] != 0;
+	bool has_unpack= node->unpack_func_name[0] != 0;
 
 	if (has_init) {
 		node->init=
@@ -30,6 +32,20 @@ void init_nodetype(NodeType *node)
 			(FreeNodeImpl)rtti_func_ptr(node->free_func_name);
 		if (!node->free)
 			fail("free_func not found: '%s'", node->free_func_name);
+	}
+
+	if (has_pack) {
+		node->pack=
+			(PackNodeImpl)rtti_func_ptr(node->pack_func_name);
+		if (!node->pack)
+			fail("pack_func not found: '%s'", node->pack_func_name);
+	}
+
+	if (has_unpack) {
+		node->unpack=
+			(UnpackNodeImpl)rtti_func_ptr(node->unpack_func_name);
+		if (!node->unpack)
+			fail("unpack_func not found: '%s'", node->unpack_func_name);
 	}
 
 	if (node->auto_impl_mgmt == false) {
@@ -61,6 +77,8 @@ int json_nodetype_to_blob(struct BlobBuf *buf, JsonTok j)
 	JsonTok j_free= json_value_by_key(j, "free_func");
 	JsonTok j_upd= json_value_by_key(j, "upd_func");
 	JsonTok j_storage= json_value_by_key(j, "storage_func");
+	JsonTok j_pack= json_value_by_key(j, "pack_func");
+	JsonTok j_unpack= json_value_by_key(j, "unpack_func");
 
 	if (json_is_null(j_impl_mgmt))
 		RES_ATTRIB_MISSING("impl_mgmt");
@@ -72,6 +90,10 @@ int json_nodetype_to_blob(struct BlobBuf *buf, JsonTok j)
 		RES_ATTRIB_MISSING("upd_func");
 	if (json_is_null(j_free))
 		RES_ATTRIB_MISSING("free_func");
+	if (json_is_null(j_pack))
+		RES_ATTRIB_MISSING("pack_func");
+	if (json_is_null(j_unpack))
+		RES_ATTRIB_MISSING("unpack_func");
 
 	bool auto_impl_mgmt= !strcmp(json_str(j_impl_mgmt), "auto");
 	U32 auto_impl_max_count= 0;
@@ -93,14 +115,13 @@ int json_nodetype_to_blob(struct BlobBuf *buf, JsonTok j)
 		.auto_impl_mgmt= auto_impl_mgmt,
 		.auto_impl_max_count= auto_impl_max_count,
 	};
-	fmt_str(
-		n.init_func_name, sizeof(n.init_func_name), "%s", json_str(j_init));
-	fmt_str(
-		n.resurrect_func_name, sizeof(n.resurrect_func_name), "%s", json_str(j_resurrect));
-	fmt_str(
-		n.upd_func_name, sizeof(n.upd_func_name), "%s", json_str(j_upd));
-	fmt_str(
-		n.free_func_name, sizeof(n.free_func_name), "%s", json_str(j_free));
+	fmt_str(n.init_func_name, sizeof(n.init_func_name), "%s", json_str(j_init));
+	fmt_str(n.resurrect_func_name, sizeof(n.resurrect_func_name), "%s", json_str(j_resurrect));
+	fmt_str(n.upd_func_name, sizeof(n.upd_func_name), "%s", json_str(j_upd));
+	fmt_str(n.free_func_name, sizeof(n.free_func_name), "%s", json_str(j_free));
+	fmt_str(n.pack_func_name, sizeof(n.pack_func_name), "%s", json_str(j_pack));
+	fmt_str(n.unpack_func_name, sizeof(n.unpack_func_name), "%s", json_str(j_unpack));
+	
 
 	if (n.auto_impl_mgmt == false) {
 		fmt_str(

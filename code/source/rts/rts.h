@@ -24,11 +24,9 @@ typedef struct RtsEnv {
 	U8 snapshot[RTS_SNAPSHOT_SIZE];
 	U32 snapshot_id;
 	U32 snapshot_size;
-
-	F64 delta_time;
 } RtsEnv;
 
 MOD_API RtsEnv *rts_env();
-
+MOD_API void upd_rts();
 
 #endif // REVOLC_RTS_RTS_H

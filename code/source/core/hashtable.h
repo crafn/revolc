@@ -21,6 +21,8 @@ typedef struct Id_Handle_Tbl_Entry {
 	Handle value;
 } Id_Handle_Tbl_Entry;
 
+typedef Id_Handle_Tbl Id_U32_Tbl;
+
 REVOLC_API Id_Handle_Tbl create_id_handle_tbl(Ator ator, U32 max_size);
 REVOLC_API void destroy_id_handle_tbl(Id_Handle_Tbl *tbl);
 

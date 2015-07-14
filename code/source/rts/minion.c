@@ -29,16 +29,18 @@ void upd_minion(Minion *minion_begin, Minion *minion_end)
 	}
 }
 
-/*
-void pack_minion(WArchive *ar, Minion *minion)
-{ // @todo Generate this function. Use arrays.
-	pack_f64(ar, &minion->pos.x);
-	pack_f64(ar, &minion->pos.y);
+void pack_minion(WArchive *ar, const Minion *begin, const Minion *end)
+{ // @todo Generate this function
+	for (const Minion *minion= begin; minion != end; ++minion) {
+		pack_f64(ar, &minion->pos.x);
+		pack_f64(ar, &minion->pos.y);
+	}
 }
 
-void unpack_minion(RArchive *ar, Minion *minion)
-{ // @todo Generate this function. Use arrays.
-	unpack_f64(ar, &minion->pos.x);
-	unpack_f64(ar, &minion->pos.y);
+void unpack_minion(RArchive *ar, Minion *begin, Minion *end)
+{ // @todo Generate this function
+	for (Minion *minion= begin; minion != end; ++minion) {
+		unpack_f64(ar, &minion->pos.x);
+		unpack_f64(ar, &minion->pos.y);
+	}
 }
-*/

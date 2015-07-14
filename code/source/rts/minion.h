@@ -10,8 +10,8 @@ typedef struct Minion {
 	V3d pos;
 } Minion;
 
-MOD_API void upd_minion(Minion *minion_begin, Minion *minion_end);
-//MOD_API void pack_minion(struct WArchive *ar, Minion *minion);
-//MOD_API void unpack_minion(struct RArchive *ar, Minion *minion);
+MOD_API void upd_minion(Minion *begin, Minion *end);
+MOD_API void pack_minion(struct WArchive *ar, const Minion *begin, const Minion *end);
+MOD_API void unpack_minion(struct RArchive *ar, Minion *begin, Minion *end);
 
 #endif // REVOLC_RTS_MINION_H

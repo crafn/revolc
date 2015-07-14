@@ -496,6 +496,7 @@ U32 resurrect_physgrid(const PhysGrid *dead)
 	if (dead->def.cell_count == 0)
 		return 0; // Skip the creation of PhysGrid node -- init already at physworld
 	g_env.physworld->grid= *dead;
+	g_env.physworld->grid.modified= true;
 	return 0;
 }
 

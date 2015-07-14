@@ -7,12 +7,16 @@
 
 struct World;
 struct Module;
+struct WArchive;
+struct RArchive;
 typedef void (*InitNodeImpl)(void *data);
 typedef U32 (*ResurrectNodeImpl)(void *dead);
 typedef void (*FreeNodeImpl)(void *data);
 typedef void * (*StorageNodeImpl)();
 typedef void (*UpdNodeImpl)(void *begin,
 							void *end);
+typedef void (*PackNodeImpl)(WArchive *ar, const void *begin, const void *end);
+typedef void (*UnpackNodeImpl)(RArchive *ar, void *begin, void *end);
 
 typedef struct NodeType {
 	Resource res;
@@ -23,6 +27,8 @@ typedef struct NodeType {
 
 	char free_func_name[MAX_FUNC_NAME_SIZE];
 	char storage_func_name[MAX_FUNC_NAME_SIZE];
+	char pack_func_name[MAX_FUNC_NAME_SIZE];
+	char unpack_func_name[MAX_FUNC_NAME_SIZE];
 
 	// If true, handles & impls are managed by the node system.
 	// Also, free and storage funcs are NULL, and resurrect
@@ -37,6 +43,8 @@ typedef struct NodeType {
 	UpdNodeImpl upd;
 	FreeNodeImpl free;
 	StorageNodeImpl storage;
+	PackNodeImpl pack;
+	UnpackNodeImpl unpack;
 	U32 size;
 
 	// Set by node system!

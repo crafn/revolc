@@ -30,6 +30,7 @@
 #include "global/module.c"
 #include "global/rtti.c"
 #include "main.c"
+#include "physics/physgrid.c"
 #include "physics/physmat.c"
 #include "physics/physworld.c"
 #include "physics/query.c"

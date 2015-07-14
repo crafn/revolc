@@ -134,7 +134,7 @@ void pack_world(WArchive *ar)
 	++rts_env()->snapshot_id;
 	pack_u32(ar, &rts_env()->snapshot_id);
 
-	save_world(g_env.world, ar);
+	save_world(ar, g_env.world);
 }
 
 internal
@@ -144,7 +144,7 @@ void unpack_world(RArchive *ar)
 
 	clear_world_nodes(g_env.world);
 
-	load_world(g_env.world, ar);
+	load_world(ar, g_env.world);
 	g_env.physworld->grid.modified= true;
 }
 
@@ -157,7 +157,7 @@ bool is_compatible_delta(	const void *delta,		U32 delta_size,
 	return !memcmp(delta, snapshot, sizeof(U32));
 }
 
-MOD_API void upd_rts()
+void upd_rts()
 {
 	rts_env()->game_time += g_env.dt;
 
@@ -221,7 +221,7 @@ MOD_API void upd_rts()
 
 		UdpMsg *msgs;
 		U32 msg_count;
-		upd_udp_peer(peer, &msgs, &msg_count);
+		upd_udp_peer(peer, &msgs, &msg_count, NULL, NULL);
 
 		for (U32 i= 0; i < msg_count; ++i) {
 			if (msgs[i].data_size < 2) // RtsMsg takes 1 byte
