@@ -129,33 +129,67 @@ void spawn_action(SpawnAction *action)
 }
 
 internal
-void pack_world(WArchive *ar)
+void make_snapshot(WArchive *ar)
 {
-	++rts_env()->snapshot_id;
-	pack_u32(ar, &rts_env()->snapshot_id);
-
+	debug_print("make_snapshot");
 	save_world(ar, g_env.world);
+
+	if (ar->type != ArchiveType_measure) {
+		if (ar->data_size > RTS_SNAPSHOT_SIZE)
+			fail("Too large world");
+		++rts_env()->snapshot_id;
+		memcpy(rts_env()->snapshot, ar->data, ar->data_size);
+		rts_env()->snapshot_size= ar->data_size;
+	}
 }
 
 internal
-void unpack_world(RArchive *ar)
+void resurrect_snapshot(RArchive *ar)
 {
-	unpack_u32(ar, &rts_env()->snapshot_id);
+	debug_print("resurrect_snapshot");
 
 	clear_world_nodes(g_env.world);
 
 	load_world(ar, g_env.world);
 	g_env.physworld->grid.modified= true;
+
+	if (ar->data_size > RTS_SNAPSHOT_SIZE)
+		fail("Too large world");
+	memcpy(rts_env()->snapshot, ar->data, ar->data_size);
+	rts_env()->snapshot_size= ar->data_size;
 }
 
 internal
-bool is_compatible_delta(	const void *delta,		U32 delta_size,
-							const void *snapshot,	U32 snapshot_size)
+void make_world_delta(WArchive *ar)
 {
-	if (delta_size < sizeof(U32) || snapshot_size < sizeof(U32))
-		return false;
-	return !memcmp(delta, snapshot, sizeof(U32));
+	debug_print("make_world_delta: base: %i", rts_env()->snapshot_id);
+	RArchive base= create_rarchive(	ArchiveType_binary,
+									rts_env()->snapshot,
+									rts_env()->snapshot_size);
+	save_world_delta(ar, g_env.world, &base);
+	destroy_rarchive(&base);
 }
+
+internal
+void resurrect_world_delta(RArchive *ar)
+{
+	debug_print("resurrect_world_delta");
+	RArchive base= create_rarchive(	ArchiveType_binary,
+									rts_env()->snapshot,
+									rts_env()->snapshot_size);
+/*
+	if (base_id != delta_id) {
+		debug_print("Incompatible delta received: %i != %i", base_id, delta_id);
+		goto exit;
+	}
+*/
+
+	load_world_delta(ar, g_env.world, &base);
+	g_env.physworld->grid.modified= true;
+
+	destroy_rarchive(&base);
+}
+
 
 void upd_rts()
 {
@@ -178,35 +212,43 @@ void upd_rts()
 		// World sync
 		if (	peer->connected &&
 				rts_env()->game_time - rts_env()->snapshot_time > RTS_SNAPSHOT_INTERVAL) {
-			rts_env()->snapshot_time= rts_env()->game_time;
 			if (rts_env()->authority) {
+				if (rts_env()->snapshot_time <= 0.0) {
+					// Send a snapshot.
+					// This might not include the most recent client commands (latency), but
+					// they will be rescheduled after the snapshot instead dropping.
 
-				// Send a snapshot.
-				// This might not include the most recent client commands (latency), but
-				// they will be rescheduled after the snapshot instead dropping.
+					WArchive measure= create_warchive(ArchiveType_measure, 0);
+					make_snapshot(&measure);
+					U32 world_size= measure.data_size;
+					destroy_warchive(&measure);
+			
+					WArchive ar= create_warchive(ArchiveType_binary, world_size);
+					make_snapshot(&ar);
+					send_rts_msg(RtsMsg_snapshot, ar.data, ar.data_size);
 
-				WArchive measure= create_warchive(ArchiveType_measure, 0);
-				pack_world(&measure);
-				U32 world_size= measure.data_size;
-				destroy_warchive(&measure);
-		
-				WArchive ar= create_warchive(ArchiveType_binary, world_size);
-				pack_world(&ar);
-				send_rts_msg(RtsMsg_snapshot, ar.data, ar.data_size);
+					destroy_warchive(&ar);
 
-				if (ar.data_size > RTS_SNAPSHOT_SIZE)
-					fail("Too large world");
-				memcpy(rts_env()->snapshot, ar.data, ar.data_size);
-				rts_env()->snapshot_size= ar.data_size;
-				
-				destroy_warchive(&ar);
-
-				rts_env()->snapshot_time= rts_env()->game_time;
+					rts_env()->snapshot_time= rts_env()->game_time;
+				} else {
+					// Send a delta
+					WArchive measure= create_warchive(ArchiveType_measure, 0);
+					make_world_delta(&measure);
+					U32 delta_size= measure.data_size;
+					destroy_warchive(&measure);
+			
+					WArchive ar= create_warchive(ArchiveType_binary, delta_size);
+					make_world_delta(&ar);
+					send_rts_msg(RtsMsg_delta, ar.data, ar.data_size);
+					debug_print("sent delta %.3fkb", 1.0*ar.data_size/1024);
+				}
 			}
+			rts_env()->snapshot_time= rts_env()->game_time;
 
 			//const char *msg = frame_str(rts_env()->authority ? "\1hello %i" : "\1world %i", peer->next_msg_id);
 			//buffer_udp_msg(peer, msg, strlen(msg) + 1);
 
+			debug_print("--- net stats ---");
 			debug_print("packet loss: %.1f%%", 100.0*peer->drop_count/(peer->acked_packet_count + peer->drop_count));
 			debug_print("rtt: %.3f", peer->rtt);
 			debug_print("sent packet count: %i", peer->sent_packet_count);
@@ -240,7 +282,14 @@ void upd_rts()
 
 				case RtsMsg_snapshot: {
 					RArchive ar= create_rarchive(ArchiveType_binary, data, data_size);
-					unpack_world(&ar);
+					resurrect_snapshot(&ar);
+					destroy_rarchive(&ar);
+				} break;
+
+				case RtsMsg_delta: {
+					RArchive ar= create_rarchive(ArchiveType_binary, data, data_size);
+					debug_print("received delta %.3fkb", 1.0*ar.data_size/1024);
+					resurrect_world_delta(&ar);
 					destroy_rarchive(&ar);
 				} break;
 

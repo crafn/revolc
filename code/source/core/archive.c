@@ -58,11 +58,11 @@ void binary_unpack_f64(RArchive *ar, F64 *value)
 { binary_unpack_buf(ar, value, sizeof(*value)); }
 void binary_unpack_buf(RArchive *ar, void *data, U32 data_size)
 {
-	if (ar->read_ptr + data_size > ar->data + ar->data_size)
+	if (ar->offset + data_size > ar->data_size)
 		fail("RArchive capacity exceeded");
 
-	memcpy(data, ar->read_ptr, data_size);
-	ar->read_ptr += data_size;
+	memcpy(data, ar->data + ar->offset, data_size);
+	ar->offset += data_size;
 }
 void binary_unpack_strbuf(RArchive *ar, char *str, U32 str_max_size)
 { binary_unpack_buf(ar, str, str_max_size); str[str_max_size - 1]= '\0'; }
@@ -169,7 +169,7 @@ RArchive create_rarchive(ArchiveType t, const void *data, U32 data_size)
 	ensure(t == ArchiveType_binary);
 	return (RArchive) {
 		.type= t,
-		.read_ptr= data,
+		.offset= 0,
 		.data= data,
 		.data_size= data_size,
 	};
@@ -192,6 +192,14 @@ void pack_buf(WArchive *ar, const void *data, U32 data_size)
 { pack_buf_funcs[ar->type](ar, data, data_size); }
 void pack_strbuf(WArchive *ar, const char *str, U32 str_max_size)
 { pack_strbuf_funcs[ar->type](ar, str, str_max_size); }
+
+void pack_buf_patch(WArchive *ar, U32 offset, const void *data, U32 data_size)
+{
+	U32 end= ar->data_size;
+	ar->data_size= offset;
+	pack_buf(ar, data, data_size);
+	ar->data_size= end;
+}
 
 void unpack_u32(RArchive *ar, U32 *value)
 { unpack_u32_funcs[ar->type](ar, value); }

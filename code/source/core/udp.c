@@ -176,7 +176,9 @@ void upd_udp_peer(	UdpPeer *peer,
 			}
 
 			if (frame_sent_bytes + packet_size > UDP_OUTGOING_LIMIT_FRAME) {
+#if 0
 				debug_print("Limiting sending (bandwidth)");
+#endif
 				break; // Limit sending to prevent packet loss in kernel
 			}
 
@@ -418,12 +420,14 @@ void upd_udp_peer(	UdpPeer *peer,
 					< peer->rtt*UDP_DROP_RTT_MUL)
 				continue;
 
+#if 0
 			debug_print(	"Packet id %i, %i (%i/%i) dropped (rtt %f)",
 							packet->header.packet_id,
 							packet->header.msg_id,
 							packet->header.msg_frag_ix,
 							packet->header.msg_frag_count,
 							peer->rtt);
+#endif
 			++peer->drop_count;
 
 			// @todo Only for reliable messages

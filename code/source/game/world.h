@@ -85,12 +85,6 @@ typedef struct World {
 	NodeInfo sort_space[MAX_NODE_COUNT];
 } World;
 
-typedef struct DeadWorld {
-	U32 size; // Size of this blob
-	Id_U32_Tbl id_to_offset;
-	REL_PTR(U8) node_data;
-} DeadWorld;
-
 REVOLC_API WARN_UNUSED World * create_world();
 REVOLC_API void destroy_world(World *w);
 REVOLC_API void clear_world_nodes(World *w);
@@ -99,6 +93,9 @@ REVOLC_API void upd_world(World *w, F64 dt);
 
 REVOLC_API void save_world(WArchive *ar, World *w);
 REVOLC_API void load_world(RArchive *ar, World *w);
+
+REVOLC_API void save_world_delta(WArchive *ar, World *w, RArchive *base_ar);
+REVOLC_API void load_world_delta(RArchive *ar, World *w, RArchive *base_ar);
 
 REVOLC_API void create_nodes(	World *w,
 								const NodeGroupDef *def,

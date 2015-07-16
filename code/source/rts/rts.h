@@ -22,8 +22,8 @@ typedef struct RtsEnv {
 
 	F64 snapshot_time;
 	U8 snapshot[RTS_SNAPSHOT_SIZE];
-	U32 snapshot_id;
 	U32 snapshot_size;
+	U32 snapshot_id;
 } RtsEnv;
 
 MOD_API RtsEnv *rts_env();
