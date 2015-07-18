@@ -5,7 +5,7 @@
 
 typedef enum ArchiveType {
 	ArchiveType_measure, // Doesn't write anything
-	ArchiveType_binary, // Compressed binary
+	ArchiveType_binary, // Binary
 	// @todo Think about json archive (replacing hand-written json serialization)
 } ArchiveType;
 
@@ -33,6 +33,8 @@ REVOLC_API void destroy_rarchive(RArchive *ar);
 // @todo Options parameters (range, precision, ...)
 REVOLC_API void pack_u32(WArchive *ar, const U32 *value);
 REVOLC_API void pack_u64(WArchive *ar, const U64 *value);
+REVOLC_API void pack_s32(WArchive *ar, const S32 *value);
+REVOLC_API void pack_s64(WArchive *ar, const S64 *value);
 REVOLC_API void pack_f32(WArchive *ar, const F32 *value);
 REVOLC_API void pack_f64(WArchive *ar, const F64 *value);
 REVOLC_API void pack_buf(WArchive *ar, const void *data, U32 data_size);
@@ -42,6 +44,8 @@ REVOLC_API void pack_buf_patch(WArchive *ar, U32 offset, const void *data, U32 d
 
 REVOLC_API void unpack_u32(RArchive *ar, U32 *value);
 REVOLC_API void unpack_u64(RArchive *ar, U64 *value);
+REVOLC_API void unpack_s32(RArchive *ar, S32 *value);
+REVOLC_API void unpack_s64(RArchive *ar, S64 *value);
 REVOLC_API void unpack_f32(RArchive *ar, F32 *value);
 REVOLC_API void unpack_f64(RArchive *ar, F64 *value);
 REVOLC_API void unpack_buf(RArchive *ar, void *data, U32 data_size);

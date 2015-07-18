@@ -10,30 +10,30 @@ typedef struct SaveHeader {
 	bool delta;
 } PACKED SaveHeader;
 
-// @todo Rename Dead*
-typedef struct SaveCmd {
+// @todo So much useless information is saved
+typedef struct DeadCmd {
 	char func_name[MAX_FUNC_NAME_SIZE];
 	Id cond_node_id;
 	Id src_node_id;
-} PACKED SaveCmd;
-typedef struct SaveNode {
+} PACKED DeadCmd;
+typedef struct DeadNode {
 	NodeInfo info;
-	SaveCmd cmds[MAX_NODE_CMD_COUNT];
+	DeadCmd *cmds; // frame-allocated
 	U32 cmd_count;
 
 	void *packed_impl; // frame-allocated
 	U32 packed_impl_size;
-} PACKED SaveNode;
+} PACKED DeadNode;
 
 internal
-void save_deadnode(WArchive *ar, const SaveNode *n);
+void save_deadnode(WArchive *ar, const DeadNode *n);
 internal
-void load_deadnode(RArchive *ar, SaveNode *dead_node);
+void load_deadnode(RArchive *ar, DeadNode *dead_node);
 
 internal
-void make_deadnode(SaveNode *dead_node, World *w, NodeInfo *node);
+void make_deadnode(DeadNode *dead_node, World *w, NodeInfo *node);
 internal
-void resurrect_deadnode(World *w, const SaveNode *dead_node);
+void resurrect_deadnode(World *w, const DeadNode *dead_node);
 
 World * create_world()
 {
@@ -282,8 +282,6 @@ void save_world(WArchive *ar, World *w)
 		.delta= false,
 	};
 
-	// @todo So much useless information is saved
-
 	pack_buf(ar, &header, sizeof(header));
 	U32 saved_node_count= 0;
 	for (U32 node_i= 0; node_i < MAX_NODE_COUNT; ++node_i) {
@@ -291,7 +289,7 @@ void save_world(WArchive *ar, World *w)
 		if (!node->allocated)
 			continue;
 
-		SaveNode dead_node;
+		DeadNode dead_node;
 		make_deadnode(&dead_node, w, node);
 
 		save_deadnode(ar, &dead_node);
@@ -319,7 +317,7 @@ void load_world(RArchive *ar, World *w)
 	for (U32 node_i= 0; node_i < header.node_count;
 			++node_i, w->next_node= (w->next_node + 1) % MAX_NODE_COUNT) {
 		// New NodeInfo from binary
-		SaveNode dead_node;
+		DeadNode dead_node;
 		load_deadnode(ar, &dead_node);
 		resurrect_deadnode(w, &dead_node);
 
@@ -353,7 +351,7 @@ void save_world_delta(WArchive *ar, World *w, RArchive *base_ar)
 	// Go through base state and write deleted/modified nodes
 	for (U32 node_i= 0; node_i < base_header.node_count; ++node_i) {
 		// Read node from base state
-		SaveNode dead_base;
+		DeadNode dead_base;
 		load_deadnode(base_ar, &dead_base);
 
 		// Find node from world
@@ -374,8 +372,7 @@ void save_world_delta(WArchive *ar, World *w, RArchive *base_ar)
 			delta_node= w->nodes[node_h];
 		}
 
-		SaveNode dead_delta;
-		// @todo xor and compression
+		DeadNode dead_delta;
 		make_deadnode(&dead_delta, w, &delta_node);
 
 		// Check if dead node has different packed data.
@@ -390,7 +387,6 @@ void save_world_delta(WArchive *ar, World *w, RArchive *base_ar)
 			debug_print("delta differ: %s", node_h == NULL_HANDLE ? "null" : w->nodes[node_h].type->res.name);
 		}
 
-
 		save_deadnode(ar, &dead_delta);
 
 		++header.node_count;
@@ -403,7 +399,7 @@ void save_world_delta(WArchive *ar, World *w, RArchive *base_ar)
 
 		NodeInfo *created_node= &w->nodes[i];
 
-		SaveNode dead;
+		DeadNode dead;
 		make_deadnode(&dead, w, created_node);
 		save_deadnode(ar, &dead);
 		debug_print("delta created node: %s", w->nodes[i].type->res.name);
@@ -425,7 +421,7 @@ void load_world_delta(RArchive *ar, World *w, RArchive *base_ar)
 
 	// Go through delta archive and apply changes
 	for (U32 node_i= 0; node_i < delta_header.node_count; ++node_i) {
-		SaveNode dead_delta;
+		DeadNode dead_delta;
 		load_deadnode(ar, &dead_delta);
 
 		// Find node from world
@@ -450,12 +446,15 @@ void load_world_delta(RArchive *ar, World *w, RArchive *base_ar)
 	}
 }
 
-void make_deadnode(SaveNode *dead_node, World *w, NodeInfo *node)
+void make_deadnode(DeadNode *dead_node, World *w, NodeInfo *node)
 {
-	*dead_node= (SaveNode) {
+	*dead_node= (DeadNode) {
 		.info= *node,
 		.cmd_count= node->cmd_count,
 	};
+	dead_node->cmds=
+		ZERO_ALLOC(frame_ator(), dead_node->cmd_count*sizeof(*dead_node->cmds), "cmds");
+
 	for (U32 i= 0; i < node->cmd_count; ++i) {
 		const SlotCmd *cmd= &node->cmds[i];
 		if (cmd->has_condition)
@@ -490,7 +489,7 @@ void make_deadnode(SaveNode *dead_node, World *w, NodeInfo *node)
 	destroy_warchive(&ar); // Frame-allocator doesn't free. Relying on that.
 }
 
-void resurrect_deadnode(World *w, const SaveNode *dead_node)
+void resurrect_deadnode(World *w, const DeadNode *dead_node)
 {
 	U32 node_h= alloc_node_without_impl(
 			w,
@@ -543,23 +542,30 @@ void resurrect_deadnode(World *w, const SaveNode *dead_node)
 	resurrect_node_impl(w, n, dead_impl);
 }
 
-void save_deadnode(WArchive *ar, const SaveNode *dead_node)
+void save_deadnode(WArchive *ar, const DeadNode *dead_node)
 {
 	// @todo Don't pack useless stuff
 	pack_buf(ar, WITH_DEREF_SIZEOF(dead_node));
 	if (!dead_node->info.type) // Destroyed
 		return;
+
+	pack_buf(ar, dead_node->cmds, dead_node->cmd_count*sizeof(*dead_node->cmds));
+
 	ensure(dead_node->packed_impl);
 	pack_buf(ar, dead_node->packed_impl, dead_node->packed_impl_size);
 }
 
-void load_deadnode(RArchive *ar, SaveNode *dead_node)
+void load_deadnode(RArchive *ar, DeadNode *dead_node)
 {
 	unpack_buf(ar, WITH_DEREF_SIZEOF(dead_node));
 	ensure(dead_node->info.allocated);
 
 	if (!dead_node->info.type) // Destroyed
 		return;
+
+	const U32 cmds_size= dead_node->cmd_count*sizeof(*dead_node->cmds);
+	dead_node->cmds= ALLOC(frame_ator(), cmds_size, "packed_impl");
+	unpack_buf(ar, dead_node->cmds, cmds_size);
 
 	// New Node implementation from binary
 	dead_node->packed_impl=

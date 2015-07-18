@@ -10,7 +10,7 @@
 #include "mesh.h"
 
 typedef struct ModelEntity {
-	char model_name[RES_NAME_SIZE];
+	char model_name[RES_NAME_SIZE]; // @todo Replace with ResId
 	T3d tf;
 	S32 layer; // Overrides z-sorting. 0 for world stuff
 	bool allocated;
@@ -29,5 +29,14 @@ typedef struct ModelEntity {
 } ModelEntity;
 
 REVOLC_API void init_modelentity(ModelEntity *data);
+
+struct WArchive;
+struct RArchive;
+REVOLC_API void pack_modelentity(	struct WArchive *ar,
+									const ModelEntity *begin,
+									const ModelEntity *end);
+REVOLC_API void unpack_modelentity(	struct RArchive *ar,
+									ModelEntity *begin,
+									ModelEntity *end);
 
 #endif // REVOLC_VISUAL_ENTITY_MODEL_H

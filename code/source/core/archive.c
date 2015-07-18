@@ -2,17 +2,15 @@
 
 // @note No caring about endianness
 
+internal U32 float_size(bool single)
+{ return sizeof(float) + (!single)*sizeof(float); }
 
 // ArchiveType_measure
 
-void measure_pack_u32(WArchive *ar, const U32 *value)
-{ ar->data_size += sizeof(*value); }
-void measure_pack_u64(WArchive *ar, const U64 *value)
-{ ar->data_size += sizeof(*value); }
-void measure_pack_f32(WArchive *ar, const F32 *value)
-{ ar->data_size += sizeof(*value); }
-void measure_pack_f64(WArchive *ar, const F64 *value)
-{ ar->data_size += sizeof(*value); }
+void measure_pack_int(WArchive *ar, const void *value, U32 size)
+{ ar->data_size += size; }
+void measure_pack_float(WArchive *ar, const void *value, bool single)
+{ ar->data_size += float_size(single); }
 void measure_pack_buf(WArchive *ar, const void *data, U32 data_size)
 { ar->data_size += data_size; }
 void measure_pack_strbuf(WArchive *ar, const char *str, U32 str_max_size)
@@ -20,19 +18,14 @@ void measure_pack_strbuf(WArchive *ar, const char *str, U32 str_max_size)
 
 
 
-
 // ArchiveType_binary
 // @todo Compression
 
 void binary_pack_buf(WArchive *ar, const void *data, U32 data_size);
-void binary_pack_u32(WArchive *ar, const U32 *value)
-{ binary_pack_buf(ar, value, sizeof(*value)); }
-void binary_pack_u64(WArchive *ar, const U64 *value)
-{ binary_pack_buf(ar, value, sizeof(*value)); }
-void binary_pack_f32(WArchive *ar, const F32 *value)
-{ binary_pack_buf(ar, value, sizeof(*value)); }
-void binary_pack_f64(WArchive *ar, const F64 *value)
-{ binary_pack_buf(ar, value, sizeof(*value)); }
+void binary_pack_int(WArchive *ar, const void *value, U32 size)
+{ binary_pack_buf(ar, value, size); }
+void binary_pack_float(WArchive *ar, const void *value, bool single)
+{ binary_pack_buf(ar, value, float_size(single)); }
 void binary_pack_buf(WArchive *ar, const void *data, U32 data_size)
 {
 	if (ar->data_size + data_size > ar->data_capacity)
@@ -48,14 +41,10 @@ void binary_pack_strbuf(WArchive *ar, const char *str, U32 str_max_size)
 
 
 void binary_unpack_buf(RArchive *ar, void *data, U32 data_size);
-void binary_unpack_u32(RArchive *ar, U32 *value)
-{ binary_unpack_buf(ar, value, sizeof(*value)); }
-void binary_unpack_u64(RArchive *ar, U64 *value)
-{ binary_unpack_buf(ar, value, sizeof(*value)); }
-void binary_unpack_f32(RArchive *ar, F32 *value)
-{ binary_unpack_buf(ar, value, sizeof(*value)); }
-void binary_unpack_f64(RArchive *ar, F64 *value)
-{ binary_unpack_buf(ar, value, sizeof(*value)); }
+void binary_unpack_int(RArchive *ar, void *value, U32 size)
+{ binary_unpack_buf(ar, value, size); }
+void binary_unpack_float(RArchive *ar, void *value, bool single)
+{ binary_unpack_buf(ar, value, float_size(single)); }
 void binary_unpack_buf(RArchive *ar, void *data, U32 data_size)
 {
 	if (ar->offset + data_size > ar->data_size)
@@ -72,27 +61,15 @@ void binary_unpack_strbuf(RArchive *ar, char *str, U32 str_max_size)
 // ArchiveType to pack-function -tables
 
 internal
-void (*pack_u32_funcs[])(WArchive *, const U32 *)= {
-	measure_pack_u32,
-	binary_pack_u32,
+void (*pack_int_funcs[])(WArchive *, const void *, U32)= {
+	measure_pack_int,
+	binary_pack_int,
 };
 
 internal
-void (*pack_u64_funcs[])(WArchive *, const U64 *)= {
-	measure_pack_u64,
-	binary_pack_u64,
-};
-
-internal
-void (*pack_f32_funcs[])(WArchive *, const F32 *)= {
-	measure_pack_f32,
-	binary_pack_f32,
-};
-
-internal
-void (*pack_f64_funcs[])(WArchive *, const F64 *)= {
-	measure_pack_f64,
-	binary_pack_f64,
+void (*pack_float_funcs[])(WArchive *, const void *, bool)= {
+	measure_pack_float,
+	binary_pack_float,
 };
 
 internal
@@ -110,27 +87,15 @@ void (*pack_strbuf_funcs[])(WArchive *, const char *, U32)= {
 
 
 internal
-void (*unpack_u32_funcs[])(RArchive *, U32 *)= {
+void (*unpack_int_funcs[])(RArchive *, void *, U32)= {
 	NULL,
-	binary_unpack_u32,
+	binary_unpack_int,
 };
 
 internal
-void (*unpack_u64_funcs[])(RArchive *, U64 *)= {
+void (*unpack_float_funcs[])(RArchive *, void *, bool)= {
 	NULL,
-	binary_unpack_u64,
-};
-
-internal
-void (*unpack_f32_funcs[])(RArchive *, F32 *)= {
-	NULL,
-	binary_unpack_f32,
-};
-
-internal
-void (*unpack_f64_funcs[])(RArchive *, F64 *)= {
-	NULL,
-	binary_unpack_f64,
+	binary_unpack_float,
 };
 
 internal
@@ -181,13 +146,17 @@ void destroy_rarchive(RArchive *ar)
 }
 
 void pack_u32(WArchive *ar, const U32 *value)
-{ pack_u32_funcs[ar->type](ar, value); }
+{ pack_int_funcs[ar->type](ar, value, sizeof(*value)); }
 void pack_u64(WArchive *ar, const U64 *value)
-{ pack_u64_funcs[ar->type](ar, value); }
+{ pack_int_funcs[ar->type](ar, value, sizeof(*value)); }
+void pack_s32(WArchive *ar, const S32 *value)
+{ pack_int_funcs[ar->type](ar, value, sizeof(*value)); }
+void pack_s64(WArchive *ar, const S64 *value)
+{ pack_int_funcs[ar->type](ar, value, sizeof(*value)); }
 void pack_f32(WArchive *ar, const F32 *value)
-{ pack_f32_funcs[ar->type](ar, value); }
+{ pack_float_funcs[ar->type](ar, value, true); }
 void pack_f64(WArchive *ar, const F64 *value)
-{ pack_f64_funcs[ar->type](ar, value); }
+{ pack_float_funcs[ar->type](ar, value, false); }
 void pack_buf(WArchive *ar, const void *data, U32 data_size)
 { pack_buf_funcs[ar->type](ar, data, data_size); }
 void pack_strbuf(WArchive *ar, const char *str, U32 str_max_size)
@@ -202,14 +171,19 @@ void pack_buf_patch(WArchive *ar, U32 offset, const void *data, U32 data_size)
 }
 
 void unpack_u32(RArchive *ar, U32 *value)
-{ unpack_u32_funcs[ar->type](ar, value); }
+{ unpack_int_funcs[ar->type](ar, value, sizeof(*value)); }
 void unpack_u64(RArchive *ar, U64 *value)
-{ unpack_u64_funcs[ar->type](ar, value); }
+{ unpack_int_funcs[ar->type](ar, value, sizeof(*value)); }
+void unpack_s32(RArchive *ar, S32 *value)
+{ unpack_int_funcs[ar->type](ar, value, sizeof(*value)); }
+void unpack_s64(RArchive *ar, S64 *value)
+{ unpack_int_funcs[ar->type](ar, value, sizeof(*value)); }
 void unpack_f32(RArchive *ar, F32 *value)
-{ unpack_f32_funcs[ar->type](ar, value); }
+{ unpack_float_funcs[ar->type](ar, value, true); }
 void unpack_f64(RArchive *ar, F64 *value)
-{ unpack_f64_funcs[ar->type](ar, value); }
+{ unpack_float_funcs[ar->type](ar, value, false); }
 void unpack_buf(RArchive *ar, void *data, U32 data_size)
 { unpack_buf_funcs[ar->type](ar, data, data_size); }
 void unpack_strbuf(RArchive *ar, char *str, U32 str_max_size)
 { unpack_strbuf_funcs[ar->type](ar, str, str_max_size); }
+
