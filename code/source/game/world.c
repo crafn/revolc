@@ -5,21 +5,23 @@
 #include "platform/math.h"
 
 typedef struct SaveHeader {
-	U32 version;
+	U16 version;
 	U32 node_count;
 	bool delta;
 } PACKED SaveHeader;
 
-// @todo So much useless information is saved
 typedef struct DeadCmd {
 	char func_name[MAX_FUNC_NAME_SIZE];
 	Id cond_node_id;
 	Id src_node_id;
 } PACKED DeadCmd;
 typedef struct DeadNode {
-	NodeInfo info;
+	char type_name[RES_NAME_SIZE];
+	Id node_id;
+	Id group_id;
+
 	DeadCmd *cmds; // frame-allocated
-	U32 cmd_count;
+	U16 cmd_count;
 
 	void *packed_impl; // frame-allocated
 	U32 packed_impl_size;
@@ -39,8 +41,9 @@ World * create_world()
 {
 	World *w= ZERO_ALLOC(gen_ator(), sizeof(*w), "world");
 
+	debug_print("DEADNODE SIZE: %i", sizeof(DeadNode));
+
 	// Initialize storage for automatically allocated node impls
-	// @todo Alignment
 
 	U32 ntypes_count;
 	NodeType **ntypes=
@@ -355,7 +358,7 @@ void save_world_delta(WArchive *ar, World *w, RArchive *base_ar)
 		load_deadnode(base_ar, &dead_base);
 
 		// Find node from world
-		Handle node_h= get_id_handle_tbl(&w->id_to_handle, dead_base.info.node_id);
+		Handle node_h= get_id_handle_tbl(&w->id_to_handle, dead_base.node_id);
 
 		NodeInfo delta_node= {};
 		/*void *delta_impl= node_h == NULL_HANDLE ?
@@ -364,7 +367,7 @@ void save_world_delta(WArchive *ar, World *w, RArchive *base_ar)
 */
 		if (node_h == NULL_HANDLE) {
 			delta_node= (NodeInfo) {
-				.node_id= dead_base.info.node_id,
+				.node_id= dead_base.node_id,
 				.type= NULL, // <- disappeared
 			};
 		} else {
@@ -425,7 +428,7 @@ void load_world_delta(RArchive *ar, World *w, RArchive *base_ar)
 		load_deadnode(ar, &dead_delta);
 
 		// Find node from world
-		Handle node_h= get_id_handle_tbl(&w->id_to_handle, dead_delta.info.node_id);
+		Handle node_h= get_id_handle_tbl(&w->id_to_handle, dead_delta.node_id);
 		/*void *impl= node_h == NULL_HANDLE ?
 							NULL :
 							node_impl(w, NULL, &w->nodes[node_h]);
@@ -433,7 +436,7 @@ void load_world_delta(RArchive *ar, World *w, RArchive *base_ar)
 		if (node_h == NULL_HANDLE) {
 			// Created
 			resurrect_deadnode(w, &dead_delta);
-		} else if (dead_delta.info.type == NULL) {
+		} else if (dead_delta.packed_impl == NULL) {
 			// Destroyed
 			free_node(w, node_h);
 		} else {
@@ -449,9 +452,11 @@ void load_world_delta(RArchive *ar, World *w, RArchive *base_ar)
 void make_deadnode(DeadNode *dead_node, World *w, NodeInfo *node)
 {
 	*dead_node= (DeadNode) {
-		.info= *node,
+		.node_id= node->node_id,
+		.group_id= node->group_id,
 		.cmd_count= node->cmd_count,
 	};
+	fmt_str(dead_node->type_name, sizeof(dead_node->type_name), "%s", node->type_name);
 	dead_node->cmds=
 		ZERO_ALLOC(frame_ator(), dead_node->cmd_count*sizeof(*dead_node->cmds), "cmds");
 
@@ -473,7 +478,7 @@ void make_deadnode(DeadNode *dead_node, World *w, NodeInfo *node)
 	NodeType *node_type= (NodeType*)res_by_name(
 							g_env.resblob,
 							ResType_NodeType,
-							dead_node->info.type_name);
+							dead_node->type_name);
 	void *impl= node_impl(w, NULL, node);
 
 	// @todo Resizeable archive -- packed node might be larger than struct (ptrs)
@@ -496,16 +501,16 @@ void resurrect_deadnode(World *w, const DeadNode *dead_node)
 			(NodeType*)res_by_name(
 				g_env.resblob,
 				ResType_NodeType,
-				dead_node->info.type_name),
-			dead_node->info.node_id,
-			dead_node->info.group_id);
+				dead_node->type_name),
+			dead_node->node_id,
+			dead_node->group_id);
 
 	NodeInfo *n= &w->nodes[node_h];
-	n->cmd_count= dead_node->info.cmd_count;
-	n->node_id= dead_node->info.node_id;
-	n->group_id= dead_node->info.group_id;
+	n->cmd_count= dead_node->cmd_count;
+	n->node_id= dead_node->node_id;
+	n->group_id= dead_node->group_id;
 
-	debug_print("deserializing %s", dead_node->info.type_name);
+	debug_print("deserializing %s", dead_node->type_name);
 
 	// @todo Cmd handles should be assigned after every node has been spawned
 	for (U32 i= 0; i < n->cmd_count; ++i) {
@@ -525,7 +530,7 @@ void resurrect_deadnode(World *w, const DeadNode *dead_node)
 	NodeType *node_type= (NodeType*)res_by_name(
 							g_env.resblob,
 							ResType_NodeType,
-							dead_node->info.type_name);
+							dead_node->type_name);
 
 	void *dead_impl= ALLOC(frame_ator(), node_type->size, "dead_impl");
 	RArchive ar= create_rarchive(	ArchiveType_binary,
@@ -546,7 +551,7 @@ void save_deadnode(WArchive *ar, const DeadNode *dead_node)
 {
 	// @todo Don't pack useless stuff
 	pack_buf(ar, WITH_DEREF_SIZEOF(dead_node));
-	if (!dead_node->info.type) // Destroyed
+	if (!dead_node->packed_impl) // Destroyed
 		return;
 
 	pack_buf(ar, dead_node->cmds, dead_node->cmd_count*sizeof(*dead_node->cmds));
@@ -558,9 +563,8 @@ void save_deadnode(WArchive *ar, const DeadNode *dead_node)
 void load_deadnode(RArchive *ar, DeadNode *dead_node)
 {
 	unpack_buf(ar, WITH_DEREF_SIZEOF(dead_node));
-	ensure(dead_node->info.allocated);
 
-	if (!dead_node->info.type) // Destroyed
+	if (!dead_node->packed_impl) // Destroyed
 		return;
 
 	const U32 cmds_size= dead_node->cmd_count*sizeof(*dead_node->cmds);

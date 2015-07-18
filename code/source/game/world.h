@@ -48,10 +48,10 @@ typedef struct NodeInfo {
 	SlotCmd cmds[MAX_NODE_CMD_COUNT];
 	char type_name[RES_NAME_SIZE];
 	NodeType *type; // @todo Resource id
-	U64 node_id; // Unique id
-	U64 group_id; // Entity id
-	U32 impl_handle; // e.g. Handle to ModelEntity
-	U32 cmd_count;
+	Id node_id; // Unique id
+	Id group_id; // Entity id
+	Handle impl_handle; // e.g. Handle to ModelEntity
+	Handle cmd_count;
 	bool allocated; /// @todo Can be substituted by type (== NULL)
 	bool remove;
 } NodeInfo;
@@ -68,13 +68,13 @@ typedef struct AutoNodeImplStorage {
 typedef struct World {
 	F64 time;
 	F64 dt;
-	U64 next_entity_id;
+	Id next_entity_id;
 
 	// @todo Nodes don't need to be limited to game world
 	NodeInfo nodes[MAX_NODE_COUNT];
-	U32 next_node;
+	Handle next_node;
 	U32 node_count;
-	U64 next_node_id;
+	Id next_node_id;
 
 	Id_Handle_Tbl id_to_handle;
 
