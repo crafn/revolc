@@ -66,7 +66,7 @@ MOD_API void init_rts()
 	rts_env()->authority= authority;
 	rts_env()->peer= create_udp_peer(	authority ? RTS_AUTHORITY_PORT : RTS_CLIENT_PORT,
 										connect ? &remote_addr : NULL);
-	rts_env()->snapshot_time= -10000.0;
+	rts_env()->world_upd_time= -10000.0;
 
 	g_env.physworld->debug_draw= true;
 }
@@ -210,10 +210,12 @@ void upd_rts()
 		UdpPeer *peer= rts_env()->peer;
 
 		// World sync
-		if (	peer->connected &&
-				rts_env()->game_time - rts_env()->snapshot_time > RTS_SNAPSHOT_INTERVAL) {
-			if (rts_env()->authority) {
-				if (rts_env()->snapshot_time <= 0.0) {
+		if (peer->connected) {
+			rts_env()->stats_timer += g_env.dt;
+
+			if (	rts_env()->authority &&
+					rts_env()->world_upd_time + RTS_DELTA_INTERVAL < rts_env()->game_time) {
+				if (rts_env()->world_upd_time <= 0.0) {
 					// Send a snapshot.
 					// This might not include the most recent client commands (latency), but
 					// they will be rescheduled after the snapshot instead dropping.
@@ -229,7 +231,6 @@ void upd_rts()
 
 					destroy_warchive(&ar);
 
-					rts_env()->snapshot_time= rts_env()->game_time;
 				} else {
 					// Send a delta
 					WArchive measure= create_warchive(ArchiveType_measure, 0);
@@ -242,23 +243,28 @@ void upd_rts()
 					send_rts_msg(RtsMsg_delta, ar.data, ar.data_size);
 					debug_print("sent delta %.3fkb", 1.0*ar.data_size/1024);
 				}
+
+				rts_env()->world_upd_time= rts_env()->game_time;
 			}
-			rts_env()->snapshot_time= rts_env()->game_time;
 
 			//const char *msg = frame_str(rts_env()->authority ? "\1hello %i" : "\1world %i", peer->next_msg_id);
 			//buffer_udp_msg(peer, msg, strlen(msg) + 1);
+			if (rts_env()->stats_timer > 2.0) {
+				F64 packet_loss= peer->drop_count/(peer->acked_packet_count + peer->drop_count);
 
-			debug_print("--- net stats ---");
-			debug_print("packet loss: %.1f%%", 100.0*peer->drop_count/(peer->acked_packet_count + peer->drop_count));
-			debug_print("rtt: %.3f", peer->rtt);
-			debug_print("sent packet count: %i", peer->sent_packet_count);
-			debug_print("recv packet count: %i", peer->recv_packet_count);
-			debug_print("recv msg count: %i", peer->recv_msg_count);
-			debug_print("recv incomplete msg count: %i", peer->cur_incomplete_recv_msg_count);
-			debug_print("waiting sending count: %i", peer->packets_waiting_send_count);
+				debug_print("--- net stats ---");
+				debug_print("  packet loss: %.1f%%", 100.0*packet_loss);
+				debug_print("  rtt: %.3f", peer->rtt);
+				debug_print("  sent packet count: %i", peer->sent_packet_count);
+				debug_print("  recv packet count: %i", peer->recv_packet_count);
+				debug_print("  recv msg count: %i", peer->recv_msg_count);
+				debug_print("  recv incomplete msg count: %i", peer->cur_incomplete_recv_msg_count);
+				debug_print("  waiting sending count: %i", peer->packets_waiting_send_count);
 
-			//debug_print("acked packet count: %i", peer->acked_packet_count);
-			//debug_print("current incomplete recv msgs %i", peer->cur_incomplete_recv_msg_count);
+				//debug_print("acked packet count: %i", peer->acked_packet_count);
+				//debug_print("current incomplete recv msgs %i", peer->cur_incomplete_recv_msg_count);
+				rts_env()->stats_timer= 0.0;
+			}
 		}
 
 		UdpMsg *msgs;
@@ -281,12 +287,20 @@ void upd_rts()
 				break;
 
 				case RtsMsg_snapshot: {
+					if (rts_env()->authority) {
+						critical_print("Ignoring incoming snapshot");
+						break;
+					}
 					RArchive ar= create_rarchive(ArchiveType_binary, data, data_size);
 					resurrect_snapshot(&ar);
 					destroy_rarchive(&ar);
 				} break;
 
 				case RtsMsg_delta: {
+					if (rts_env()->authority) {
+						critical_print("Ignoring incoming delta");
+						break;
+					}
 					RArchive ar= create_rarchive(ArchiveType_binary, data, data_size);
 					debug_print("received delta %.3fkb", 1.0*ar.data_size/1024);
 					resurrect_world_delta(&ar);

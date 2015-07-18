@@ -24,20 +24,24 @@ void destroy_id_handle_tbl(Id_Handle_Tbl *tbl)
 Handle get_id_handle_tbl(Id_Handle_Tbl *tbl, Id key)
 {
 	U32 ix= hash_u64(key) % tbl->array_size;
+	// Linear probing
 	// Should not be infinite because set_id_handle_tbl asserts if table is full
 	while (tbl->array[ix].key != key && tbl->array[ix].key != NULL_ID)
 		ix= (ix + 1) % tbl->array_size;
 
 	if (tbl->array[ix].key == NULL_ID)
-		ensure(tbl->array[ix].value);
+		ensure(tbl->array[ix].value == NULL_HANDLE);
 
 	return tbl->array[ix].value;
 }
 
 void set_id_handle_tbl(Id_Handle_Tbl *tbl, Id key, Handle value)
 {
+	ensure(key != NULL_ID);
+
 	U32 ix= hash_u64(key) % tbl->array_size;
 
+	// Linear probing
 	while (tbl->array[ix].key != key && tbl->array[ix].key != NULL_ID)
 		ix= (ix + 1) % tbl->array_size;
 
@@ -54,8 +58,10 @@ void set_id_handle_tbl(Id_Handle_Tbl *tbl, Id key, Handle value)
 		entry->value= value;
 		++tbl->count;
 	} else if (remove_existing) {
+		entry->key= key;
 		entry->key= NULL_ID;
 		entry->value= NULL_HANDLE;
+		ensure(tbl->count > 0);
 		--tbl->count;
 
 		// Rehash
@@ -63,6 +69,7 @@ void set_id_handle_tbl(Id_Handle_Tbl *tbl, Id key, Handle value)
 		while (tbl->array[ix].key != NULL_ID) {
 			Id_Handle_Tbl_Entry e= tbl->array[ix];
 			tbl->array[ix]= null_id_handle_tbl_entry();
+			--tbl->count;
 			set_id_handle_tbl(tbl, e.key, e.value);
 
 			ix= (ix + 1) % tbl->array_size;

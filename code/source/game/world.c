@@ -99,7 +99,6 @@ World * create_world()
 void destroy_world(World *w)
 {
 	debug_print("destroy_world: %i nodes", w->node_count);
-	destroy_id_handle_tbl(&w->id_to_handle);
 
 	for (U32 i= 0; i < MAX_NODE_COUNT; ++i) {
 		if (w->nodes[i].allocated)
@@ -110,6 +109,8 @@ void destroy_world(World *w)
 		FREE(gen_ator(), w->auto_storages[i].allocated);
 	}
 	FREE(gen_ator(), w->auto_storages);
+
+	destroy_id_handle_tbl(&w->id_to_handle);
 	FREE(gen_ator(), w);
 }
 
@@ -350,7 +351,7 @@ void save_world_delta(WArchive *ar, World *w, RArchive *base_ar)
 	}
 
 	// Go through base state and write deleted/modified nodes
-	for (U32 node_i= 0; node_i < header.node_count; ++node_i) {
+	for (U32 node_i= 0; node_i < base_header.node_count; ++node_i) {
 		// Read node from base state
 		SaveNode dead_base;
 		load_deadnode(base_ar, &dead_base);
@@ -383,8 +384,11 @@ void save_world_delta(WArchive *ar, World *w, RArchive *base_ar)
 		ensure(dead_delta.packed_impl_size == dead_base.packed_impl_size); 
 		if (!memcmp(dead_delta.packed_impl,
 					dead_base.packed_impl,
-					dead_base.packed_impl_size))
+					dead_base.packed_impl_size)) {
 			continue; // Identical
+		} else {
+			debug_print("delta differ: %s", node_h == NULL_HANDLE ? "null" : w->nodes[node_h].type->res.name);
+		}
 
 
 		save_deadnode(ar, &dead_delta);
@@ -402,6 +406,7 @@ void save_world_delta(WArchive *ar, World *w, RArchive *base_ar)
 		SaveNode dead;
 		make_deadnode(&dead, w, created_node);
 		save_deadnode(ar, &dead);
+		debug_print("delta created node: %s", w->nodes[i].type->res.name);
 
 		++header.node_count;
 	}
@@ -686,6 +691,8 @@ void free_node(World *w, U32 handle)
 	ensure(handle < MAX_NODE_COUNT);
 	NodeInfo *n= &w->nodes[handle];
 	ensure(n->allocated);
+
+	set_id_handle_tbl(&w->id_to_handle, n->node_id, NULL_HANDLE);
 
 	U32 impl_handle= n->impl_handle;
 	if (n->type->auto_impl_mgmt) {
