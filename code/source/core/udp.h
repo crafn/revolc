@@ -2,6 +2,7 @@
 #define REVOLC_CORE_UDP_H
 
 #include "build.h"
+#include "core/hashtable.h"
 #include "core/socket.h"
 #include "global/cfg.h"
 
@@ -69,6 +70,7 @@ typedef struct UdpPeer {
 	U32 sent_packet_count;
 	U32 acked_packet_count;
 	U32 drop_count;
+	HashTbl(U32, U32) sent_msg_acks; // For determining if sent msg was received
 
 	U32 recv_packet_count;
 	U32 recv_msg_count;

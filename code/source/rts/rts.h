@@ -5,8 +5,9 @@
 
 #define RTS_AUTHORITY_PORT 19995
 #define RTS_CLIENT_PORT 19996
-#define RTS_BASE_SIZE (1024*1024*10)
-#define RTS_DELTA_INTERVAL 0.5
+#define RTS_BASE_SIZE (1024*1024*5)
+#define RTS_MAX_BASE_HISTORY_COUNT 10 
+#define RTS_DELTA_INTERVAL 2
 
 typedef struct WorldBaseState {
 	U32 seq;
@@ -23,7 +24,8 @@ typedef struct RtsEnv {
 	F64 stats_timer;
 
 	U32 world_seq; // Incremented at every delta
-	WorldBaseState base;
+	WorldBaseState bases[RTS_MAX_BASE_HISTORY_COUNT];
+	U32 cur_base_ix;
 } RtsEnv;
 
 MOD_API RtsEnv *rts_env();

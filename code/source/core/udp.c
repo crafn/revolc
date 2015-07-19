@@ -9,12 +9,15 @@ bool wrapped_gr(U32 s1, U32 s2, U32 max)
 
 UdpPeer *create_udp_peer(U16 local_port, IpAddress *remote_addr)
 {
-	UdpPeer *peer= malloc(sizeof(*peer));
+	UdpPeer *peer= ALLOC(gen_ator(), sizeof(*peer), "udp_peer");
 	*peer= (UdpPeer) {
 		.socket= open_udp_socket(local_port),
 		.remote_addr= remote_addr ? *remote_addr : (IpAddress) {},
 		.rtt= 0.5, // Better to be too large than too small at the startup
 		.next_msg_id= 1, // 0 is heartbeat
+		.sent_msg_acks= create_tbl(U32, U32)(
+									UDP_HEARTBEAT_MSG_ID, 0,
+									gen_ator(), UDP_MAX_BUFFERED_PACKET_COUNT),
 	};
 	if (remote_addr)
 		debug_print("Trying to connect: %s", ip_to_str(peer->remote_addr));
@@ -29,6 +32,8 @@ UdpPeer *create_udp_peer(U16 local_port, IpAddress *remote_addr)
 void destroy_udp_peer(UdpPeer *peer)
 {
 	close_socket(&peer->socket);
+	destroy_tbl(U32, U32)(&peer->sent_msg_acks);
+	FREE(gen_ator(), peer);
 }
 
 internal
@@ -126,6 +131,14 @@ void upd_udp_peer(	UdpPeer *peer,
 					UdpMsg **msgs, U32 *msg_count,
 					U32 **acked_msgs, U32 *acked_msg_count)
 {
+	ensure(!acked_msgs == !acked_msg_count);
+	if (acked_msgs) {
+		*acked_msgs= ALLOC(	frame_ator(),
+							sizeof(**acked_msgs)*UDP_ACK_COUNT,
+							"acked_msgs");
+		*acked_msg_count= 0;
+	}
+
 	bool has_target= peer->remote_addr.port != 0;
 
 	if (	has_target &&
@@ -283,10 +296,11 @@ void upd_udp_peer(	UdpPeer *peer,
 						ack= packet.header.ack_id - ack_i;
 					}
 
-					U32 ix= peer->packet_id_to_send_buffer_ix[ack];
-					ensure(ix < UDP_MAX_BUFFERED_PACKET_COUNT);
+					U32 acked_ix= peer->packet_id_to_send_buffer_ix[ack];
+					ensure(acked_ix < UDP_MAX_BUFFERED_PACKET_COUNT);
 
-					if (peer->send_buffer_state[ix] != UdpPacketState_waiting_ack)
+					if (	peer->send_buffer_state[acked_ix] !=
+							UdpPacketState_waiting_ack)
 						continue;
 
 					F64 rtt_sample= g_env.time_from_start - peer->send_times[ack];
@@ -296,11 +310,38 @@ void upd_udp_peer(	UdpPeer *peer,
 					const F64 change_p= 0.1;
 					peer->rtt= peer->rtt*(1 - change_p) + rtt_sample*change_p;
 					++peer->acked_packet_count;
+					
+					// Update msg progression
+					const UdpPacket* acked_packet= &peer->send_buffer[acked_ix];
+					if (acked_packet->header.msg_id != UDP_HEARTBEAT_MSG_ID) {
+						U32 packet_sent_count=
+							get_tbl(U32, U32)(	&peer->sent_msg_acks,
+												packet.header.msg_id);
+						ensure(packet_sent_count < packet.header.msg_frag_count);
+						++packet_sent_count;
+						if (packet_sent_count == packet.header.msg_frag_count) {
+							// Msg succesfully sent, notify caller
+							if (acked_msgs && acked_msg_count) {
+								ensure(*acked_msg_count < UDP_ACK_COUNT);
+								(*acked_msgs)[(*acked_msg_count)++]=
+									acked_packet->header.msg_id;
+							}
+							set_tbl(U32, U32)(	&peer->sent_msg_acks,
+												acked_packet->header.msg_id,
+												0);
+						} else {
+							// Update succesfully sent packet count of the msg
+							set_tbl(U32, U32)(	&peer->sent_msg_acks,
+												acked_packet->header.msg_id,
+												packet_sent_count);
+						}
+					}
 
 					// Remove succesfully transferred packet from send-buffer
-					if (peer->send_buffer_state[ix] != UdpPacketState_waiting_ack)
+					if (	peer->send_buffer_state[acked_ix] !=
+							UdpPacketState_waiting_ack)
 						fail("Corrupted send buffer");
-					peer->send_buffer_state[ix]= UdpPacketState_free;
+					peer->send_buffer_state[acked_ix]= UdpPacketState_free;
 				}
 			}
 
