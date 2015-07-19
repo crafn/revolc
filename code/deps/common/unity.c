@@ -61,3 +61,5 @@
 #include <vorbis/lib/vorbisenc.c>
 #include <vorbis/lib/vorbisfile.c>
 #include <vorbis/lib/window.c>
+
+#include <miniz/miniz.c>

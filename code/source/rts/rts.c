@@ -131,6 +131,7 @@ void spawn_action(SpawnAction *action)
 		send_rts_msg(RtsMsg_spawn_action, action, sizeof(*action));
 }
 
+
 internal
 void make_and_save_base()
 {

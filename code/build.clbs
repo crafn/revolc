@@ -199,18 +199,18 @@ def buildInfo(env, tags):
 
 	### Codegen ##
 
-	codegen_dir= "./tools/codegen"
-	codegen= Project();
-	codegen.name= "codegen"
-	codegen.type= "exe"
-	codegen.targetDir= "."
-	codegen.includeDirs= [ codegen_dir ]
-	codegen.headers= [ codegen_dir + "/main.c" ]
-	codegen.src= [ codegen_dir + "/unity.c" ]
-	codegen.flags= [ "std=gnu99", "w", "O3" ]
-	codegen.defines= [ "GCC_BASE=NULL" ]
-	codegen.compiler= c_compiler
-	codegen.linker= linker
+	#codegen_dir= "./tools/codegen"
+	#codegen= Project();
+	#codegen.name= "codegen"
+	#codegen.type= "exe"
+	#codegen.targetDir= "."
+	#codegen.includeDirs= [ codegen_dir ]
+	#codegen.headers= [ codegen_dir + "/main.c" ]
+	#codegen.src= [ codegen_dir + "/unity.c" ]
+	#codegen.flags= [ "std=gnu99", "w", "O3" ]
+	#codegen.defines= [ "GCC_BASE=NULL" ]
+	#codegen.compiler= c_compiler
+	#codegen.linker= linker
 
 
 	cfg= "" # debug or dev
@@ -276,7 +276,7 @@ def buildInfo(env, tags):
 			deps_proj.deps.append(d)
 			deps_proj.links.append(d)
 
-	### Clover engine ###
+	### Revolc engine ###
 
 	revolc_src_dir= "./source"
 	revolc_flags= target_flags + [
@@ -324,7 +324,7 @@ def buildInfo(env, tags):
 
 		if build_deps:
 			revolc.deps += [ deps_proj ]
-		revolc.deps += [ codegen ]
+		#revolc.deps += [ codegen ]
 
 		if env.os == "linux":
 			revolc.links += [ "--export-dynamic" ]
@@ -353,7 +353,7 @@ def buildInfo(env, tags):
 		clover.defines= revolc_defines
 		clover.compiler= c_compiler
 		clover.linker= linker
-		clover.deps = [ codegen ]
+		#clover.deps = [ codegen ]
 		clover.prebuild= lambda p: runCodegen(p, clover.src[0], clover_src_dir + "/gen_rtti.c", False)
 		game= clover
 	elif build_rts:
@@ -371,7 +371,7 @@ def buildInfo(env, tags):
 		rts.defines= revolc_defines
 		rts.compiler= c_compiler
 		rts.linker= linker
-		rts.deps = [ codegen ]
+		#rts.deps = [ codegen ]
 		rts.prebuild= lambda p: runCodegen(p, rts.src[0], rts_src_dir + "/gen_rtti.c", False)
 		game= rts
 
