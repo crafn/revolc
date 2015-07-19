@@ -16,7 +16,7 @@
 
 typedef enum RtsMsg {
 	RtsMsg_chat = 1,
-	RtsMsg_snapshot,
+	RtsMsg_base,
 	RtsMsg_delta,
 	RtsMsg_brush_action,
 	RtsMsg_spawn_action,
@@ -111,8 +111,10 @@ internal
 void local_spawn_action(SpawnAction *action)
 {
 	V3d pos= {action->pos.x, action->pos.y, 0};
+	F32 health= 1.0;
 	SlotVal init_vals[]= {
 		{"logic", "pos", WITH_DEREF_SIZEOF(&pos)},
+		{"logic", "health", WITH_DEREF_SIZEOF(&health)},
 	};
 	NodeGroupDef *def=
 		(NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, action->name);
@@ -129,43 +131,56 @@ void spawn_action(SpawnAction *action)
 }
 
 internal
-void make_snapshot(WArchive *ar)
+void make_and_save_base()
 {
-	debug_print("make_snapshot");
-	save_world(ar, g_env.world);
+	debug_print("make_and_save_base");
+	Ator ator= linear_ator(	rts_env()->base.data,
+							RTS_BASE_SIZE,
+							"base_buf");
+	WArchive ar= create_warchive(ArchiveType_binary, &ator, ator.capacity);
 
-	if (ar->type != ArchiveType_measure) {
-		if (ar->data_size > RTS_SNAPSHOT_SIZE)
-			fail("Too large world");
-		++rts_env()->snapshot_id;
-		memcpy(rts_env()->snapshot, ar->data, ar->data_size);
-		rts_env()->snapshot_size= ar->data_size;
-	}
+	rts_env()->base.seq= rts_env()->world_seq;
+	pack_u32(&ar, &rts_env()->base.seq);
+	save_world(&ar, g_env.world);
+
+	if (ar.data_size > RTS_BASE_SIZE)
+		fail("Too large world");
+
+	rts_env()->base.size= ar.data_size;
+
+	destroy_warchive(&ar);
 }
 
 internal
-void resurrect_snapshot(RArchive *ar)
+void resurrect_base(RArchive *ar)
 {
-	debug_print("resurrect_snapshot");
+	debug_print("resurrect_base");
 
 	clear_world_nodes(g_env.world);
+
+	unpack_u32(ar, &rts_env()->base.seq);
 
 	load_world(ar, g_env.world);
 	g_env.physworld->grid.modified= true;
 
-	if (ar->data_size > RTS_SNAPSHOT_SIZE)
+	if (ar->data_size > RTS_BASE_SIZE)
 		fail("Too large world");
-	memcpy(rts_env()->snapshot, ar->data, ar->data_size);
-	rts_env()->snapshot_size= ar->data_size;
+	memcpy(rts_env()->base.data, ar->data, ar->data_size);
+	rts_env()->base.size= ar->data_size;
 }
 
 internal
 void make_world_delta(WArchive *ar)
 {
-	debug_print("make_world_delta: base: %i", rts_env()->snapshot_id);
+	debug_print("make_world_delta: base: %i", rts_env()->base.seq);
 	RArchive base= create_rarchive(	ArchiveType_binary,
-									rts_env()->snapshot,
-									rts_env()->snapshot_size);
+									rts_env()->base.data,
+									rts_env()->base.size);
+	U32 base_seq;
+	unpack_u32(&base, &base_seq);
+	ensure(base_seq == rts_env()->base.seq);
+	pack_u32(ar, &base_seq);
+
 	save_world_delta(ar, g_env.world, &base);
 	destroy_rarchive(&base);
 }
@@ -175,18 +190,22 @@ void resurrect_world_delta(RArchive *ar)
 {
 	debug_print("resurrect_world_delta");
 	RArchive base= create_rarchive(	ArchiveType_binary,
-									rts_env()->snapshot,
-									rts_env()->snapshot_size);
-/*
-	if (base_id != delta_id) {
-		debug_print("Incompatible delta received: %i != %i", base_id, delta_id);
-		goto exit;
-	}
-*/
+									rts_env()->base.data,
+									rts_env()->base.size);
+	U32 delta_seq;
+	unpack_u32(ar, &delta_seq);
 
+	U32 base_seq;
+	unpack_u32(&base, &base_seq);
+
+	if (base_seq != delta_seq) {
+		debug_print("Incompatible delta received: %i != %i", base_seq, delta_seq);
+		goto cleanup;
+	}
 	load_world_delta(ar, g_env.world, &base);
 	g_env.physworld->grid.modified= true;
 
+cleanup:
 	destroy_rarchive(&base);
 }
 
@@ -215,30 +234,25 @@ void upd_rts()
 
 			if (	rts_env()->authority &&
 					rts_env()->world_upd_time + RTS_DELTA_INTERVAL < rts_env()->game_time) {
+				++rts_env()->world_seq;
 				if (rts_env()->world_upd_time <= 0.0) {
-					// Send a snapshot.
+					// Send a base.
 					// This might not include the most recent client commands (latency), but
-					// they will be rescheduled after the snapshot instead dropping.
-
-					WArchive measure= create_warchive(ArchiveType_measure, 0);
-					make_snapshot(&measure);
-					U32 world_size= measure.data_size;
-					destroy_warchive(&measure);
-			
-					WArchive ar= create_warchive(ArchiveType_binary, world_size);
-					make_snapshot(&ar);
-					send_rts_msg(RtsMsg_snapshot, ar.data, ar.data_size);
-
-					destroy_warchive(&ar);
-
+					// they will be rescheduled after the base instead of dropping.
+					make_and_save_base();
+					send_rts_msg(	RtsMsg_base,
+									rts_env()->base.data,
+									rts_env()->base.size);
 				} else {
 					// Send a delta
-					WArchive measure= create_warchive(ArchiveType_measure, 0);
+					WArchive measure= create_warchive(ArchiveType_measure, NULL, 0);
 					make_world_delta(&measure);
 					U32 delta_size= measure.data_size;
 					destroy_warchive(&measure);
 			
-					WArchive ar= create_warchive(ArchiveType_binary, delta_size);
+					WArchive ar= create_warchive(	ArchiveType_binary,
+													frame_ator(),
+													delta_size);
 					make_world_delta(&ar);
 					send_rts_msg(RtsMsg_delta, ar.data, ar.data_size);
 					debug_print("sent delta %.3fkb", 1.0*ar.data_size/1024);
@@ -286,13 +300,13 @@ void upd_rts()
 					debug_print("> %.*s", data_size, data);
 				break;
 
-				case RtsMsg_snapshot: {
+				case RtsMsg_base: {
 					if (rts_env()->authority) {
-						critical_print("Ignoring incoming snapshot");
+						critical_print("Ignoring incoming base");
 						break;
 					}
 					RArchive ar= create_rarchive(ArchiveType_binary, data, data_size);
-					resurrect_snapshot(&ar);
+					resurrect_base(&ar);
 					destroy_rarchive(&ar);
 				} break;
 
@@ -305,6 +319,8 @@ void upd_rts()
 					debug_print("received delta %.3fkb", 1.0*ar.data_size/1024);
 					resurrect_world_delta(&ar);
 					destroy_rarchive(&ar);
+
+					//make_and_save_base();
 				} break;
 
 				case RtsMsg_brush_action: {

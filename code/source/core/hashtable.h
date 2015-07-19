@@ -5,28 +5,50 @@
 #include "core/hash.h"
 #include "core/memory.h"
 
-struct Id_Handle_Tbl_Entry;
+#define ORIG_TYPE_U32 U32
+#define ORIG_TYPE_U64 U64
 
-// Maps U64 keys to U32 values
-// @todo Collision statistics
-typedef struct Id_Handle_Tbl {
-	Ator ator;
-	struct Id_Handle_Tbl_Entry *array;
-	U32 array_size;
-	U32 count;
-} Id_Handle_Tbl;
+// Key_Value
+#define KV(K, V) JOIN3(ORIG_TYPE(K), _, ORIG_TYPE(V))
+// key_value
+#define LC_KV(K, V) JOIN3(LC(ORIG_TYPE(K)), _, LC(ORIG_TYPE(V))) 
 
-typedef struct Id_Handle_Tbl_Entry {
-	Id key;
-	Handle value;
-} Id_Handle_Tbl_Entry;
+#define create_tbl(K, V) JOIN3(create_, LC_KV(K, V), _tbl)
+#define destroy_tbl(K, V) JOIN3(destroy_, LC_KV(K, V), _tbl)
+// @todo Better names
+#define get_tbl(K, V) JOIN3(get_, LC_KV(K, V), _tbl)
+#define set_tbl(K, V) JOIN3(set_, LC_KV(K, V), _tbl)
+#define null_tbl_entry(K, V) JOIN3(null_, LC_KV(K, V), _tbl_entry)
+#define HashTbl(K, V) JOIN2(KV(K, V), _Tbl)
+#define HashTbl_Entry(K, V) JOIN2(KV(K, V), _Tbl_Entry)
 
-typedef Id_Handle_Tbl Id_U32_Tbl;
+#define DECLARE_HASHTABLE(K, V)\
+struct HashTbl_Entry(K, V);\
+\
+typedef struct HashTbl(K, V) {\
+	Ator *ator;\
+	struct HashTbl_Entry(K, V) *array;\
+	U32 array_size;\
+	U32 count;\
+	K null_key;\
+	V null_value;\
+} HashTbl(K, V);\
+typedef struct HashTbl_Entry(K, V) {\
+	K key;\
+	V value;\
+} HashTbl_Entry(K, V);\
+\
+REVOLC_API HashTbl(K, V) create_tbl(K, V)(	K null_key, V null_value,\
+											Ator *ator, U32 max_size);\
+REVOLC_API void destroy_tbl(K, V)(HashTbl(K, V) *tbl);\
+\
+REVOLC_API V get_tbl(K, V)(HashTbl(K, V) *tbl, K key);\
+REVOLC_API void set_tbl(K, V)(HashTbl(K, V) *tbl, K key, V value);\
 
-REVOLC_API Id_Handle_Tbl create_id_handle_tbl(Ator ator, U32 max_size);
-REVOLC_API void destroy_id_handle_tbl(Id_Handle_Tbl *tbl);
 
-REVOLC_API Handle get_id_handle_tbl(Id_Handle_Tbl *tbl, Id key);
-REVOLC_API void set_id_handle_tbl(Id_Handle_Tbl *tbl, Id key, Handle value);
+DECLARE_HASHTABLE(U64, U32)
+DECLARE_HASHTABLE(U32, U32)
+
+typedef U64_U32_Tbl Id_Handle_Tbl;
 
 #endif // REVOLC_CORE_HASHTABLE_H

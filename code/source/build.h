@@ -35,6 +35,7 @@
 #define internal static
 #define local_persist static
 
+#define MAX_ALIGNMENT 16
 #define ALIGNED(x) __attribute__((aligned(x)))
 #define PACKED __attribute__((packed))
 #define WARN_UNUSED __attribute__((warn_unused_result))
@@ -54,6 +55,29 @@
 #define SIGN(x) ((x) > 0 ? 1 : -1)
 #define NULL_HANDLE ((U32)-1)
 #define NULL_ID ((U64)-1)
+
+#define TO_STRING_IND(X) #X
+#define TO_STRING(X) TO_STRING_IND(X)
+
+#define JOIN2_IND(A, B) A##B
+#define JOIN2(A, B) JOIN2_IND(A, B)
+
+#define JOIN3_IND(A, B, C) A##B##C
+#define JOIN3(A, B, C) JOIN3_IND(A, B, C)
+
+// @todo Generate from every typedef
+#define ORIG_TYPE_Id U64
+#define ORIG_TYPE_Handle U32
+// @todo Generate
+#define LC_U32 u32
+#define LC_U64 u64
+
+// ORIG_TYPE(typedeffed_int) -> int
+#define ORIG_TYPE(T) JOIN2(ORIG_TYPE_, T)
+
+// LC(U64) -> u64
+#define LC(T) JOIN2(LC_, T)
+
 
 #include "platform/types.h"
 

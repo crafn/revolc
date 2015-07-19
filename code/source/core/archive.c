@@ -114,11 +114,14 @@ void (*unpack_strbuf_funcs[])(RArchive *, char *, U32)= {
 
 // Public
 
-WArchive create_warchive(ArchiveType t, U32 capacity)
+WArchive create_warchive(ArchiveType t, Ator *ator, U32 capacity)
 {
 	return (WArchive) {
 		.type= t,
-		.data= frame_alloc(capacity),
+		.ator= ator,
+		.data= 	t == ArchiveType_measure ?
+					NULL :
+					ALLOC(ator, capacity, "warchive_data"),
 		.data_size= 0,
 		.data_capacity= capacity,
 	};
@@ -126,6 +129,8 @@ WArchive create_warchive(ArchiveType t, U32 capacity)
 
 void destroy_warchive(WArchive *ar)
 {
+	if (ar->type != ArchiveType_measure)
+		FREE(ar->ator, ar->data);
 	*ar= (WArchive) {};
 }
 

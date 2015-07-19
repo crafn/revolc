@@ -18,7 +18,9 @@ typedef	signed long long S64;
 typedef float F32;
 typedef double F64;
 
+// Typically 4bn handles (index) is enough
 typedef U32 Handle;
+// Typically 4bn ids (unique) is not enough
 typedef U64 Id;
 
 typedef void (*VoidFunc)();

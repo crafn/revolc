@@ -8,6 +8,7 @@ struct WArchive;
 struct RArchive;
 typedef struct Minion {
 	V3d pos;
+	F32 health;
 } Minion;
 
 MOD_API void upd_minion(Minion *begin, Minion *end);

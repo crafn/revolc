@@ -32,9 +32,7 @@ typedef struct Env {
 
 	void *game_data; // Pointer to be used by the game module
 
-	U8 *frame_mem_begin;
-	U8 *frame_mem_end;
-	U8 *frame_mem;
+	Ator frame_ator;
 
 	U32 prod_heap_alloc_count; // Not thread-safe
 	bool os_allocs_forbidden;

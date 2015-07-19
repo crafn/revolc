@@ -2,6 +2,7 @@
 #define REVOLC_CORE_ARCHIVE_H
 
 #include "build.h"
+#include "core/memory.h"
 
 typedef enum ArchiveType {
 	ArchiveType_measure, // Doesn't write anything
@@ -11,6 +12,7 @@ typedef enum ArchiveType {
 
 typedef struct WArchive {
 	ArchiveType type;
+	Ator *ator;
 	U8 *data;
 	U32 data_size; // @todo Rename to offset
 	U32 data_capacity;
@@ -23,8 +25,7 @@ typedef struct RArchive {
 	U32 data_size;
 } RArchive;
 
-// @todo Allocator, uses frame_alloc for now
-REVOLC_API WArchive create_warchive(ArchiveType t, U32 capacity);
+REVOLC_API WArchive create_warchive(ArchiveType t, Ator *ator, U32 capacity);
 REVOLC_API void destroy_warchive(WArchive *ar);
 
 REVOLC_API RArchive create_rarchive(ArchiveType t, const void *data, U32 data_size);

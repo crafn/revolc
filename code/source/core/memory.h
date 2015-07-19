@@ -8,48 +8,53 @@ typedef enum AtorType {
 	AtorType_none,
 	AtorType_stack, // alloca
 	AtorType_gen, 	// malloc/calloc/realloc/free
-	AtorType_frame, // alloc_frame // @todo change to general linear
+	AtorType_linear, // allocates linearly from buffer. free == nop
 	AtorType_dev,
 	AtorType_leakable_dev, // Use for one-off allocations if lazy.
 } AtorType;
 
 typedef struct Ator {
 	AtorType type;
+	// Only used for linear
+	U8 *buf;
+	U32 offset;
+	U32 capacity;
+
+	const char *tag;
 } Ator;
 
 // @todo Reserve/commit
 
 // General allocation functions
 #define ALLOC(ator, size, tag) \
-	( ator.type == AtorType_stack ? \
+	( ator->type == AtorType_stack ? \
 			STACK_ALLOC(size) : \
-			alloc_impl(ator, size, NULL, tag) )
+			alloc_impl(ator, size, NULL, tag, false) )
 #define REALLOC(ator, ptr, size, tag) \
-	( ator.type == AtorType_stack ? \
+	( ator->type == AtorType_stack ? \
 			STACK_ALLOC(size) : \
-			alloc_impl(ator, size, ptr, tag) )
+			alloc_impl(ator, size, ptr, tag, false) )
 #define ZERO_ALLOC(ator, size, tag) \
-	( ator.type == AtorType_stack ? \
+	( ator->type == AtorType_stack ? \
 			ZERO_STACK_ALLOC(size) : \
-			zero_alloc_impl(ator, size, NULL, tag) )
+			alloc_impl(ator, size, NULL, tag, true) )
 #define ZERO_REALLOC(ator, ptr, size, tag) \
-	( ator.type == AtorType_stack ? \
+	( ator->type == AtorType_stack ? \
 			ZERO_STACK_ALLOC(size) : \
-			zero_alloc_impl(ator, size, ptr, tag) )
+			alloc_impl(ator, size, ptr, tag, true) )
 #define FREE(ator, ptr) (free_impl(ator, ptr))
 
 // Specific allocators to be used with general allocation functions
-REVOLC_API WARN_UNUSED Ator stack_ator(); // No need to free
-REVOLC_API WARN_UNUSED Ator gen_ator();
-REVOLC_API WARN_UNUSED Ator dev_ator();
-REVOLC_API WARN_UNUSED Ator leakable_dev_ator();
-REVOLC_API WARN_UNUSED Ator frame_ator(); // No need to free (valid for this frame)
+REVOLC_API WARN_UNUSED Ator *stack_ator(); // No need to free
+REVOLC_API WARN_UNUSED Ator *gen_ator();
+REVOLC_API WARN_UNUSED Ator linear_ator(void *buf, U32 size, const char *tag);
+REVOLC_API WARN_UNUSED Ator *dev_ator();
+REVOLC_API WARN_UNUSED Ator *leakable_dev_ator();
+REVOLC_API WARN_UNUSED Ator *frame_ator(); // No need to free (valid for this frame)
 
 REVOLC_API WARN_UNUSED
-void * alloc_impl(Ator ator, U32 size, void *realloc_ptr, const char *tag);
-REVOLC_API WARN_UNUSED
-void * zero_alloc_impl(Ator ator, U32 size, void *realloc_ptr, const char *tag);
-REVOLC_API void free_impl(Ator ator, void *ptr);
+void * alloc_impl(Ator *ator, U32 size, void *realloc_ptr, const char *tag, bool zero);
+REVOLC_API void free_impl(Ator *ator, void *ptr);
 
 
 

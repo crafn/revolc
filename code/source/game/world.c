@@ -41,8 +41,6 @@ World * create_world()
 {
 	World *w= ZERO_ALLOC(gen_ator(), sizeof(*w), "world");
 
-	debug_print("DEADNODE SIZE: %i", sizeof(DeadNode));
-
 	// Initialize storage for automatically allocated node impls
 
 	U32 ntypes_count;
@@ -85,7 +83,7 @@ World * create_world()
 		type->auto_storage_handle= st_i++;
 	}
 
-	w->id_to_handle= create_id_handle_tbl(gen_ator(), MAX_NODE_COUNT);
+	w->id_to_handle= create_tbl(Id, Handle)(NULL_ID, NULL_HANDLE, gen_ator(), MAX_NODE_COUNT);
 
 	{ // Builtin engine nodes
 		SlotVal init_vals[]= {};
@@ -113,7 +111,7 @@ void destroy_world(World *w)
 	}
 	FREE(gen_ator(), w->auto_storages);
 
-	destroy_id_handle_tbl(&w->id_to_handle);
+	destroy_tbl(Id, Handle)(&w->id_to_handle);
 	FREE(gen_ator(), w);
 }
 
@@ -358,7 +356,7 @@ void save_world_delta(WArchive *ar, World *w, RArchive *base_ar)
 		load_deadnode(base_ar, &dead_base);
 
 		// Find node from world
-		Handle node_h= get_id_handle_tbl(&w->id_to_handle, dead_base.node_id);
+		Handle node_h= get_tbl(Id, Handle)(&w->id_to_handle, dead_base.node_id);
 
 		NodeInfo delta_node= {};
 		/*void *delta_impl= node_h == NULL_HANDLE ?
@@ -428,7 +426,7 @@ void load_world_delta(RArchive *ar, World *w, RArchive *base_ar)
 		load_deadnode(ar, &dead_delta);
 
 		// Find node from world
-		Handle node_h= get_id_handle_tbl(&w->id_to_handle, dead_delta.node_id);
+		Handle node_h= get_tbl(Id, Handle)(&w->id_to_handle, dead_delta.node_id);
 		/*void *impl= node_h == NULL_HANDLE ?
 							NULL :
 							node_impl(w, NULL, &w->nodes[node_h]);
@@ -482,7 +480,7 @@ void make_deadnode(DeadNode *dead_node, World *w, NodeInfo *node)
 	void *impl= node_impl(w, NULL, node);
 
 	// @todo Resizeable archive -- packed node might be larger than struct (ptrs)
-	WArchive ar= create_warchive(ArchiveType_binary, node_type->size);
+	WArchive ar= create_warchive(ArchiveType_binary, frame_ator(), node_type->size);
 	if (node_type->pack) {
 		// @todo Multiple nodes
 		node_type->pack(&ar, impl, (U8*)impl + node_type->size);
@@ -702,7 +700,7 @@ void free_node(World *w, U32 handle)
 	NodeInfo *n= &w->nodes[handle];
 	ensure(n->allocated);
 
-	set_id_handle_tbl(&w->id_to_handle, n->node_id, NULL_HANDLE);
+	set_tbl(Id, Handle)(&w->id_to_handle, n->node_id, NULL_HANDLE);
 
 	U32 impl_handle= n->impl_handle;
 	if (n->type->auto_impl_mgmt) {
@@ -767,7 +765,7 @@ Id node_handle_to_id(World *w, Handle handle)
 
 Handle node_id_to_handle(World *w, Id id)
 {
-	return get_id_handle_tbl(&w->id_to_handle, id);
+	return get_tbl(Id, Handle)(&w->id_to_handle, id);
 }
 
 void * node_impl(World *w, U32 *size, NodeInfo *node)
@@ -838,7 +836,7 @@ U32 alloc_node_without_impl(World *w, NodeType *type, U64 node_id, U64 group_id)
 	ensure(!w->nodes[w->next_node].allocated);
 	++w->node_count;
 	w->nodes[w->next_node]= info;
-	set_id_handle_tbl(&w->id_to_handle, node_id, w->next_node);
+	set_tbl(Id, Handle)(&w->id_to_handle, node_id, w->next_node);
 	return w->next_node;
 }
 
