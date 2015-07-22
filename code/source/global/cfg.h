@@ -54,7 +54,7 @@
 #define MAX_GUI_ELEM_COUNT 1024
 #define MAX_GUI_STACK_SIZE 32
 
-#define UDP_MAX_PACKET_SIZE (512)
+#define UDP_MAX_PACKET_SIZE (500)
 #define UDP_MAX_PACKET_DATA_SIZE (UDP_MAX_PACKET_SIZE - sizeof(UdpPacketHeader)) 
 #define UDP_CONNECTION_TIMEOUT 3.0
 #define UDP_PACKET_ID_COUNT 256 // Limited by size of U8
@@ -64,5 +64,7 @@
 #define UDP_HEARTBEAT_INTERVAL 0.1 // Determines minimum rtt
 #define UDP_KERNEL_BUFFER_SIZE (1024*1024)
 #define UDP_DROP_RTT_MUL 3.0
+#define UDP_COMPRESSION_LEVEL 1 // 1-10
+#define UDP_MAX_MSG_SIZE (1024*1024) // This limit could be removed with some effort
 
 #endif // REVOLC_GLOBAL_CFG_H

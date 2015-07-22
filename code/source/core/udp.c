@@ -1,5 +1,16 @@
 #include "udp.h"
 
+#define MINIZ_HEADER_FILE_ONLY
+#include <miniz/miniz.c>
+
+// Allocation functions used by miniz
+void *mz_ext_alloc(size_t size)
+{ return ALLOC(frame_ator(), size, "mz_alloc"); }
+void *mz_ext_realloc(void *ptr, size_t size)
+{ return REALLOC(frame_ator(), ptr, size, "mz_realloc"); }
+void mz_ext_free(void *ptr)
+{ FREE(frame_ator(), ptr); }
+
 #define UDP_HEARTBEAT_MSG_ID 0
 
 internal
@@ -66,24 +77,39 @@ void buffer_udp_packet(	UdpPeer *peer, const void *data, U16 size,
 	++peer->packets_waiting_send_count;
 }
 
-U32 buffer_udp_msg(UdpPeer *peer, const void *data, U32 size)
+SentMsgInfo buffer_udp_msg(UdpPeer *peer, const void *data, U32 size)
 {
 	ensure(!data || size > 0);
 	U32 frag_count= 1;
-	if (size > 0)
-		frag_count= (size - 1)/UDP_MAX_PACKET_DATA_SIZE + 1;
-	U32 left_size= size;
-	U32 msg_id= data ? peer->next_msg_id++ : UDP_HEARTBEAT_MSG_ID;
+	unsigned char *comp_data = NULL;
+	mz_ulong comp_size = size*2; // Maybe compressed data won't grow 2x
+	if (size > 0) {
+		comp_data= ALLOC(frame_ator(), comp_size, "comp_data");
+		int ret=
+			mz_compress2(comp_data, &comp_size, data, size, UDP_COMPRESSION_LEVEL);
+		if (ret != MZ_OK)
+			fail("mz_compress2 failed: %i, %s", ret, mz_error(ret));
+		frag_count= (comp_size - 1)/UDP_MAX_PACKET_DATA_SIZE + 1;
+	}
+	U32 left_size= comp_size;
+	U32 msg_id= comp_data ? peer->next_msg_id++ : UDP_HEARTBEAT_MSG_ID;
 	for (U32 i= 0; i < frag_count; ++i) {
 		buffer_udp_packet(	peer,
-							(const U8*)data + i*UDP_MAX_PACKET_DATA_SIZE,
+							(const U8*)comp_data + i*UDP_MAX_PACKET_DATA_SIZE,
 							MIN(left_size, UDP_MAX_PACKET_DATA_SIZE),
 							msg_id,
 							i,
 							frag_count);
 		left_size -= UDP_MAX_PACKET_DATA_SIZE;
 	}
-	return msg_id;
+
+	//debug_print("buffer_udp_msg: %.3fkb", comp_size/1024.0);
+	
+	SentMsgInfo info= {
+		.msg_id= msg_id,
+		.msg_size= comp_size,
+	};
+	return info;
 }
 
 struct SendPriority {
@@ -430,10 +456,16 @@ void upd_udp_peer(	UdpPeer *peer,
 						++cur_frag_i;
 					}
 
+					mz_ulong uncomp_size= UDP_MAX_MSG_SIZE;
+					unsigned char *uncomp_data= ALLOC(frame_ator(), uncomp_size, "uncomp_data");
+					int ret=
+						mz_uncompress(uncomp_data, &uncomp_size, copied_data_begin, msg_data_size);
+					if (ret != MZ_OK)
+						fail("mz_uncompress failed: %i, %s", ret, mz_error(ret));
 					ensure(*msg_count < max_msg_count);
 					(*msgs)[(*msg_count)++]= (UdpMsg) {
-						.data_size= msg_data_size,
-						.data= copied_data_begin,
+						.data= uncomp_data,
+						.data_size= uncomp_size,
 					};
 
 					// Erase processed packets from buffer

@@ -179,7 +179,7 @@
 //#define MINIZ_NO_ARCHIVE_WRITING_APIS
 
 // Define MINIZ_NO_ZLIB_APIS to remove all ZLIB-style compression/decompression API's.
-#define MINIZ_NO_ZLIB_APIS
+//#define MINIZ_NO_ZLIB_APIS
 
 // Define MINIZ_NO_ZLIB_COMPATIBLE_NAME to disable zlib names, to prevent conflicts against stock zlib.
 #define MINIZ_NO_ZLIB_COMPATIBLE_NAMES
@@ -938,10 +938,14 @@ typedef unsigned char mz_validate_uint64[sizeof(mz_uint64)==8 ? 1 : -1];
 
 #define MZ_ASSERT(x) assert(x)
 
+void *mz_ext_alloc(size_t);
+void *mz_ext_realloc(void *, size_t);
+void mz_ext_free(void *);
+
 #ifdef MINIZ_NO_MALLOC
-  #define MZ_MALLOC(x) NULL
-  #define MZ_FREE(x) (void)x, ((void)0)
-  #define MZ_REALLOC(p, x) NULL
+  #define MZ_MALLOC(x) mz_ext_alloc(x)
+  #define MZ_FREE(x) mz_ext_free(x)
+  #define MZ_REALLOC(p, x) mz_ext_realloc(p, x)
 #else
   #define MZ_MALLOC(x) malloc(x)
   #define MZ_FREE(x) free(x)

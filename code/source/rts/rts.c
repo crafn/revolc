@@ -38,8 +38,8 @@ void send_rts_msg(RtsMsg type, void *data, U32 data_size)
 	header->type= type;
 	memcpy(buf + sizeof(*header), data, buf_size - sizeof(*header));
 
-	debug_print("rts send %i: %.3fkb", type, 1.0*buf_size/1024);
-	buffer_udp_msg(rts_env()->peer, buf, buf_size);
+	SentMsgInfo info= buffer_udp_msg(rts_env()->peer, buf, buf_size);
+	debug_print("rts send %i: %.3fkb", type, info.msg_size/1024.0);
 }
 
 RtsEnv *rts_env() { return g_env.game_data; }
@@ -291,7 +291,6 @@ void upd_rts()
 													delta_size);
 					make_world_delta(&ar);
 					send_rts_msg(RtsMsg_delta, ar.data, ar.data_size);
-					debug_print("sent delta %.3fkb", 1.0*ar.data_size/1024);
 
 					// New base using this delta
 					make_and_save_base();

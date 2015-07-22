@@ -7,7 +7,7 @@
 #define RTS_CLIENT_PORT 19996
 #define RTS_BASE_SIZE (1024*1024*5)
 #define RTS_MAX_BASE_HISTORY_COUNT 10 
-#define RTS_DELTA_INTERVAL 2
+#define RTS_DELTA_INTERVAL 0.1
 
 typedef struct WorldBaseState {
 	U32 seq;

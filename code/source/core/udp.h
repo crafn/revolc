@@ -94,8 +94,13 @@ typedef struct UdpMsg {
 REVOLC_API UdpPeer *create_udp_peer(U16 local_port, IpAddress *remote_addr);
 REVOLC_API void destroy_udp_peer(UdpPeer *peer);
 
+typedef struct SentMsgInfo {
+	U32 msg_id;
+	U32 msg_size;
+} SentMsgInfo;
+
 // Returns message id
-REVOLC_API U32 buffer_udp_msg(UdpPeer *peer, const void *data, U32 size);
+REVOLC_API SentMsgInfo buffer_udp_msg(UdpPeer *peer, const void *data, U32 size);
 REVOLC_API void upd_udp_peer(	UdpPeer *peer,
 								UdpMsg **msgs, U32 *msg_count,
 								U32 **acked_msgs, U32 *acked_msg_count);
