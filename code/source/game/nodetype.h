@@ -10,8 +10,8 @@ struct Module;
 struct WArchive;
 struct RArchive;
 typedef void (*InitNodeImpl)(void *data);
-typedef U32 (*ResurrectNodeImpl)(void *dead);
-typedef void (*FreeNodeImpl)(void *data);
+typedef Handle (*ResurrectNodeImpl)(void *dead);
+typedef void (*FreeNodeImpl)(Handle h);
 typedef void * (*StorageNodeImpl)();
 typedef void (*UpdNodeImpl)(void *begin,
 							void *end);
@@ -34,7 +34,9 @@ typedef struct NodeType {
 	// Also, free and storage funcs are NULL, and resurrect
 	// works in-place, returning NULL_HANDLE.
 	bool auto_impl_mgmt;
-	U32 auto_impl_max_count;
+	U32 max_count;
+
+	bool serialize; // If false, node is not netsynced or saved
 
 	// Cached
 	const struct Module *module;

@@ -46,3 +46,24 @@ void unpack_minion(RArchive *ar, Minion *begin, Minion *end)
 		unpack_f32(ar, &minion->health);
 	}
 }
+
+void upd_selection(Selection *begin, Selection *end)
+{
+	for (Selection *sel= begin; sel != end; ++sel) {
+		if (!sel->selected)
+			continue;
+		T3d tf= {{1, 1, 1}, identity_qd(), sel->pos};
+		drawcmd_model(	tf,
+						(Model*)res_by_name(g_env.resblob, ResType_Model, "unitquad"),
+						(Color){1, 1, 1, 0.2}, 0, 0.0);
+	}
+}
+
+Handle resurrect_selection(const Selection *dead)
+{ return insert_stbl(Selection)(&rts_env()->selection_nodes, *dead); }
+
+void free_selection(Handle h)
+{ remove_stbl(Selection)(&rts_env()->selection_nodes, h); }
+
+void *storage_selection()
+{ return rts_env()->selection_nodes.array; }

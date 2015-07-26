@@ -15,6 +15,7 @@
 #include "core/memory.c"
 #include "core/matrix.c"
 #include "core/socket.c"
+#include "core/sparsetable.c"
 #include "core/string.c"
 #include "core/udp.c"
 #include "editor/armature_editor.c"

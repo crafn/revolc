@@ -7,15 +7,14 @@ U32 malloc_size(void *ptr)
 }
 
 internal
-void *conditional_memset(void *data, U32 size, bool zero)
-{
-	if (zero)
-		memset(data, 0, size);
-	return data;
-}
+void *commit_uninit_mem(void *data, U32 size)
+{ return memset(data, 0x95, size); }
 
 void * alloc_impl(Ator *ator, U32 size, void *realloc_ptr, const char *tag, bool zero)
 {
+	// @note Memory allocated from system heap should be always written over so that
+	// - accessing uninitialized memory bugs will happen consistently
+	// - memory is committed so that costly page faults during game are avoided
 	switch (ator->type) {
 		case AtorType_none:
 			fail("None allocator used");
@@ -24,10 +23,12 @@ void * alloc_impl(Ator *ator, U32 size, void *realloc_ptr, const char *tag, bool
 				fail("Illegal alloc");
 			++g_env.prod_heap_alloc_count;
 			if (!zero) {
-				if (realloc_ptr)
+				if (realloc_ptr) {
+					// @todo Commit
 					return realloc(realloc_ptr, size);
-				else
-					return malloc(size);
+				} else {
+					return commit_uninit_mem(malloc(size), size);
+				}
 			} else {
 				if (realloc_ptr) {
 					U32 old_size= malloc_size(realloc_ptr);
@@ -36,7 +37,7 @@ void * alloc_impl(Ator *ator, U32 size, void *realloc_ptr, const char *tag, bool
 						memset(ptr + old_size, 0, size - old_size);
 					return ptr;
 				} else {
-					return calloc(1, size);
+					return memset(malloc(size), 0, size);
 				}
 			}
 		case AtorType_linear: {
@@ -46,11 +47,16 @@ void * alloc_impl(Ator *ator, U32 size, void *realloc_ptr, const char *tag, bool
 			ator->offset= block + size - ator->buf;
 			if (ator->offset > ator->capacity)
 				fail("Linear allocator '%s' out of space", ator->tag);
-			return conditional_memset(block, size, zero);
+			if (zero)
+				memset(block, 0, size);
+			return block;
 		} case AtorType_dev:
 			if (realloc_ptr)
 				dev_free(realloc_ptr);
-			return conditional_memset(dev_malloc(size), size, zero);
+			if (zero)
+				return memset(dev_malloc(size), 0, size); 
+			else
+				return commit_uninit_mem(dev_malloc(size), size);
 		default: fail("Unknown allocator type");
 	}
 }

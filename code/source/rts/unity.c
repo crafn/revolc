@@ -2,6 +2,7 @@
 
 #include "rts.c"
 #include "minion.c"
+#include "net.c"
 #include "grid.c"
 
 #ifndef CODEGEN

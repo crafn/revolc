@@ -2,12 +2,16 @@
 #define REVOLC_RTS_RTS_H
 
 #include "build.h"
+#include "core/sparsetable.h"
+#include "rts/minion.h"
 
 #define RTS_AUTHORITY_PORT 19995
 #define RTS_CLIENT_PORT 19996
 #define RTS_BASE_SIZE (1024*1024*5)
 #define RTS_MAX_BASE_HISTORY_COUNT 10 
 #define RTS_DELTA_INTERVAL 0.1
+
+DECLARE_SPARSETABLE(Selection);
 
 typedef struct WorldBaseState {
 	U32 seq;
@@ -20,9 +24,11 @@ typedef struct RtsEnv {
 	bool authority; // Do we have authority over the game world
 	F64 game_time; // Same at client and server
 
+	SparseTbl(Selection) selection_nodes;
+
+	// @todo Move to RtsNet struct
 	F64 world_upd_time; // Send/recv time
 	F64 stats_timer;
-
 	U32 world_seq; // Incremented at every delta
 	WorldBaseState bases[RTS_MAX_BASE_HISTORY_COUNT];
 	U32 cur_base_ix;

@@ -31,6 +31,9 @@ typedef void (*VoidFunc)();
 #define S32_MAX 2147483647
 #define S32_MIN (-2147483648)
 
+#define ORIG_TYPE_U32 U32
+#define ORIG_TYPE_U64 U64
+
 #if PLATFORM_BITNESS == 32
 	typedef U32 PtrInt;
 #elif PLATFORM_BITNESS == 64

@@ -7,7 +7,7 @@
 typedef enum AtorType {
 	AtorType_none,
 	AtorType_stack, // alloca
-	AtorType_gen, 	// malloc/calloc/realloc/free
+	AtorType_gen, 	// malloc/realloc/free
 	AtorType_linear, // allocates linearly from buffer. free == nop
 	AtorType_dev,
 	AtorType_leakable_dev, // Use for one-off allocations if lazy.
@@ -22,8 +22,6 @@ typedef struct Ator {
 
 	const char *tag;
 } Ator;
-
-// @todo Reserve/commit
 
 // General allocation functions
 #define ALLOC(ator, size, tag) \
@@ -57,12 +55,10 @@ void * alloc_impl(Ator *ator, U32 size, void *realloc_ptr, const char *tag, bool
 REVOLC_API void free_impl(Ator *ator, void *ptr);
 
 
-
-// @todo Hide things below -- implementation
-
 #define STACK_ALLOC(size) alloca(size)
 #define ZERO_STACK_ALLOC(size) memset(alloca(size), 0, size)
 
+// @todo Remove
 REVOLC_API WARN_UNUSED
 void * dev_malloc(U32 size);
 REVOLC_API WARN_UNUSED

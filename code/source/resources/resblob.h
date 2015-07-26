@@ -21,9 +21,16 @@ REVOLC_API void load_blob(ResBlob **blob, const char *path);
 REVOLC_API void unload_blob(ResBlob *blob);
 REVOLC_API void reload_blob(ResBlob **new, ResBlob *old, const char *path);
 
+// Use RES_BY_NAME instead which will be faster (compile-time hashing of string)
+// @todo Remove
 REVOLC_API Resource * res_by_name(ResBlob *b, ResType t, const char *n);
+
 REVOLC_API Resource * res_by_id(ResId id);
 REVOLC_API ResId res_id(ResType t, const char *n);
+
+#define RES_BY_NAME(T, N) ((T*)res_by_id(RES_ID(T, N)))
+// @todo Compile-time
+#define RES_ID(T, N) res_id(JOIN2(ResType_, T), N)
 
 REVOLC_API bool res_exists(const ResBlob *blob, ResType t, const char *n);
 REVOLC_API Resource * find_res_by_name(const ResBlob *b, ResType t, const char *n);

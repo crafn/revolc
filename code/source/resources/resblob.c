@@ -192,8 +192,7 @@ Resource * res_by_name(ResBlob *blob, ResType type, const char *name)
 		*new_res= (RuntimeResource) {};
 
 		const U32 missing_res_max_size= 1024*4;
-		new_res->res= ALLOC(dev_ator(), missing_res_max_size, "new_res->res");
-		memset(new_res->res, 0, missing_res_max_size);
+		new_res->res= ZERO_ALLOC(dev_ator(), missing_res_max_size, "new_res->res");
 
 		BlobBuf buf= {
 			.data= new_res->res,
@@ -230,6 +229,7 @@ Resource * res_by_name(ResBlob *blob, ResType type, const char *name)
 
 Resource * res_by_id(ResId id)
 {
+	/// @todo O(1) hash-lookup
 	return res_by_name(g_env.resblob, id.type, id.name);
 }
 

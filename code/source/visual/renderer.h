@@ -116,14 +116,14 @@ REVOLC_API void drawcmd_model(	T3d tf,
 REVOLC_API T3d px_tf(V2i px_pos, V2i px_size);
 
 REVOLC_API U32 resurrect_modelentity(const ModelEntity *d);
-REVOLC_API void free_modelentity(ModelEntity *m);
+REVOLC_API void free_modelentity(Handle h);
 REVOLC_API void * storage_modelentity();
 
 REVOLC_API ModelEntity * get_modelentity(U32 h);
 REVOLC_API CompEntity * get_compentity(U32 h);
 
 REVOLC_API U32 resurrect_compentity(const CompEntity *dead);
-REVOLC_API void free_compentity(CompEntity *e);
+REVOLC_API void free_compentity(Handle h);
 REVOLC_API void * storage_compentity();
 
 REVOLC_API void render_frame();

@@ -5,9 +5,6 @@
 #include "core/hash.h"
 #include "core/memory.h"
 
-#define ORIG_TYPE_U32 U32
-#define ORIG_TYPE_U64 U64
-
 // Key_Value
 #define KV(K, V) JOIN3(ORIG_TYPE(K), _, ORIG_TYPE(V))
 // key_value
@@ -15,7 +12,6 @@
 
 #define create_tbl(K, V) JOIN3(create_, LC_KV(K, V), _tbl)
 #define destroy_tbl(K, V) JOIN3(destroy_, LC_KV(K, V), _tbl)
-// @todo Better names
 #define get_tbl(K, V) JOIN3(get_, LC_KV(K, V), _tbl)
 #define set_tbl(K, V) JOIN3(set_, LC_KV(K, V), _tbl)
 #define null_tbl_entry(K, V) JOIN3(null_, LC_KV(K, V), _tbl_entry)

@@ -70,14 +70,14 @@ World * create_world()
 
 		AutoNodeImplStorage *st= &w->auto_storages[st_i];
 		st->storage= ZERO_ALLOC(gen_ator(),
-								(type->size*type->auto_impl_max_count),
+								(type->size*type->max_count),
 								"auto_storage.storage");
 		st->allocated=
 			ZERO_ALLOC(	gen_ator(),
-						sizeof(*st->allocated)*type->auto_impl_max_count,
+						sizeof(*st->allocated)*type->max_count,
 						"auto_storage.allocated");
 		st->size= type->size;
-		st->max_count= type->auto_impl_max_count;
+		st->max_count= type->max_count;
 
 		// Cache handle to storage in NodeType itself for fastness
 		type->auto_storage_handle= st_i++;
@@ -276,18 +276,18 @@ void upd_world(World *w, F64 dt)
 
 void save_world(WArchive *ar, World *w)
 {
-	debug_print("save_world: %i nodes", w->node_count);
-
 	SaveHeader header= {
-		.node_count= w->node_count,
+		.node_count= 0, // Patch afterwards
 		.delta= false,
 	};
 
+	U32 header_offset= ar->data_size;
 	pack_buf(ar, &header, sizeof(header));
+
 	U32 saved_node_count= 0;
 	for (U32 node_i= 0; node_i < MAX_NODE_COUNT; ++node_i) {
 		NodeInfo *node= &w->nodes[node_i];
-		if (!node->allocated)
+		if (!node->allocated || !node->type->serialize)
 			continue;
 
 		DeadNode dead_node;
@@ -295,11 +295,13 @@ void save_world(WArchive *ar, World *w)
 
 		save_deadnode(ar, &dead_node);
 
-		ensure(saved_node_count < header.node_count);
 		++saved_node_count;
 	}
 
-	debug_print("saved node count: %i", saved_node_count);
+	header.node_count= saved_node_count;
+	pack_buf_patch(ar, header_offset, &header, sizeof(header));
+
+	debug_print("save_world: saved node count: %i", saved_node_count);
 }
 
 void load_world(RArchive *ar, World *w)
@@ -343,7 +345,7 @@ void save_world_delta(WArchive *ar, World *w, RArchive *base_ar)
 								sizeof(*handle_to_id)*MAX_NODE_COUNT,
 								"handle_to_id");
 	for (U32 i= 0; i < MAX_NODE_COUNT; ++i) {
-		if (w->nodes[i].allocated)
+		if (w->nodes[i].allocated && w->nodes[i].type->serialize)
 			handle_to_id[i]= w->nodes[i].node_id;
 		else
 			handle_to_id[i]= NULL_ID;
@@ -359,10 +361,6 @@ void save_world_delta(WArchive *ar, World *w, RArchive *base_ar)
 		Handle node_h= get_tbl(Id, Handle)(&w->id_to_handle, dead_base.node_id);
 
 		NodeInfo delta_node= {};
-		/*void *delta_impl= node_h == NULL_HANDLE ?
-							NULL :
-							node_impl(w, NULL, &w->nodes[node_h]);
-*/
 		if (node_h == NULL_HANDLE) {
 			delta_node= (NodeInfo) {
 				.node_id= dead_base.node_id,
@@ -427,10 +425,6 @@ void load_world_delta(RArchive *ar, World *w, RArchive *base_ar)
 
 		// Find node from world
 		Handle node_h= get_tbl(Id, Handle)(&w->id_to_handle, dead_delta.node_id);
-		/*void *impl= node_h == NULL_HANDLE ?
-							NULL :
-							node_impl(w, NULL, &w->nodes[node_h]);
-*/
 		if (node_h == NULL_HANDLE) {
 			// Created
 			resurrect_deadnode(w, &dead_delta);
@@ -705,7 +699,7 @@ void free_node(World *w, U32 handle)
 	U32 impl_handle= n->impl_handle;
 	if (n->type->auto_impl_mgmt) {
 		if (n->type->free)
-			n->type->free(node_impl(w, NULL, n));
+			n->type->free(impl_handle);
 
 		ensure(n->type->auto_storage_handle < w->auto_storage_count);
 		AutoNodeImplStorage *st= &w->auto_storages[n->type->auto_storage_handle];
@@ -713,7 +707,7 @@ void free_node(World *w, U32 handle)
 		st->allocated[impl_handle]= false;
 	} else {
 		if (n->type->free)
-			n->type->free(node_impl(w, NULL, n));
+			n->type->free(impl_handle);
 	}
 
 	--w->node_count;
@@ -900,7 +894,7 @@ void world_on_res_reload(ResBlob *old)
 		}
 
 		if (node->type->free) {
-			node->type->free(node_impl(w, NULL, node));
+			node->type->free(node->impl_handle);
 		}
 		if (node->type->resurrect) {
 			U32 ret= node->type->resurrect(node_impl(w, NULL, node));

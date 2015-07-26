@@ -301,10 +301,12 @@ int main(int argc, const char **argv)
 	}
 	g_env.os_allocs_forbidden= false;
 
-	deinit_for_modules();
 
 	destroy_world(world);
 	g_env.world= NULL;
+
+	deinit_for_modules();
+
 	destroy_editor();
 	destroy_uicontext();
 

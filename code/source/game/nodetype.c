@@ -79,6 +79,7 @@ int json_nodetype_to_blob(struct BlobBuf *buf, JsonTok j)
 	JsonTok j_storage= json_value_by_key(j, "storage_func");
 	JsonTok j_pack= json_value_by_key(j, "pack_func");
 	JsonTok j_unpack= json_value_by_key(j, "unpack_func");
+	JsonTok j_serialize= json_value_by_key(j, "serialize");
 
 	if (json_is_null(j_impl_mgmt))
 		RES_ATTRIB_MISSING("impl_mgmt");
@@ -96,10 +97,12 @@ int json_nodetype_to_blob(struct BlobBuf *buf, JsonTok j)
 		RES_ATTRIB_MISSING("unpack_func");
 
 	bool auto_impl_mgmt= !strcmp(json_str(j_impl_mgmt), "auto");
-	U32 auto_impl_max_count= 0;
+	U32 max_count= 0;
 	if (auto_impl_mgmt == false) {
-		if (json_is_null(j_storage))
-			RES_ATTRIB_MISSING("storage");
+		if (json_is_null(j_storage) || strlen(json_str(j_storage)) == 0)
+			RES_ATTRIB_MISSING("storage_func");
+		if (json_is_null(j_resurrect) || strlen(json_str(j_resurrect)) == 0)
+			RES_ATTRIB_MISSING("resurrect_func");
 	} else {
 		if (json_is_null(j_max_count))
 			RES_ATTRIB_MISSING("max_count");
@@ -107,13 +110,13 @@ int json_nodetype_to_blob(struct BlobBuf *buf, JsonTok j)
 			critical_print("Shouldn't have 'storage_func', impl_mgmt is 'auto'");
 			goto error;
 		}
-
-		auto_impl_max_count= json_integer(j_max_count);
 	}
+	if (!json_is_null(j_max_count))
+		max_count= json_integer(j_max_count);
 
 	NodeType n= {
 		.auto_impl_mgmt= auto_impl_mgmt,
-		.auto_impl_max_count= auto_impl_max_count,
+		.max_count= max_count,
 	};
 	fmt_str(n.init_func_name, sizeof(n.init_func_name), "%s", json_str(j_init));
 	fmt_str(n.resurrect_func_name, sizeof(n.resurrect_func_name), "%s", json_str(j_resurrect));
@@ -121,12 +124,14 @@ int json_nodetype_to_blob(struct BlobBuf *buf, JsonTok j)
 	fmt_str(n.free_func_name, sizeof(n.free_func_name), "%s", json_str(j_free));
 	fmt_str(n.pack_func_name, sizeof(n.pack_func_name), "%s", json_str(j_pack));
 	fmt_str(n.unpack_func_name, sizeof(n.unpack_func_name), "%s", json_str(j_unpack));
-	
 
 	if (n.auto_impl_mgmt == false) {
 		fmt_str(
 			n.storage_func_name, sizeof(n.storage_func_name), "%s", json_str(j_storage));
 	}
+
+	if (!json_is_null(j_serialize))
+		n.serialize= json_bool(j_serialize);
 
 	blob_write(	buf,
 				(U8*)&n + sizeof(Resource),

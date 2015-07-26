@@ -27,7 +27,7 @@ REVOLC_API void create_physworld();
 REVOLC_API void destroy_physworld();
 
 REVOLC_API U32 resurrect_rigidbody(const RigidBody *dead);
-REVOLC_API void free_rigidbody(RigidBody *b);
+REVOLC_API void free_rigidbody(Handle h);
 REVOLC_API void * storage_rigidbody();
 REVOLC_API RigidBody * get_rigidbody(U32 h);
 

@@ -462,12 +462,12 @@ U32 resurrect_rigidbody(const RigidBody *dead)
 	return h;
 }
 
-void free_rigidbody(RigidBody *b)
+void free_rigidbody(Handle h)
 {
 	PhysWorld *w= g_env.physworld;
 
-	const U32 h= b - w->bodies;
 	ensure(h < MAX_RIGIDBODY_COUNT);
+	RigidBody *b= &w->bodies[h];
 
 	if (b->is_in_grid) {
 		modify_grid_with_shapes(
