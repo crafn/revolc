@@ -51,7 +51,7 @@ typedef struct NodeInfo {
 	Id group_id; // Entity id
 	Handle impl_handle; // e.g. Handle to ModelEntity
 	Handle cmd_count;
-	bool allocated; /// @todo Can be substituted by type (== NULL)
+	bool allocated; /// @todo Can be substituted by type ( == NULL)
 	bool remove;
 } NodeInfo;
 

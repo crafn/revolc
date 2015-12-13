@@ -40,7 +40,7 @@ static
 F64 random_f64(F64 min, F64 max, U64 *seed)
 {
 	ensure(max > min);
-	F64 f= (F64)random_u32_base(seed)/U32_MAX;
+	F64 f = (F64)random_u32_base(seed)/U32_MAX;
 	return f*(max - min) + min;
 }
 
@@ -49,7 +49,7 @@ static
 F32 random_f32(F32 min, F32 max, U64 *seed)
 {
 	ensure(max > min);
-	F32 f= (F32)random_u32_base(seed)/U32_MAX;
+	F32 f = (F32)random_u32_base(seed)/U32_MAX;
 	return f*(max - min) + min;
 }
 

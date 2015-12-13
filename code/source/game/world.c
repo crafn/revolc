@@ -41,55 +41,55 @@ void resurrect_deadnode(World *w, const DeadNode *dead_node);
 
 World * create_world()
 {
-	World *w= ZERO_ALLOC(gen_ator(), sizeof(*w), "world");
+	World *w = ZERO_ALLOC(gen_ator(), sizeof(*w), "world");
 
 	// Initialize storage for automatically allocated node impls
 
 	U32 ntypes_count;
-	NodeType **ntypes=
+	NodeType **ntypes =
 		(NodeType **)all_res_by_type(	&ntypes_count,
 										g_env.resblob,
 										ResType_NodeType);
 
-	U32 ntype_count_with_auto_mgmt= 0;
-	for (U32 i= 0; i < ntypes_count; ++i) {
-		const NodeType *type= ntypes[i];
+	U32 ntype_count_with_auto_mgmt = 0;
+	for (U32 i = 0; i < ntypes_count; ++i) {
+		const NodeType *type = ntypes[i];
 		if (type->auto_impl_mgmt)
 			++ntype_count_with_auto_mgmt;
 	}
 
-	w->auto_storages=
+	w->auto_storages =
 		ZERO_ALLOC(	gen_ator(),
 						(sizeof(*w->auto_storages)*ntype_count_with_auto_mgmt),
 						"auto_storage");
-	w->auto_storage_count= ntype_count_with_auto_mgmt;
+	w->auto_storage_count = ntype_count_with_auto_mgmt;
 
-	U32 st_i= 0;
-	for (U32 i= 0; i < ntypes_count; ++i) {
-		NodeType *type= ntypes[i];
+	U32 st_i = 0;
+	for (U32 i = 0; i < ntypes_count; ++i) {
+		NodeType *type = ntypes[i];
 		if (!type->auto_impl_mgmt)
 			continue;
 
-		AutoNodeImplStorage *st= &w->auto_storages[st_i];
-		st->storage= ZERO_ALLOC(gen_ator(),
+		AutoNodeImplStorage *st = &w->auto_storages[st_i];
+		st->storage = ZERO_ALLOC(gen_ator(),
 								(type->size*type->max_count),
 								"auto_storage.storage");
-		st->allocated=
+		st->allocated =
 			ZERO_ALLOC(	gen_ator(),
 						sizeof(*st->allocated)*type->max_count,
 						"auto_storage.allocated");
-		st->size= type->size;
-		st->max_count= type->max_count;
+		st->size = type->size;
+		st->max_count = type->max_count;
 
 		// Cache handle to storage in NodeType itself for fastness
-		type->auto_storage_handle= st_i++;
+		type->auto_storage_handle = st_i++;
 	}
 
-	w->id_to_handle= create_tbl(Id, Handle)(NULL_ID, NULL_HANDLE, gen_ator(), MAX_NODE_COUNT);
+	w->id_to_handle = create_tbl(Id, Handle)(NULL_ID, NULL_HANDLE, gen_ator(), MAX_NODE_COUNT);
 
 	{ // Builtin engine nodes
-		SlotVal init_vals[]= {};
-		NodeGroupDef *def=
+		SlotVal init_vals[] = {};
+		NodeGroupDef *def =
 			(NodeGroupDef*)res_by_name(	g_env.resblob,
 										ResType_NodeGroupDef,
 										"builtin");
@@ -103,11 +103,11 @@ void destroy_world(World *w)
 {
 	debug_print("destroy_world: %i nodes", w->node_count);
 
-	for (U32 i= 0; i < MAX_NODE_COUNT; ++i) {
+	for (U32 i = 0; i < MAX_NODE_COUNT; ++i) {
 		if (w->nodes[i].allocated)
 			free_node(w, i);
 	}
-	for (U32 i= 0; i < w->auto_storage_count; ++i) {
+	for (U32 i = 0; i < w->auto_storage_count; ++i) {
 		FREE(gen_ator(), w->auto_storages[i].storage);
 		FREE(gen_ator(), w->auto_storages[i].allocated);
 	}
@@ -119,7 +119,7 @@ void destroy_world(World *w)
 
 void clear_world_nodes(World *w)
 {
-	for (U32 i= 0; i < MAX_NODE_COUNT; ++i) {
+	for (U32 i = 0; i < MAX_NODE_COUNT; ++i) {
 		if (w->nodes[i].allocated)
 			free_node(w, i);
 	}
@@ -128,15 +128,15 @@ void clear_world_nodes(World *w)
 internal
 int node_cmp(const void * a_, const void * b_)
 {
-	const NodeInfo *a= a_, *b= b_;
+	const NodeInfo *a = a_, *b = b_;
 	// Sort for batching
 	// Non-allocated should be at the end
 	/// @todo Prioritize by cmds, but still clumping by type
-	int alloc_cmp= b->allocated - a->allocated;
+	int alloc_cmp = b->allocated - a->allocated;
 	if (alloc_cmp) {
 		return alloc_cmp;
 	} else { 
-		int str_cmp= strcmp(a->type_name, b->type_name);
+		int str_cmp = strcmp(a->type_name, b->type_name);
 		if (str_cmp)
 			return str_cmp;
 		else
@@ -147,7 +147,7 @@ int node_cmp(const void * a_, const void * b_)
  
 void upd_world(World *w, F64 dt)
 {
-	w->dt= dt;
+	w->dt = dt;
 	w->time += dt;
 
 	memcpy(w->sort_space, w->nodes, sizeof(w->nodes));
@@ -157,20 +157,20 @@ void upd_world(World *w, F64 dt)
 	///			See clover/code/source/nodes/updateline.cpp for priorization
 	//qsort(w->sort_space, MAX_NODE_COUNT, sizeof(*w->nodes), node_cmp);
 
-	U32 node_i= 0;
-	U32 updated_count= 0;
-	U32 batch_count= 0;
-	U32 signal_count= 0;
+	U32 node_i = 0;
+	U32 updated_count = 0;
+	U32 batch_count = 0;
+	U32 signal_count = 0;
 	while (node_i < MAX_NODE_COUNT) {
-		NodeInfo *node= &w->sort_space[node_i];
+		NodeInfo *node = &w->sort_space[node_i];
 		if (!node->allocated) {
 			++node_i;
 			continue;
 		}
 
-		const U32 batch_begin_i= node_i;
-		const U32 batch_begin_impl_handle= node->impl_handle;
-		const NodeType *batch_begin_type= node->type;
+		const U32 batch_begin_i = node_i;
+		const U32 batch_begin_impl_handle = node->impl_handle;
+		const NodeType *batch_begin_type = node->type;
 
 		while (	node_i < MAX_NODE_COUNT &&
 				node->type == batch_begin_type &&
@@ -182,10 +182,10 @@ void upd_world(World *w, F64 dt)
 		}
 
 		// Update batch
-		const U32 batch_size= node_i - batch_begin_i;
+		const U32 batch_size = node_i - batch_begin_i;
 		updated_count += batch_size; 
 		if (batch_begin_type->upd) {
-			U8 *begin= node_impl(w, NULL, &w->sort_space[batch_begin_i]);
+			U8 *begin = node_impl(w, NULL, &w->sort_space[batch_begin_i]);
 			batch_begin_type->upd(
 					begin,
 					begin + batch_size*batch_begin_type->size);
@@ -193,17 +193,17 @@ void upd_world(World *w, F64 dt)
 		++batch_count;
 
 		// Perform commands stated in NodeGroupDefs
-		for (U32 dst_i= batch_begin_i; dst_i < node_i; ++dst_i) {
-			NodeInfo *dst_node= &w->sort_space[dst_i];
-			for (U32 r_i= 0; r_i < dst_node->cmd_count; ++r_i) {
-				SlotCmd *r= &dst_node->cmds[r_i];
+		for (U32 dst_i = batch_begin_i; dst_i < node_i; ++dst_i) {
+			NodeInfo *dst_node = &w->sort_space[dst_i];
+			for (U32 r_i = 0; r_i < dst_node->cmd_count; ++r_i) {
+				SlotCmd *r = &dst_node->cmds[r_i];
 				if (r->has_condition) {
-					NodeInfo *c_node= &w->nodes[r->cond_node_h];
-					U8 *cond_bytes= node_impl(w, NULL, c_node) + r->cond_offset;
-					bool cond_fullfilled= false;
-					for (U32 i= 0; i < r->cond_size; ++i) {
+					NodeInfo *c_node = &w->nodes[r->cond_node_h];
+					U8 *cond_bytes = node_impl(w, NULL, c_node) + r->cond_offset;
+					bool cond_fullfilled = false;
+					for (U32 i = 0; i < r->cond_size; ++i) {
 						if (cond_bytes[i]) {
-							cond_fullfilled= true;
+							cond_fullfilled = true;
 							break;
 						}
 					}
@@ -215,39 +215,39 @@ void upd_world(World *w, F64 dt)
 				switch (r->type) {
 				case CmdType_memcpy: {
 					ensure(r->src_node < MAX_NODE_COUNT);
-					NodeInfo *src_node= &w->nodes[r->src_node];
+					NodeInfo *src_node = &w->nodes[r->src_node];
 					ensure(dst_node->allocated && src_node->allocated);
 
-					U8 *dst= (U8*)node_impl(w, NULL, dst_node) + r->dst_offset;
-					U8 *src= (U8*)node_impl(w, NULL, src_node) + r->src_offset;
-					for (U32 i= 0; i < r->size; ++i)
-						dst[i]= src[i];
+					U8 *dst = (U8*)node_impl(w, NULL, dst_node) + r->dst_offset;
+					U8 *src = (U8*)node_impl(w, NULL, src_node) + r->src_offset;
+					for (U32 i = 0; i < r->size; ++i)
+						dst[i] = src[i];
 				} break;
 				case CmdType_call: {
 					// This is ugly. Call function pointer with corresponding node parameters
 					/// @todo Generate this
-					void *dst_impl= node_impl(w, NULL, dst_node);
+					void *dst_impl = node_impl(w, NULL, dst_node);
 					switch (r->p_node_count) {
 					case 0:
 						((void (*)(void *, void *))r->fptr)(
 							dst_impl, dst_impl + dst_node->type->size);
 					break;
 					case 1: {
-						void * p1_impl=
+						void * p1_impl =
 							node_impl(w, NULL, &w->sort_space[r->p_nodes[0]]);
-						U32 p1_size= w->sort_space[r->p_nodes[0]].type->size;
+						U32 p1_size = w->sort_space[r->p_nodes[0]].type->size;
 						((void (*)(void *, void *,
 								   void *, void *))r->fptr)(
 							dst_impl, dst_impl + dst_node->type->size,
 							p1_impl, p1_impl + p1_size);
 					} break;
 					case 2: {
-						void * p1_impl=
+						void * p1_impl =
 							node_impl(w, NULL, &w->sort_space[r->p_nodes[0]]);
-						U32 p1_size= w->sort_space[r->p_nodes[0]].type->size;
-						void * p2_impl=
+						U32 p1_size = w->sort_space[r->p_nodes[0]].type->size;
+						void * p2_impl =
 							node_impl(w, NULL, &w->sort_space[r->p_nodes[1]]);
-						U32 p2_size= w->sort_space[r->p_nodes[1]].type->size;
+						U32 p2_size = w->sort_space[r->p_nodes[1]].type->size;
 						((void (*)(void *, void *,
 								   void *, void *,
 								   void *, void *))r->fptr)(
@@ -269,7 +269,7 @@ void upd_world(World *w, F64 dt)
 	//debug_print("upd batch count: %i", batch_count);
 
 	// Free remove-flagged nodes
-	for (U32 i= 0; i < MAX_NODE_COUNT; ++i) {
+	for (U32 i = 0; i < MAX_NODE_COUNT; ++i) {
 		if (w->nodes[i].allocated && w->nodes[i].remove)
 			free_node(w, i);
 	}
@@ -278,17 +278,17 @@ void upd_world(World *w, F64 dt)
 
 void save_world(WArchive *ar, World *w)
 {
-	SaveHeader header= {
-		.node_count= 0, // Patch afterwards
-		.delta= false,
+	SaveHeader header = {
+		.node_count = 0, // Patch afterwards
+		.delta = false,
 	};
 
-	U32 header_offset= ar->data_size;
+	U32 header_offset = ar->data_size;
 	pack_buf(ar, &header, sizeof(header));
 
-	U32 saved_node_count= 0;
-	for (U32 node_i= 0; node_i < MAX_NODE_COUNT; ++node_i) {
-		NodeInfo *node= &w->nodes[node_i];
+	U32 saved_node_count = 0;
+	for (U32 node_i = 0; node_i < MAX_NODE_COUNT; ++node_i) {
+		NodeInfo *node = &w->nodes[node_i];
 		if (!node->allocated)
 			continue;
 
@@ -300,7 +300,7 @@ void save_world(WArchive *ar, World *w)
 		++saved_node_count;
 	}
 
-	header.node_count= saved_node_count;
+	header.node_count = saved_node_count;
 	pack_buf_patch(ar, header_offset, &header, sizeof(header));
 
 	debug_print("save_world: saved node count: %i", saved_node_count);
@@ -318,9 +318,9 @@ void load_world(RArchive *ar, World *w)
 	SaveHeader header;
 	unpack_buf(ar, &header, sizeof(header));
 
-	U32 node_count= 0;
-	for (U32 node_i= 0; node_i < header.node_count;
-			++node_i, w->next_node= (w->next_node + 1) % MAX_NODE_COUNT) {
+	U32 node_count = 0;
+	for (U32 node_i = 0; node_i < header.node_count;
+			++node_i, w->next_node = (w->next_node + 1) % MAX_NODE_COUNT) {
 		// New NodeInfo from binary
 		DeadNode dead_node;
 		load_deadnode(ar, &dead_node);
@@ -338,38 +338,38 @@ void save_world_delta(WArchive *ar, World *w, RArchive *base_ar)
 	unpack_buf(base_ar, &base_header, sizeof(base_header));
 	ensure(!base_header.delta);
 
-	SaveHeader header= { .delta= true };
-	U32 header_offset= ar->data_size;
+	SaveHeader header = { .delta = true };
+	U32 header_offset = ar->data_size;
 	pack_buf(ar, &header, sizeof(header)); // Patch later
 
 	// Used to detect which nodes have been created
-	Id *handle_to_id= ALLOC(	frame_ator(),
+	Id *handle_to_id = ALLOC(	frame_ator(),
 								sizeof(*handle_to_id)*MAX_NODE_COUNT,
 								"handle_to_id");
-	for (U32 i= 0; i < MAX_NODE_COUNT; ++i) {
+	for (U32 i = 0; i < MAX_NODE_COUNT; ++i) {
 		if (w->nodes[i].allocated)
-			handle_to_id[i]= w->nodes[i].node_id;
+			handle_to_id[i] = w->nodes[i].node_id;
 		else
-			handle_to_id[i]= NULL_ID;
+			handle_to_id[i] = NULL_ID;
 	}
 
 	// Go through base state and write deleted/modified nodes
-	for (U32 node_i= 0; node_i < base_header.node_count; ++node_i) {
+	for (U32 node_i = 0; node_i < base_header.node_count; ++node_i) {
 		// Read node from base state
 		DeadNode dead_base;
 		load_deadnode(base_ar, &dead_base);
 
 		// Find node from world
-		Handle node_h= get_tbl(Id, Handle)(&w->id_to_handle, dead_base.node_id);
+		Handle node_h = get_tbl(Id, Handle)(&w->id_to_handle, dead_base.node_id);
 
 		if (node_h == NULL_HANDLE) {
 			// Node destroyed
-			DeadNode dead_node= dead_base;
-			dead_node.destroyed= true;
+			DeadNode dead_node = dead_base;
+			dead_node.destroyed = true;
 			save_deadnode(ar, &dead_node);
 		} else {
-			handle_to_id[node_h]= NULL_ID;
-			NodeInfo delta_node= w->nodes[node_h];
+			handle_to_id[node_h] = NULL_ID;
+			NodeInfo delta_node = w->nodes[node_h];
 
 			DeadNode dead_delta;
 			make_deadnode(&dead_delta, w, &delta_node);
@@ -393,11 +393,11 @@ void save_world_delta(WArchive *ar, World *w, RArchive *base_ar)
 	}
 
 	// Go through remaining handles (which are the created nodes)
-	for (U32 i= 0; i < MAX_NODE_COUNT; ++i) {
+	for (U32 i = 0; i < MAX_NODE_COUNT; ++i) {
 		if (handle_to_id[i] == NULL_ID)
 			continue;
 
-		NodeInfo *created_node= &w->nodes[i];
+		NodeInfo *created_node = &w->nodes[i];
 
 		DeadNode dead;
 		make_deadnode(&dead, w, created_node);
@@ -422,12 +422,12 @@ void load_world_delta(RArchive *ar, World *w, RArchive *base_ar)
 	debug_print("load_world_delta count: %i", delta_header.node_count);
 
 	// Go through delta archive and apply changes
-	for (U32 node_i= 0; node_i < delta_header.node_count; ++node_i) {
+	for (U32 node_i = 0; node_i < delta_header.node_count; ++node_i) {
 		DeadNode dead_delta;
 		load_deadnode(ar, &dead_delta);
 
 		// Find node from world
-		Handle node_h= get_tbl(Id, Handle)(&w->id_to_handle, dead_delta.node_id);
+		Handle node_h = get_tbl(Id, Handle)(&w->id_to_handle, dead_delta.node_id);
 		if (node_h == NULL_HANDLE) {
 			// Created
 			ensure(dead_delta.destroyed == false);
@@ -447,53 +447,53 @@ void load_world_delta(RArchive *ar, World *w, RArchive *base_ar)
 
 void make_deadnode(DeadNode *dead_node, World *w, NodeInfo *node)
 {
-	*dead_node= (DeadNode) {
-		.node_id= node->node_id,
-		.group_id= node->group_id,
-		.cmd_count= node->cmd_count,
+	*dead_node = (DeadNode) {
+		.node_id = node->node_id,
+		.group_id = node->group_id,
+		.cmd_count = node->cmd_count,
 	};
 	fmt_str(dead_node->type_name, sizeof(dead_node->type_name), "%s", node->type_name);
-	dead_node->cmds=
+	dead_node->cmds =
 		ZERO_ALLOC(frame_ator(), dead_node->cmd_count*sizeof(*dead_node->cmds), "cmds");
 
-	for (U32 i= 0; i < node->cmd_count; ++i) {
-		const SlotCmd *cmd= &node->cmds[i];
+	for (U32 i = 0; i < node->cmd_count; ++i) {
+		const SlotCmd *cmd = &node->cmds[i];
 		if (cmd->has_condition)
-			dead_node->cmds[i].cond_node_id=
+			dead_node->cmds[i].cond_node_id =
 				node_handle_to_id(w, cmd->cond_node_h);
 		if (cmd->type == CmdType_call) {
 			fmt_str(dead_node->cmds[i].func_name,
 					sizeof(dead_node->cmds[i].func_name),
 					"%s", rtti_sym_name(cmd->fptr));
 		} else if (cmd->type == CmdType_memcpy)  {
-			dead_node->cmds[i].src_node_id=
+			dead_node->cmds[i].src_node_id =
 				node_handle_to_id(w, cmd->src_node);
 		}
 	}
 
-	NodeType *node_type= (NodeType*)res_by_name(
+	NodeType *node_type = (NodeType*)res_by_name(
 							g_env.resblob,
 							ResType_NodeType,
 							dead_node->type_name);
 	if (node_type->packsync == PackSync_full) {
-		void *impl= node_impl(w, NULL, node);
+		void *impl = node_impl(w, NULL, node);
 		// @todo Resizeable archive -- packed node might be larger than struct (ptrs)
-		WArchive ar= create_warchive(ArchiveType_binary, frame_ator(), node_type->size);
+		WArchive ar = create_warchive(ArchiveType_binary, frame_ator(), node_type->size);
 		if (node_type->pack) {
 			// @todo Multiple nodes
 			node_type->pack(&ar, impl, (U8*)impl + node_type->size);
 		} else {
 			pack_buf(&ar, impl, node_type->size);
 		}
-		dead_node->packed_impl= ar.data;
-		dead_node->packed_impl_size= ar.data_size;
+		dead_node->packed_impl = ar.data;
+		dead_node->packed_impl_size = ar.data_size;
 		destroy_warchive(&ar); // Frame-allocator doesn't free. Relying on that.
 	}
 }
 
 void resurrect_deadnode(World *w, const DeadNode *dead_node)
 {
-	U32 node_h= alloc_node_without_impl(
+	U32 node_h = alloc_node_without_impl(
 			w,
 			(NodeType*)res_by_name(
 				g_env.resblob,
@@ -502,37 +502,37 @@ void resurrect_deadnode(World *w, const DeadNode *dead_node)
 			dead_node->node_id,
 			dead_node->group_id);
 
-	NodeInfo *n= &w->nodes[node_h];
-	n->cmd_count= dead_node->cmd_count;
-	n->node_id= dead_node->node_id;
-	n->group_id= dead_node->group_id;
+	NodeInfo *n = &w->nodes[node_h];
+	n->cmd_count = dead_node->cmd_count;
+	n->node_id = dead_node->node_id;
+	n->group_id = dead_node->group_id;
 
 	debug_print("deserializing %s", dead_node->type_name);
 
 	// @todo Cmd handles should be assigned after every node has been spawned
-	for (U32 i= 0; i < n->cmd_count; ++i) {
+	for (U32 i = 0; i < n->cmd_count; ++i) {
 		if (n->cmds[i].has_condition)
-			n->cmds[i].cond_node_h=
+			n->cmds[i].cond_node_h =
 				node_id_to_handle(w, dead_node->cmds[i].cond_node_id);
 		if (n->cmds[i].type == CmdType_call) {
-			n->cmds[i].fptr=
+			n->cmds[i].fptr =
 				rtti_func_ptr(dead_node->cmds[i].func_name);
 		} else if (n->cmds[i].type == CmdType_memcpy) {
-			n->cmds[i].src_node=
+			n->cmds[i].src_node =
 				node_id_to_handle(w, dead_node->cmds[i].src_node_id);
 			ensure(n->cmds[i].src_node != NULL_HANDLE);
 			ensure(w->nodes[n->cmds[i].src_node].allocated);
 		}
 	}
 
-	NodeType *node_type= (NodeType*)res_by_name(
+	NodeType *node_type = (NodeType*)res_by_name(
 							g_env.resblob,
 							ResType_NodeType,
 							dead_node->type_name);
 
 	if (node_type->packsync == PackSync_full) {
-		void *dead_impl= ALLOC(frame_ator(), node_type->size, "dead_impl");
-		RArchive ar= create_rarchive(	ArchiveType_binary,
+		void *dead_impl = ALLOC(frame_ator(), node_type->size, "dead_impl");
+		RArchive ar = create_rarchive(	ArchiveType_binary,
 										dead_node->packed_impl, dead_node->packed_impl_size);
 		if (node_type->unpack)
 			node_type->unpack(&ar, dead_impl, (U8*)dead_impl + node_type->size);
@@ -541,7 +541,7 @@ void resurrect_deadnode(World *w, const DeadNode *dead_node)
 		resurrect_node_impl(w, n, dead_impl);
 		destroy_rarchive(&ar);
 	} else {
-		void *dead_impl= ZERO_ALLOC(frame_ator(), node_type->size, "dead_impl");
+		void *dead_impl = ZERO_ALLOC(frame_ator(), node_type->size, "dead_impl");
 		// @todo Default values from node def and group def
 		if (node_type->init)
 			node_type->init(dead_impl);
@@ -567,13 +567,13 @@ void load_deadnode(RArchive *ar, DeadNode *dead_node)
 	if (dead_node->destroyed)
 		return;
 
-	const U32 cmds_size= dead_node->cmd_count*sizeof(*dead_node->cmds);
-	dead_node->cmds= ALLOC(frame_ator(), cmds_size, "packed_impl");
+	const U32 cmds_size = dead_node->cmd_count*sizeof(*dead_node->cmds);
+	dead_node->cmds = ALLOC(frame_ator(), cmds_size, "packed_impl");
 	unpack_buf(ar, dead_node->cmds, cmds_size);
 
 	if (dead_node->packed_impl_size > 0) {
 		// New Node implementation from binary
-		dead_node->packed_impl=
+		dead_node->packed_impl =
 			ALLOC(frame_ator(), dead_node->packed_impl_size, "packed_impl");
 		unpack_buf(ar, dead_node->packed_impl, dead_node->packed_impl_size);
 	}
@@ -584,46 +584,46 @@ void create_nodes(	World *w,
 					const SlotVal *init_vals, U32 init_vals_count,
 					U64 group_id)
 {
-	U32 handles[MAX_NODES_IN_GROUP_DEF]= {};
+	U32 handles[MAX_NODES_IN_GROUP_DEF] = {};
 
 	// Create nodes
-	for (U32 node_i= 0; node_i < def->node_count; ++node_i) {
-		const NodeGroupDef_Node *node_def= &def->nodes[node_i];
+	for (U32 node_i = 0; node_i < def->node_count; ++node_i) {
+		const NodeGroupDef_Node *node_def = &def->nodes[node_i];
 		/// @todo Don't query NodeType
-		U32 h= alloc_node_without_impl(
+		U32 h = alloc_node_without_impl(
 							w,
 							(NodeType*)res_by_name(	g_env.resblob,
 													ResType_NodeType,
 													node_def->type_name),
 							w->next_node_id++,
 							group_id);
-		handles[node_i]= h;
-		NodeInfo *node= &w->nodes[h];
+		handles[node_i] = h;
+		NodeInfo *node = &w->nodes[h];
 		
 		ensure(node_def->default_struct_size > 0);
 
-		U8 *default_struct= ZERO_ALLOC(frame_ator(), node_def->default_struct_size, "default_struct");
+		U8 *default_struct = ZERO_ALLOC(frame_ator(), node_def->default_struct_size, "default_struct");
 		if (node->type->init)
 			node->type->init(default_struct);
 
 		// Default values in NodeGroupDef override struct init values
-		for (U32 i= 0; i < node_def->default_struct_size; ++i) {
-			U8 *set_bytes= node_def->default_struct_set_bytes;
+		for (U32 i = 0; i < node_def->default_struct_size; ++i) {
+			U8 *set_bytes = node_def->default_struct_set_bytes;
 			if (set_bytes[i]) {
-				U8 *default_bytes= node_def->default_struct;
-				default_struct[i]= default_bytes[i];
+				U8 *default_bytes = node_def->default_struct;
+				default_struct[i] = default_bytes[i];
 			}
 		}
 
 		// Passed init values override default values of NodeGroupDef
-		for (U32 i= 0; i < init_vals_count; ++i) {
-			const SlotVal *val= &init_vals[i];
+		for (U32 i = 0; i < init_vals_count; ++i) {
+			const SlotVal *val = &init_vals[i];
 			if (strcmp(val->node_name, node_def->name))
 				continue;
 
 			/// @todo Don't do this! Slow. Or make RTTI fast.
-			U32 size= rtti_member_size(node_def->type_name, val->member_name);
-			U32 offset= rtti_member_offset(node_def->type_name, val->member_name);
+			U32 size = rtti_member_size(node_def->type_name, val->member_name);
+			U32 offset = rtti_member_offset(node_def->type_name, val->member_name);
 			if (val->size > size) {
 				fail("Node init value is larger than member (%s.%s): %i > %i",
 						val->node_name, val->member_name, val->size, size);
@@ -637,60 +637,60 @@ void create_nodes(	World *w,
 	}
 
 	// Commands
-	for (U32 cmd_i= 0; cmd_i < def->cmd_count; ++cmd_i) {
-		const NodeGroupDef_Cmd *cmd_def= &def->cmds[cmd_i];
+	for (U32 cmd_i = 0; cmd_i < def->cmd_count; ++cmd_i) {
+		const NodeGroupDef_Cmd *cmd_def = &def->cmds[cmd_i];
 
 		switch (cmd_def->type) {
 			case CmdType_memcpy: {
-				U32 src_node_h= handles[cmd_def->src_node_i];
+				U32 src_node_h = handles[cmd_def->src_node_i];
 				ensure(src_node_h < MAX_NODE_COUNT);
 
-				U32 dst_node_h= handles[cmd_def->dst_node_i];
+				U32 dst_node_h = handles[cmd_def->dst_node_i];
 
-				NodeInfo *dst_node= &w->nodes[dst_node_h];
-				U32 cmd_i= dst_node->cmd_count++;
+				NodeInfo *dst_node = &w->nodes[dst_node_h];
+				U32 cmd_i = dst_node->cmd_count++;
 				if (cmd_i >= MAX_NODE_CMD_COUNT)
 					fail("Too many node cmds");
 
-				dst_node->cmds[cmd_i]= (SlotCmd) {
-					.type= CmdType_memcpy,
-					.src_offset= cmd_def->src_offset,
-					.dst_offset= cmd_def->dst_offset,
-					.size= cmd_def->size,
-					.src_node= src_node_h,
+				dst_node->cmds[cmd_i] = (SlotCmd) {
+					.type = CmdType_memcpy,
+					.src_offset = cmd_def->src_offset,
+					.dst_offset = cmd_def->dst_offset,
+					.size = cmd_def->size,
+					.src_node = src_node_h,
 				};
-				SlotCmd *cmd= &dst_node->cmds[cmd_i];
-				cmd->has_condition= cmd_def->has_condition;
-				cmd->cond_node_h= handles[cmd_def->cond_node_i];
-				cmd->cond_offset= cmd_def->cond_offset;
-				cmd->cond_size= cmd_def->cond_size;
+				SlotCmd *cmd = &dst_node->cmds[cmd_i];
+				cmd->has_condition = cmd_def->has_condition;
+				cmd->cond_node_h = handles[cmd_def->cond_node_i];
+				cmd->cond_offset = cmd_def->cond_offset;
+				cmd->cond_size = cmd_def->cond_size;
 			} break;
 			case CmdType_call: {
 				ensure(cmd_def->p_count > 0);
 
 				// Convention: "Destination" node is the first parameter
-				const U32 dst_node_i= cmd_def->p_node_i[0];
-				const U32 dst_node_h= handles[dst_node_i];
+				const U32 dst_node_i = cmd_def->p_node_i[0];
+				const U32 dst_node_h = handles[dst_node_i];
 
-				NodeInfo *dst_node= &w->nodes[dst_node_h];
-				const U32 cmd_i= dst_node->cmd_count++;
+				NodeInfo *dst_node = &w->nodes[dst_node_h];
+				const U32 cmd_i = dst_node->cmd_count++;
 				if (cmd_i >= MAX_NODE_CMD_COUNT)
 					fail("Too many node cmds");
 
-				SlotCmd *slot= &dst_node->cmds[cmd_i];
-				*slot= (SlotCmd) {
-					.type= CmdType_call,
-					.fptr= cmd_def->fptr,
+				SlotCmd *slot = &dst_node->cmds[cmd_i];
+				*slot = (SlotCmd) {
+					.type = CmdType_call,
+					.fptr = cmd_def->fptr,
 				};
-				for (U32 i= 1; i < cmd_def->p_count; ++i) {
-					slot->p_nodes[slot->p_node_count++]=
+				for (U32 i = 1; i < cmd_def->p_count; ++i) {
+					slot->p_nodes[slot->p_node_count++] =
 						handles[cmd_def->p_node_i[i]];
 				}
-				SlotCmd *cmd= &dst_node->cmds[cmd_i];
-				cmd->has_condition= cmd_def->has_condition;
-				cmd->cond_node_h= handles[cmd_def->cond_node_i];
-				cmd->cond_offset= cmd_def->cond_offset;
-				cmd->cond_size= cmd_def->cond_size;
+				SlotCmd *cmd = &dst_node->cmds[cmd_i];
+				cmd->has_condition = cmd_def->has_condition;
+				cmd->cond_node_h = handles[cmd_def->cond_node_i];
+				cmd->cond_offset = cmd_def->cond_offset;
+				cmd->cond_size = cmd_def->cond_size;
 			} break;
 			default: fail("Invalid CmdType: %i", cmd_def->type);
 		}
@@ -700,33 +700,33 @@ void create_nodes(	World *w,
 void free_node(World *w, U32 handle)
 {
 	ensure(handle < MAX_NODE_COUNT);
-	NodeInfo *n= &w->nodes[handle];
+	NodeInfo *n = &w->nodes[handle];
 	ensure(n->allocated);
 
 	set_tbl(Id, Handle)(&w->id_to_handle, n->node_id, NULL_HANDLE);
 
-	U32 impl_handle= n->impl_handle;
+	U32 impl_handle = n->impl_handle;
 	if (n->type->auto_impl_mgmt) {
 		if (n->type->free)
 			n->type->free(impl_handle, node_impl(w, NULL, n));
 
 		ensure(n->type->auto_storage_handle < w->auto_storage_count);
-		AutoNodeImplStorage *st= &w->auto_storages[n->type->auto_storage_handle];
+		AutoNodeImplStorage *st = &w->auto_storages[n->type->auto_storage_handle];
 		ensure(impl_handle < st->max_count);
-		st->allocated[impl_handle]= false;
+		st->allocated[impl_handle] = false;
 	} else {
 		if (n->type->free)
 			n->type->free(impl_handle, node_impl(w, NULL, n));
 	}
 
 	--w->node_count;
-	*n= (NodeInfo) { .allocated= false };
+	*n = (NodeInfo) { .allocated = false };
 }
 
 void free_node_group(World *w, U64 group_id)
 {
-	for (U32 i= 0; i < MAX_NODE_COUNT; ++i) {
-		NodeInfo *node= &w->nodes[i];
+	for (U32 i = 0; i < MAX_NODE_COUNT; ++i) {
+		NodeInfo *node = &w->nodes[i];
 		if (!node->allocated)
 			continue;
 
@@ -739,14 +739,14 @@ void remove_node_group(World *w, void *node_impl_in_group)
 {
 	// @todo It's horrible to scan like this
 
-	U64 group_id= (U64)-1;
-	for (U32 i= 0; i < MAX_NODE_COUNT; ++i) {
-		NodeInfo *node= &w->nodes[i];
+	U64 group_id = (U64)-1;
+	for (U32 i = 0; i < MAX_NODE_COUNT; ++i) {
+		NodeInfo *node = &w->nodes[i];
 		if (!node->allocated)
 			continue;
 
 		if (node_impl(w, NULL, node) == node_impl_in_group) {
-			group_id= node->group_id;
+			group_id = node->group_id;
 			break;
 		}
 	}
@@ -774,12 +774,12 @@ Handle node_id_to_handle(World *w, Id id)
 void * node_impl(World *w, U32 *size, NodeInfo *node)
 {
 	if (size)
-		*size= node->type->size;
+		*size = node->type->size;
 
-	U32 offset= node->type->size*node->impl_handle;
+	U32 offset = node->type->size*node->impl_handle;
 	if (node->type->auto_impl_mgmt) {
 		ensure(node->type->auto_storage_handle < w->auto_storage_count);
-		U8 *storage= w->auto_storages[node->type->auto_storage_handle].storage;
+		U8 *storage = w->auto_storages[node->type->auto_storage_handle].storage;
 		return storage + offset;
 	} else {
 		return (U8*)node->type->storage() + offset;
@@ -791,31 +791,31 @@ void resurrect_node_impl(World *w, NodeInfo *n, void *dead_impl_bytes)
 	if (n->type->auto_impl_mgmt) {
 		// Automatically manage impl memory
 		ensure(n->type->auto_storage_handle < w->auto_storage_count);
-		AutoNodeImplStorage *st= &w->auto_storages[n->type->auto_storage_handle];
+		AutoNodeImplStorage *st = &w->auto_storages[n->type->auto_storage_handle];
 
 		if (st->count >= st->max_count)
 			fail(	"Too many nodes '%s': %i > %i",
 					n->type->res.name, st->count + 1, st->max_count);
 
 		while (st->allocated[st->next])
-			st->next= (st->next + 1) % st->max_count;
+			st->next = (st->next + 1) % st->max_count;
 		++st->count;
 
-		const U32 h= st->next;
-		void *e= (U8*)st->storage + h*st->size;
+		const U32 h = st->next;
+		void *e = (U8*)st->storage + h*st->size;
 		memcpy(e, dead_impl_bytes, st->size);
-		st->allocated[h]= true;
+		st->allocated[h] = true;
 
 		// In-place resurrection
 		if (n->type->resurrect) {
-			U32 ret= n->type->resurrect(e);
+			U32 ret = n->type->resurrect(e);
 			ensure(ret == NULL_HANDLE);
 		}
-		n->impl_handle= h;
+		n->impl_handle = h;
 	} else {
 		// Manual memory management
 		ensure(n->type->resurrect);
-		n->impl_handle= n->type->resurrect(dead_impl_bytes);
+		n->impl_handle = n->type->resurrect(dead_impl_bytes);
 	}
 }
 
@@ -824,21 +824,21 @@ U32 alloc_node_without_impl(World *w, NodeType *type, U64 node_id, U64 group_id)
 	if (w->node_count == MAX_NODE_COUNT)
 		fail("Too many nodes");
 
-	NodeInfo info= {
-		.allocated= true,
-		.type= type,
-		.node_id= node_id,
-		.group_id= group_id,
+	NodeInfo info = {
+		.allocated = true,
+		.type = type,
+		.node_id = node_id,
+		.group_id = group_id,
 	};
 	fmt_str(info.type_name, sizeof(info.type_name), "%s", type->res.name);
 
 	while (w->nodes[w->next_node].allocated)
-		w->next_node= (w->next_node + 1) % MAX_NODE_COUNT;
+		w->next_node = (w->next_node + 1) % MAX_NODE_COUNT;
 
 	ensure(w->next_node < MAX_NODE_COUNT);
 	ensure(!w->nodes[w->next_node].allocated);
 	++w->node_count;
-	w->nodes[w->next_node]= info;
+	w->nodes[w->next_node] = info;
 	set_tbl(Id, Handle)(&w->id_to_handle, node_id, w->next_node);
 	return w->next_node;
 }
@@ -846,14 +846,14 @@ U32 alloc_node_without_impl(World *w, NodeType *type, U64 node_id, U64 group_id)
 
 void world_on_res_reload(ResBlob *old)
 {
-	World *w= g_env.world;
+	World *w = g_env.world;
 
-	for (U32 i= 0; i < MAX_NODE_COUNT; ++i) {
-		NodeInfo *n= &w->nodes[i];
+	for (U32 i = 0; i < MAX_NODE_COUNT; ++i) {
+		NodeInfo *n = &w->nodes[i];
 		if (!n->allocated)
 			continue;
 
-		n->type= (NodeType*)res_by_name(	g_env.resblob,
+		n->type = (NodeType*)res_by_name(	g_env.resblob,
 											ResType_NodeType,
 											n->type_name);
 	}
@@ -864,7 +864,7 @@ void world_on_res_reload(ResBlob *old)
 					g_env.resblob, ResType_NodeType);
 
 	U32 ntypes_count;
-	NodeType **ntypes=
+	NodeType **ntypes =
 		(NodeType **)all_res_by_type(	&ntypes_count,
 										g_env.resblob,
 										ResType_NodeType);
@@ -875,13 +875,13 @@ void world_on_res_reload(ResBlob *old)
 	if (ntypes_count != old_ntypes_count)
 		fail("@todo Runtime load/unload for NodeTypes");
 
-	U32 next_auto_storage_handle= 0;
-	for (U32 i= 0; i < ntypes_count; ++i) {
-		NodeType *ntype= ntypes[i];
+	U32 next_auto_storage_handle = 0;
+	for (U32 i = 0; i < ntypes_count; ++i) {
+		NodeType *ntype = ntypes[i];
 		if (!ntype->auto_impl_mgmt)
 			continue;
 		// This is gonna break horribly some day.
-		ntype->auto_storage_handle= next_auto_storage_handle++;
+		ntype->auto_storage_handle = next_auto_storage_handle++;
 	}
 
 	// Reinitialize every auto storage node so that cached pointers are updated
@@ -889,24 +889,24 @@ void world_on_res_reload(ResBlob *old)
 	/// @todo No! Single nodes can make assumptions about other nodes in
 	///       the group, and then resurrecting messes everything up.
 	///       Maybe there should be an optional "on_recompile" func.
-	for (U32 i= 0; i < MAX_NODE_COUNT; ++i) {
-		NodeInfo *node= &w->nodes[i];
+	for (U32 i = 0; i < MAX_NODE_COUNT; ++i) {
+		NodeInfo *node = &w->nodes[i];
 		if (!node->allocated)
 			continue;
 		if (!node->type->auto_impl_mgmt)
 			continue; // Manually managed have manual logic for res reload
 
-		for (U32 slot_i= 0; slot_i < node->cmd_count; ++slot_i) {
-			SlotCmd *cmd= &node->cmds[slot_i];
+		for (U32 slot_i = 0; slot_i < node->cmd_count; ++slot_i) {
+			SlotCmd *cmd = &node->cmds[slot_i];
 			if (cmd->type == CmdType_call)
-				cmd->fptr= rtti_relocate_sym(cmd->fptr);
+				cmd->fptr = rtti_relocate_sym(cmd->fptr);
 		}
 
 		if (node->type->free) {
 			node->type->free(node->impl_handle, node_impl(w, NULL, node));
 		}
 		if (node->type->resurrect) {
-			U32 ret= node->type->resurrect(node_impl(w, NULL, node));
+			U32 ret = node->type->resurrect(node_impl(w, NULL, node));
 			ensure(ret == NULL_HANDLE);
 		}
 	}

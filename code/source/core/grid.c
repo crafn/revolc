@@ -3,22 +3,22 @@
 GridDef make_griddef(V2d center, V2d size, U32 reso_per_unit, U32 sizeof_cell)
 {
 	// @todo floor() is slow
-	V2i origo_cell= {
+	V2i origo_cell = {
 		(S32)floor((center.x - size.x*0.5)*reso_per_unit + 0.5),
 		(S32)floor((center.y - size.y*0.5)*reso_per_unit + 0.5),
 	};
-	V2i size_in_cells= {
+	V2i size_in_cells = {
 		(S32)floor(size.x*reso_per_unit + 0.5),
 		(S32)floor(size.y*reso_per_unit + 0.5),
 	};
 
 	return (GridDef) {
-		.offset= origo_cell,
-		.reso= size_in_cells,
-		.reso_per_unit= reso_per_unit,
-		.cell_count= size_in_cells.x*size_in_cells.y,
-		.sizeof_cell= sizeof_cell,
-		.sizeof_grid= sizeof_cell*size_in_cells.x*size_in_cells.y,
+		.offset = origo_cell,
+		.reso = size_in_cells,
+		.reso_per_unit = reso_per_unit,
+		.cell_count = size_in_cells.x*size_in_cells.y,
+		.sizeof_cell = sizeof_cell,
+		.sizeof_grid = sizeof_cell*size_in_cells.x*size_in_cells.y,
 	};
 }
 
@@ -54,7 +54,7 @@ V2i gix_to_gvec(GridDef def, U32 ix)
 V2d gix_to_wvec_center(GridDef def, U32 ix)
 {
 	ensure(def.reso_per_unit != 0);
-	V2i gvec= gix_to_gvec(def, ix);
+	V2i gvec = gix_to_gvec(def, ix);
 	return (V2d) {
 		(gvec.x + 0.5)/def.reso_per_unit,
 		(gvec.y + 0.5)/def.reso_per_unit,
@@ -78,7 +78,7 @@ V2i wvec_to_gvec(GridDef def, V2d world_vec)
 
 bool is_wvec_in_grid(GridDef def, V2d world_vec)
 {
-	V2i vec= wvec_to_gvec(def, world_vec);
+	V2i vec = wvec_to_gvec(def, world_vec);
 	if (vec.x < def.offset.x || vec.y < def.offset.y)
 		return false;
 	if (vec.x >= def.offset.x + def.reso.x || vec.y >= def.offset.y + def.reso.y)

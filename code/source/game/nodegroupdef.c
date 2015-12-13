@@ -58,7 +58,7 @@ void add_tok(Token *dst_tokens, U32 *next_tok, U32 max_tokens, Token t)
 {
 	if (*next_tok >= max_tokens)
 		fail("Too many tokens");
-	dst_tokens[(*next_tok)++]= t;
+	dst_tokens[(*next_tok)++] = t;
 }
 
 internal
@@ -72,49 +72,49 @@ void commit(	TokState *state,
 {
 	if (e > b) {
 		if (t == TokType_name) {
-			TokType kw= kw_token_type(b, e - b);
+			TokType kw = kw_token_type(b, e - b);
 			if (kw != TokType_unknown)
-				t= kw;
+				t = kw;
 		}
-		Token tok= { .type= t };
-		U32 size= e - b + 1;
+		Token tok = { .type = t };
+		U32 size = e - b + 1;
 		if (size > sizeof(tok.str))
 			fail("Too long token");
 		fmt_str(tok.str, size, "%s", b);
 		ensure(strlen(tok.str) + 1 == size);
 		add_tok(tokens, next_tok, max_token_count, tok);
-		*state= TokState_none;
+		*state = TokState_none;
 	}
 }
 
 internal
 void tokenize(Token *dst_tokens, U32 *next_tok, U32 max_toks, const char* contents)
 {
-	U32 contents_size= strlen(contents) + 1;
-	*next_tok= 0;
+	U32 contents_size = strlen(contents) + 1;
+	*next_tok = 0;
 
-	TokState state= TokState_none;
-	const char* cur= contents;
-	const char* tok_begin= contents;
-	const char* end= contents + contents_size;
+	TokState state = TokState_none;
+	const char* cur = contents;
+	const char* tok_begin = contents;
+	const char* end = contents + contents_size;
 
 	while (cur < end + 1 && tok_begin < end) {
 		switch (state) {
 			case TokState_none:
 				if (single_char_token_type(*cur) != TokType_unknown)
-					state= TokState_maybe_single_char;
+					state = TokState_maybe_single_char;
 				else if (*cur >= '0' && *cur <= '9')
-					state= TokState_number;
+					state = TokState_number;
 				else if (	(*cur >= 'a' && *cur <= 'z') ||
 							(*cur >= 'A' && *cur <= 'Z') ||
 							(*cur == '_'))
-					state= TokState_name;
+					state = TokState_name;
 				else if (*cur == '\"')
-					state= TokState_str;
-				tok_begin= cur;
+					state = TokState_str;
+				tok_begin = cur;
 			break;
 			case TokState_maybe_single_char: {
-				TokType t= TokType_unknown; //double_char_tok_type(*tok_begin, *cur);
+				TokType t = TokType_unknown; //double_char_tok_type(*tok_begin, *cur);
 				if (t == TokType_unknown) {
 					commit(&state, dst_tokens, next_tok, max_toks, tok_begin, cur, single_char_token_type(*tok_begin), end);
 					--cur;
@@ -140,9 +140,9 @@ void tokenize(Token *dst_tokens, U32 *next_tok, U32 max_toks, const char* conten
 				}
 
 				if (*cur == '.')
-					state= TokState_number_after_dot;
+					state = TokState_number_after_dot;
 				else
-					state= TokState_number;
+					state = TokState_number;
 			break;
 			case TokState_name:
 				if (	whitespace(*cur) ||
@@ -161,13 +161,13 @@ void tokenize(Token *dst_tokens, U32 *next_tok, U32 max_toks, const char* conten
 	}
 	ensure(*cur == '\0');
 	ensure(*next_tok < max_toks);
-	dst_tokens[*(next_tok++)]= (Token) { .type= TokType_eof };
+	dst_tokens[*(next_tok++)] = (Token) { .type = TokType_eof };
 }
 
 internal
 U32 node_i_by_name(const NodeGroupDef *def, const char *name)
 {
-	for (U32 i= 0; i < def->node_count; ++i) {
+	for (U32 i = 0; i < def->node_count; ++i) {
 		if (!strcmp(def->nodes[i].name, name))
 			return i;
 	}
@@ -179,8 +179,8 @@ U32 node_i_by_name(const NodeGroupDef *def, const char *name)
 internal
 void find_member_storage(U32 *offset, U32 *size, const char *type_name, const Token *tok)
 {
-	*offset= 0;
-	*size= 0;
+	*offset = 0;
+	*size = 0;
 
 	// Skip over "struct_var_name." as we already have `type_name`
 	ensure(tok->type == TokType_name);
@@ -191,9 +191,9 @@ void find_member_storage(U32 *offset, U32 *size, const char *type_name, const To
 	while (tok->type != TokType_eof) {
 		ensure(tok->type == TokType_name);
 
-		const char *member_name= tok->str;
+		const char *member_name = tok->str;
 		*offset += rtti_member_offset(type_name, member_name);
-		const char *next_type_name= rtti_member_type_name(type_name, member_name);
+		const char *next_type_name = rtti_member_type_name(type_name, member_name);
 
 		++tok;
 
@@ -201,10 +201,10 @@ void find_member_storage(U32 *offset, U32 *size, const char *type_name, const To
 			++tok;
 		} else {
 			// That was the last name in the chain of "foo.bar.asdfg.hsdg"
-			*size= rtti_member_size(type_name, member_name);
+			*size = rtti_member_size(type_name, member_name);
 			break;
 		}
-		type_name= next_type_name;
+		type_name = next_type_name;
 	}
 }
 
@@ -223,15 +223,15 @@ void parse_cmd(NodeGroupDef_Cmd *cmd, const Token *toks, U32 tok_count, const No
 		ensure(toks[4].type == TokType_name);
 		ensure(toks[5].type == TokType_close_paren);
 
-		const char *cond_node_name= toks[2].str;
-		const char *cond_member_name= toks[4].str;
-		U32 cond_node_i= node_i_by_name(def, cond_node_name);
-		const char *cond_node_type_name= def->nodes[cond_node_i].type_name;
+		const char *cond_node_name = toks[2].str;
+		const char *cond_member_name = toks[4].str;
+		U32 cond_node_i = node_i_by_name(def, cond_node_name);
+		const char *cond_node_type_name = def->nodes[cond_node_i].type_name;
 
-		cmd->has_condition= true;
-		cmd->cond_node_i= cond_node_i;
-		cmd->cond_offset= rtti_member_offset(cond_node_type_name, cond_member_name);
-		cmd->cond_size= rtti_member_size(cond_node_type_name, cond_member_name);
+		cmd->has_condition = true;
+		cmd->cond_node_i = cond_node_i;
+		cmd->cond_offset = rtti_member_offset(cond_node_type_name, cond_member_name);
+		cmd->cond_size = rtti_member_size(cond_node_type_name, cond_member_name);
 
 		// Parse command
 		parse_cmd(cmd, toks + 6, tok_count - 6, def);
@@ -240,56 +240,56 @@ void parse_cmd(NodeGroupDef_Cmd *cmd, const Token *toks, U32 tok_count, const No
 
 		// Dst node token is always first
 		ensure(toks[0].type == TokType_name);
-		const char *dst_node_name= toks[0].str;
+		const char *dst_node_name = toks[0].str;
 
 		// Find src node token after =
-		U32 src_node_tok_i= 1;
+		U32 src_node_tok_i = 1;
 		while (	src_node_tok_i < tok_count &&
 				toks[src_node_tok_i].type != TokType_assign)
 			++src_node_tok_i;
 		++src_node_tok_i;
 		ensure(src_node_tok_i < tok_count);
 		ensure(toks[src_node_tok_i].type == TokType_name);
-		const char *src_node_name= toks[src_node_tok_i].str;
+		const char *src_node_name = toks[src_node_tok_i].str;
 
-		U32 src_node_i= node_i_by_name(def, src_node_name);
-		U32 dst_node_i= node_i_by_name(def, dst_node_name);
+		U32 src_node_i = node_i_by_name(def, src_node_name);
+		U32 dst_node_i = node_i_by_name(def, dst_node_name);
 
-		const char *src_type_name= def->nodes[src_node_i].type_name;
-		const char *dst_type_name= def->nodes[dst_node_i].type_name;
+		const char *src_type_name = def->nodes[src_node_i].type_name;
+		const char *dst_type_name = def->nodes[dst_node_i].type_name;
 
-		cmd->type= CmdType_memcpy;
-		cmd->src_node_i= src_node_i;
-		cmd->dst_node_i= dst_node_i;
+		cmd->type = CmdType_memcpy;
+		cmd->src_node_i = src_node_i;
+		cmd->dst_node_i = dst_node_i;
 		U32 dst_size;
 		U32 src_size;
 		find_member_storage(&cmd->dst_offset, &dst_size, dst_type_name, &toks[0]);
 		find_member_storage(&cmd->src_offset, &src_size, src_type_name, &toks[src_node_tok_i]);
 		ensure(dst_size == src_size);
-		cmd->size= src_size;
+		cmd->size = src_size;
 	} else if (toks[1].type == TokType_open_paren) {
 		// Call
 		ensure(toks[0].type == TokType_name);
 
-		const char *func_name= toks[0].str;
-		cmd->type= CmdType_call;
+		const char *func_name = toks[0].str;
+		cmd->type = CmdType_call;
 		fmt_str(cmd->func_name, sizeof(cmd->func_name), "%s", func_name);
 
 		/// @todo	Check that there's correct number of params,
 		///			and that they're correct type!!!
 
 		// Params should be format "node_name" (for now)
-		for (U32 i= 2; i < tok_count; ++i) {
+		for (U32 i = 2; i < tok_count; ++i) {
 			if (toks[i].type == TokType_comma)
 				continue;
 			if (toks[i].type == TokType_close_paren)
 				break;
 
 			ensure(toks[i].type == TokType_name);
-			U32 p_node_i= node_i_by_name(def, toks[i].str);
+			U32 p_node_i = node_i_by_name(def, toks[i].str);
 
 			ensure(cmd->p_count < MAX_CMD_CALL_PARAMS);
-			cmd->p_node_i[cmd->p_count]= p_node_i;
+			cmd->p_node_i[cmd->p_count] = p_node_i;
 			++cmd->p_count;
 		}
 	}
@@ -297,28 +297,28 @@ void parse_cmd(NodeGroupDef_Cmd *cmd, const Token *toks, U32 tok_count, const No
 
 void init_nodegroupdef(NodeGroupDef *def)
 {
-	for (U32 node_i= 0; node_i < def->node_count; ++node_i) {
-		NodeGroupDef_Node *node= &def->nodes[node_i];
-		node->default_struct_size=
+	for (U32 node_i = 0; node_i < def->node_count; ++node_i) {
+		NodeGroupDef_Node *node = &def->nodes[node_i];
+		node->default_struct_size =
 			rtti_struct_size(node->type_name);
 		ensure(node->default_struct_size > 0);
-		node->default_struct=
+		node->default_struct =
 			ZERO_ALLOC(gen_ator(), node->default_struct_size, "default_struct");
-		node->default_struct_set_bytes=
+		node->default_struct_set_bytes =
 			ZERO_ALLOC(gen_ator(), node->default_struct_size, "default_struct_set_bytes");
 	}
 
-	for (U32 node_i= 0; node_i < def->node_count; ++node_i) {
-		NodeGroupDef_Node *node= &def->nodes[node_i];
+	for (U32 node_i = 0; node_i < def->node_count; ++node_i) {
+		NodeGroupDef_Node *node = &def->nodes[node_i];
 
-		for (U32 i= 0; i < node->defaults_count; ++i) {
-			const char *field_str= node->defaults[i].dst;
-			const char *value_str= node->defaults[i].src;
+		for (U32 i = 0; i < node->defaults_count; ++i) {
+			const char *field_str = node->defaults[i].dst;
+			const char *value_str = node->defaults[i].src;
 
-			U32 size= rtti_member_size(node->type_name, field_str);
-			U32 offset= rtti_member_offset(node->type_name, field_str);
+			U32 size = rtti_member_size(node->type_name, field_str);
+			U32 offset = rtti_member_offset(node->type_name, field_str);
 
-			const U32 value_size= strlen(value_str) + 1;
+			const U32 value_size = strlen(value_str) + 1;
 			ensure(offset + size < node->default_struct_size);
 			ensure(value_size <= size);
 			memcpy(	node->default_struct + offset, value_str,
@@ -329,37 +329,37 @@ void init_nodegroupdef(NodeGroupDef *def)
 	}
 
 	// cmds
-	for (U32 cmd_i= 0; cmd_i < def->cmd_count; ++cmd_i) {
-		NodeGroupDef_Cmd *cmd= &def->cmds[cmd_i];
+	for (U32 cmd_i = 0; cmd_i < def->cmd_count; ++cmd_i) {
+		NodeGroupDef_Cmd *cmd = &def->cmds[cmd_i];
 
-		const U32 max_tokens= 64;
+		const U32 max_tokens = 64;
 		Token toks[max_tokens];
 		U32 tok_count;
 		tokenize(toks, &tok_count, max_tokens, cmd->str);
 
 		parse_cmd(cmd, toks, tok_count, def);
 		if (cmd->type == CmdType_call)
-			cmd->fptr= rtti_func_ptr(cmd->func_name);
+			cmd->fptr = rtti_func_ptr(cmd->func_name);
 	}
 }
 
 int json_nodegroupdef_to_blob(struct BlobBuf *buf, JsonTok j)
 {
-	JsonTok j_nodes= json_value_by_key(j, "nodes");
-	JsonTok j_cmds= json_value_by_key(j, "cmds");
+	JsonTok j_nodes = json_value_by_key(j, "nodes");
+	JsonTok j_cmds = json_value_by_key(j, "cmds");
 	if (json_is_null(j_nodes))
 		RES_ATTRIB_MISSING("nodes");
 	if (json_is_null(j_cmds))
 		RES_ATTRIB_MISSING("cmds");
 
 	// nodes
-	NodeGroupDef def= {};
-	for (U32 node_i= 0; node_i < json_member_count(j_nodes); ++node_i) {
-		JsonTok j_node= json_member(j_nodes, node_i);
-		NodeGroupDef_Node *node= &def.nodes[node_i];
+	NodeGroupDef def = {};
+	for (U32 node_i = 0; node_i < json_member_count(j_nodes); ++node_i) {
+		JsonTok j_node = json_member(j_nodes, node_i);
+		NodeGroupDef_Node *node = &def.nodes[node_i];
 
-		JsonTok j_type_name= json_value_by_key(j_node, "type");
-		JsonTok j_name= json_value_by_key(j_node, "name");
+		JsonTok j_type_name = json_value_by_key(j_node, "type");
+		JsonTok j_name = json_value_by_key(j_node, "name");
 		if (json_is_null(j_type_name))
 			RES_ATTRIB_MISSING("type");
 		if (json_is_null(j_name))
@@ -373,20 +373,20 @@ int json_nodegroupdef_to_blob(struct BlobBuf *buf, JsonTok j)
 					sizeof(def.nodes[node_i].name),
 					"%s", json_str(j_name));
 
-		JsonTok j_defaults= json_value_by_key(j_node, "defaults");
-		for (U32 i= 0; i < json_member_count(j_defaults); ++i) {
-			JsonTok j_d_obj= json_member(j_defaults, i);
+		JsonTok j_defaults = json_value_by_key(j_node, "defaults");
+		for (U32 i = 0; i < json_member_count(j_defaults); ++i) {
+			JsonTok j_d_obj = json_member(j_defaults, i);
 			ensure(json_member_count(j_d_obj) == 1);
 
-			JsonTok j_default_field= json_member(j_d_obj, 0);
-			JsonTok j_default_value= json_member(j_default_field, 0);
+			JsonTok j_default_field = json_member(j_d_obj, 0);
+			JsonTok j_default_value = json_member(j_default_field, 0);
 			ensure(json_is_string(j_default_field));
 			ensure(json_is_string(j_default_value)); /// @todo All types
 
-			const char *field_str= json_str(j_default_field);
-			const char *value_str= json_str(j_default_value);
+			const char *field_str = json_str(j_default_field);
+			const char *value_str = json_str(j_default_value);
 
-			NodeGroupDef_Node_Defaults *defaults=
+			NodeGroupDef_Node_Defaults *defaults =
 				&node->defaults[node->defaults_count++];
 			fmt_str(defaults->dst, sizeof(defaults->dst), "%s", field_str);
 			fmt_str(defaults->src, sizeof(defaults->src), "%s", value_str);
@@ -396,10 +396,10 @@ int json_nodegroupdef_to_blob(struct BlobBuf *buf, JsonTok j)
 	}
 
 	// cmds
-	for (U32 cmd_i= 0; cmd_i < json_member_count(j_cmds); ++cmd_i) {
-		JsonTok j_cmd= json_member(j_cmds, cmd_i);
-		const char *cmd_str= json_str(j_cmd);
-		NodeGroupDef_Cmd *cmd= &def.cmds[def.cmd_count];
+	for (U32 cmd_i = 0; cmd_i < json_member_count(j_cmds); ++cmd_i) {
+		JsonTok j_cmd = json_member(j_cmds, cmd_i);
+		const char *cmd_str = json_str(j_cmd);
+		NodeGroupDef_Cmd *cmd = &def.cmds[def.cmd_count];
 		fmt_str(cmd->str, sizeof(cmd->str), "%s", cmd_str);
 		++def.cmd_count;
 	}
@@ -409,14 +409,14 @@ int json_nodegroupdef_to_blob(struct BlobBuf *buf, JsonTok j)
 				sizeof(def) - sizeof(Resource));
 
 /*
-	for (U32 i= 0; i < def.node_count; ++i) {
-		U32 default_struct_offset=
+	for (U32 i = 0; i < def.node_count; ++i) {
+		U32 default_struct_offset =
 			res_offset + offsetof(NodeGroupDef, nodes[i])
 			+ offsetof(NodeGroupDef_Node, default_struct);
 		blob_patch_rel_ptr(buf, default_struct_offset);
 		blob_write(buf, NULL, def.nodes[i].default_struct_size);
 
-		U32 default_struct_set_bytes_offset=
+		U32 default_struct_set_bytes_offset =
 			res_offset + offsetof(NodeGroupDef, nodes[i])
 			+ offsetof(NodeGroupDef_Node, default_struct_set_bytes);
 		blob_patch_rel_ptr(buf, default_struct_set_bytes_offset);
@@ -432,7 +432,7 @@ error:
 
 void deinit_nodegroupdef(NodeGroupDef *def)
 {
-	for (U32 i= 0; i < def->node_count; ++i) {
+	for (U32 i = 0; i < def->node_count; ++i) {
 		FREE(gen_ator(), def->nodes[i].default_struct);
 		FREE(gen_ator(), def->nodes[i].default_struct_set_bytes);
 	}

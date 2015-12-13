@@ -135,9 +135,9 @@ bool gluInvertMatrix(const float m[16], float invOut[16])
 M44f mul_m44f(M44f a, M44f b)
 {
 	M44f result;
-	for (U32 r= 0; r < 4; ++r)
-	for (U32 c= 0; c < 4; ++c)
-		result.e[c + 4*r]=
+	for (U32 r = 0; r < 4; ++r)
+	for (U32 c = 0; c < 4; ++c)
+		result.e[c + 4*r] =
 			a.e[0 + 4*r]*b.e[c + 4*0] +
 			a.e[1 + 4*r]*b.e[c + 4*1] +
 			a.e[2 + 4*r]*b.e[c + 4*2] +
@@ -148,7 +148,7 @@ M44f mul_m44f(M44f a, M44f b)
 M44f inverted_m44f(M44f m)
 {
 	M44f result;
-	bool success= gluInvertMatrix(m.e, result.e);
+	bool success = gluInvertMatrix(m.e, result.e);
 	if (!success)
 		fail("Inverting matrix failed");
 	return result;

@@ -76,7 +76,7 @@ typedef struct NodeGroupDef {
 	U32 node_count;
 
 	// Cmds of different types are in the same array, as the order of
-	// performing cmds matter. Consider e.g. "a= b", "copy(b, a)"
+	// performing cmds matter. Consider e.g. "a = b", "copy(b, a)"
 	NodeGroupDef_Cmd cmds[MAX_CMDS_IN_GROUP_DEF];
 	U32 cmd_count;
 } PACKED NodeGroupDef;

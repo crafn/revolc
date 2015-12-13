@@ -44,8 +44,8 @@ VoidFunc plat_query_gl_func_impl(const char *name)
 
 void plat_init_impl(Device* d, const char* title, V2i reso)
 {
-	d->win_size= reso;
-	d->impl= zero_malloc(sizeof(*d->impl));
+	d->win_size = reso;
+	d->impl = zero_malloc(sizeof(*d->impl));
 	{
 		/// Original code from https://www.opengl.org/wiki/Tutorial:_OpenGL_3.0_Context_Creation_%28GLX%29
 		Display *display = XOpenDisplay(NULL);
@@ -87,7 +87,7 @@ void plat_init_impl(Device* d, const char* title, V2i reso)
 		int best_fbc = -1, worst_fbc = -1, best_num_samp = -1, worst_num_samp = 999;
 
 		int i;
-		for (i=0; i<fbcount; ++i)
+		for (i =0; i<fbcount; ++i)
 		{
 			XVisualInfo *vi = glXGetVisualFromFBConfig( display, fbc[i] );
 			if ( vi )
@@ -119,7 +119,7 @@ void plat_init_impl(Device* d, const char* title, V2i reso)
 								 vi->visual, AllocNone );
 		swa.background_pixmap = None ;
 		swa.border_pixel      = 0;
-		swa.event_mask= ExposureMask | KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask;
+		swa.event_mask = ExposureMask | KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask;
 
 		Window win = XCreateWindow( display, RootWindow( display, vi->screen ), 
 					  0, 0, reso.x, reso.y, 0, vi->depth, InputOutput, 
@@ -202,9 +202,9 @@ void plat_init_impl(Device* d, const char* title, V2i reso)
 
 		glXMakeCurrent(display, win, ctx);
 
-		d->impl->dpy= display;
-		d->impl->win= win;
-		d->impl->ctx= ctx;
+		d->impl->dpy = display;
+		d->impl->win = win;
+		d->impl->ctx = ctx;
 	}
 
 	{
@@ -220,17 +220,17 @@ void plat_quit_impl(Device *d)
 	XCloseDisplay(d->impl->dpy);
 
 	free(d->impl);
-	d->impl= NULL;
+	d->impl = NULL;
 }
 
 void plat_update_impl(Device *d)
 {
 	glXSwapBuffers(d->impl->dpy, d->impl->win);
 
-	d->mwheel_delta= 0.0;
-	for (int i= 0; i < KEY_COUNT; ++i)
-		d->key_pressed[i]= d->key_released[i]= false;
-	d->quit_requested= false;
+	d->mwheel_delta = 0.0;
+	for (int i = 0; i < KEY_COUNT; ++i)
+		d->key_pressed[i] = d->key_released[i] = false;
+	d->quit_requested = false;
 
 	while(XPending(d->impl->dpy)) {
 		XEvent xev;
@@ -239,69 +239,69 @@ void plat_update_impl(Device *d)
 		if (	xev.type == KeyPress ||
 				xev.type == KeyRelease) {
 			int keys_ret;
-			KeySym* keysym=
+			KeySym* keysym =
 				XGetKeyboardMapping(d->impl->dpy, xev.xkey.keycode, 1, &keys_ret);
 
 			if(xev.type == KeyPress) {
 				if (*keysym == XK_Escape)
-					d->quit_requested= true;
+					d->quit_requested = true;
 			}
 			//debug_print("keysym: %i", *keysym);
 
-			int table_index= 0;
+			int table_index = 0;
 			if (*keysym >= 65470 && *keysym <= 65481)
-				table_index= KEY_F1 + (*keysym - 65470);
+				table_index = KEY_F1 + (*keysym - 65470);
 			else if (*keysym == 65289)
-				table_index= KEY_TAB;
+				table_index = KEY_TAB;
 			else if (*keysym == 65505)
-				table_index= KEY_LSHIFT;
+				table_index = KEY_LSHIFT;
 			else if (*keysym == 65507)
-				table_index= KEY_LCTRL;
+				table_index = KEY_LCTRL;
 			else if (*keysym == 32)
-				table_index= KEY_SPACE;
+				table_index = KEY_SPACE;
 			else if (*keysym == 65535)
-				table_index= KEY_DEL;
+				table_index = KEY_DEL;
 
 			else if (*keysym == 0xff9e)
-				table_index= KEY_KP_0;
+				table_index = KEY_KP_0;
 			else if (*keysym == 0xff9c)
-				table_index= KEY_KP_1;
+				table_index = KEY_KP_1;
 			else if (*keysym == 0xff99)
-				table_index= KEY_KP_2;
+				table_index = KEY_KP_2;
 			else if (*keysym == 0xff9b)
-				table_index= KEY_KP_3;
+				table_index = KEY_KP_3;
 			else if (*keysym == 0xff96)
-				table_index= KEY_KP_4;
+				table_index = KEY_KP_4;
 			else if (*keysym == 0xff9d)
-				table_index= KEY_KP_5;
+				table_index = KEY_KP_5;
 			else if (*keysym == 0xff98)
-				table_index= KEY_KP_6;
+				table_index = KEY_KP_6;
 			else if (*keysym == 0xff99)
-				table_index= KEY_KP_7;
+				table_index = KEY_KP_7;
 			else if (*keysym == 0xff97)
-				table_index= KEY_KP_8;
+				table_index = KEY_KP_8;
 			else if (*keysym == 0xff9a)
-				table_index= KEY_KP_9;
+				table_index = KEY_KP_9;
 
 			else if (*keysym >= 0x30 && *keysym <= 0x39)
-				table_index= KEY_0 + *keysym - 0x30;
+				table_index = KEY_0 + *keysym - 0x30;
 
 			else if (*keysym == 65307)
-				table_index= KEY_ESC;
+				table_index = KEY_ESC;
 			else if (*keysym == 65361)
-				table_index= KEY_LEFT;
+				table_index = KEY_LEFT;
 			else if (*keysym == 65362)
-				table_index= KEY_UP;
+				table_index = KEY_UP;
 			else if (*keysym == 65363)
-				table_index= KEY_RIGHT;
+				table_index = KEY_RIGHT;
 			else if (*keysym == 65364)
-				table_index= KEY_DOWN;
+				table_index = KEY_DOWN;
 			else if (*keysym < KEY_COUNT)
-				table_index= *keysym;
+				table_index = *keysym;
 
-			d->key_down[table_index]= (xev.type == KeyPress);
-			d->key_pressed[table_index]= (xev.type == KeyPress);
-			d->key_released[table_index]= (xev.type == KeyRelease);
+			d->key_down[table_index] = (xev.type == KeyPress);
+			d->key_pressed[table_index] = (xev.type == KeyPress);
+			d->key_released[table_index] = (xev.type == KeyRelease);
 			
 			XFree(keysym);
 		}
@@ -310,40 +310,40 @@ void plat_update_impl(Device *d)
 		if (	xev.xkey.keycode >= 1 && xev.xkey.keycode <= 3 &&
 				(xev.xbutton.type == ButtonPress ||
 				 xev.xbutton.type == ButtonRelease)) {
-			int key= KEY_LMB;
+			int key = KEY_LMB;
 			if (xev.xkey.keycode == 2)
-				key= KEY_MMB;
+				key = KEY_MMB;
 			if (xev.xkey.keycode == 3)
-				key= KEY_RMB;
+				key = KEY_RMB;
 
-			d->key_pressed[key]= (xev.xbutton.type == ButtonPress);
-			d->key_down[key]= (xev.xbutton.type == ButtonPress);
-			d->key_released[key]= (xev.xbutton.type == ButtonRelease);
+			d->key_pressed[key] = (xev.xbutton.type == ButtonPress);
+			d->key_down[key] = (xev.xbutton.type == ButtonPress);
+			d->key_released[key] = (xev.xbutton.type == ButtonRelease);
 		}
 
 		// Scroll
 		if (xev.xbutton.type == ButtonPress && xev.xkey.keycode == 4)
-			d->mwheel_delta= 1.0;
+			d->mwheel_delta = 1.0;
 		if (xev.xbutton.type == ButtonPress && xev.xkey.keycode == 5)
-			d->mwheel_delta= -1.0;
+			d->mwheel_delta = -1.0;
 	}
 
 	XWindowAttributes gwa;
 	XGetWindowAttributes(d->impl->dpy, d->impl->win, &gwa);
-	d->win_size.x= gwa.width;
-	d->win_size.y= gwa.height;
+	d->win_size.x = gwa.width;
+	d->win_size.y = gwa.height;
 
-	int root_x= 0, root_y= 0;
+	int root_x = 0, root_y = 0;
 	Window w;
 	unsigned int mask;
 	XQueryPointer(	d->impl->dpy, d->impl->win, &w,
 					&w, &root_x, &root_y, &d->cursor_pos.x, &d->cursor_pos.y,
 					&mask);
 
-	long old_us= d->impl->ts.tv_nsec/1000 + d->impl->ts.tv_sec*1000000;
+	long old_us = d->impl->ts.tv_nsec/1000 + d->impl->ts.tv_sec*1000000;
 	clock_gettime(CLOCK_MONOTONIC, &d->impl->ts);
-	long new_us= d->impl->ts.tv_nsec/1000 + d->impl->ts.tv_sec*1000000;
-	d->dt= (new_us - old_us)/1000000.0;
+	long new_us = d->impl->ts.tv_nsec/1000 + d->impl->ts.tv_sec*1000000;
+	d->dt = (new_us - old_us)/1000000.0;
 }
 
 void plat_sleep_impl(int ms)
@@ -365,15 +365,15 @@ void plat_find_paths_with_end_impl(char **path_table, U32 *path_count, U32 max_c
     DIR *dir;
     struct dirent *entry;
 
-    if (!(dir= opendir(name)))
+    if (!(dir = opendir(name)))
 		plat_fail("opendir failed");
-    if (!(entry= readdir(dir)))
+    if (!(entry = readdir(dir)))
 		plat_fail("readdir failed");
 
     do {
         if (entry->d_type == DT_DIR) {
             char path[MAX_PATH_SIZE];
-            int len= fmt_str(path, sizeof(path)-1, "%s/%s", name, entry->d_name);
+            int len = fmt_str(path, sizeof(path)-1, "%s/%s", name, entry->d_name);
 			if (len + 1 >= 1024)
 				plat_fail(	"plat_find_paths_with_end: "
 							"Too long path (@todo Fix engine)");
@@ -386,17 +386,17 @@ void plat_find_paths_with_end_impl(char **path_table, U32 *path_count, U32 max_c
 				if (*path_count + 1 >= max_count)
 					plat_fail(	"plat_find_paths_with_end: "
 								"too many found files (@todo Fix engine)");
-				U32 path_size= strlen(name) + 1 + strlen(entry->d_name) + 1;
-				char *path= malloc(path_size);
+				U32 path_size = strlen(name) + 1 + strlen(entry->d_name) + 1;
+				char *path = malloc(path_size);
 				if (name[strlen(name) - 1] == '/')
 					fmt_str(path, path_size, "%s%s", name, entry->d_name);
 				else
 					fmt_str(path, path_size, "%s/%s", name, entry->d_name);
-				path_table[*path_count]= path;
+				path_table[*path_count] = path;
 				++*path_count;
 			}
 		}
-    } while ((entry= readdir(dir)));
+    } while ((entry = readdir(dir)));
 
     closedir(dir);
 }
@@ -424,8 +424,8 @@ void plat_set_term_color(TermColor c)
 {
 	const char *str;
 	switch (c) {
-	case TermColor_default: str= "\033[0m"; break;
-	case TermColor_red: str= "\033[0;31m"; break;
+	case TermColor_default: str = "\033[0m"; break;
+	case TermColor_red: str = "\033[0;31m"; break;
 	default: fail("plat_set_term_color: Unknown color: %i", c);
 	}
 	printf("%s", str);

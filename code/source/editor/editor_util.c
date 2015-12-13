@@ -11,7 +11,7 @@ const Font *gui_font()
 
 void gui_wrap(V2i *p, V2i *s)
 {
-	const V2i win_size= g_env.device->win_size;
+	const V2i win_size = g_env.device->win_size;
 	// Wrap around screen
 	while (p->x < 0)
 		p->x += win_size.x;
@@ -38,19 +38,19 @@ Color highlight_color(Color c)
 
 void gui_text(const char *text)
 {
-	V2i px_pos= gui_turtle_pos();
+	V2i px_pos = gui_turtle_pos();
 	gui_wrap(&px_pos, NULL);
 	gui_begin((V2i) {1, 0});
 
-	const U32 max_quad_count= strlen(text);
-	const U32 max_vert_count= 4*max_quad_count;
-	const U32 max_ind_count= 6*max_quad_count;
-	TriMeshVertex *verts= frame_alloc(sizeof(*verts)*max_vert_count);
-	MeshIndexType *inds= frame_alloc(sizeof(*inds)*max_ind_count);
+	const U32 max_quad_count = strlen(text);
+	const U32 max_vert_count = 4*max_quad_count;
+	const U32 max_ind_count = 6*max_quad_count;
+	TriMeshVertex *verts = frame_alloc(sizeof(*verts)*max_vert_count);
+	MeshIndexType *inds = frame_alloc(sizeof(*inds)*max_ind_count);
 	V2i size;
-	U32 quad_count= text_mesh(&size, verts, inds, gui_font(), text);
-	const U32 v_count= 4*quad_count;
-	const U32 i_count= 6*quad_count;
+	U32 quad_count = text_mesh(&size, verts, inds, gui_font(), text);
+	const U32 v_count = 4*quad_count;
+	const U32 i_count = 6*quad_count;
 
 	drawcmd(px_tf(px_pos, (V2i) {1, 1}),
 			verts, v_count,
@@ -67,31 +67,31 @@ void gui_text(const char *text)
 
 bool gui_button(const char *label, bool *is_down, bool *is_hovered)
 {
-	V2i px_pos= gui_turtle_pos();
-	V2i px_size= calc_text_mesh_size(gui_font(), label);
+	V2i px_pos = gui_turtle_pos();
+	V2i px_size = calc_text_mesh_size(gui_font(), label);
 	px_size.x += 12;
 	px_size.y += 5;
 
 	gui_wrap(&px_pos, &px_size);
 
 	gui_begin((V2i) {1, 0});
-	UiContext *ctx= g_env.uicontext;
-	const V2i c_p= ctx->dev.cursor_pos;
+	UiContext *ctx = g_env.uicontext;
+	const V2i c_p = ctx->dev.cursor_pos;
 
-	bool pressed= false;
-	bool down= false;
-	bool hover= false;
+	bool pressed = false;
+	bool down = false;
+	bool hover = false;
 
 	if (gui_is_active(label)) {
 		if (ctx->dev.lmb.down) {
-			down= true;
+			down = true;
 		} else {
-			pressed= true;
+			pressed = true;
 			gui_set_inactive(label);
 		}
 	} else if (gui_is_hot(label)) {
 		if (ctx->dev.lmb.pressed) {
-			down= true;
+			down = true;
 			gui_set_active(label);
 		}
 	}
@@ -100,19 +100,19 @@ bool gui_button(const char *label, bool *is_down, bool *is_hovered)
 			c_p.y >= px_pos.y &&
 			c_p.x < px_pos.x + px_size.x &&
 			c_p.y < px_pos.y + px_size.y) {
-		hover= true;
+		hover = true;
 		gui_set_hot(label);
 	}
 
-	Color bg_color= darken_color(gui_dev_panel_color());
+	Color bg_color = darken_color(gui_dev_panel_color());
 	if (down)
-		bg_color= darken_color(bg_color);
+		bg_color = darken_color(bg_color);
 	else if (hover)
-		bg_color= highlight_color(bg_color);
+		bg_color = highlight_color(bg_color);
 
 	{ // Leave margin
-		V2i p= add_v2i(px_pos, (V2i) {1, 1});
-		V2i s= sub_v2i(px_size, (V2i) {2, 2});
+		V2i p = add_v2i(px_pos, (V2i) {1, 1});
+		V2i s = sub_v2i(px_size, (V2i) {2, 2});
 		gui_quad(p, s, bg_color);
 	}
 
@@ -124,24 +124,24 @@ bool gui_button(const char *label, bool *is_down, bool *is_hovered)
 	gui_advance_turtle(px_size);
 
 	if (is_down)
-		*is_down= down;
+		*is_down = down;
 	if (is_hovered)
-		*is_hovered= hover;
+		*is_hovered = hover;
 	return pressed;
 }
 
 bool gui_begin_listbox(const char *label)
 {
-	UiContext *ctx= g_env.uicontext;
+	UiContext *ctx = g_env.uicontext;
 
 	bool btn_down;
-	V2i listbox_pos= gui_turtle_pos();
-	ctx->listbox_released=
+	V2i listbox_pos = gui_turtle_pos();
+	ctx->listbox_released =
 		gui_button(	label, &btn_down, NULL);
-	V2i list_start_pos= {
+	V2i list_start_pos = {
 		listbox_pos.x, listbox_pos.y - gui_last_adv_size().y
 	};
-	const bool open= btn_down || ctx->listbox_released;
+	const bool open = btn_down || ctx->listbox_released;
 
 	if (open) {
 		gui_begin((V2i) {0, -1}); // User calls gui_end()
@@ -153,7 +153,7 @@ bool gui_begin_listbox(const char *label)
 
 bool gui_listbox_item(const char *label)
 {
-	UiContext *ctx= g_env.uicontext;
+	UiContext *ctx = g_env.uicontext;
 
 	bool hovered;
 	gui_button(label, NULL, &hovered);
@@ -167,14 +167,14 @@ F64 editor_vertex_size()
 internal
 V3f cursor_delta_in_tf_coords(T3d tf)
 {
-	UiContext *ctx= g_env.uicontext;
-	V3d cur_wp= v2d_to_v3d(screen_to_world_point(ctx->dev.cursor_pos));
-	V3d prev_wp= v2d_to_v3d(screen_to_world_point(ctx->dev.prev_cursor_pos));
-	V3d cur= mul_t3d(	inv_t3d(tf),
+	UiContext *ctx = g_env.uicontext;
+	V3d cur_wp = v2d_to_v3d(screen_to_world_point(ctx->dev.cursor_pos));
+	V3d prev_wp = v2d_to_v3d(screen_to_world_point(ctx->dev.prev_cursor_pos));
+	V3d cur = mul_t3d(	inv_t3d(tf),
 						(T3d) {	{1, 1, 1},
 								identity_qd(),
 								cur_wp}).pos;
-	V3d prev= mul_t3d(	inv_t3d(tf),
+	V3d prev = mul_t3d(	inv_t3d(tf),
 						(T3d) {	{1, 1, 1},
 								identity_qd(),
 								prev_wp}).pos;
@@ -184,34 +184,34 @@ V3f cursor_delta_in_tf_coords(T3d tf)
 internal
 Qf cursor_rot_delta_in_tf_coords(T3d tf)
 {
-	V3d center= tf.pos;
+	V3d center = tf.pos;
 	/// @todo Correct return with 3d rot
 
-	UiContext *ctx= g_env.uicontext;
-	V3d cur_wp= v2d_to_v3d(screen_to_world_point(ctx->dev.cursor_pos));
-	V3d prev_wp= v2d_to_v3d(screen_to_world_point(ctx->dev.prev_cursor_pos));
-	V3f v1= v3d_to_v3f(sub_v3d(prev_wp, center));
-	V3f v2= v3d_to_v3f(sub_v3d(cur_wp, center));
+	UiContext *ctx = g_env.uicontext;
+	V3d cur_wp = v2d_to_v3d(screen_to_world_point(ctx->dev.cursor_pos));
+	V3d prev_wp = v2d_to_v3d(screen_to_world_point(ctx->dev.prev_cursor_pos));
+	V3f v1 = v3d_to_v3f(sub_v3d(prev_wp, center));
+	V3f v2 = v3d_to_v3f(sub_v3d(cur_wp, center));
 	return qf_by_from_to(v1, v2);
 }
 
 internal
 V3f cursor_scale_delta_in_tf_coords(T3d tf)
 {
-	V3d center= tf.pos;
-	UiContext *ctx= g_env.uicontext;
-	V3d cur_wp= v2d_to_v3d(screen_to_world_point(ctx->dev.cursor_pos));
-	V3d prev_wp= v2d_to_v3d(screen_to_world_point(ctx->dev.prev_cursor_pos));
-	V3f v1= v3d_to_v3f(sub_v3d(prev_wp, center));
-	V3f v2= v3d_to_v3f(sub_v3d(cur_wp, center));
+	V3d center = tf.pos;
+	UiContext *ctx = g_env.uicontext;
+	V3d cur_wp = v2d_to_v3d(screen_to_world_point(ctx->dev.cursor_pos));
+	V3d prev_wp = v2d_to_v3d(screen_to_world_point(ctx->dev.prev_cursor_pos));
+	V3f v1 = v3d_to_v3f(sub_v3d(prev_wp, center));
+	V3f v2 = v3d_to_v3f(sub_v3d(cur_wp, center));
 
-	F32 s= length_v3f(v2)/length_v3f(v1);
+	F32 s = length_v3f(v2)/length_v3f(v1);
 	return (V3f) {s, s, s};
 }
 
 CursorDeltaMode cursor_delta_mode(const char *label)
 {
-	UiContext *ctx= g_env.uicontext;
+	UiContext *ctx = g_env.uicontext;
 	if (ctx->dev.grabbing == gui_id(label))
 		return CursorDeltaMode_translate;
 	if (ctx->dev.rotating == gui_id(label))
@@ -225,21 +225,21 @@ CursorDeltaMode cursor_transform_delta_world(	T3f *out,
 												const char *label,
 												T3d coords)
 {
-	UiContext *ctx= g_env.uicontext;
-	*out= identity_t3f();
+	UiContext *ctx = g_env.uicontext;
+	*out = identity_t3f();
 
 	if (ctx->dev.grabbing == gui_id(label)) {
-		out->pos= cursor_delta_in_tf_coords(coords);
+		out->pos = cursor_delta_in_tf_coords(coords);
 		return CursorDeltaMode_translate;
 	}
 
 	if (ctx->dev.rotating == gui_id(label)) {
-		out->rot= cursor_rot_delta_in_tf_coords(coords);
+		out->rot = cursor_rot_delta_in_tf_coords(coords);
 		return CursorDeltaMode_rotate;
 	}
 
 	if (ctx->dev.scaling == gui_id(label)) {
-		out->scale= cursor_scale_delta_in_tf_coords(coords);
+		out->scale = cursor_scale_delta_in_tf_coords(coords);
 		return CursorDeltaMode_scale;
 	}
 
@@ -250,39 +250,39 @@ CursorDeltaMode cursor_transform_delta_pixels(	T3f *out,
 												const char *label,
 												T3d coords)
 {
-	UiContext *ctx= g_env.uicontext;
-	*out= identity_t3f();
+	UiContext *ctx = g_env.uicontext;
+	*out = identity_t3f();
 
-	V3d cur_p= {ctx->dev.cursor_pos.x, ctx->dev.cursor_pos.y, 0};
-	V3d prev_p= {ctx->dev.prev_cursor_pos.x, ctx->dev.prev_cursor_pos.y, 0};
-	V3d center= coords.pos;
+	V3d cur_p = {ctx->dev.cursor_pos.x, ctx->dev.cursor_pos.y, 0};
+	V3d prev_p = {ctx->dev.prev_cursor_pos.x, ctx->dev.prev_cursor_pos.y, 0};
+	V3d center = coords.pos;
 
 	if (ctx->dev.grabbing == gui_id(label)) {
-		V3d cur= mul_t3d(	inv_t3d(coords),
+		V3d cur = mul_t3d(	inv_t3d(coords),
 							(T3d) {	{1, 1, 1},
 									identity_qd(),
 									cur_p}).pos;
-		V3d prev= mul_t3d(	inv_t3d(coords),
+		V3d prev = mul_t3d(	inv_t3d(coords),
 							(T3d) {	{1, 1, 1},
 									identity_qd(),
 									prev_p}).pos;
-		out->pos= v3d_to_v3f(sub_v3d(cur, prev));
+		out->pos = v3d_to_v3f(sub_v3d(cur, prev));
 		return CursorDeltaMode_translate;
 	} 
 
 	if (ctx->dev.rotating == gui_id(label)) {
-		V3f v1= v3d_to_v3f(sub_v3d(prev_p, center));
-		V3f v2= v3d_to_v3f(sub_v3d(cur_p, center));
-		out->rot= qf_by_from_to(v1, v2);
+		V3f v1 = v3d_to_v3f(sub_v3d(prev_p, center));
+		V3f v2 = v3d_to_v3f(sub_v3d(cur_p, center));
+		out->rot = qf_by_from_to(v1, v2);
 		return CursorDeltaMode_rotate;
 	}
 
 	if (ctx->dev.scaling == gui_id(label)) {
-		V3f w1= v3d_to_v3f(sub_v3d(prev_p, center));
-		V3f w2= v3d_to_v3f(sub_v3d(cur_p, center));
+		V3f w1 = v3d_to_v3f(sub_v3d(prev_p, center));
+		V3f w2 = v3d_to_v3f(sub_v3d(cur_p, center));
 
-		F32 s= length_v3f(w2)/length_v3f(w1);
-		out->scale= (V3f) {s, s, s};
+		F32 s = length_v3f(w2)/length_v3f(w1);
+		out->scale = (V3f) {s, s, s};
 		return CursorDeltaMode_scale;
 	}
 
@@ -303,11 +303,11 @@ void gui_model_image(V2i px_pos, V2i px_size, ModelEntity *src_model)
 {
 	ensure(src_model);
 
-	V3d pos= v2d_to_v3d(screen_to_world_point(px_pos)); 
-	V3d size= v2d_to_v3d(screen_to_world_size(px_size));
+	V3d pos = v2d_to_v3d(screen_to_world_point(px_pos)); 
+	V3d size = v2d_to_v3d(screen_to_world_size(px_size));
 
-	const Model *model= (Model*)res_by_name(g_env.resblob, ResType_Model, "guibox");
-	const Mesh *mesh= model_mesh(model);
+	const Model *model = (Model*)res_by_name(g_env.resblob, ResType_Model, "guibox");
+	const Mesh *mesh = model_mesh(model);
 
 	drawcmd((T3d) {size, identity_qd(), pos},
 			mesh_vertices(mesh), mesh->v_count,
@@ -322,10 +322,10 @@ void gui_model_image(V2i px_pos, V2i px_size, ModelEntity *src_model)
 void gui_res_info(ResType t, const Resource *res)
 {
 	gui_set_turtle_pos((V2i) {0, 0});
-	char *str= frame_str(	"%s: %s",
+	char *str = frame_str(	"%s: %s",
 							restype_to_str(t),
 							res ? res->name : "<none>");
-	V2i size= calc_text_mesh_size(gui_font(), str);
+	V2i size = calc_text_mesh_size(gui_font(), str);
 	size.y += 3;
 	gui_quad((V2i) {0, 0}, size, gui_dev_panel_color());
 	gui_text(str);
@@ -337,59 +337,59 @@ EditorBoxState gui_editorbox(	const char *label,
 								bool invisible)
 {
 	gui_wrap(&px_pos, &px_size);
-	UiContext *ctx= g_env.uicontext;
-	const V2i c_p= ctx->dev.cursor_pos;
-	const Color c= gui_dev_panel_color();
+	UiContext *ctx = g_env.uicontext;
+	const V2i c_p = ctx->dev.cursor_pos;
+	const Color c = gui_dev_panel_color();
 
-	EditorBoxState state= {};
+	EditorBoxState state = {};
 
 	if (gui_is_active(label)) {
-		state.pressed= false;
+		state.pressed = false;
 		if (	!ctx->dev.lmb.down &&
 				!ctx->dev.rmb.down &&
 				!ctx->dev.grabbing && !ctx->dev.rotating && !ctx->dev.scaling) {
-			state.released= true;
+			state.released = true;
 			gui_set_inactive(label);
 		} else if (	ctx->dev.lmb.down &&
 					!ctx->dev.grabbing && !ctx->dev.rotating && !ctx->dev.scaling) {
 			// ldown == true if nothing else is going on
-			state.ldown= true;
+			state.ldown = true;
 		} else if (ctx->dev.rmb.down) {
-			state.down= true;
+			state.down = true;
 		}
 
 		if (	ctx->dev.rmb.pressed &&
 				(ctx->dev.grabbing || ctx->dev.rotating || ctx->dev.scaling)) {
 			// Cancel
 			editor_revert_res_state();
-			ctx->dev.grabbing= 0;
-			ctx->dev.rotating= 0;
-			ctx->dev.scaling= 0;
+			ctx->dev.grabbing = 0;
+			ctx->dev.rotating = 0;
+			ctx->dev.scaling = 0;
 			gui_set_inactive(label);
 		}
 
 		if (ctx->dev.lmb.pressed) {
-			ctx->dev.grabbing= 0;
-			ctx->dev.rotating= 0;
-			ctx->dev.scaling= 0;
+			ctx->dev.grabbing = 0;
+			ctx->dev.rotating = 0;
+			ctx->dev.scaling = 0;
 			gui_set_inactive(label);
 		}
 	} else if (gui_is_hot(label)) {
 		if (ctx->dev.lmb.pressed) {
-			state.ldown= true;
+			state.ldown = true;
 			gui_set_active(label);
 		} else if (ctx->dev.rmb.pressed) {
-			state.pressed= true;
-			state.down= true;
+			state.pressed = true;
+			state.down = true;
 			gui_set_active(label);
 		} else if (ctx->dev.g_pressed) {
-			ctx->dev.grabbing= gui_id(label);
+			ctx->dev.grabbing = gui_id(label);
 			gui_set_active(label);
 		} else if (ctx->dev.r_pressed) {
-			ctx->dev.rotating= gui_id(label);
+			ctx->dev.rotating = gui_id(label);
 			gui_set_active(label);
 		} else if (ctx->dev.s_pressed) {
-			ctx->dev.scaling= gui_id(label);
+			ctx->dev.scaling = gui_id(label);
 			gui_set_active(label);
 		}
 
@@ -401,7 +401,7 @@ EditorBoxState gui_editorbox(	const char *label,
 			c_p.y >= px_pos.y &&
 			c_p.x < px_pos.x + px_size.x &&
 			c_p.y < px_pos.y + px_size.y) {
-		state.hover= true;
+		state.hover = true;
 		gui_set_hot(label);
 	}
 

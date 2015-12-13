@@ -14,9 +14,9 @@
 internal inline
 void upd_smoothed(F32 *var, F32 target)
 {
-	const F32 delta= 0.005;
+	const F32 delta = 0.005;
 	if (ABS(*var - target) <= delta)
-		*var= target;
+		*var = target;
 	else if (*var < target)
 		*var += delta;
 	else if (*var > target)
@@ -29,16 +29,16 @@ int audio_callback(	const void* input_data, void* output_data,
 					const PaStreamCallbackTimeInfo* time_info,
 					PaStreamCallbackFlags status_flags,
 					void* user_data){
-	F32* out= output_data;
-	AudioChannel *chs= user_data;
+	F32* out = output_data;
+	AudioChannel *chs = user_data;
 
-	for (U32 i= 0; i < out_frame_count; ++i){
-		out[2*i]= 0.0;
-		out[2*i + 1]= 0.0;
+	for (U32 i = 0; i < out_frame_count; ++i){
+		out[2*i] = 0.0;
+		out[2*i + 1] = 0.0;
 	}
 
-	for (U32 ch_i= 0; ch_i < MAX_AUDIO_CHANNELS; ++ch_i) {
-		AudioChannel *ch= &chs[ch_i];
+	for (U32 ch_i = 0; ch_i < MAX_AUDIO_CHANNELS; ++ch_i) {
+		AudioChannel *ch = &chs[ch_i];
 		if (ch->state != AC_play)
 			continue;
 
@@ -46,23 +46,23 @@ int audio_callback(	const void* input_data, void* output_data,
 
 		ensure(ch->ch_count == 2 && "@todo mono sounds");
 
-		bool going_to_finish= false;
-		U32 frame_count= out_frame_count;
+		bool going_to_finish = false;
+		U32 frame_count = out_frame_count;
 		if (frame_count + ch->cur_frame > ch->frame_count) {
-			frame_count= ch->frame_count - ch->cur_frame;
-			going_to_finish= true;
+			frame_count = ch->frame_count - ch->cur_frame;
+			going_to_finish = true;
 		}
 
-		U32 frame_offset= ch->cur_frame;
-		for (U32 f_i= 0; f_i < frame_count; ++f_i) {
+		U32 frame_offset = ch->cur_frame;
+		for (U32 f_i = 0; f_i < frame_count; ++f_i) {
 			upd_smoothed(&ch->out_pan, ch->in_pan);
 			upd_smoothed(&ch->out_vol, ch->in_vol);
 
-			U32 l_i= (frame_offset + f_i)*2;
-			U32 r_i= (frame_offset + f_i)*2 + 1;
+			U32 l_i = (frame_offset + f_i)*2;
+			U32 r_i = (frame_offset + f_i)*2 + 1;
 
-			F32 l_mul= ch->out_vol*MIN(1.0 - ch->out_pan, 1.0);
-			F32 r_mul= ch->out_vol*MIN(1.0 + ch->out_pan, 1.0);
+			F32 l_mul = ch->out_vol*MIN(1.0 - ch->out_pan, 1.0);
+			F32 r_mul = ch->out_vol*MIN(1.0 + ch->out_pan, 1.0);
 
 			out[f_i*2] += ch->samples[l_i]*l_mul;
 			out[f_i*2 + 1] += ch->samples[r_i]*r_mul;
@@ -71,10 +71,10 @@ int audio_callback(	const void* input_data, void* output_data,
 		}
 
 		if (going_to_finish) {
-			ch->samples= NULL;
+			ch->samples = NULL;
 
 			PLAT_RELEASE_FENCE();
-			ch->state= AC_free;
+			ch->state = AC_free;
 		}
 	}
 	return paContinue;
@@ -82,11 +82,11 @@ int audio_callback(	const void* input_data, void* output_data,
 
 void create_audiosystem()
 {
-	AudioSystem *a= ZERO_ALLOC(gen_ator(), sizeof(*a), "audiosystem");
+	AudioSystem *a = ZERO_ALLOC(gen_ator(), sizeof(*a), "audiosystem");
 	ensure(!g_env.audiosystem);
-	g_env.audiosystem= a;
+	g_env.audiosystem = a;
 
-	PaError err= Pa_Initialize();
+	PaError err = Pa_Initialize();
 
 	if(err != paNoError) {
 		fail("create_audiosystem(): PortAudio init failed: %s",
@@ -96,37 +96,37 @@ void create_audiosystem()
 #if 0
 	// Default outputstream params
 	PaStreamParameters out_params;
-	out_params.channelCount= 2;
-	out_params.hostApiSpecificStreamInfo= NULL;
-	out_params.sampleFormat= paFloat32;
-	out_params.suggestedLatency= 0.05;
+	out_params.channelCount = 2;
+	out_params.hostApiSpecificStreamInfo = NULL;
+	out_params.sampleFormat = paFloat32;
+	out_params.suggestedLatency = 0.05;
 
-	S32 host_api_count= Pa_GetHostApiCount();
+	S32 host_api_count = Pa_GetHostApiCount();
 	if (host_api_count < 1)
 		fail("PortAudio host api count: %i", host_api_count);
 
 	// Look for all audio devices
-	S32 num_devices= Pa_GetDeviceCount();
+	S32 num_devices = Pa_GetDeviceCount();
 	if(num_devices < 0) {
 		fail("create_audiosystem(): Pa_GetDeviceCount failed: %s",
 				Pa_GetErrorText(num_devices));
 	} else if (num_devices == 0) {
 		fail("No audio devices");
 	} else {
-		S32 picked_device_i= -1;
+		S32 picked_device_i = -1;
 		debug_print("Available audio devices:");
-		for(S32 i= 0; i < num_devices; ++i) {
-			const PaDeviceInfo *device_info= Pa_GetDeviceInfo(i);
-			bool supported= false;
+		for(S32 i = 0; i < num_devices; ++i) {
+			const PaDeviceInfo *device_info = Pa_GetDeviceInfo(i);
+			bool supported = false;
 			if (!strcmp(device_info->name, "dmix")) {
-				supported= false; // Caused flood of alsa error messages
+				supported = false; // Caused flood of alsa error messages
 			} else {
-				PaStreamParameters p= out_params;
-				p.device= i;
-				PaError ret= Pa_IsFormatSupported(0, &p, AUDIO_SAMPLE_RATE);
+				PaStreamParameters p = out_params;
+				p.device = i;
+				PaError ret = Pa_IsFormatSupported(0, &p, AUDIO_SAMPLE_RATE);
 				if(ret == paFormatIsSupported) {
-					picked_device_i= i;
-					supported= true;
+					picked_device_i = i;
+					supported = true;
 				}
 			}
 
@@ -136,18 +136,18 @@ void create_audiosystem()
 			debug_print("    supported: %i", supported);
 		}
 
-		out_params.device= picked_device_i;
+		out_params.device = picked_device_i;
 
 		if (picked_device_i == -1)
 			fail("Sufficient audio device not found");
 
-		const PaDeviceInfo *device_info= Pa_GetDeviceInfo(picked_device_i);
+		const PaDeviceInfo *device_info = Pa_GetDeviceInfo(picked_device_i);
 		debug_print("-> %s", device_info->name);
 	}
 
 	// Create output stream
 	PaStream *out_stream;
-	err= Pa_OpenStream(
+	err = Pa_OpenStream(
 			  &out_stream,
 			  NULL,
 			  &out_params,
@@ -158,7 +158,7 @@ void create_audiosystem()
 			  a->channels);
 #else
 	PaStream *out_stream;
-    err= Pa_OpenDefaultStream(	&out_stream,
+    err = Pa_OpenDefaultStream(	&out_stream,
 								0,
 								2,
 								paFloat32,
@@ -173,27 +173,27 @@ void create_audiosystem()
 				Pa_GetErrorText(err));
 	}
 
-	err= Pa_StartStream(out_stream);
+	err = Pa_StartStream(out_stream);
 	if(err != paNoError) {
 		debug_print("create_audiosystem(): Pa_StartStream failed: %s",
 				Pa_GetErrorText(err));
 	}
 
-	a->pa_out_stream= out_stream;
+	a->pa_out_stream = out_stream;
 }
 
 void destroy_audiosystem()
 {
-	AudioSystem *a= g_env.audiosystem;
+	AudioSystem *a = g_env.audiosystem;
 
 	{ // Shutdown stream
-		PaError err= Pa_StopStream(a->pa_out_stream);
+		PaError err = Pa_StopStream(a->pa_out_stream);
 		if(err != paNoError) {
 			debug_print("destroy_audiosystem(): PortAudio stream stop failed: %s",
 					Pa_GetErrorText(err));
 		}
 
-		err= Pa_CloseStream(a->pa_out_stream);
+		err = Pa_CloseStream(a->pa_out_stream);
 		if(err != paNoError) {
 			debug_print("destroy_audiosystem(): PortAudio stream close failed: %s",
 					Pa_GetErrorText(err));
@@ -201,7 +201,7 @@ void destroy_audiosystem()
 	}
 
 	{ // Shutdown PortAudio
-		PaError err= Pa_Terminate();
+		PaError err = Pa_Terminate();
 		if(err != paNoError) {
 			fail("AudioDevice::shutdown(): PortAudio terminate failed: %s",
 					Pa_GetErrorText(err));
@@ -209,7 +209,7 @@ void destroy_audiosystem()
 	}
 
 	FREE(gen_ator(), g_env.audiosystem);
-	g_env.audiosystem= NULL;
+	g_env.audiosystem = NULL;
 }
 
 internal
@@ -218,10 +218,10 @@ SoundHandle sound_handle(U32 sound_id, U32 channel)
 
 SoundHandle play_sound(const char *name, F32 vol, F32 pan)
 {
-	AudioSystem *a= g_env.audiosystem;
-	Sound *s= (Sound*)res_by_name(g_env.resblob, ResType_Sound, name);
+	AudioSystem *a = g_env.audiosystem;
+	Sound *s = (Sound*)res_by_name(g_env.resblob, ResType_Sound, name);
 
-	U32 channel_i= 0;
+	U32 channel_i = 0;
 	while (	channel_i < MAX_AUDIO_CHANNELS &&
 			a->channels[channel_i].state != AC_free)
 		++channel_i;
@@ -231,29 +231,29 @@ SoundHandle play_sound(const char *name, F32 vol, F32 pan)
 		return NULL_SOUND_HANDLE;
 	}
 
-	U32 sound_id= ++a->next_sound_id;
+	U32 sound_id = ++a->next_sound_id;
 	{ // Start playing
 		// State should be read before initializing channel
 		PLAT_ACQUIRE_FENCE();
 
-		AudioChannel *ch= &a->channels[channel_i];
-		*ch= (AudioChannel) {
-			.state= AC_free,
-			.samples= s->samples,
-			.ch_count= s->ch_count,
-			.frame_count= s->frame_count,
-			.last_id= sound_id,
-			.last_sound_name= name,
-			.in_vol= vol,
-			.out_vol= vol,
-			.in_pan= pan,
-			.out_pan= pan,
+		AudioChannel *ch = &a->channels[channel_i];
+		*ch = (AudioChannel) {
+			.state = AC_free,
+			.samples = s->samples,
+			.ch_count = s->ch_count,
+			.frame_count = s->frame_count,
+			.last_id = sound_id,
+			.last_sound_name = name,
+			.in_vol = vol,
+			.out_vol = vol,
+			.in_pan = pan,
+			.out_pan = pan,
 		};
 
 		// Setting state should happen after channel has been initialized
 		PLAT_RELEASE_FENCE();
 
-		ch->state= AC_play;
+		ch->state = AC_play;
 	}
 
 	return sound_handle(sound_id, channel_i);
@@ -261,8 +261,8 @@ SoundHandle play_sound(const char *name, F32 vol, F32 pan)
 
 SoundHandle sound_handle_by_name(const char *name)
 {
-	AudioSystem *a= g_env.audiosystem;
-	for (U32 i= 0; i < MAX_AUDIO_CHANNELS; ++i) {
+	AudioSystem *a = g_env.audiosystem;
+	for (U32 i = 0; i < MAX_AUDIO_CHANNELS; ++i) {
 		if (a->channels[i].state != AC_play)
 			continue;
 		if (!strcmp(a->channels[i].last_sound_name, name))
@@ -273,20 +273,20 @@ SoundHandle sound_handle_by_name(const char *name)
 
 bool is_sound_playing(SoundHandle h)
 {
-	AudioSystem *a= g_env.audiosystem;
-	U32 channel_i= h % MAX_AUDIO_CHANNELS;
-	U32 sound_id= h/MAX_AUDIO_CHANNELS;
+	AudioSystem *a = g_env.audiosystem;
+	U32 channel_i = h % MAX_AUDIO_CHANNELS;
+	U32 sound_id = h/MAX_AUDIO_CHANNELS;
 	return	a->channels[channel_i].state == AC_play &&
 			a->channels[channel_i].last_id == sound_id;
 }
 
 void set_sound_vol(SoundHandle h, F32 vol)
 {
-	AudioSystem *a= g_env.audiosystem;
-	U32 channel_i= h % MAX_AUDIO_CHANNELS;
-	U32 sound_id= h/MAX_AUDIO_CHANNELS;
+	AudioSystem *a = g_env.audiosystem;
+	U32 channel_i = h % MAX_AUDIO_CHANNELS;
+	U32 sound_id = h/MAX_AUDIO_CHANNELS;
 	if (	a->channels[channel_i].state != AC_play ||
 			a->channels[channel_i].last_id != sound_id)
 		return;
-	a->channels[channel_i].in_vol= vol;
+	a->channels[channel_i].in_vol = vol;
 }

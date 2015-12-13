@@ -416,11 +416,11 @@ Qf neg_qf(Qf q)
 static
 V3f rot_v3f(Qf q, V3f v)
 {
-	V3f a, b, c= {q.x, q.y, q.z};
-	a= cross_v3f(c, v);
-	b= cross_v3f(c, a);
-	a= scaled_v3f(2.0 * q.w, a);
-	b= scaled_v3f(2.0, b);
+	V3f a, b, c = {q.x, q.y, q.z};
+	a = cross_v3f(c, v);
+	b = cross_v3f(c, a);
+	a = scaled_v3f(2.0 * q.w, a);
+	b = scaled_v3f(2.0, b);
 	return add_v3f(add_v3f(v, a), b);
 }
 
@@ -431,10 +431,10 @@ F32 rotation_z_qf(Qf q)
 	/// @note	If fixing is needed, make sure that these still work:
 	///			 - physics object mirroring (e.g. stoneFlail in hand)
 	///			 - full rotation in 2d plane (e.g. grassClump attached to object)
-	bool flip= rot_v3f(q, (V3f) {0, 0, 1}).z < 0;
+	bool flip = rot_v3f(q, (V3f) {0, 0, 1}).z < 0;
 	// Euler angles
-	F64 heading= atan2(2.0*q.y*q.w - 2.0*q.x*q.z, 1.0 - 2.0*q.y*q.y - 2.0*q.z*q.z);
-	F64 attitude= asin(2.0*q.x*q.y + 2.0*q.z*q.w);
+	F64 heading = atan2(2.0*q.y*q.w - 2.0*q.x*q.z, 1.0 - 2.0*q.y*q.y - 2.0*q.z*q.z);
+	F64 attitude = asin(2.0*q.x*q.y + 2.0*q.z*q.w);
 	// Using heading to detect rotations greater than +-90 degrees
 	// Flipping was adjusted by trial & error
 	if (ABS(heading) < PI*0.5 || flip)
@@ -455,18 +455,18 @@ Qf normalized_qf(Qf q)
 		return q;
 	else if (a == 0)
 		return identity_qf();
-	a= sqrt(a);
+	a = sqrt(a);
 	return (Qf) {q.x/a, q.y/a, q.z/a, q.w/a};
 }
 
 static
 V3f axis_qf(Qf q)
 {
-	F32 s= sqrt(q.x*q.x + q.y*q.y + q.z*q.z);
+	F32 s = sqrt(q.x*q.x + q.y*q.y + q.z*q.z);
 	if (s <= EPSILON || q.w > 1.0 || q.w < -1.0) {
 		return (V3f) {0, 1, 0};
 	} else {
-		F32 inv_s= 1.0/s;
+		F32 inv_s = 1.0/s;
 		return (V3f) {q.x*inv_s, q.y*inv_s, q.z*inv_s};	}
 }
 
@@ -477,30 +477,30 @@ F32 angle_qf(Qf q)
 static
 Qf qf_by_axis(V3f axis, F32 angle)
 {
-	axis= normalized_v3f(axis);
-	F32 half= 0.5*angle;
-	F32 s= sin(half);
+	axis = normalized_v3f(axis);
+	F32 half = 0.5*angle;
+	F32 s = sin(half);
 	return (Qf) {axis.x*s, axis.y*s, axis.z*s, cos(half)};
 }
 
 static
 Qf qf_by_from_to(V3f v1, V3f v2)
 {
-	v1= normalized_v3f(v1); v2= normalized_v3f(v2);
-	F64 dot= dot_v3f(v1, v2);
+	v1 = normalized_v3f(v1); v2 = normalized_v3f(v2);
+	F64 dot = dot_v3f(v1, v2);
 	if (dot >= 1.0) {
 		return identity_qf();
 	} else if (dot <= -1.0) {
-		V3f axis= {1.0, 0.0, 0.0};
-		axis= cross_v3f(axis, v1);
+		V3f axis = {1.0, 0.0, 0.0};
+		axis = cross_v3f(axis, v1);
 		if (length_sqr_v3f(axis) == 0.0) {
-			axis= (V3f) {0.0, 1.0, 0.0};
-			axis= cross_v3f(axis, v1);
+			axis = (V3f) {0.0, 1.0, 0.0};
+			axis = cross_v3f(axis, v1);
 		}
 		return normalized_qf((Qf) {axis.x, axis.y, axis.z, 0});
 	}
-	F64 mul= sqrt(2 + dot*2);
-	V3f v= scaled_v3f(1.0/mul, cross_v3f(v1, v2));
+	F64 mul = sqrt(2 + dot*2);
+	V3f v = scaled_v3f(1.0/mul, cross_v3f(v1, v2));
 	return (Qf) {v.x, v.y, v.z, 0.5*mul};
 }
 
@@ -508,7 +508,7 @@ static
 Qf qf_by_xy_rot_matrix(F32 cs, F32 sn)
 {
 	/// @todo There must be a faster way
-	F64 rot= atan2(sn, cs);
+	F64 rot = atan2(sn, cs);
 	return (Qf) {0, 0, sin(rot/2.0), cos(rot/2.0) };
 }
 
@@ -541,11 +541,11 @@ Qd neg_qd(Qd q)
 static
 V3d rot_v3d(Qd q, V3d v)
 {
-	V3d a, b, c= {q.x, q.y, q.z};
-	a= cross_v3d(c, v);
-	b= cross_v3d(c, a);
-	a= scaled_v3d(2.0 * q.w, a);
-	b= scaled_v3d(2.0, b);
+	V3d a, b, c = {q.x, q.y, q.z};
+	a = cross_v3d(c, v);
+	b = cross_v3d(c, a);
+	a = scaled_v3d(2.0 * q.w, a);
+	b = scaled_v3d(2.0, b);
 	return add_v3d(add_v3d(v, a), b);
 }
 
@@ -556,10 +556,10 @@ F64 rotation_z_qd(Qd q)
 	/// @note	If fixing is needed, make sure that these still work:
 	///			 - physics object mirroring (e.g. stoneFlail in hand)
 	///			 - full rotation in 2d plane (e.g. grassClump attached to object)
-	bool flip= rot_v3d(q, (V3d) {0, 0, 1}).z < 0;
+	bool flip = rot_v3d(q, (V3d) {0, 0, 1}).z < 0;
 	// Euler angles
-	F64 heading= atan2(2.0*q.y*q.w - 2.0*q.x*q.z, 1.0 - 2.0*q.y*q.y - 2.0*q.z*q.z);
-	F64 attitude= asin(2.0*q.x*q.y + 2.0*q.z*q.w);
+	F64 heading = atan2(2.0*q.y*q.w - 2.0*q.x*q.z, 1.0 - 2.0*q.y*q.y - 2.0*q.z*q.z);
+	F64 attitude = asin(2.0*q.x*q.y + 2.0*q.z*q.w);
 	// Using heading to detect rotations greater than +-90 degrees
 	// Flipping was adjusted by trial & error
 	if (ABS(heading) < PI*0.5 || flip)
@@ -580,18 +580,18 @@ Qd normalized_qd(Qd q)
 		return q;
 	else if (a == 0)
 		return identity_qd();
-	a= sqrt(a);
+	a = sqrt(a);
 	return (Qd) {q.x/a, q.y/a, q.z/a, q.w/a};
 }
 
 static
 V3d axis_qd(Qd q)
 {
-	F64 s= sqrt(q.x*q.x + q.y*q.y + q.z*q.z);
+	F64 s = sqrt(q.x*q.x + q.y*q.y + q.z*q.z);
 	if (s <= EPSILON || q.w > 1.0 || q.w < -1.0) {
 		return (V3d) {0, 1, 0};
 	} else {
-		F64 inv_s= 1.0/s;
+		F64 inv_s = 1.0/s;
 		return (V3d) {q.x*inv_s, q.y*inv_s, q.z*inv_s};	}
 }
 
@@ -602,30 +602,30 @@ F64 angle_qd(Qd q)
 static
 Qd qd_by_axis(V3d axis, F64 angle)
 {
-	axis= normalized_v3d(axis);
-	F64 half= 0.5*angle;
-	F64 s= sin(half);
+	axis = normalized_v3d(axis);
+	F64 half = 0.5*angle;
+	F64 s = sin(half);
 	return (Qd) {axis.x*s, axis.y*s, axis.z*s, cos(half)};
 }
 
 static
 Qd qd_by_from_to(V3d v1, V3d v2)
 {
-	v1= normalized_v3d(v1); v2= normalized_v3d(v2);
-	F64 dot= dot_v3d(v1, v2);
+	v1 = normalized_v3d(v1); v2 = normalized_v3d(v2);
+	F64 dot = dot_v3d(v1, v2);
 	if (dot >= 1.0) {
 		return identity_qd();
 	} else if (dot <= -1.0) {
-		V3d axis= {1.0, 0.0, 0.0};
-		axis= cross_v3d(axis, v1);
+		V3d axis = {1.0, 0.0, 0.0};
+		axis = cross_v3d(axis, v1);
 		if (length_sqr_v3d(axis) == 0.0) {
-			axis= (V3d) {0.0, 1.0, 0.0};
-			axis= cross_v3d(axis, v1);
+			axis = (V3d) {0.0, 1.0, 0.0};
+			axis = cross_v3d(axis, v1);
 		}
 		return normalized_qd((Qd) {axis.x, axis.y, axis.z, 0});
 	}
-	F64 mul= sqrt(2 + dot*2);
-	V3d v= scaled_v3d(1.0/mul, cross_v3d(v1, v2));
+	F64 mul = sqrt(2 + dot*2);
+	V3d v = scaled_v3d(1.0/mul, cross_v3d(v1, v2));
 	return (Qd) {v.x, v.y, v.z, 0.5*mul};
 }
 
@@ -633,7 +633,7 @@ static
 Qd qd_by_xy_rot_matrix(F64 cs, F64 sn)
 {
 	/// @todo There must be a faster way
-	F64 rot= atan2(sn, cs);
+	F64 rot = atan2(sn, cs);
 	return (Qd) {0, 0, sin(rot/2.0), cos(rot/2.0) };
 }
 
@@ -679,10 +679,10 @@ typedef struct T3d {
 static
 T3f mul_t3f(T3f op, T3f subj)
 {
-	T3f t= subj;
-	t.scale= mul_v3f(op.scale, t.scale);
-	t.rot= mul_qf(op.rot, t.rot);
-	t.pos= add_v3f(rot_v3f(op.rot, mul_v3f(op.scale, t.pos)), op.pos);
+	T3f t = subj;
+	t.scale = mul_v3f(op.scale, t.scale);
+	t.rot = mul_qf(op.rot, t.rot);
+	t.pos = add_v3f(rot_v3f(op.rot, mul_v3f(op.scale, t.pos)), op.pos);
 	return t;
 }
 
@@ -690,10 +690,10 @@ T3f mul_t3f(T3f op, T3f subj)
 static
 T3d mul_t3d(T3d op, T3d subj)
 {
-	T3d t= subj;
-	t.scale= mul_v3d(op.scale, t.scale);
-	t.rot= mul_qd(op.rot, t.rot);
-	t.pos= add_v3d(rot_v3d(op.rot, mul_v3d(op.scale, t.pos)), op.pos);
+	T3d t = subj;
+	t.scale = mul_v3d(op.scale, t.scale);
+	t.rot = mul_qd(op.rot, t.rot);
+	t.pos = add_v3d(rot_v3d(op.rot, mul_v3d(op.scale, t.pos)), op.pos);
 	return t;
 }
 
@@ -708,20 +708,20 @@ V3d transform_v3d(T3d op, V3d subj)
 static
 T3f inv_t3f(T3f tf)
 {
-	T3f t= tf;
-	t.scale= (V3f) {1/t.scale.x, 1/t.scale.y, 1/t.scale.z};
-	t.rot= neg_qf(t.rot);
-	t.pos= neg_v3f(rot_v3f(t.rot, mul_v3f(t.pos, t.scale)));
+	T3f t = tf;
+	t.scale = (V3f) {1/t.scale.x, 1/t.scale.y, 1/t.scale.z};
+	t.rot = neg_qf(t.rot);
+	t.pos = neg_v3f(rot_v3f(t.rot, mul_v3f(t.pos, t.scale)));
 	return t;
 }
 
 static
 T3d inv_t3d(T3d tf)
 {
-	T3d t= tf;
-	t.scale= (V3d) {1/t.scale.x, 1/t.scale.y, 1/t.scale.z};
-	t.rot= neg_qd(t.rot);
-	t.pos= neg_v3d(rot_v3d(t.rot, mul_v3d(t.pos, t.scale)));
+	T3d t = tf;
+	t.scale = (V3d) {1/t.scale.x, 1/t.scale.y, 1/t.scale.z};
+	t.rot = neg_qd(t.rot);
+	t.pos = neg_v3d(rot_v3d(t.rot, mul_v3d(t.pos, t.scale)));
 	return t;
 }
 

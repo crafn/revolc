@@ -32,7 +32,7 @@ void binary_pack_buf(WArchive *ar, const void *data, U32 data_size)
 		fail(	"WArchive capacity exceeded: %i > %i (@todo resize)",
 				ar->data_size + data_size, ar->data_capacity);
 
-	U8 *begin= ar->data + ar->data_size;
+	U8 *begin = ar->data + ar->data_size;
 	memcpy(begin, data, data_size);
 	ar->data_size += data_size;
 }
@@ -54,32 +54,32 @@ void binary_unpack_buf(RArchive *ar, void *data, U32 data_size)
 	ar->offset += data_size;
 }
 void binary_unpack_strbuf(RArchive *ar, char *str, U32 str_max_size)
-{ binary_unpack_buf(ar, str, str_max_size); str[str_max_size - 1]= '\0'; }
+{ binary_unpack_buf(ar, str, str_max_size); str[str_max_size - 1] = '\0'; }
 
 
 
 // ArchiveType to pack-function -tables
 
 internal
-void (*pack_int_funcs[])(WArchive *, const void *, U32)= {
+void (*pack_int_funcs[])(WArchive *, const void *, U32) = {
 	measure_pack_int,
 	binary_pack_int,
 };
 
 internal
-void (*pack_float_funcs[])(WArchive *, const void *, bool)= {
+void (*pack_float_funcs[])(WArchive *, const void *, bool) = {
 	measure_pack_float,
 	binary_pack_float,
 };
 
 internal
-void (*pack_buf_funcs[])(WArchive *, const void *, U32)= {
+void (*pack_buf_funcs[])(WArchive *, const void *, U32) = {
 	measure_pack_buf,
 	binary_pack_buf,
 };
 
 internal
-void (*pack_strbuf_funcs[])(WArchive *, const char *, U32)= {
+void (*pack_strbuf_funcs[])(WArchive *, const char *, U32) = {
 	measure_pack_strbuf,
 	binary_pack_strbuf,
 };
@@ -87,25 +87,25 @@ void (*pack_strbuf_funcs[])(WArchive *, const char *, U32)= {
 
 
 internal
-void (*unpack_int_funcs[])(RArchive *, void *, U32)= {
+void (*unpack_int_funcs[])(RArchive *, void *, U32) = {
 	NULL,
 	binary_unpack_int,
 };
 
 internal
-void (*unpack_float_funcs[])(RArchive *, void *, bool)= {
+void (*unpack_float_funcs[])(RArchive *, void *, bool) = {
 	NULL,
 	binary_unpack_float,
 };
 
 internal
-void (*unpack_buf_funcs[])(RArchive *, void *, U32)= {
+void (*unpack_buf_funcs[])(RArchive *, void *, U32) = {
 	NULL,
 	binary_unpack_buf,
 };
 
 internal
-void (*unpack_strbuf_funcs[])(RArchive *, char *, U32)= {
+void (*unpack_strbuf_funcs[])(RArchive *, char *, U32) = {
 	NULL,
 	binary_unpack_strbuf,
 };
@@ -117,13 +117,13 @@ void (*unpack_strbuf_funcs[])(RArchive *, char *, U32)= {
 WArchive create_warchive(ArchiveType t, Ator *ator, U32 capacity)
 {
 	return (WArchive) {
-		.type= t,
-		.ator= ator,
-		.data= 	t == ArchiveType_measure ?
+		.type = t,
+		.ator = ator,
+		.data = 	t == ArchiveType_measure ?
 					NULL :
 					ALLOC(ator, capacity, "warchive_data"),
-		.data_size= 0,
-		.data_capacity= capacity,
+		.data_size = 0,
+		.data_capacity = capacity,
 	};
 }
 
@@ -131,23 +131,23 @@ void destroy_warchive(WArchive *ar)
 {
 	if (ar->type != ArchiveType_measure)
 		FREE(ar->ator, ar->data);
-	*ar= (WArchive) {};
+	*ar = (WArchive) {};
 }
 
 RArchive create_rarchive(ArchiveType t, const void *data, U32 data_size)
 {
 	ensure(t == ArchiveType_binary);
 	return (RArchive) {
-		.type= t,
-		.offset= 0,
-		.data= data,
-		.data_size= data_size,
+		.type = t,
+		.offset = 0,
+		.data = data,
+		.data_size = data_size,
 	};
 }
 
 void destroy_rarchive(RArchive *ar)
 {
-	*ar= (RArchive) {};
+	*ar = (RArchive) {};
 }
 
 void pack_u32(WArchive *ar, const U32 *value)
@@ -169,10 +169,10 @@ void pack_strbuf(WArchive *ar, const char *str, U32 str_max_size)
 
 void pack_buf_patch(WArchive *ar, U32 offset, const void *data, U32 data_size)
 {
-	U32 end= ar->data_size;
-	ar->data_size= offset;
+	U32 end = ar->data_size;
+	ar->data_size = offset;
 	pack_buf(ar, data, data_size);
-	ar->data_size= end;
+	ar->data_size = end;
 }
 
 void unpack_u32(RArchive *ar, U32 *value)

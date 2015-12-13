@@ -23,33 +23,33 @@ MOD_API void init_rts()
 {
 	debug_print("init_rts()");
 
-	RtsEnv *env= ZERO_ALLOC(gen_ator(), sizeof(*env), "rts_env");
-	g_env.game_data= env;
+	RtsEnv *env = ZERO_ALLOC(gen_ator(), sizeof(*env), "rts_env");
+	g_env.game_data = env;
 
-	rts_env()->selection_nodes=
+	rts_env()->selection_nodes =
 		create_stbl(Selection)(
 			gen_ator(),
 			RES_BY_NAME(NodeType, "Selection")->max_count);
 
-	bool authority= false;
-	bool connect= false;
-	IpAddress remote_addr= {};
-	for (U32 i= 0; i < g_env.argc; ++i) {
+	bool authority = false;
+	bool connect = false;
+	IpAddress remote_addr = {};
+	for (U32 i = 0; i < g_env.argc; ++i) {
 		if (!strcmp(g_env.argv[i], "-authority")) {
-			authority= true;
+			authority = true;
 		} else if (g_env.argv[i][0] == '-') {
-			connect= true;
-			remote_addr= str_to_ip(g_env.argv[i] + 1);
+			connect = true;
+			remote_addr = str_to_ip(g_env.argv[i] + 1);
 		}
 	}
-	remote_addr.port= authority ? RTS_CLIENT_PORT : RTS_AUTHORITY_PORT;
+	remote_addr.port = authority ? RTS_CLIENT_PORT : RTS_AUTHORITY_PORT;
 
-	rts_env()->authority= authority;
-	rts_env()->peer= create_udp_peer(	authority ? RTS_AUTHORITY_PORT : RTS_CLIENT_PORT,
+	rts_env()->authority = authority;
+	rts_env()->peer = create_udp_peer(	authority ? RTS_AUTHORITY_PORT : RTS_CLIENT_PORT,
 										connect ? &remote_addr : NULL);
-	rts_env()->world_upd_time= -10000.0;
+	rts_env()->world_upd_time = -10000.0;
 
-	g_env.physworld->debug_draw= true;
+	g_env.physworld->debug_draw = true;
 }
 
 MOD_API void deinit_rts()
@@ -64,14 +64,14 @@ MOD_API void deinit_rts()
 
 void upd_rts()
 {
-	RtsEnv *env= rts_env();
+	RtsEnv *env = rts_env();
 	env->game_time += g_env.dt;
 
 	upd_rts_net();
 
 	{ // UI
-		Device *d= g_env.device;
-		V2d cursor_on_world= screen_to_world_point(g_env.device->cursor_pos);
+		Device *d = g_env.device;
+		V2d cursor_on_world = screen_to_world_point(g_env.device->cursor_pos);
 		if (d->key_down['t'])
 			brush_action(&(BrushAction) {cursor_on_world, 2.0, GRIDCELL_MATERIAL_AIR});
 		if (d->key_down['g'])
@@ -79,15 +79,15 @@ void upd_rts()
 		if (d->key_pressed['e'])
 			spawn_action(&(SpawnAction) {"minion", cursor_on_world});
 
-		SparseTbl(Selection) *sels= &env->selection_nodes;
-		bool already_selected= false;
-		for (	Selection *it= begin_stbl(Selection)(sels);
+		SparseTbl(Selection) *sels = &env->selection_nodes;
+		bool already_selected = false;
+		for (	Selection *it = begin_stbl(Selection)(sels);
 				it != end_stbl(Selection)(sels);
 				it = next_stbl(Selection)(sels, it)) {
-			bool hit=	length_sqr_v2d(sub_v2d(cursor_on_world, v3d_to_v2d(it->pos))) < 4.0 &&
+			bool hit =	length_sqr_v2d(sub_v2d(cursor_on_world, v3d_to_v2d(it->pos))) < 4.0 &&
 						!already_selected;
-			it->selected= hit;
-			already_selected= hit || already_selected;
+			it->selected = hit;
+			already_selected = hit || already_selected;
 		}
 	}
 }

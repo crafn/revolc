@@ -34,8 +34,8 @@ void * alloc_impl(Ator *ator, U32 size, void *realloc_ptr, const char *tag, bool
 				}
 			} else {
 				if (realloc_ptr) {
-					U32 old_size= malloc_size(realloc_ptr);
-					void *ptr= realloc(realloc_ptr, size);
+					U32 old_size = malloc_size(realloc_ptr);
+					void *ptr = realloc(realloc_ptr, size);
 					if (old_size < size)
 						memset(ptr + old_size, 0, size - old_size);
 					return ptr;
@@ -44,10 +44,10 @@ void * alloc_impl(Ator *ator, U32 size, void *realloc_ptr, const char *tag, bool
 				}
 			}
 		case AtorType_linear: {
-			void *next_mem= ator->buf + ator->offset;
+			void *next_mem = ator->buf + ator->offset;
 			ensure(MAX_ALIGNMENT == 16);
-			U8 *block= (void*)((U64)(next_mem + 15) & ~0x0F); // 16-aligned
-			ator->offset= block + size - ator->buf;
+			U8 *block = (void*)((U64)(next_mem + 15) & ~0x0F); // 16-aligned
+			ator->offset = block + size - ator->buf;
 			if (ator->offset > ator->capacity)
 				fail("Linear allocator '%s' out of space", ator->tag);
 			if (zero)
@@ -83,35 +83,35 @@ void free_impl(Ator *ator, void *ptr)
 
 Ator *stack_ator()
 {
-	local_persist Ator ator= { .type= AtorType_stack, .tag= "stack" };
+	local_persist Ator ator = { .type = AtorType_stack, .tag = "stack" };
 	return &ator;
 }
 
 Ator *gen_ator()
 {
-	local_persist Ator ator= { .type= AtorType_gen, .tag= "general_heap" };
+	local_persist Ator ator = { .type = AtorType_gen, .tag = "general_heap" };
 	return &ator;
 }
 
 Ator linear_ator(void *buf, U32 size, const char *tag)
 {
 	return (Ator) {
-		.type= AtorType_linear,
-		.buf= buf,
-		.capacity= size,
-		.tag= tag
+		.type = AtorType_linear,
+		.buf = buf,
+		.capacity = size,
+		.tag = tag
 	};
 }
 
 Ator *dev_ator()
 {
-	local_persist Ator ator= { .type= AtorType_dev, .tag= "dev_heap" };
+	local_persist Ator ator = { .type = AtorType_dev, .tag = "dev_heap" };
 	return &ator;
 }
 
 Ator *leakable_dev_ator()
 {
-	local_persist Ator ator= { .type= AtorType_dev, .tag= "leakable_dev_heap" };
+	local_persist Ator ator = { .type = AtorType_dev, .tag = "leakable_dev_heap" };
 	return &ator;
 }
 
@@ -136,5 +136,5 @@ void * frame_alloc(U32 size)
 
 void reset_frame_alloc()
 {
-	g_env.frame_ator.offset= 0;
+	g_env.frame_ator.offset = 0;
 }

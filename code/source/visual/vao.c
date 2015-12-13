@@ -12,10 +12,10 @@ Vao create_vao(MeshType m, U32 max_v_count, U32 max_i_count)
 			&attribs,
 			&attrib_count);
 
-	Vao vao= {};
-	vao.v_size= vertex_size(m);
-	vao.v_capacity= max_v_count;
-	vao.i_capacity= max_i_count;
+	Vao vao = {};
+	vao.v_size = vertex_size(m);
+	vao.v_capacity = max_v_count;
+	vao.i_capacity = max_i_count;
 
 	glGenVertexArrays(1, &vao.vao_id);
 	glGenBuffers(1, &vao.vbo_id);
@@ -24,7 +24,7 @@ Vao create_vao(MeshType m, U32 max_v_count, U32 max_i_count)
 
 	bind_vao(&vao);
 	
-	for (U32 i= 0; i < attrib_count; ++i) {
+	for (U32 i = 0; i < attrib_count; ++i) {
 		glEnableVertexAttribArray(i);
 		if (attribs[i].floating) {
 			glVertexAttribPointer(
@@ -60,7 +60,7 @@ void destroy_vao(Vao *vao)
 
 	U32 attrib_count;
 	vertex_attributes(vao->mesh_type, NULL, &attrib_count);
-	for (U32 i= 0; i < attrib_count; ++i)
+	for (U32 i = 0; i < attrib_count; ++i)
 		glDisableVertexAttribArray(i);
 
 	unbind_vao();
@@ -69,7 +69,7 @@ void destroy_vao(Vao *vao)
 	glDeleteBuffers(1, &vao->vbo_id);
 	if (vao->ibo_id)
 		glDeleteBuffers(1, &vao->ibo_id);
-	vao->vao_id= vao->vbo_id= vao->ibo_id= 0;
+	vao->vao_id = vao->vbo_id = vao->ibo_id = 0;
 }
 
 void bind_vao(const Vao *vao)
@@ -112,15 +112,15 @@ void add_indices_to_vao(Vao *vao, MeshIndexType *indices, U32 count)
 	ensure(vao->ibo_id);
 	ensure(vao->i_count + count <= vao->i_capacity);
 
-	/*const U32 buf_size= 1024;
+	/*const U32 buf_size = 1024;
 	MeshIndexType buf[buf_size];
-	for (U32 i= 0; i < count; i += buf_size) {
-		U32 count_in_buf= buf_size;
+	for (U32 i = 0; i < count; i += buf_size) {
+		U32 count_in_buf = buf_size;
 		if (i + count_in_buf > count)
-			count_in_buf= count - i; 
+			count_in_buf = count - i; 
 
-		for (U32 k= 0; k < count_in_buf; ++k)
-			buf[k]= indices[i + k] + vao->v_count;
+		for (U32 k = 0; k < count_in_buf; ++k)
+			buf[k] = indices[i + k] + vao->v_count;
 
 		glBufferSubData(GL_ELEMENT_ARRAY_BUFFER,
 				sizeof(MeshIndexType)*vao->i_count,
@@ -138,7 +138,7 @@ void add_indices_to_vao(Vao *vao, MeshIndexType *indices, U32 count)
 }
 
 void reset_vao_mesh(Vao *vao)
-{ vao->v_count= vao->i_count= 0; }
+{ vao->v_count = vao->i_count = 0; }
 
 void draw_vao(const Vao *vao)
 {

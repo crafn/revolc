@@ -21,22 +21,22 @@
 internal
 void make_main_blob(const char *blob_path, const char *game)
 {
-	const char *engine_res_root= frame_str("%srevolc/", DEFAULT_RES_ROOT);
-	const char *game_res_root= frame_str("%s%s/", DEFAULT_RES_ROOT, game);
+	const char *engine_res_root = frame_str("%srevolc/", DEFAULT_RES_ROOT);
+	const char *game_res_root = frame_str("%s%s/", DEFAULT_RES_ROOT, game);
 
 	// @todo Fix crappy api!
-	char **game_res_paths= plat_find_paths_with_end(game_res_root, ".res");
-	char **engine_res_paths= plat_find_paths_with_end(engine_res_root, ".res");
+	char **game_res_paths = plat_find_paths_with_end(game_res_root, ".res");
+	char **engine_res_paths = plat_find_paths_with_end(engine_res_root, ".res");
 
-	U32 res_count= 0;
-	char *res_paths[MAX_RES_FILES]= {0};
-	for (U32 i= 0; res_count < MAX_RES_FILES && engine_res_paths[i]; ++i)
-		res_paths[res_count++]= engine_res_paths[i];
-	for (U32 i= 0; res_count < MAX_RES_FILES && game_res_paths[i]; ++i)
-		res_paths[res_count++]= game_res_paths[i];
+	U32 res_count = 0;
+	char *res_paths[MAX_RES_FILES] = {0};
+	for (U32 i = 0; res_count < MAX_RES_FILES && engine_res_paths[i]; ++i)
+		res_paths[res_count++] = engine_res_paths[i];
+	for (U32 i = 0; res_count < MAX_RES_FILES && game_res_paths[i]; ++i)
+		res_paths[res_count++] = game_res_paths[i];
 
 	make_blob(blob_path, res_paths);
-	for (U32 i= 0; res_paths[i]; ++i)
+	for (U32 i = 0; res_paths[i]; ++i)
 		FREE(gen_ator(), res_paths[i]);
 	FREE(gen_ator(), engine_res_paths);
 	FREE(gen_ator(), game_res_paths);
@@ -48,19 +48,19 @@ const char *blob_path(const char *game)
 internal
 void spawn_entity(World *world, ResBlob *blob, V2d pos)
 {
-	local_persist U64 group_i= 0;
-	group_i= (group_i + 1) % 3;
+	local_persist U64 group_i = 0;
+	group_i = (group_i + 1) % 3;
 
-	const char* prop_name=
+	const char* prop_name =
 		(char*[]) {"wbarrel", "wbox", "rollbot"}[group_i];
 
-	T3d tf= {{1, 1, 1}, identity_qd(), {pos.x, pos.y, 0}};
-	SlotVal init_vals[]= { // Override default values from json
+	T3d tf = {{1, 1, 1}, identity_qd(), {pos.x, pos.y, 0}};
+	SlotVal init_vals[] = { // Override default values from json
 		{"body",	"tf",			WITH_DEREF_SIZEOF(&tf)},
 		{"body",	"def_name",		WITH_STR_SIZE(prop_name)},
 		{"visual",	"model_name",	WITH_STR_SIZE(prop_name)},
 	};
-	NodeGroupDef *def=
+	NodeGroupDef *def =
 		(NodeGroupDef*)res_by_name(blob, ResType_NodeGroupDef, "phys_prop");
 	create_nodes(world, def, WITH_ARRAY_COUNT(init_vals), group_i);
 }
@@ -69,15 +69,15 @@ void spawn_entity(World *world, ResBlob *blob, V2d pos)
 
 int main(int argc, const char **argv)
 {
-	const char *game= NULL;
+	const char *game = NULL;
 	if (argc < 2)
 		fail("Specify name of the game");
 	else
-		game= argv[1];
+		game = argv[1];
 
 	init_env(argc, argv);
 
-	Device *d= plat_init(frame_str("Revolc engine - %s", game), (V2i) {800, 600});
+	Device *d = plat_init(frame_str("Revolc engine - %s", game), (V2i) {800, 600});
 
 	if (!file_exists(blob_path(game)))
 		make_main_blob(blob_path(game), game);
@@ -92,7 +92,7 @@ int main(int argc, const char **argv)
 
 	init_for_modules();
 
-	World *world= g_env.world= create_world();
+	World *world = g_env.world = create_world();
 
 	// Init/load world
 	if (file_exists(SAVEFILE_PATH)) {
@@ -101,37 +101,37 @@ int main(int argc, const char **argv)
 		worldgen_for_modules(world);
 	}
 
-	F64 time_accum= 0.0; // For fps
-	U32 frame= 0;
+	F64 time_accum = 0.0; // For fps
+	U32 frame = 0;
 
-	g_env.os_allocs_forbidden= true; // Keep fps steady
+	g_env.os_allocs_forbidden = true; // Keep fps steady
 	while (1) {
 		reset_frame_alloc();
 
 		plat_update(d);
 		time_accum += d->dt;
-		if (frame++ == 60 && 0) {
+		if (frame++== 60 && 0) {
 			debug_print("---");
 			debug_print("model entities: %i", g_env.renderer->m_entity_count);
 			debug_print("comp entities: %i", g_env.renderer->c_entity_count);
 			debug_print("bodies: %i", g_env.physworld->body_count);
 			debug_print("nodes: %i", g_env.world->node_count);
 			debug_print("fps: %f", frame/time_accum);
-			frame= 0;
-			time_accum= 0;
+			frame = 0;
+			time_accum = 0;
 		}
 
 		upd_uicontext();
 
 		{ // User input
-			V2d cursor_on_world= screen_to_world_point(g_env.device->cursor_pos);
-			V2d prev_cursor_on_world= screen_to_world_point(g_env.uicontext->dev.prev_cursor_pos);
-			V2d cursor_delta_on_world= sub_v2d(cursor_on_world, prev_cursor_on_world);
+			V2d cursor_on_world = screen_to_world_point(g_env.device->cursor_pos);
+			V2d prev_cursor_on_world = screen_to_world_point(g_env.uicontext->dev.prev_cursor_pos);
+			V2d cursor_delta_on_world = sub_v2d(cursor_on_world, prev_cursor_on_world);
 
-			F32 dt= d->dt;
+			F32 dt = d->dt;
 			g_env.time_from_start += dt;
-			g_env.dt= dt;
-			F32 spd= 25.0;
+			g_env.dt = dt;
+			F32 spd = 25.0;
 			if (d->key_down[KEY_UP])
 				g_env.renderer->cam_pos.y += spd*dt;
 			if (d->key_down[KEY_LEFT])
@@ -162,9 +162,9 @@ int main(int argc, const char **argv)
 			g_env.renderer->cam_pos.z = MIN(g_env.renderer->cam_pos.z, 30);
 
 			{ // Fov which cuts stuff away with non-square window
-				V2i win_size= g_env.device->win_size;
-				F64 fov_scale= MAX(win_size.x, win_size.y);
-				g_env.renderer->cam_fov= (V2d) {
+				V2i win_size = g_env.device->win_size;
+				F64 fov_scale = MAX(win_size.x, win_size.y);
+				g_env.renderer->cam_fov = (V2d) {
 					2*atan(g_env.device->win_size.x/fov_scale),
 					2*atan(g_env.device->win_size.y/fov_scale)
 				};
@@ -175,23 +175,23 @@ int main(int argc, const char **argv)
 
 #			ifdef USE_FLUID
 			if (d->key_down['r']) {
-				GridCell *grid= g_env.physworld->grid;
-				U32 i= GRID_INDEX_W(cursor_on_world.x, cursor_on_world.y);
-				U32 width= 20;
+				GridCell *grid = g_env.physworld->grid;
+				U32 i = GRID_INDEX_W(cursor_on_world.x, cursor_on_world.y);
+				U32 width = 20;
 				if (d->key_down[KEY_LSHIFT])
-					width= 1;
+					width = 1;
 				if (!d->key_down[KEY_LCTRL]) {
-					for (U32 x= 0; x < width; ++x) {
-					for (U32 y= 0; y < width; ++y) {
-						grid[i + x + y*GRID_WIDTH_IN_CELLS].water= 1;
+					for (U32 x = 0; x < width; ++x) {
+					for (U32 y = 0; y < width; ++y) {
+						grid[i + x + y*GRID_WIDTH_IN_CELLS].water = 1;
 					}
 					}
 				} else {
-					width= 50;
-					for (U32 x= 0; x < width; ++x) {
-					for (U32 y= 0; y < width; ++y) {
+					width = 50;
+					for (U32 x = 0; x < width; ++x) {
+					for (U32 y = 0; y < width; ++y) {
 						if (rand() % 300 == 0)
-							grid[i + x + y*GRID_WIDTH_IN_CELLS].water= 1;
+							grid[i + x + y*GRID_WIDTH_IN_CELLS].water = 1;
 					}
 					}
 				}
@@ -200,7 +200,7 @@ int main(int argc, const char **argv)
 
 
 			if (d->key_pressed['q'])
-				g_env.physworld->debug_draw= !g_env.physworld->debug_draw;
+				g_env.physworld->debug_draw = !g_env.physworld->debug_draw;
 
 			if (d->key_pressed['k'])
 				play_sound("dev_beep0", 1.0, -1.0);
@@ -208,7 +208,7 @@ int main(int argc, const char **argv)
 				play_sound("dev_beep1", 0.5, 1.0);
 
 			if (d->key_pressed[KEY_F5]) {
-				U32 count= mirror_blob_modifications(g_env.resblob);
+				U32 count = mirror_blob_modifications(g_env.resblob);
 				if (count > 0)
 					delete_file(blob_path(game)); // Force make_blob at restart
 			}
@@ -225,10 +225,10 @@ int main(int argc, const char **argv)
 
 			if (d->key_pressed[KEY_F12]) {
 				U32 count;
-				Module **modules= (Module**)all_res_by_type(&count,
+				Module **modules = (Module**)all_res_by_type(&count,
 															g_env.resblob,
 															ResType_Module);
-				for (U32 i= 0; i < count; ++i)
+				for (U32 i = 0; i < count; ++i)
 					system(frame_str("cd ../../code && clbs debug %s", count[modules]->res.name));
 
 				if (!file_exists(blob_path(game)))
@@ -252,22 +252,22 @@ int main(int argc, const char **argv)
 				save_world(world, SAVEFILE_PATH);
 			if (d->key_pressed['o']) {
 				destroy_world(world);
-				world= g_env.world= create_world();
+				world = g_env.world = create_world();
 				load_world(world, SAVEFILE_PATH);
 			}*/
 
 			if (g_env.editor->state == EditorState_invisible) {
-				local_persist cpBody *body= NULL;
+				local_persist cpBody *body = NULL;
 				if (d->key_down['f']) {
-					cpVect p= {cursor_on_world.x, cursor_on_world.y};
-					cpShape *shape=
+					cpVect p = {cursor_on_world.x, cursor_on_world.y};
+					cpShape *shape =
 						cpSpacePointQueryNearest(
 								g_env.physworld->cp_space,
 								p, 0.1,
 								CP_SHAPE_FILTER_ALL, NULL);
 
 					if (!body && shape && body != g_env.physworld->cp_ground_body) {
-						body= cpShapeGetBody(shape);
+						body = cpShapeGetBody(shape);
 					}
 
 					if (body) {
@@ -275,7 +275,7 @@ int main(int argc, const char **argv)
 						cpBodySetVelocity(body, cpv(0, 0));
 					}
 				} else if (body) {
-					body= NULL;
+					body = NULL;
 				}
 			}
 		}
@@ -284,9 +284,9 @@ int main(int argc, const char **argv)
 
 		upd_for_modules(); // This should be in multiple places with different enum params
 
-		F64 game_dt= d->dt;
+		F64 game_dt = d->dt;
 		if (g_env.editor->state != EditorState_invisible)
-			game_dt= 0.0;
+			game_dt = 0.0;
 		upd_physworld(game_dt);
 		upd_world(world, game_dt);
 		post_upd_physworld();
@@ -297,11 +297,11 @@ int main(int argc, const char **argv)
 		gl_check_errors("loop");
 		plat_sleep(1);
 	}
-	g_env.os_allocs_forbidden= false;
+	g_env.os_allocs_forbidden = false;
 
 
 	destroy_world(world);
-	g_env.world= NULL;
+	g_env.world = NULL;
 
 	deinit_for_modules();
 
@@ -313,7 +313,7 @@ int main(int argc, const char **argv)
 	destroy_audiosystem();
 
 	unload_blob(g_env.resblob);
-	g_env.resblob= NULL;
+	g_env.resblob = NULL;
 
 	debug_print("Heap allocation count: %i", g_env.prod_heap_alloc_count);
 

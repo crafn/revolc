@@ -5,7 +5,7 @@
 void vertex_attributes(MeshType type, const VertexAttrib **attribs, U32 *count)
 {
 	if (type == MeshType_tri) {
-		local_persist VertexAttrib tri_attribs[]= {
+		local_persist VertexAttrib tri_attribs[] = {
 			{ "a_pos", 3, GL_FLOAT, true, false, offsetof(TriMeshVertex, pos) },
 			{ "a_uv", 3, GL_FLOAT, true, false, offsetof(TriMeshVertex, uv) },
 			{ "a_color", 4, GL_FLOAT, true, false, offsetof(TriMeshVertex, color) },
@@ -13,16 +13,16 @@ void vertex_attributes(MeshType type, const VertexAttrib **attribs, U32 *count)
 			{ "a_draw_id", 1, GL_UNSIGNED_SHORT, false, false, offsetof(TriMeshVertex, draw_id) },
 		};
 		if (attribs)
-			*attribs= tri_attribs;
-		*count= sizeof(tri_attribs)/sizeof(*tri_attribs);
+			*attribs = tri_attribs;
+		*count = sizeof(tri_attribs)/sizeof(*tri_attribs);
 	} else if (type == MeshType_brush) {
-		local_persist VertexAttrib brush_attribs[]= {
+		local_persist VertexAttrib brush_attribs[] = {
 			{ "a_pos", 2, GL_FLOAT, true, false, offsetof(BrushMeshVertex, pos) },
 			{ "a_size", 1, GL_FLOAT, true, false, offsetof(BrushMeshVertex, size) },
 		};
 		if (attribs)
-			*attribs= brush_attribs;
-		*count= sizeof(brush_attribs)/sizeof(*brush_attribs);
+			*attribs = brush_attribs;
+		*count = sizeof(brush_attribs)/sizeof(*brush_attribs);
 	} else {
 		fail("Unimplemented mesh type");
 	}
@@ -54,11 +54,11 @@ MeshIndexType * mesh_indices(const Mesh *m)
 
 int json_mesh_to_blob(struct BlobBuf *buf, JsonTok j)
 {
-	MeshType type= MeshType_tri;
+	MeshType type = MeshType_tri;
 
-	JsonTok j_pos= json_value_by_key(j, "pos");
-	JsonTok j_uv= json_value_by_key(j, "uv");
-	JsonTok j_ind= json_value_by_key(j, "ind");
+	JsonTok j_pos = json_value_by_key(j, "pos");
+	JsonTok j_uv = json_value_by_key(j, "uv");
+	JsonTok j_ind = json_value_by_key(j, "ind");
 
 	if (json_is_null(j_pos))
 		RES_ATTRIB_MISSING("pos");
@@ -73,27 +73,27 @@ int json_mesh_to_blob(struct BlobBuf *buf, JsonTok j)
 	}
 
 	{
-		const U32 v_count= json_member_count(j_pos);
-		const U32 i_count= json_member_count(j_ind);
-		TriMeshVertex *vertices= ZERO_ALLOC(dev_ator(), sizeof(*vertices)*v_count, "verts");
-		MeshIndexType *indices= ZERO_ALLOC(dev_ator(), sizeof(*indices)*i_count, "inds");
-		for (U32 i= 0; i < v_count; ++i) {
-			JsonTok j_p= json_member(j_pos, i);
-			V3f p= {};
-			for (U32 c= 0; c < json_member_count(j_p); ++c)
-				(&p.x)[c]= json_real(json_member(j_p, c));
-			vertices[i].pos= p;
+		const U32 v_count = json_member_count(j_pos);
+		const U32 i_count = json_member_count(j_ind);
+		TriMeshVertex *vertices = ZERO_ALLOC(dev_ator(), sizeof(*vertices)*v_count, "verts");
+		MeshIndexType *indices = ZERO_ALLOC(dev_ator(), sizeof(*indices)*i_count, "inds");
+		for (U32 i = 0; i < v_count; ++i) {
+			JsonTok j_p = json_member(j_pos, i);
+			V3f p = {};
+			for (U32 c = 0; c < json_member_count(j_p); ++c)
+				(&p.x)[c] = json_real(json_member(j_p, c));
+			vertices[i].pos = p;
 
 			if (json_is_null(j_uv))
 				continue;
-			JsonTok j_u= json_member(j_uv, i);
-			V3f u= {};
-			for (U32 c= 0; c < json_member_count(j_u); ++c)
-				(&u.x)[c]= json_real(json_member(j_u, c));
-			vertices[i].uv= u;
+			JsonTok j_u = json_member(j_uv, i);
+			V3f u = {};
+			for (U32 c = 0; c < json_member_count(j_u); ++c)
+				(&u.x)[c] = json_real(json_member(j_u, c));
+			vertices[i].uv = u;
 		}
-		for (U32 i= 0; i < i_count; ++i)
-			indices[i]= json_integer(json_member(j_ind, i));
+		for (U32 i = 0; i < i_count; ++i)
+			indices[i] = json_integer(json_member(j_ind, i));
 
 		// @todo Fill Mesh and write it instead of individual members
 
@@ -101,11 +101,11 @@ int json_mesh_to_blob(struct BlobBuf *buf, JsonTok j)
 		blob_write(buf, &v_count, sizeof(v_count));
 		blob_write(buf, &i_count, sizeof(i_count));
 
-		U32 v_offset= buf->offset;
-		RelPtr rel_ptr= {};
+		U32 v_offset = buf->offset;
+		RelPtr rel_ptr = {};
 		blob_write(buf, &rel_ptr, sizeof(rel_ptr));
 
-		U32 i_offset= buf->offset;
+		U32 i_offset = buf->offset;
 		blob_write(buf, &rel_ptr, sizeof(rel_ptr));
 
 		blob_patch_rel_ptr(buf, v_offset);
@@ -126,18 +126,18 @@ error:
 
 void mesh_to_json(WJson *j, const Mesh *m)
 {
-	WJson *j_pos= wjson_named_member(j, JsonType_array, "pos");
-	WJson *j_uv= wjson_named_member(j, JsonType_array, "uv");
-	WJson *j_ind= wjson_named_member(j, JsonType_array, "ind");
+	WJson *j_pos = wjson_named_member(j, JsonType_array, "pos");
+	WJson *j_uv = wjson_named_member(j, JsonType_array, "uv");
+	WJson *j_ind = wjson_named_member(j, JsonType_array, "ind");
 
-	for (U32 i= 0; i < m->v_count; ++i) {
+	for (U32 i = 0; i < m->v_count; ++i) {
 		wjson_append(	j_pos,
 						wjson_v3(v3f_to_v3d(mesh_vertices(m)[i].pos)));
 		wjson_append(	j_uv,
 						wjson_v3(v3f_to_v3d(mesh_vertices(m)[i].uv)));
 	}
 
-	for (U32 i= 0; i < m->i_count; ++i) {
+	for (U32 i = 0; i < m->i_count; ++i) {
 		wjson_append(	j_ind,
 						wjson_number(mesh_indices(m)[i]));
 	}
@@ -147,7 +147,7 @@ void mesh_to_json(WJson *j, const Mesh *m)
 internal
 void destroy_rt_mesh(Resource *res)
 {
-	Mesh *m= (Mesh*)res;
+	Mesh *m = (Mesh*)res;
 	FREE(dev_ator(), blob_ptr(res, m->v_offset));
 	FREE(dev_ator(), blob_ptr(res, m->i_offset));
 	FREE(dev_ator(), m);
@@ -155,15 +155,15 @@ void destroy_rt_mesh(Resource *res)
 
 Mesh *create_rt_mesh(Mesh *src)
 {
-	Mesh *rt_mesh= ALLOC(dev_ator(), sizeof(*rt_mesh), "rt_mesh");
-	*rt_mesh= *src;
+	Mesh *rt_mesh = ALLOC(dev_ator(), sizeof(*rt_mesh), "rt_mesh");
+	*rt_mesh = *src;
 	substitute_res(&src->res, &rt_mesh->res, destroy_rt_mesh);
 
-	rt_mesh->v_offset=
+	rt_mesh->v_offset =
 		alloc_substitute_res_member(	&rt_mesh->res, &src->res,
 										src->v_offset,
 										sizeof(TriMeshVertex)*src->v_count);
-	rt_mesh->i_offset=
+	rt_mesh->i_offset =
 		alloc_substitute_res_member(	&rt_mesh->res, &src->res,
 										src->i_offset,
 										sizeof(MeshIndexType)*src->i_count);

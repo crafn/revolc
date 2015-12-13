@@ -35,13 +35,13 @@ LRESULT CALLBACK wndproc(
 		PostQuitMessage(0);
 	break;
 	case WM_CLOSE:
-		g_env.device->impl->closeMessage= true;
+		g_env.device->impl->closeMessage = true;
 	break;
 	case WM_MOUSEMOVE:
 		SetCursor(LoadCursor(NULL, IDC_ARROW));
 	break;
 	case WM_MOUSEWHEEL:
-		g_env.device->mwheel_delta=
+		g_env.device->mwheel_delta =
 			(F64)GET_WHEEL_DELTA_WPARAM(wParam)/WHEEL_DELTA;
 	break;
 	default:
@@ -52,26 +52,26 @@ LRESULT CALLBACK wndproc(
 
 void plat_init_impl(Device* d, const char* title, V2i reso)
 {
-	d->win_size= reso;
-	d->impl= ZERO_ALLOC(gen_ator(), sizeof(*d->impl), "windows_device");
+	d->win_size = reso;
+	d->impl = ZERO_ALLOC(gen_ator(), sizeof(*d->impl), "windows_device");
 
 	{ // Window
-		WNDCLASS wc= {}; 
-		wc.lpfnWndProc= wndproc;
-		wc.hInstance= GetModuleHandle(0);
-		wc.hbrBackground= (HBRUSH)(COLOR_BACKGROUND);
-		wc.lpszClassName= title;
+		WNDCLASS wc = {}; 
+		wc.lpfnWndProc = wndproc;
+		wc.hInstance = GetModuleHandle(0);
+		wc.hbrBackground = (HBRUSH)(COLOR_BACKGROUND);
+		wc.lpszClassName = title;
 		wc.style = CS_OWNDC;
 		if( !RegisterClass(&wc) )
 				fail("RegisterClass failed\n");
-		d->impl->hWnd= CreateWindow(
+		d->impl->hWnd = CreateWindow(
 			wc.lpszClassName,
 			title,
 			WS_OVERLAPPEDWINDOW|WS_VISIBLE,
 			0, 0, reso.x, reso.y, 0, 0, wc.hInstance, 0);
 
 		// Create OpenGL context
-		PIXELFORMATDESCRIPTOR pfd= {
+		PIXELFORMATDESCRIPTOR pfd = {
 			sizeof(PIXELFORMATDESCRIPTOR), 1,
 			PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,
 			PFD_TYPE_RGBA,
@@ -82,13 +82,13 @@ void plat_init_impl(Device* d, const char* title, V2i reso)
 			0, PFD_MAIN_PLANE, 0, 0, 0, 0
 		};
 
-		d->impl->hDC= GetDC(d->impl->hWnd);
-		int choose= ChoosePixelFormat(d->impl->hDC, &pfd);
+		d->impl->hDC = GetDC(d->impl->hWnd);
+		int choose = ChoosePixelFormat(d->impl->hDC, &pfd);
 		SetPixelFormat(d->impl->hDC, choose, &pfd);
-		d->impl->hGlrc= wglCreateContext(d->impl->hDC);
+		d->impl->hGlrc = wglCreateContext(d->impl->hDC);
 		wglMakeCurrent(d->impl->hDC, d->impl->hGlrc);
 
-		int ver[2]= {0, 0};
+		int ver[2] = {0, 0};
 		glGetIntegerv(GL_MAJOR_VERSION, &ver[0]);
 		glGetIntegerv(GL_MINOR_VERSION, &ver[1]);
 		debug_print("OpenGL version: %i.%i", ver[0], ver[1]);
@@ -98,15 +98,15 @@ void plat_init_impl(Device* d, const char* title, V2i reso)
 		U64 ticks;
 		if(!QueryPerformanceFrequency((LARGE_INTEGER *)&ticks))
 			fail("QueryPerformanceFrequency failed!");
-		d->impl->timer_reso= ticks;
+		d->impl->timer_reso = ticks;
 
 		QueryPerformanceCounter((LARGE_INTEGER *)&ticks);
-		d->impl->ticks= ticks;
+		d->impl->ticks = ticks;
 	}
 
 	{ // Winsock 2
 		WSADATA wsa;
-		int ret= WSAStartup(MAKEWORD(2,2), &wsa);
+		int ret = WSAStartup(MAKEWORD(2,2), &wsa);
 		if (ret != 0)
 		    fail("WSAStartup failed: %d\n", ret);
 	}
@@ -119,14 +119,14 @@ void plat_quit_impl(Device *d)
 	wglDeleteContext(d->impl->hGlrc);
 
 	FREE(gen_ator(), d->impl);
-	d->impl= NULL;
+	d->impl = NULL;
 }
 
 void plat_update_impl(Device *d)
 {
 	SwapBuffers(d->impl->hDC);
 
-	d->mwheel_delta= 0.0;
+	d->mwheel_delta = 0.0;
 
 	MSG msg;
 	while(PeekMessage(&msg, d->impl->hWnd, 0, 0, PM_REMOVE) > 0) {
@@ -134,7 +134,7 @@ void plat_update_impl(Device *d)
 		DispatchMessage(&msg); 
 	}
 
-	const U32 keycode_to_vkcode[KEY_COUNT]= {
+	const U32 keycode_to_vkcode[KEY_COUNT] = {
 		VK_LBUTTON, VK_MBUTTON, VK_RBUTTON, 0,
 		0, 0, 0, 0,
 		0, VK_TAB, VK_LSHIFT, VK_LCONTROL,
@@ -213,38 +213,38 @@ void plat_update_impl(Device *d)
 		0, 0, 0, 0,
 		0, 0, 0, 0,
 	};
-	bool has_focus= GetFocus() == d->impl->hWnd;
-	for (U32 i= 0; i < KEY_COUNT; ++i) {
-		int vk= keycode_to_vkcode[i];
+	bool has_focus = GetFocus() == d->impl->hWnd;
+	for (U32 i = 0; i < KEY_COUNT; ++i) {
+		int vk = keycode_to_vkcode[i];
 		if (vk == 0)
 			continue;
-		bool was_down= d->key_down[i];
-		d->key_down[i]= (GetKeyState(vk) & 0x8000) && has_focus;
-		d->key_pressed[i]= !was_down && d->key_down[i];
-		d->key_released[i]= was_down && !d->key_down[i];
+		bool was_down = d->key_down[i];
+		d->key_down[i] = (GetKeyState(vk) & 0x8000) && has_focus;
+		d->key_pressed[i] = !was_down && d->key_down[i];
+		d->key_released[i] = was_down && !d->key_down[i];
 	}
 
 	if (g_env.device->impl->closeMessage)
-		d->quit_requested= true;
+		d->quit_requested = true;
 
 	RECT rect;
 	if(GetClientRect(d->impl->hWnd, &rect)) {
-		d->win_size.x= rect.right - rect.left;
-		d->win_size.y= rect.bottom - rect.top;
+		d->win_size.x = rect.right - rect.left;
+		d->win_size.y = rect.bottom - rect.top;
 	}
 	POINT cursor;
 	GetCursorPos(&cursor);
 	ScreenToClient(d->impl->hWnd, &cursor);
-	d->cursor_pos.x= cursor.x;
-	d->cursor_pos.y= cursor.y;
+	d->cursor_pos.x = cursor.x;
+	d->cursor_pos.y = cursor.y;
 
 
-	const U64 old_ticks= d->impl->ticks;
+	const U64 old_ticks = d->impl->ticks;
 	U64 new_ticks;
 	QueryPerformanceCounter((LARGE_INTEGER *)&new_ticks);
 
-	d->dt= (new_ticks - old_ticks)*1.0/d->impl->timer_reso;
-	d->impl->ticks= new_ticks;
+	d->dt = (new_ticks - old_ticks)*1.0/d->impl->timer_reso;
+	d->impl->ticks = new_ticks;
 }
 
 void plat_sleep(int ms)
@@ -271,7 +271,7 @@ void plat_find_paths_with_end_impl(	char **path_table, U32 *path_count, U32 max_
 		fail("Too long path: %s", name);
 
 	WIN32_FIND_DATA ffd;
-	HANDLE h= FindFirstFile(path, &ffd);
+	HANDLE h = FindFirstFile(path, &ffd);
 	if (h == INVALID_HANDLE_VALUE) {
 		fail("plat_find_paths_with_end_impl failed with %s: %i", path, GetLastError());
 	}
@@ -288,13 +288,13 @@ void plat_find_paths_with_end_impl(	char **path_table, U32 *path_count, U32 max_
 				if (*path_count + 1 >= max_count)
 					fail(	"plat_find_paths_with_end: "
 							"too many found files (@todo Fix engine)");
-				U32 path_size= strlen(name) + 1 + strlen(ffd.cFileName) + 1;
-				char *path= malloc(path_size);
+				U32 path_size = strlen(name) + 1 + strlen(ffd.cFileName) + 1;
+				char *path = malloc(path_size);
 				if (name[strlen(name) - 1] == '/')
 					fmt_str(path, path_size, "%s%s", name, ffd.cFileName);
 				else
 					fmt_str(path, path_size, "%s/%s", name, ffd.cFileName);
-				path_table[*path_count]= path;
+				path_table[*path_count] = path;
 				++*path_count;
 			}
 		}
@@ -322,15 +322,15 @@ void plat_set_term_color(TermColor c)
 	int i;
 	switch (c) {
 	case TermColor_default:
-		i=	FOREGROUND_RED |
+		i =	FOREGROUND_RED |
 			FOREGROUND_GREEN |
 			FOREGROUND_BLUE;
 	break;
-	case TermColor_red: i= FOREGROUND_RED; break;
+	case TermColor_red: i = FOREGROUND_RED; break;
 	default: fail("plat_set_term_color: Unknown color: %i", c);
 	}
 
-	HANDLE h= GetStdHandle(STD_OUTPUT_HANDLE);
+	HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
 	SetConsoleTextAttribute(h, i);
 }
 
@@ -340,11 +340,11 @@ int v_fmt_str(char *str, U32 size, const char *fmt, va_list args)
 		return 0;
 
 	// For some reason this mingw distro doesn't have vsnprintf_s. Must terminate manually
-	int ret= vsnprintf(str, size, fmt, args);
+	int ret = vsnprintf(str, size, fmt, args);
 	if (str && ret >= (int)size)
-		ret= size - 1;
+		ret = size - 1;
 	if (str && size >= 1)
-		str[size - 1]= 0;
+		str[size - 1] = 0;
 	return ret;
 }
 
@@ -359,20 +359,20 @@ Socket invalid_socket()
 void close_socket(Socket *fd)
 {
 	closesocket(*fd);
-	*fd= INVALID_SOCKET;
+	*fd = INVALID_SOCKET;
 }
 
 Socket open_udp_socket(U16 port)
 {
-	SOCKET fd= socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	SOCKET fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (fd == INVALID_SOCKET)
 		fail("Error calling socket()");
 	// Set non-blocking
-	u_long iMode=1;
+	u_long iMode =1;
 	ioctlsocket(fd, FIONBIO, &iMode);
 
 	// Set send and recv buffer sizes
-	int buf_size= UDP_KERNEL_BUFFER_SIZE;
+	int buf_size = UDP_KERNEL_BUFFER_SIZE;
 	if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, (char*)&buf_size, sizeof(buf_size)) < 0)
 		fail("Error calling setsockopt (send)");
 	if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, (char*)&buf_size, sizeof(buf_size)) < 0)
@@ -392,18 +392,18 @@ Socket open_udp_socket(U16 port)
 U32 send_packet(Socket sock, IpAddress addr, const void *data, U32 size)
 {
 	struct sockaddr_in to;
-	to.sin_family= AF_INET;
-	to.sin_addr.s_addr= htonl(	(addr.a << 24) |
+	to.sin_family = AF_INET;
+	to.sin_addr.s_addr = htonl(	(addr.a << 24) |
 								(addr.b << 16) |
 								(addr.c << 8) |
 								(addr.d << 0));
-	to.sin_port= htons(addr.port);
-	int bytes= sendto(	sock,
+	to.sin_port = htons(addr.port);
+	int bytes = sendto(	sock,
 						(const char *)data, size,
 						0,
 						(struct sockaddr*)&to, sizeof(struct sockaddr_in));
 	if (bytes < 0) {
-		int err= WSAGetLastError();
+		int err = WSAGetLastError();
 		fail("sendto failed: %i, %i", bytes, err);
 	}
 	ensure(bytes >= 0);
@@ -420,12 +420,12 @@ U32 recv_packet(Socket sock, IpAddress *addr, void *dst, U32 dst_size)
 							(struct sockaddr*)&from, &from_size);
 	if (bytes < 0)
 	{
-		int err= WSAGetLastError();
+		int err = WSAGetLastError();
 		if (err != WSAEWOULDBLOCK && err != WSAECONNRESET)
 			fail("recvfrom failed: %i, %i", bytes, err);
-		bytes= 0;
+		bytes = 0;
 	}
-	U32 from_address= ntohl(from.sin_addr.s_addr); 
+	U32 from_address = ntohl(from.sin_addr.s_addr); 
 	addr->a = (from_address & 0xFF000000) >> 24;
 	addr->b = (from_address & 0x00FF0000) >> 16;
 	addr->c = (from_address & 0x0000FF00) >> 8;

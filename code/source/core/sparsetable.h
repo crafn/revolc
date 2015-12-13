@@ -45,14 +45,14 @@ REVOLC_API T *end_stbl(T)(SparseTbl(T) *tbl);\
 #define DEFINE_SPARSETABLE(T)\
 SparseTbl(T) create_stbl(T)(Ator *ator, U32 capacity)\
 {\
-	SparseTbl(T) tbl= {\
-		.ator= ator,\
-		.array= ALLOC(ator, sizeof(*tbl.array)*capacity, "stbl_array"),\
-		.status= ALLOC(ator, sizeof(*tbl.status)*capacity, "stbl_status"),\
-		.capacity= capacity,\
+	SparseTbl(T) tbl = {\
+		.ator = ator,\
+		.array = ALLOC(ator, sizeof(*tbl.array)*capacity, "stbl_array"),\
+		.status = ALLOC(ator, sizeof(*tbl.status)*capacity, "stbl_status"),\
+		.capacity = capacity,\
 	};\
-	for (U32 i= 0; i < tbl.capacity; ++i)\
-		tbl.status[i]= SPARSETABLE_STATUS_FREE;\
+	for (U32 i = 0; i < tbl.capacity; ++i)\
+		tbl.status[i] = SPARSETABLE_STATUS_FREE;\
 	return tbl;\
 }\
 \
@@ -60,18 +60,18 @@ void destroy_stbl(T)(SparseTbl(T) *tbl)\
 {\
 	FREE(tbl->ator, tbl->array);\
 	FREE(tbl->ator, tbl->status);\
-	tbl->array= NULL;\
-	tbl->status= NULL;\
+	tbl->array = NULL;\
+	tbl->status = NULL;\
 }\
 \
 Handle insert_stbl(T)(SparseTbl(T) *tbl, T elem)\
 {\
 	/* @todo Keep leftmost free index stored */\
-	for (U32 i= 0; i < tbl->capacity; ++i) {\
+	for (U32 i = 0; i < tbl->capacity; ++i) {\
 		if (tbl->status[i] != SPARSETABLE_STATUS_FREE)\
 			continue;\
-		tbl->array[i]= elem;\
-		tbl->status[i]= SPARSETABLE_STATUS_USED;\
+		tbl->array[i] = elem;\
+		tbl->status[i] = SPARSETABLE_STATUS_USED;\
 		++tbl->count;\
 		return i;\
 	}\
@@ -82,7 +82,7 @@ void remove_stbl(T)(SparseTbl(T) *tbl, Handle h)\
 {\
 	ensure(h < tbl->capacity);\
 	ensure(tbl->status[h] == SPARSETABLE_STATUS_USED);\
-	tbl->status[h]= SPARSETABLE_STATUS_FREE;\
+	tbl->status[h] = SPARSETABLE_STATUS_FREE;\
 	ensure(tbl->count > 0);\
 	--tbl->count;\
 }\
@@ -96,7 +96,7 @@ T *get_stbl(T)(SparseTbl(T) *tbl, Handle h)\
 }\
 T *begin_stbl(T)(SparseTbl(T) *tbl)\
 {\
-	U32 i= 0;\
+	U32 i = 0;\
 	while (i < tbl->capacity && tbl->status[i] != SPARSETABLE_STATUS_USED)\
 		++i;\
 	return tbl->array + i;\

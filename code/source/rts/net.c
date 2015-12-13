@@ -4,13 +4,13 @@
 void send_rts_msg(RtsMsg type, void *data, U32 data_size)
 {
 	RtsMsgHeader *header;
-	U32 buf_size= sizeof(*header) + data_size;
-	U8 *buf= frame_alloc(buf_size);
-	header= (void*)buf;
-	header->type= type;
+	U32 buf_size = sizeof(*header) + data_size;
+	U8 *buf = frame_alloc(buf_size);
+	header = (void*)buf;
+	header->type = type;
 	memcpy(buf + sizeof(*header), data, buf_size - sizeof(*header));
 
-	SentMsgInfo info= buffer_udp_msg(rts_env()->peer, buf, buf_size);
+	SentMsgInfo info = buffer_udp_msg(rts_env()->peer, buf, buf_size);
 	debug_print("rts send %i: %.3fkb", type, info.msg_size/1024.0);
 }
 
@@ -29,13 +29,13 @@ void brush_action(BrushAction *action)
 
 void local_spawn_action(SpawnAction *action)
 {
-	V3d pos= {action->pos.x, action->pos.y, 0};
-	F32 health= 1.0;
-	SlotVal init_vals[]= {
+	V3d pos = {action->pos.x, action->pos.y, 0};
+	F32 health = 1.0;
+	SlotVal init_vals[] = {
 		{"logic", "pos", WITH_DEREF_SIZEOF(&pos)},
 		{"logic", "health", WITH_DEREF_SIZEOF(&health)},
 	};
-	NodeGroupDef *def=
+	NodeGroupDef *def =
 		(NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, action->name);
 	create_nodes(g_env.world, def, WITH_ARRAY_COUNT(init_vals), 0);
 }
@@ -51,24 +51,24 @@ void spawn_action(SpawnAction *action)
 void make_and_save_base()
 {
 	debug_print("make_and_save_base");
-	RtsEnv *env= rts_env();
-	U32 next_base_ix= (env->cur_base_ix + 1) % RTS_MAX_BASE_HISTORY_COUNT;
+	RtsEnv *env = rts_env();
+	U32 next_base_ix = (env->cur_base_ix + 1) % RTS_MAX_BASE_HISTORY_COUNT;
 
-	Ator ator= linear_ator(	env->bases[next_base_ix].data,
+	Ator ator = linear_ator(	env->bases[next_base_ix].data,
 							RTS_BASE_SIZE,
 							"base_buf");
-	WArchive ar= create_warchive(ArchiveType_binary, &ator, ator.capacity);
+	WArchive ar = create_warchive(ArchiveType_binary, &ator, ator.capacity);
 
-	env->bases[next_base_ix].seq= env->world_seq;
+	env->bases[next_base_ix].seq = env->world_seq;
 	pack_u32(&ar, &env->bases[next_base_ix].seq);
 	save_world(&ar, g_env.world);
 
 	if (ar.data_size > RTS_BASE_SIZE)
 		fail("Too large world");
 
-	env->bases[next_base_ix].size= ar.data_size;
+	env->bases[next_base_ix].size = ar.data_size;
 
-	env->cur_base_ix= next_base_ix;
+	env->cur_base_ix = next_base_ix;
 
 	destroy_warchive(&ar);
 }
@@ -76,32 +76,32 @@ void make_and_save_base()
 void resurrect_and_save_base(RArchive *ar)
 {
 	debug_print("resurrect_base");
-	RtsEnv *env= rts_env();
+	RtsEnv *env = rts_env();
 
 	// Save base
-	U32 next_base_ix= (env->cur_base_ix + 1) % RTS_MAX_BASE_HISTORY_COUNT;
+	U32 next_base_ix = (env->cur_base_ix + 1) % RTS_MAX_BASE_HISTORY_COUNT;
 	if (ar->data_size > RTS_BASE_SIZE)
 		fail("Too large world");
 	memcpy(env->bases[next_base_ix].data, ar->data, ar->data_size);
-	env->bases[next_base_ix].size= ar->data_size;
+	env->bases[next_base_ix].size = ar->data_size;
 
 	unpack_u32(ar, &env->bases[next_base_ix].seq);
-	env->cur_base_ix= next_base_ix;
-	env->world_seq= env->bases[env->cur_base_ix].seq;
+	env->cur_base_ix = next_base_ix;
+	env->world_seq = env->bases[env->cur_base_ix].seq;
 
 	// Resurrect world
 	clear_world_nodes(g_env.world);
 	load_world(ar, g_env.world);
-	g_env.physworld->grid.modified= true;
+	g_env.physworld->grid.modified = true;
 }
 
 void make_world_delta(WArchive *ar)
 {
-	RtsEnv *env= rts_env();
+	RtsEnv *env = rts_env();
 	debug_print("make_world_delta: world_seq: %i", env->world_seq);
 
 	// @todo Use base which has been received by remote
-	RArchive base= create_rarchive(	ArchiveType_binary,
+	RArchive base = create_rarchive(	ArchiveType_binary,
 									env->bases[env->cur_base_ix].data,
 									env->bases[env->cur_base_ix].size);
 	U32 base_seq;
@@ -117,7 +117,7 @@ void make_world_delta(WArchive *ar)
 void resurrect_world_delta(RArchive *ar)
 {
 	debug_print("resurrect_world_delta");
-	RtsEnv *env= rts_env();
+	RtsEnv *env = rts_env();
 
 	U32 delta_base_seq;
 	U32 delta_seq;
@@ -125,10 +125,10 @@ void resurrect_world_delta(RArchive *ar)
 	unpack_u32(ar, &delta_seq);
 
 	// Find base with correct sequence number
-	U32 base_ix= (U32)-1;
-	for (U32 i= 0; i < RTS_MAX_BASE_HISTORY_COUNT; ++i) {
+	U32 base_ix = (U32)-1;
+	for (U32 i = 0; i < RTS_MAX_BASE_HISTORY_COUNT; ++i) {
 		if (env->bases[i].seq == delta_base_seq) {
-			base_ix= i;
+			base_ix = i;
 			break;
 		}
 	}
@@ -137,7 +137,7 @@ void resurrect_world_delta(RArchive *ar)
 		goto cleanup;
 	}
 
-	RArchive base= create_rarchive(	ArchiveType_binary,
+	RArchive base = create_rarchive(	ArchiveType_binary,
 									env->bases[base_ix].data,
 									env->bases[base_ix].size);
 	U32 base_seq;
@@ -146,18 +146,18 @@ void resurrect_world_delta(RArchive *ar)
 	ensure(base_seq == delta_base_seq);
 
 	load_world_delta(ar, g_env.world, &base);
-	g_env.physworld->grid.modified= true;
+	g_env.physworld->grid.modified = true;
 	destroy_rarchive(&base);
 
-	env->world_seq= delta_seq;
+	env->world_seq = delta_seq;
 cleanup:
 	return;
 }
 
 void upd_rts_net()
 {
-	RtsEnv *env= rts_env();
-	UdpPeer *peer= env->peer;
+	RtsEnv *env = rts_env();
+	UdpPeer *peer = env->peer;
 
 	// World sync
 	if (peer->connected) {
@@ -178,12 +178,12 @@ void upd_rts_net()
 								env->bases[env->cur_base_ix].size);
 			} else {
 				// Send a delta
-				WArchive measure= create_warchive(ArchiveType_measure, NULL, 0);
+				WArchive measure = create_warchive(ArchiveType_measure, NULL, 0);
 				make_world_delta(&measure);
-				U32 delta_size= measure.data_size;
+				U32 delta_size = measure.data_size;
 				destroy_warchive(&measure);
 		
-				WArchive ar= create_warchive(	ArchiveType_binary,
+				WArchive ar = create_warchive(	ArchiveType_binary,
 												frame_ator(),
 												delta_size);
 				make_world_delta(&ar);
@@ -193,13 +193,13 @@ void upd_rts_net()
 				make_and_save_base();
 			}
 
-			env->world_upd_time= env->game_time;
+			env->world_upd_time = env->game_time;
 		}
 
 		//const char *msg = frame_str(env->authority ? "\1hello %i" : "\1world %i", peer->next_msg_id);
 		//buffer_udp_msg(peer, msg, strlen(msg) + 1);
 		if (env->stats_timer > 2.0) {
-			F64 packet_loss= peer->drop_count/(peer->acked_packet_count + peer->drop_count);
+			F64 packet_loss = peer->drop_count/(peer->acked_packet_count + peer->drop_count);
 
 			debug_print("--- net stats ---");
 			debug_print("  packet loss: %.1f%%", 100.0*packet_loss);
@@ -212,7 +212,7 @@ void upd_rts_net()
 
 			//debug_print("acked packet count: %i", peer->acked_packet_count);
 			//debug_print("current incomplete recv msgs %i", peer->cur_incomplete_recv_msg_count);
-			env->stats_timer= 0.0;
+			env->stats_timer = 0.0;
 		}
 	}
 
@@ -220,13 +220,13 @@ void upd_rts_net()
 	U32 msg_count;
 	upd_udp_peer(peer, &msgs, &msg_count, NULL, NULL);
 
-	for (U32 i= 0; i < msg_count; ++i) {
+	for (U32 i = 0; i < msg_count; ++i) {
 		if (msgs[i].data_size < 2) // RtsMsg takes 1 byte
 			fail("Corrupted message");
 
-		RtsMsgHeader *header= msgs[i].data;
-		void *data= header + 1;
-		U32 data_size= msgs[i].data_size - sizeof(*header);
+		RtsMsgHeader *header = msgs[i].data;
+		void *data = header + 1;
+		U32 data_size = msgs[i].data_size - sizeof(*header);
 
 		//debug_print("Recv %i: %i", header->type, msgs[i].data_size);
 
@@ -240,7 +240,7 @@ void upd_rts_net()
 					critical_print("Ignoring incoming base");
 					break;
 				}
-				RArchive ar= create_rarchive(ArchiveType_binary, data, data_size);
+				RArchive ar = create_rarchive(ArchiveType_binary, data, data_size);
 				resurrect_and_save_base(&ar);
 				destroy_rarchive(&ar);
 			} break;
@@ -250,7 +250,7 @@ void upd_rts_net()
 					critical_print("Ignoring incoming delta");
 					break;
 				}
-				RArchive ar= create_rarchive(ArchiveType_binary, data, data_size);
+				RArchive ar = create_rarchive(ArchiveType_binary, data, data_size);
 				debug_print("received delta %.3fkb", 1.0*ar.data_size/1024);
 				resurrect_world_delta(&ar);
 				destroy_rarchive(&ar);

@@ -5,9 +5,9 @@
 
 void init_clipinst(ClipInst *data)
 {
-	*data= (ClipInst) {};
-	for (U32 i= 0; i < MAX_ARMATURE_JOINT_COUNT; ++i)
-		data->pose.tf[i]= identity_t3f();
+	*data = (ClipInst) {};
+	for (U32 i = 0; i < MAX_ARMATURE_JOINT_COUNT; ++i)
+		data->pose.tf[i] = identity_t3f();
 }
 
 U32 resurrect_clipinst(ClipInst *dead)
@@ -17,16 +17,16 @@ U32 resurrect_clipinst(ClipInst *dead)
 
 void upd_clipinst(ClipInst *inst, ClipInst *e)
 {
-	F32 dt= g_env.world->dt;
+	F32 dt = g_env.world->dt;
 	for (; inst != e; ++inst) {
 		// This hurts!
-		const Clip *c=
+		const Clip *c =
 			(Clip*)res_by_name(g_env.resblob, ResType_Clip, inst->clip_name);
 
 		inst->t += dt;
 		while(inst->t > c->duration)
 			inst->t -= c->duration;
 
-		inst->pose= calc_clip_pose(c, inst->t);
+		inst->pose = calc_clip_pose(c, inst->t);
 	}
 }

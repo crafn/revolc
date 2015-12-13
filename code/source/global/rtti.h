@@ -33,21 +33,21 @@ REVOLC_API WARN_UNUSED
 void * rtti_relocate_sym(void *possibly_invalidated_ptr);
 
 // Example:
-// sym= rtti_func_ptr("foo");
+// sym = rtti_func_ptr("foo");
 // while (1) {
 //   reload_some_dlls();
 //   rtti_requery_syms();
-//   sym= rtti_relocate_sym(sym);
+//   sym = rtti_relocate_sym(sym);
 // }
 // Be very careful where to call, as every previously invalidated symbol
 // should've been resolved as in the example code above
 // So this is prohibited:
 //   reload_some_dlls();
 //   rtti_requery_syms();
-//   // sym= rtti_relocate_sym(sym);
+//   // sym = rtti_relocate_sym(sym);
 //   reload_some_dlls();
 //   rtti_requery_syms();
-//   sym= rtti_relocate_sym(sym); // Probably fails
+//   sym = rtti_relocate_sym(sym); // Probably fails
 REVOLC_API
 void rtti_requery_syms();
 

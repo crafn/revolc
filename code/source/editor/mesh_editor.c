@@ -4,11 +4,11 @@
 internal
 V3d vertex_world_pos(ModelEntity *m, U32 i)
 {
-	TriMeshVertex *v= &m->vertices[i];
-	T3d v_t= identity_t3d();
-	v_t.pos= v3f_to_v3d(v->pos);
+	TriMeshVertex *v = &m->vertices[i];
+	T3d v_t = identity_t3d();
+	v_t.pos = v3f_to_v3d(v->pos);
 
-	T3d t= mul_t3d(m->tf, v_t);
+	T3d t = mul_t3d(m->tf, v_t);
 	return t.pos;
 }
 
@@ -31,58 +31,58 @@ void transform_mesh(ModelEntity *m, T3f tf, bool uv)
 		return;
 	}
 
-	Mesh *mesh= model_mesh((Model*)res_by_name(	g_env.resblob,
+	Mesh *mesh = model_mesh((Model*)res_by_name(	g_env.resblob,
 												ResType_Model,
 												m->model_name));
-	for (U32 i= 0; i < mesh->v_count; ++i) {
-		TriMeshVertex *v= &mesh_vertices(mesh)[i];
+	for (U32 i = 0; i < mesh->v_count; ++i) {
+		TriMeshVertex *v = &mesh_vertices(mesh)[i];
 		if (!v->selected)
 			continue;
 		if (uv) {
-			F32 uvz= v->uv.z;
-			v->uv= transform_v3f(tf, v->uv);
-			v->uv.x= CLAMP(v->uv.x, 0.0, 1.0);
-			v->uv.y= CLAMP(v->uv.y, 0.0, 1.0);
-			v->uv.z= uvz;
+			F32 uvz = v->uv.z;
+			v->uv = transform_v3f(tf, v->uv);
+			v->uv.x = CLAMP(v->uv.x, 0.0, 1.0);
+			v->uv.y = CLAMP(v->uv.y, 0.0, 1.0);
+			v->uv.z = uvz;
 		} else {
-			v->pos= transform_v3f(tf, v->pos);
+			v->pos = transform_v3f(tf, v->pos);
 		}
 	}
 
-	mesh->res.needs_saving= true;
+	mesh->res.needs_saving = true;
 }
 
 internal
 void gui_uvbox(V2i pix_pos, V2i pix_size, ModelEntity *m)
 {
-	const char *box_label= "uvbox_box";
-	UiContext *ctx= g_env.uicontext;
+	const char *box_label = "uvbox_box";
+	UiContext *ctx = g_env.uicontext;
 	gui_wrap(&pix_pos, &pix_size);
 
-	EditorBoxState state= gui_editorbox(box_label, pix_pos, pix_size, false);
+	EditorBoxState state = gui_editorbox(box_label, pix_pos, pix_size, false);
 
 	if (!m)
 		return;
 
 	if (state.pressed) {
 		// Control vertex selection
-		F64 closest_dist= 0;
-		U32 closest_i= NULL_HANDLE;
-		for (U32 i= 0; i < m->mesh_v_count; ++i) {
-			TriMeshVertex *v= &m->vertices[i];
-			V2i pos= uv_to_pix(v->uv, pix_pos, pix_size);
+		F64 closest_dist = 0;
+		U32 closest_i = NULL_HANDLE;
+		for (U32 i = 0; i < m->mesh_v_count; ++i) {
+			TriMeshVertex *v = &m->vertices[i];
+			V2i pos = uv_to_pix(v->uv, pix_pos, pix_size);
 
-			F64 dist= dist_sqr_v2i(pos, ctx->dev.cursor_pos);
+			F64 dist = dist_sqr_v2i(pos, ctx->dev.cursor_pos);
 			if (	closest_i == NULL_HANDLE ||
 					dist < closest_dist) {
-				closest_i= i;
-				closest_dist= dist;
+				closest_i = i;
+				closest_dist = dist;
 			}
 		}
 
 		if (!ctx->dev.shift_down) {
-			for (U32 i= 0; i < m->mesh_v_count; ++i)
-				m->vertices[i].selected= false;
+			for (U32 i = 0; i < m->mesh_v_count; ++i)
+				m->vertices[i].selected = false;
 		}
 
 		if (closest_dist < 100*100) {
@@ -91,7 +91,7 @@ void gui_uvbox(V2i pix_pos, V2i pix_size, ModelEntity *m)
 		}
 	}
 
-	T3d coords= {
+	T3d coords = {
 		{pix_size.x, -pix_size.y, 1},
 		identity_qd(),
 		{	pix_pos.x,
@@ -103,20 +103,20 @@ void gui_uvbox(V2i pix_pos, V2i pix_size, ModelEntity *m)
 		transform_mesh(m, delta, true);
 	}
 
-	V2i padding= {20, 20};
-	pix_pos= add_v2i(pix_pos, padding);
-	pix_size= sub_v2i(pix_size, scaled_v2i(2, padding));
+	V2i padding = {20, 20};
+	pix_pos = add_v2i(pix_pos, padding);
+	pix_size = sub_v2i(pix_size, scaled_v2i(2, padding));
 
 	gui_model_image(pix_pos, pix_size, m);
 
-	for (U32 i= 0; i < m->mesh_v_count; ++i) {
-		TriMeshVertex *v= &m->vertices[i];
+	for (U32 i = 0; i < m->mesh_v_count; ++i) {
+		TriMeshVertex *v = &m->vertices[i];
 
-		V2i pix_uv= uv_to_pix(v->uv, pix_pos, pix_size);
+		V2i pix_uv = uv_to_pix(v->uv, pix_pos, pix_size);
 		gui_wrap(&pix_uv, NULL);
-		V2d p= screen_to_world_point(pix_uv);
-		const F64 v_size= editor_vertex_size();
-		V3d poly[4]= {
+		V2d p = screen_to_world_point(pix_uv);
+		const F64 v_size = editor_vertex_size();
+		V3d poly[4] = {
 			{-v_size + p.x, -v_size + p.y, 0},
 			{-v_size + p.x, +v_size + p.y, 0},
 			{+v_size + p.x, +v_size + p.y, 0},
@@ -128,14 +128,14 @@ void gui_uvbox(V2i pix_pos, V2i pix_size, ModelEntity *m)
 			ddraw_poly((Color) {0.0, 0.0, 0.0, 0.8}, poly, 4);
 	}
 
-	Color fill_color= {0.6, 0.6, 0.8, 0.4};
+	Color fill_color = {0.6, 0.6, 0.8, 0.4};
 	V3d poly[3];
-	for (U32 i= 0; i < m->mesh_i_count; ++i) {
-		U32 v_i= m->indices[i];
-		TriMeshVertex *v= &m->vertices[v_i];
-		V2i pix_uv= uv_to_pix(v->uv, pix_pos, pix_size);
-		V2d p= screen_to_world_point(pix_uv);
-		poly[i%3]= (V3d) {p.x, p.y, 0};
+	for (U32 i = 0; i < m->mesh_i_count; ++i) {
+		U32 v_i = m->indices[i];
+		TriMeshVertex *v = &m->vertices[v_i];
+		V2i pix_uv = uv_to_pix(v->uv, pix_pos, pix_size);
+		V2d p = screen_to_world_point(pix_uv);
+		poly[i%3] = (V3d) {p.x, p.y, 0};
 
 		if (i % 3 == 2)
 			ddraw_poly(fill_color, poly, 3);
@@ -146,37 +146,37 @@ void gui_uvbox(V2i pix_pos, V2i pix_size, ModelEntity *m)
 internal
 void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 {
-	UiContext *ctx= g_env.uicontext;
-	V3d cur_wp= v2d_to_v3d(screen_to_world_point(ctx->dev.cursor_pos));
-	F64 v_size= editor_vertex_size();
+	UiContext *ctx = g_env.uicontext;
+	V3d cur_wp = v2d_to_v3d(screen_to_world_point(ctx->dev.cursor_pos));
+	F64 v_size = editor_vertex_size();
 
-	const char *box_label= "mesh_overlay_box";
-	EditorBoxState state=
+	const char *box_label = "mesh_overlay_box";
+	EditorBoxState state =
 		gui_editorbox(box_label, (V2i) {0, 0}, g_env.device->win_size, true);
 
 	if (!*is_edit_mode) { // Mesh select mode
 		if (state.down)
-			*model_h= find_modelentity_at_pixel(ctx->dev.cursor_pos);
+			*model_h = find_modelentity_at_pixel(ctx->dev.cursor_pos);
 	}
 
-	ModelEntity *m= NULL;
+	ModelEntity *m = NULL;
 	if (*model_h != NULL_HANDLE)
-		m= get_modelentity(*model_h);
+		m = get_modelentity(*model_h);
 	else
 		return;
 
 	if (ctx->dev.toggle_select_all) {
 		if (*is_edit_mode) {
-			bool some_selected= false;
-			for (U32 i= 0; i < m->mesh_v_count; ++i) {
+			bool some_selected = false;
+			for (U32 i = 0; i < m->mesh_v_count; ++i) {
 				if (m->vertices[i].selected)
-					some_selected= true;
+					some_selected = true;
 			}
-			for (U32 i= 0; i < m->mesh_v_count; ++i) {
-				m->vertices[i].selected= !some_selected;
+			for (U32 i = 0; i < m->mesh_v_count; ++i) {
+				m->vertices[i].selected = !some_selected;
 			}
 		} else {
-			*model_h= NULL_HANDLE;
+			*model_h = NULL_HANDLE;
 			return;
 		}
 	}
@@ -189,22 +189,22 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 
 	if (*is_edit_mode && state.pressed) {
 		// Control vertex selection
-		F64 closest_dist= 0;
-		U32 closest_i= NULL_HANDLE;
-		for (U32 i= 0; i < m->mesh_v_count; ++i) {
-			V3d pos= vertex_world_pos(m, i);
+		F64 closest_dist = 0;
+		U32 closest_i = NULL_HANDLE;
+		for (U32 i = 0; i < m->mesh_v_count; ++i) {
+			V3d pos = vertex_world_pos(m, i);
 
-			F64 dist= dist_sqr_v3d(pos, cur_wp);
+			F64 dist = dist_sqr_v3d(pos, cur_wp);
 			if (	closest_i == NULL_HANDLE ||
 					dist < closest_dist) {
-				closest_i= i;
-				closest_dist= dist;
+				closest_i = i;
+				closest_dist = dist;
 			}
 		}
 
 		if (!ctx->dev.shift_down) {
-			for (U32 i= 0; i < m->mesh_v_count; ++i)
-				m->vertices[i].selected= false;
+			for (U32 i = 0; i < m->mesh_v_count; ++i)
+				m->vertices[i].selected = false;
 		}
 
 		if (closest_i != NULL_HANDLE && closest_dist < 2.0)
@@ -213,10 +213,10 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 
 	// Draw vertices
 	if (*is_edit_mode) {
-		for (U32 i= 0; i < m->mesh_v_count; ++i) {
-			TriMeshVertex *v= &m->vertices[i];
-			V3d p= vertex_world_pos(m, i);
-			V3d poly[4]= {
+		for (U32 i = 0; i < m->mesh_v_count; ++i) {
+			TriMeshVertex *v = &m->vertices[i];
+			V3d p = vertex_world_pos(m, i);
+			V3d poly[4] = {
 				{-v_size + p.x, -v_size + p.y, p.z},
 				{-v_size + p.x, +v_size + p.y, p.z},
 				{+v_size + p.x, +v_size + p.y, p.z},
@@ -236,16 +236,16 @@ void do_mesh_editor(U32 *model_h, bool *is_edit_mode, bool active)
 	if (active) {
 		gui_mesh_overlay(model_h, is_edit_mode);
 
-		ModelEntity *m= NULL;
+		ModelEntity *m = NULL;
 		if (*model_h != NULL_HANDLE)
-			m= get_modelentity(*model_h);
+			m = get_modelentity(*model_h);
 
 		gui_res_info(	ResType_Model,
 						m ? res_by_name(g_env.resblob,
 										ResType_Model,
 										m->model_name) : NULL);
 
-		const S32 box_size= 400;
+		const S32 box_size = 400;
 		gui_uvbox(	(V2i) {-box_size, 0},
 					(V2i) {box_size, box_size},
 					m);
@@ -253,23 +253,23 @@ void do_mesh_editor(U32 *model_h, bool *is_edit_mode, bool active)
 
 	// Draw mesh
 	if (*model_h != NULL_HANDLE) {
-		ModelEntity	*m= get_modelentity(*model_h);
-		Color fill_color= {0.6, 0.6, 0.8, 0.4};
+		ModelEntity	*m = get_modelentity(*model_h);
+		Color fill_color = {0.6, 0.6, 0.8, 0.4};
 		if (!*is_edit_mode)
-			fill_color= (Color) {1.0, 0.8, 0.5, 0.6};
+			fill_color = (Color) {1.0, 0.8, 0.5, 0.6};
 
-		Color poly_color= fill_color;
+		Color poly_color = fill_color;
 		if (!active)
-			poly_color= inactive_color();
+			poly_color = inactive_color();
 
 		if (active)
 			ddraw_circle((Color) {1, 1, 1, 1}, m->tf.pos, editor_vertex_size()*0.5);
 
 		V3d poly[3];
-		for (U32 i= 0; i < m->mesh_i_count; ++i) {
-			U32 v_i= m->indices[i];
-			V3d p= vertex_world_pos(m, v_i);
-			poly[i%3]= p;
+		for (U32 i = 0; i < m->mesh_i_count; ++i) {
+			U32 v_i = m->indices[i];
+			V3d p = vertex_world_pos(m, v_i);
+			poly[i%3] = p;
 
 			if (i % 3 == 2)
 				ddraw_poly(poly_color, poly, 3);

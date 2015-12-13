@@ -24,7 +24,7 @@ void res_to_json(WJson *j, const Resource *res)
 {
 #define RESOURCE(rtype, init, deinit, blobify, jsonify) \
 	{ \
-		void *fptr= (void*)jsonify; \
+		void *fptr = (void*)jsonify; \
 		if (ResType_ ## rtype == res->type) { \
 			if (!fptr) \
 				fail(	"Jsonify function missing for resource type: %s", \
@@ -41,7 +41,7 @@ void init_res(Resource *res)
 {
 #define RESOURCE(rtype, init, deinit, blobify, jsonify) \
 	{ \
-		void *fptr= (void*)init; \
+		void *fptr = (void*)init; \
 		if (fptr && ResType_ ## rtype == res->type) \
 			((void (*)(rtype *))fptr)((rtype*)res); \
 	}
@@ -57,21 +57,21 @@ Resource * res_by_index(const ResBlob *blob, U32 index)
 
 void load_blob(ResBlob **blob, const char *path)
 {
-	*blob= NULL;
+	*blob = NULL;
 	{ // Load from file
 		U32 blob_size;
-		*blob= (ResBlob*)malloc_file(path, &blob_size);
+		*blob = (ResBlob*)malloc_file(path, &blob_size);
 		debug_print("load_blob: %s, %iM", path, (int)blob_size/(1024*1024));
 
-		for (U32 i= 0; i < (*blob)->res_file_count; ++i)
+		for (U32 i = 0; i < (*blob)->res_file_count; ++i)
 			debug_print("  %s", (*blob)->res_file_paths[i]);
 	}
 
 	{ // Initialize resources
-		for (ResType t= 0; t < ResType_last; ++t) {
-			for (U32 i= 0; i < (*blob)->res_count; ++i) {
-				Resource *res= res_by_index(*blob, i);
-				res->blob= *blob;
+		for (ResType t = 0; t < ResType_last; ++t) {
+			for (U32 i = 0; i < (*blob)->res_count; ++i) {
+				Resource *res = res_by_index(*blob, i);
+				res->blob = *blob;
 				if (res->type != t)
 					continue;
 				init_res(res);
@@ -90,7 +90,7 @@ void deinit_res(Resource *res)
 {
 #define RESOURCE(rtype, init, deinit, blobify, jsonify) \
 	{ \
-		void* fptr= (void*)deinit; \
+		void* fptr = (void*)deinit; \
 		if (fptr && ResType_ ## rtype == res->type) \
 			((void (*)(rtype *))fptr)((rtype*)res); \
 	}
@@ -102,11 +102,11 @@ void deinit_res(Resource *res)
 internal
 void deinit_blob_res(ResBlob *blob)
 {
-	for (ResType t_= ResType_last; t_ > 0; --t_) {
-		for (U32 i_= blob->res_count; i_ > 0; --i_) {
-			ResType t= t_ - 1;
-			U32 i= i_ - 1;
-			Resource* res= res_by_index(blob, i);
+	for (ResType t_ = ResType_last; t_ > 0; --t_) {
+		for (U32 i_ = blob->res_count; i_ > 0; --i_) {
+			ResType t = t_ - 1;
+			U32 i = i_ - 1;
+			Resource* res = res_by_index(blob, i);
 			if (res->type != t)
 				continue;
 			deinit_res(res);
@@ -118,10 +118,10 @@ void deinit_blob_res(ResBlob *blob)
 internal
 void free_blob(ResBlob *blob)
 { // Free RuntimeResource
-	RuntimeResource *res= blob->first_runtime_res;
+	RuntimeResource *res = blob->first_runtime_res;
 	// RuntimeResources are in reverse, so destruction is properly ordered
 	while (res) {
-		RuntimeResource *next= res->next;
+		RuntimeResource *next = res->next;
 		deinit_res(res->res);
 		if (res->rt_free) {
 			res->rt_free(res->res);
@@ -129,7 +129,7 @@ void free_blob(ResBlob *blob)
 			FREE(dev_ator(), res->res);
 		}
 		FREE(dev_ator(), res);
-		res= next;
+		res = next;
 	}
 	FREE(gen_ator(), blob);
 }
@@ -157,19 +157,19 @@ void reload_blob(ResBlob **new_blob, ResBlob *old_blob, const char *path)
 
 Resource * res_by_name(ResBlob *blob, ResType type, const char *name)
 {
-	Resource *res= find_res_by_name(blob, type, name);
+	Resource *res = find_res_by_name(blob, type, name);
 	if (res)
 		return res;
 
 	// Search already created runtime resources
-	RuntimeResource *runtime_res= NULL;
+	RuntimeResource *runtime_res = NULL;
 	if (blob->first_runtime_res) {
-		runtime_res= blob->first_runtime_res;
+		runtime_res = blob->first_runtime_res;
 		while (runtime_res) {
 			if (	runtime_res->res->type == type &&
 					!strcmp(runtime_res->res->name, name))
 				break; // Found
-			runtime_res= runtime_res->next;
+			runtime_res = runtime_res->next;
 		}
 	}
 
@@ -179,37 +179,37 @@ Resource * res_by_name(ResBlob *blob, ResType type, const char *name)
 		critical_print("Resource not found: %s, %s", name, restype_to_str(type));
 		critical_print("Creating MissingResource");
 
-		Resource res_header= {};
+		Resource res_header = {};
 		fmt_str(res_header.name, RES_NAME_SIZE, "%s", name);
-		res_header.type= type;
-		res_header.blob= blob;
-		res_header.is_runtime_res= true;
+		res_header.type = type;
+		res_header.blob = blob;
+		res_header.is_runtime_res = true;
 
-		RuntimeResource *new_res= ALLOC(dev_ator(), sizeof(*new_res), "new_res");
-		*new_res= (RuntimeResource) {};
+		RuntimeResource *new_res = ALLOC(dev_ator(), sizeof(*new_res), "new_res");
+		*new_res = (RuntimeResource) {};
 
-		const U32 missing_res_max_size= 1024*4;
-		new_res->res= ZERO_ALLOC(dev_ator(), missing_res_max_size, "new_res->res");
+		const U32 missing_res_max_size = 1024*4;
+		new_res->res = ZERO_ALLOC(dev_ator(), missing_res_max_size, "new_res->res");
 
-		BlobBuf buf= {
-			.data= new_res->res,
-			.max_size= missing_res_max_size,
+		BlobBuf buf = {
+			.data = new_res->res,
+			.max_size = missing_res_max_size,
 		};
 
 		blob_write(&buf, &res_header, sizeof(res_header));
 
-		ParsedJsonFile parsed_json= malloc_parsed_json_file(MISSING_RES_FILE);
+		ParsedJsonFile parsed_json = malloc_parsed_json_file(MISSING_RES_FILE);
 		if (parsed_json.tokens == NULL)
 			fail("Failed parsing %s", MISSING_RES_FILE);
 		ensure(parsed_json.root.tok);
 
-		JsonTok j_res= json_value_by_key(
+		JsonTok j_res = json_value_by_key(
 							parsed_json.root, 
 							restype_to_str(type));
 		if (json_is_null(j_res))
 			fail("Config for missing resources invalid, not found: %s", restype_to_str(type));
 
-		int err= json_res_to_blob(&buf, j_res, type);
+		int err = json_res_to_blob(&buf, j_res, type);
 		if (err)
 			fail("Creating MissingResource failed (wtf, where's your resources?)");
 
@@ -218,8 +218,8 @@ Resource * res_by_name(ResBlob *blob, ResType type, const char *name)
 
 		// Insert to runtime resources of the blob in reverse order
 		// this way destruction happens naturally in reverse
-		new_res->next= blob->first_runtime_res;
-		blob->first_runtime_res= new_res;
+		new_res->next = blob->first_runtime_res;
+		blob->first_runtime_res = new_res;
 		return new_res->res;
 	}
 }
@@ -232,8 +232,8 @@ Resource * res_by_id(ResId id)
 
 ResId res_id(ResType t, const char *n)
 {
-	ResId id= {
-		.type= t
+	ResId id = {
+		.type = t
 	};
 	fmt_str(id.name, sizeof(id.name), "%s", n);
 	return id;
@@ -245,8 +245,8 @@ bool res_exists(const ResBlob *blob, ResType t, const char *n)
 Resource * find_res_by_name(const ResBlob *b, ResType t, const char *n)
 {
 	/// @todo Binary search from organized blob
-	for (U32 i= 0; i < b->res_count; ++i) {
-		Resource* res= res_by_index(b, i);
+	for (U32 i = 0; i < b->res_count; ++i) {
+		Resource* res = res_by_index(b, i);
 		if (res->type == t && !strcmp(n, res->name)) {
 			return res;
 		}
@@ -259,8 +259,8 @@ Resource * find_res_by_name_from_blobbuf(	const BlobBuf *buf,
 											const char *n)
 {
 	/// @todo Binary search from organized blob
-	for (U32 i= 0; i < buf->res_count; ++i) {
-		Resource* res= (Resource*)((U8*)buf->data + buf->res_offsets[i]);
+	for (U32 i = 0; i < buf->res_count; ++i) {
+		Resource* res = (Resource*)((U8*)buf->data + buf->res_offsets[i]);
 		if (res->type == t && !strcmp(n, res->name)) {
 			return res;
 		}
@@ -272,34 +272,34 @@ Resource ** all_res_by_type(	U32 *count,
 								const ResBlob *blob,
 								ResType t)
 {
-	*count= 0;
+	*count = 0;
 	{ // Find count
-		for (U32 i= 0; i < blob->res_count; ++i) {
-			Resource *res= res_by_index(blob, i);
+		for (U32 i = 0; i < blob->res_count; ++i) {
+			Resource *res = res_by_index(blob, i);
 			if (res->type == t)
 				++*count;
 		}
-		RuntimeResource *res= blob->first_runtime_res;
+		RuntimeResource *res = blob->first_runtime_res;
 		while (res) {
 			if (res->res->type == t)
 				++*count;
-			res= res->next;
+			res = res->next;
 		}
 	}
 
-	Resource **res_list= frame_alloc(sizeof(*res_list)*(*count));
-	Resource **res_it= res_list;
+	Resource **res_list = frame_alloc(sizeof(*res_list)*(*count));
+	Resource **res_it = res_list;
 	{
-		for (U32 i= 0; i < blob->res_count; ++i) {
-			Resource *res= res_by_index(blob, i);
+		for (U32 i = 0; i < blob->res_count; ++i) {
+			Resource *res = res_by_index(blob, i);
 			if (res->type == t)
-				*(res_it++)= res;
+				*(res_it++) = res;
 		}
-		RuntimeResource *res= blob->first_runtime_res;
+		RuntimeResource *res = blob->first_runtime_res;
 		while (res) {
 			if (res->res->type == t)
-				*(res_it++)= res->res;
-			res= res->next;
+				*(res_it++) = res->res;
+			res = res->next;
 		}
 	}
 	return res_list;
@@ -324,8 +324,8 @@ BlobOffset blob_offset(const Resource *who_asks, const void *ptr)
 void print_blob(const ResBlob *blob)
 {
 	debug_print("print_blob - res count: %i", (int)blob->res_count);
-	for (U32 res_i= 0; res_i < blob->res_count; ++res_i) {
-		Resource* res= res_by_index(blob, res_i);
+	for (U32 res_i = 0; res_i < blob->res_count; ++res_i) {
+		Resource* res = res_by_index(blob, res_i);
 		debug_print(
 				"  %s, %s",
 				res->name,
@@ -333,13 +333,13 @@ void print_blob(const ResBlob *blob)
 
 		switch (res->type) {
 			case ResType_Texture: {
-				Texture* tex= (Texture*)res;
+				Texture* tex = (Texture*)res;
 				debug_print(
 					"    reso: %i, %i",
 					tex->reso.x, tex->reso.y);
 			} break;
 			/*case ResType_Mesh: {
-				Mesh* mesh= (Mesh*)res;
+				Mesh* mesh = (Mesh*)res;
 				debug_print(
 					"  vcount: %i\n  icount: %i",
 					mesh->v_count,
@@ -366,7 +366,7 @@ void blob_write(BlobBuf *buf, const void *data, U32 byte_count)
 
 void blob_patch_rel_ptr(BlobBuf *buf, U32 offset_to_ptr)
 {
-	RelPtr ptr = { .value= buf->offset - offset_to_ptr };
+	RelPtr ptr = { .value = buf->offset - offset_to_ptr };
 	memcpy(buf->data + offset_to_ptr, &ptr, sizeof(ptr));
 }
 
@@ -381,9 +381,9 @@ typedef struct ResInfo {
 internal
 int resinfo_cmp(const void *a_, const void *b_)
 {
-	const ResInfo *a= (ResInfo*)a_;
-	const ResInfo *b= (ResInfo*)b_;
-	int type_dif= a->header.type - b->header.type;
+	const ResInfo *a = (ResInfo*)a_;
+	const ResInfo *b = (ResInfo*)b_;
+	int type_dif = a->header.type - b->header.type;
 	// Resources of the same type should be contiguous.
 	// all_res_by_type relies on this order.
 	if (type_dif != 0)
@@ -395,48 +395,48 @@ int resinfo_cmp(const void *a_, const void *b_)
 void make_blob(const char *dst_file_path, char **res_file_paths)
 {
 	// Resources-to-be-allocated
-	char *data= NULL;
-	BlobBuf buf= {};
-	FILE *blob_file= NULL;
-	ResInfo *res_infos= NULL;
-	BlobOffset *res_offsets= NULL;
+	char *data = NULL;
+	BlobBuf buf = {};
+	FILE *blob_file = NULL;
+	ResInfo *res_infos = NULL;
+	BlobOffset *res_offsets = NULL;
 
-	U32 res_file_count= 0;
+	U32 res_file_count = 0;
 	while (res_file_paths[res_file_count])
 		++res_file_count;
 
 	// Parse all resource files
-	ParsedJsonFile *parsed_jsons=
+	ParsedJsonFile *parsed_jsons =
 		ZERO_ALLOC(dev_ator(), sizeof(*parsed_jsons)*res_file_count, "parsed_jsons");
-	for (U32 i= 0; i < res_file_count; ++i) {
-		parsed_jsons[i]= malloc_parsed_json_file(res_file_paths[i]);
+	for (U32 i = 0; i < res_file_count; ++i) {
+		parsed_jsons[i] = malloc_parsed_json_file(res_file_paths[i]);
 		if (parsed_jsons[i].tokens == NULL)
 			goto error;
 	}
 
-	U32 res_info_count= 0;
-	U32 res_info_capacity= 1024;
-	res_infos= ALLOC(dev_ator(), sizeof(*res_infos)*res_info_capacity, "res_infos");
+	U32 res_info_count = 0;
+	U32 res_info_capacity = 1024;
+	res_infos = ALLOC(dev_ator(), sizeof(*res_infos)*res_info_capacity, "res_infos");
 	{ // Scan throught JSON and gather ResInfos
-		for (U32 json_i= 0; json_i < res_file_count; ++json_i) {
+		for (U32 json_i = 0; json_i < res_file_count; ++json_i) {
 			debug_print(
 					"make_blob: gathering res file: %s",
 					res_file_paths[json_i]);
 
-			JsonTok j_root= parsed_jsons[json_i].root;
-			for (U32 res_i= 0; res_i < json_member_count(j_root); ++res_i) {
-				JsonTok j_res= json_member(j_root, res_i);
-				ResInfo res_info= {};
-				res_info.tok= j_res;
-				res_info.header.res_file_index= json_i;
+			JsonTok j_root = parsed_jsons[json_i].root;
+			for (U32 res_i = 0; res_i < json_member_count(j_root); ++res_i) {
+				JsonTok j_res = json_member(j_root, res_i);
+				ResInfo res_info = {};
+				res_info.tok = j_res;
+				res_info.header.res_file_index = json_i;
 
 				ensure(json_is_object(j_res));
 
 				// Read type
-				JsonTok j_type= json_value_by_key(j_res, "type");
+				JsonTok j_type = json_value_by_key(j_res, "type");
 				if (!json_is_null(j_type)) {
-					const char *type_str= json_str(j_type);
-					res_info.header.type= str_to_restype(type_str);
+					const char *type_str = json_str(j_type);
+					res_info.header.type = str_to_restype(type_str);
 					if (res_info.header.type == ResType_None) {
 						critical_print("Invalid resource type: %s", type_str);
 						goto error;
@@ -447,7 +447,7 @@ void make_blob(const char *dst_file_path, char **res_file_paths)
 				}
 
 				// Read name
-				JsonTok j_name= json_value_by_key(j_res, "name");
+				JsonTok j_name = json_value_by_key(j_res, "name");
 				if (!json_is_null(j_name)) {
 					json_strcpy(
 							res_info.header.name,
@@ -458,7 +458,7 @@ void make_blob(const char *dst_file_path, char **res_file_paths)
 					goto error;
 				}
 
-				res_infos= push_dyn_array(
+				res_infos = push_dyn_array(
 						res_infos,
 						&res_info_capacity, &res_info_count, sizeof(*res_infos),
 						&res_info);
@@ -469,57 +469,57 @@ void make_blob(const char *dst_file_path, char **res_file_paths)
 	}
 
 	{ // Output file
-		buf= (BlobBuf) {
-			.data= ALLOC(dev_ator(), MAX_BLOB_SIZE, "output_file"),
-			.max_size= MAX_BLOB_SIZE,
+		buf = (BlobBuf) {
+			.data = ALLOC(dev_ator(), MAX_BLOB_SIZE, "output_file"),
+			.max_size = MAX_BLOB_SIZE,
 		};
 
-		ResBlob header= {
-			.version= 1,
-			.res_count= res_info_count,
-			.res_file_count= res_file_count,
+		ResBlob header = {
+			.version = 1,
+			.res_count = res_info_count,
+			.res_file_count = res_file_count,
 		};
-		for (U32 i= 0; i < res_file_count; ++i) {
+		for (U32 i = 0; i < res_file_count; ++i) {
 			fmt_str(	header.res_file_paths[i], sizeof(header.res_file_paths[i]),
 						"%s", parsed_jsons[i].json_path);
 		}
 		blob_write(&buf, &header, sizeof(header));
 
-		BlobOffset offset_of_offset_table= buf.offset;
+		BlobOffset offset_of_offset_table = buf.offset;
 
 		// Write zeros as offsets and fix them afterwards, as they aren't yet known
-		res_offsets= ZERO_ALLOC(dev_ator(), sizeof(*res_offsets)*header.res_count, "res_offsets");
+		res_offsets = ZERO_ALLOC(dev_ator(), sizeof(*res_offsets)*header.res_count, "res_offsets");
 		blob_write(&buf, &res_offsets[0], sizeof(*res_offsets)*header.res_count);
 
-		buf.res_offsets= res_offsets;
-		buf.res_count= header.res_count;
+		buf.res_offsets = res_offsets;
+		buf.res_count = header.res_count;
 
-		for (U32 res_i= 0; res_i < res_info_count; ++res_i) {
-			ResInfo *res= &res_infos[res_i];
+		for (U32 res_i = 0; res_i < res_info_count; ++res_i) {
+			ResInfo *res = &res_infos[res_i];
 			debug_print("blobbing: %s, %s", res->header.name, restype_to_str(res->header.type));
 
-			res_offsets[res_i]= buf.offset;
+			res_offsets[res_i] = buf.offset;
 			blob_write(&buf, &res->header, sizeof(res->header));
-			int err= json_res_to_blob(&buf, res->tok, res->header.type);
+			int err = json_res_to_blob(&buf, res->tok, res->header.type);
 			if (err) {
 				critical_print("Failed to process resource: %s, %s",
 					res->header.name, restype_to_str(res->header.type));
 				goto error;
 			}
 		}
-		const U32 blob_size= buf.offset;
+		const U32 blob_size = buf.offset;
 
 		// Write offsets to the header
-		buf.offset= offset_of_offset_table;
+		buf.offset = offset_of_offset_table;
 		blob_write(&buf, &res_offsets[0], sizeof(*res_offsets)*header.res_count);
 
 		{ // Write blob from memory to file
-			blob_file= fopen(dst_file_path, "wb"); 
+			blob_file = fopen(dst_file_path, "wb"); 
 			if (!blob_file) {
 				critical_print("Opening for write failed: %s", dst_file_path);
 				goto error;
 			}
-			U32 written= fwrite(buf.data, 1, blob_size, blob_file);
+			U32 written = fwrite(buf.data, 1, blob_size, blob_file);
 			if (written != blob_size) {
 				critical_print("Writing blob failed: %i != %i", written, blob_size);
 				goto error;
@@ -529,7 +529,7 @@ void make_blob(const char *dst_file_path, char **res_file_paths)
 
 exit:
 	{
-		for (U32 i= 0; i < res_file_count; ++i)
+		for (U32 i = 0; i < res_file_count; ++i)
 			free_parsed_json_file(parsed_jsons[i]);
 		FREE(dev_ator(), parsed_jsons);
 	}
@@ -553,7 +553,7 @@ void realloc_res_member(RelPtr *member, U32 size, U32 old_size)
 	//if (inside_blob(g_env.resblob, rel_ptr(member)))
 	//	FREE(leakable_dev_ator());
 
-	void *data= ZERO_ALLOC(leakable_dev_ator(), size, "substitute_res_member");
+	void *data = ZERO_ALLOC(leakable_dev_ator(), size, "substitute_res_member");
 	memcpy(data, rel_ptr(member), old_size);
 	set_rel_ptr(member, data);
 }
@@ -571,15 +571,15 @@ void alloc_substitute_res_member(	Resource *dst,
 internal
 void mirror_res(Resource *res)
 {
-	const char *res_file_path= res->blob->res_file_paths[res->res_file_index];
-	ParsedJsonFile file= malloc_parsed_json_file(res_file_path);
-	WJson *upd_file= wjson_create(JsonType_array);
-	for (U32 i= 0; i < json_member_count(file.root); ++i) {
-		JsonTok j_res= json_member(file.root, i);
-		JsonTok j_name= json_value_by_key(j_res, "name");
-		JsonTok j_type= json_value_by_key(j_res, "type");
+	const char *res_file_path = res->blob->res_file_paths[res->res_file_index];
+	ParsedJsonFile file = malloc_parsed_json_file(res_file_path);
+	WJson *upd_file = wjson_create(JsonType_array);
+	for (U32 i = 0; i < json_member_count(file.root); ++i) {
+		JsonTok j_res = json_member(file.root, i);
+		JsonTok j_name = json_value_by_key(j_res, "name");
+		JsonTok j_type = json_value_by_key(j_res, "type");
 
-		WJson *upd_res= wjson_create(JsonType_object);
+		WJson *upd_res = wjson_create(JsonType_object);
 		wjson_append(upd_file, upd_res);
 
 		if (json_is_null(j_name))
@@ -608,19 +608,19 @@ error:
 
 U32 mirror_blob_modifications(ResBlob *blob)
 {
-	U32 count= 0;
-	RuntimeResource *rt_res= blob->first_runtime_res;
+	U32 count = 0;
+	RuntimeResource *rt_res = blob->first_runtime_res;
 	while (rt_res) {
-		Resource *res= rt_res->res;
+		Resource *res = rt_res->res;
 		if (res->needs_saving) {
 			// Reloading & writing json for every modified resource
 			// shouldn't be a problem, because typically few resources
 			// are modified at once
 			mirror_res(res);
-			res->needs_saving= false;
+			res->needs_saving = false;
 			++count;
 		}
-		rt_res= rt_res->next;
+		rt_res = rt_res->next;
 	}
 	debug_print("mirror_blob_modifications: %i", count);
 	return count;
@@ -628,11 +628,11 @@ U32 mirror_blob_modifications(ResBlob *blob)
 
 bool blob_has_modifications(const ResBlob *blob)
 {
-	RuntimeResource *rt_res= blob->first_runtime_res;
+	RuntimeResource *rt_res = blob->first_runtime_res;
 	while (rt_res) {
 		if (rt_res->res->needs_saving)
 			return true;
-		rt_res= rt_res->next;
+		rt_res = rt_res->next;
 	}
 	return false;
 }

@@ -24,12 +24,12 @@ F32 *malloc_decoded_ogg_vorbis(U32 *frame_count, U32 *ch_count, U8 *ogg_data, U3
 
 		// Ogg checks
 
-		const U32 buffer_size= 4096;
+		const U32 buffer_size = 4096;
 		ogg_sync_init(&syncstate);
-		char* buffer= ogg_sync_buffer(&syncstate, buffer_size);
-		U32 data_i= 0;
-		for (U32 i= 0; i < buffer_size; ++i){
-			buffer[i]= ogg_data[data_i];
+		char* buffer = ogg_sync_buffer(&syncstate, buffer_size);
+		U32 data_i = 0;
+		for (U32 i = 0; i < buffer_size; ++i){
+			buffer[i] = ogg_data[data_i];
 			++data_i;
 		}
 		ogg_sync_wrote(&syncstate, buffer_size);
@@ -59,13 +59,13 @@ F32 *malloc_decoded_ogg_vorbis(U32 *frame_count, U32 *ch_count, U8 *ogg_data, U3
 
 		// It's vorbis!
 
-		U32 audio_data_begin_i= 0;
+		U32 audio_data_begin_i = 0;
 
 		// Process vorbis header
-		U32 i= 0;
+		U32 i = 0;
 		while (i < 3) {
 			while (i < 3) {
-				S32 ret= ogg_sync_pageout(&syncstate, &page);
+				S32 ret = ogg_sync_pageout(&syncstate, &page);
 				if (ret == 0)
 					break; // Moar data needed
 
@@ -75,7 +75,7 @@ F32 *malloc_decoded_ogg_vorbis(U32 *frame_count, U32 *ch_count, U8 *ogg_data, U3
 					while (i < 3) {
 						// Submit packets of vorbis header
 						// 0: Info, 1: Comments, 2: Codebooks
-						ret= ogg_stream_packetout(&streamstate, &packet);
+						ret = ogg_stream_packetout(&streamstate, &packet);
 
 						if (ret == 0)
 							break;
@@ -88,10 +88,10 @@ F32 *malloc_decoded_ogg_vorbis(U32 *frame_count, U32 *ch_count, U8 *ogg_data, U3
 					}
 				}
 			}
-			buffer= ogg_sync_buffer(&syncstate, buffer_size);
+			buffer = ogg_sync_buffer(&syncstate, buffer_size);
 
-			for (U32 a= 0; a < buffer_size && data_i < ogg_data_size; ++a){
-				buffer[a]= ogg_data[data_i];
+			for (U32 a = 0; a < buffer_size && data_i < ogg_data_size; ++a){
+				buffer[a] = ogg_data[data_i];
 				++data_i;
 			}
 
@@ -99,7 +99,7 @@ F32 *malloc_decoded_ogg_vorbis(U32 *frame_count, U32 *ch_count, U8 *ogg_data, U3
 		}
 
 		// Comments from header
-		char **ptr= comment.user_comments;
+		char **ptr = comment.user_comments;
 		while (*ptr){
 			debug_print("Vorbis comment: %s", *ptr);
 			++ptr;
@@ -113,21 +113,21 @@ F32 *malloc_decoded_ogg_vorbis(U32 *frame_count, U32 *ch_count, U8 *ogg_data, U3
 	}
 
 
-	U32 samples_capacity= 1024*16;
-	F32 *samples= malloc(sizeof(*samples)*samples_capacity);
-	U32 total_sample_count= 0;
+	U32 samples_capacity = 1024*16;
+	F32 *samples = malloc(sizeof(*samples)*samples_capacity);
+	U32 total_sample_count = 0;
 
 	{ // Decode sample data
 		// Copy-pasted from old engine
-		U32 dataSize= ogg_data_size;
-		U32 dataIndex= 0;
-		bool needsNewPage= true;
-		bool needsNewPacket= true;
-		bool needsNewBlock= true;
-		bool eos= false;
+		U32 dataSize = ogg_data_size;
+		U32 dataIndex = 0;
+		bool needsNewPage = true;
+		bool needsNewPacket = true;
+		bool needsNewBlock = true;
+		bool eos = false;
 
 		/// @todo Fix: changing this to bigger will make short sounds not to play
-		const U32 pageSize= 1024;
+		const U32 pageSize = 1024;
 			
 		ogg_packet	oggPacket; // Raw data
 		ogg_page	oggPage; // Contains packets
@@ -139,12 +139,12 @@ F32 *malloc_decoded_ogg_vorbis(U32 *frame_count, U32 *ch_count, U8 *ogg_data, U3
 
 		ogg_sync_init(&oggSyncState);
 
-		const U32 request_count= U32_MAX; // Every sample
-		U32 frames_decoded= 0;
+		const U32 request_count = U32_MAX; // Every sample
+		U32 frames_decoded = 0;
 		while (frames_decoded < request_count && !eos){
-			bool first_time= dataIndex == 0;
+			bool first_time = dataIndex == 0;
 
-			U32 data_submitted= 0;
+			U32 data_submitted = 0;
 			if (needsNewPage){
 				// Submit more data
 				while (ogg_sync_pageout(&oggSyncState, &oggPage) != 1){
@@ -155,32 +155,32 @@ F32 *malloc_decoded_ogg_vorbis(U32 *frame_count, U32 *ch_count, U8 *ogg_data, U3
 						break;
 					}
 
-					char* buf= ogg_sync_buffer(&oggSyncState, pageSize);
+					char* buf = ogg_sync_buffer(&oggSyncState, pageSize);
 					ensure(buf);
 
-					U32 written=0;
-					for (U32 i=0; i<pageSize && dataIndex < dataSize; ++i){
-						buf[i]= ogg_data[dataIndex];
+					U32 written =0;
+					for (U32 i =0; i<pageSize && dataIndex < dataSize; ++i){
+						buf[i] = ogg_data[dataIndex];
 						++dataIndex;
 						++written;
 					}
 
-					U32 ret= ogg_sync_wrote(&oggSyncState, written);
+					U32 ret = ogg_sync_wrote(&oggSyncState, written);
 					ensure(ret == 0);
 
 					data_submitted += written;
 				}
 
 				if (data_submitted != 0)
-					needsNewPage= false;
+					needsNewPage = false;
 
 				if (first_time){
-					U32 ret=0;
-					ret= ogg_stream_init(&oggStreamState, ogg_page_serialno(&oggPage));
+					U32 ret =0;
+					ret = ogg_stream_init(&oggStreamState, ogg_page_serialno(&oggPage));
 					ensure(!ret);
-					ret= vorbis_synthesis_init(&vorbisDspState, &info);
+					ret = vorbis_synthesis_init(&vorbisDspState, &info);
 					ensure(!ret);
-					ret= vorbis_block_init(&vorbisDspState, &vorbisBlock);
+					ret = vorbis_block_init(&vorbisDspState, &vorbisBlock);
 					ensure(!ret);
 				}
 				ogg_stream_pagein(&oggStreamState, &oggPage);
@@ -191,35 +191,35 @@ F32 *malloc_decoded_ogg_vorbis(U32 *frame_count, U32 *ch_count, U8 *ogg_data, U3
 					ogg_stream_eos(&oggStreamState) &&
 					ogg_page_eos(&oggPage) &&
 					dataIndex == dataSize){
-				eos= true;
+				eos = true;
 				break;
 			}
 
 			while(frames_decoded < request_count){
 				if (needsNewPacket){
-					S32 result= ogg_stream_packetout(&oggStreamState, &oggPacket);
+					S32 result = ogg_stream_packetout(&oggStreamState, &oggPacket);
 
 					if (result == 0){
-						needsNewPage= true; // Next page
+						needsNewPage = true; // Next page
 						break; 
 					}
 					else if (result < 0){
 						fail("Invalid/corrupt ogg packet");
 					}
 					else {
-						needsNewPacket= false;
-						needsNewBlock= true;
+						needsNewPacket = false;
+						needsNewBlock = true;
 					}
 				}
 
 				if (!needsNewPacket) {
 					// Process the packet
 					if (needsNewBlock){
-						S32 result=0;
+						S32 result =0;
 						// Packet to block
-						if ((result= vorbis_synthesis(&vorbisBlock, &oggPacket)) == 0){
+						if ((result = vorbis_synthesis(&vorbisBlock, &oggPacket)) == 0){
 							vorbis_synthesis_blockin(&vorbisDspState, &vorbisBlock);
-							needsNewBlock= false;
+							needsNewBlock = false;
 						}
 						else {
 							if (result == OV_ENOTAUDIO){
@@ -233,16 +233,16 @@ F32 *malloc_decoded_ogg_vorbis(U32 *frame_count, U32 *ch_count, U8 *ogg_data, U3
 
 					F32 **rawsamples;
 					while (frames_decoded < request_count){
-						U32 frame_count=0; // Sample count of each channel
-						frame_count= vorbis_synthesis_pcmout(&vorbisDspState, &rawsamples);
+						U32 frame_count =0; // Sample count of each channel
+						frame_count = vorbis_synthesis_pcmout(&vorbisDspState, &rawsamples);
 
 						if (frame_count <= 0){
 							// New packet needed, not block, because packet is converted to a block at once
-							needsNewPacket= true;
+							needsNewPacket = true;
 							break;
 						}
 
-						U32 frames_to_read= frame_count; // Sample count of one channel
+						U32 frames_to_read = frame_count; // Sample count of one channel
 						ensure(frames_decoded < request_count);
 						if (frames_to_read + frames_decoded >= request_count){
 							frames_to_read = request_count - frames_decoded;
@@ -250,15 +250,15 @@ F32 *malloc_decoded_ogg_vorbis(U32 *frame_count, U32 *ch_count, U8 *ogg_data, U3
 
 						if (samples_capacity < total_sample_count + frames_to_read*info.channels) {
 							samples_capacity *= 2;
-							samples= realloc(samples, sizeof(*samples)*samples_capacity);
+							samples = realloc(samples, sizeof(*samples)*samples_capacity);
 						}
 
-						U32 begin_frame= total_sample_count/info.channels;
-						for (int ch_i= 0; ch_i < info.channels; ++ch_i) {
-							F32* mono= rawsamples[ch_i];
-							for (U32 i= 0; i < frames_to_read; ++i){
-								U32 frame= begin_frame + i;
-								samples[frame*info.channels + ch_i]= mono[i];
+						U32 begin_frame = total_sample_count/info.channels;
+						for (int ch_i = 0; ch_i < info.channels; ++ch_i) {
+							F32* mono = rawsamples[ch_i];
+							for (U32 i = 0; i < frames_to_read; ++i){
+								U32 frame = begin_frame + i;
+								samples[frame*info.channels + ch_i] = mono[i];
 								++total_sample_count;
 							}
 						}
@@ -277,8 +277,8 @@ F32 *malloc_decoded_ogg_vorbis(U32 *frame_count, U32 *ch_count, U8 *ogg_data, U3
 		ogg_sync_clear(&oggSyncState);
 	}
 
-	*ch_count= info.channels;
-	*frame_count= total_sample_count/info.channels;
+	*ch_count = info.channels;
+	*frame_count = total_sample_count/info.channels;
 
 	vorbis_info_clear(&info);
 	return samples;
@@ -286,11 +286,11 @@ F32 *malloc_decoded_ogg_vorbis(U32 *frame_count, U32 *ch_count, U8 *ogg_data, U3
 
 int json_sound_to_blob(struct BlobBuf *buf, JsonTok j)
 {
-	U8 *file_contents= NULL;
-	F32 *samples= NULL;
-	int return_value= 0;
+	U8 *file_contents = NULL;
+	F32 *samples = NULL;
+	int return_value = 0;
 
-	JsonTok j_file= json_value_by_key(j, "file");
+	JsonTok j_file = json_value_by_key(j, "file");
 	if (json_is_null(j_file)) {
 		RES_ATTRIB_MISSING("file");
 		goto error;
@@ -300,11 +300,11 @@ int json_sound_to_blob(struct BlobBuf *buf, JsonTok j)
 	joined_path(total_path, j.json_path, json_str(j_file));
 
 	U32 file_size;
-	file_contents= malloc_file(total_path, &file_size);
+	file_contents = malloc_file(total_path, &file_size);
 
 	U32 ch_count;
 	U32 frame_count;
-	samples= malloc_decoded_ogg_vorbis(	&frame_count, &ch_count,
+	samples = malloc_decoded_ogg_vorbis(	&frame_count, &ch_count,
 										file_contents, file_size);
 
 	blob_write(buf, &ch_count, sizeof(ch_count));
@@ -317,6 +317,6 @@ cleanup:
 	return return_value;
 
 error:
-	return_value= 1;
+	return_value = 1;
 	goto cleanup;
 }

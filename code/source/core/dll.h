@@ -4,7 +4,7 @@
 #include "build.h"
 
 typedef void * DllHandle;
-const DllHandle g_main_program_dll= NULL;
+const DllHandle g_main_program_dll = NULL;
 
 REVOLC_API DllHandle load_dll(const char *path);
 REVOLC_API void unload_dll(DllHandle dll);

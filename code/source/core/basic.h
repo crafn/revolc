@@ -135,7 +135,7 @@ typedef struct RelPtr {
 } RelPtr;
 
 static void set_rel_ptr(RelPtr *rel_ptr, const void *ptr)
-{ rel_ptr->value= (U8*)ptr - (U8*)rel_ptr; }
+{ rel_ptr->value = (U8*)ptr - (U8*)rel_ptr; }
 
 static void * rel_ptr(const RelPtr *rel_ptr)
 { return (U8*)rel_ptr + rel_ptr->value; }

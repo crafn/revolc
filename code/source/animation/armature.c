@@ -15,7 +15,7 @@ JointId super_id_from_defs(	const JointDef *defs,
 							U32 def_count,
 							const char *super_name)
 {
-	for (U32 i= 0; i < def_count; ++i) {
+	for (U32 i = 0; i < def_count; ++i) {
 		if (!strcmp(defs[i].name, super_name))
 			return i;
 	}
@@ -24,23 +24,23 @@ JointId super_id_from_defs(	const JointDef *defs,
 
 int json_armature_to_blob(struct BlobBuf *buf, JsonTok j)
 {
-	JsonTok j_joints= json_value_by_key(j, "joints");
+	JsonTok j_joints = json_value_by_key(j, "joints");
 	if (json_is_null(j_joints))
 		RES_ATTRIB_MISSING("joints");
 
-	JointDef defs[MAX_ARMATURE_JOINT_COUNT]= {};
-	U32 def_count= 0;
+	JointDef defs[MAX_ARMATURE_JOINT_COUNT] = {};
+	U32 def_count = 0;
 	if (json_member_count(j_joints) > MAX_ARMATURE_JOINT_COUNT) {
 		critical_print("Too many joints: %i > %i",
 				json_member_count(j_joints), MAX_ARMATURE_JOINT_COUNT);
 		goto error;
 	}
-	for (U32 joint_i= 0; joint_i < json_member_count(j_joints); ++joint_i) {
-		JsonTok j_joint= json_member(j_joints, joint_i);
+	for (U32 joint_i = 0; joint_i < json_member_count(j_joints); ++joint_i) {
+		JsonTok j_joint = json_member(j_joints, joint_i);
 
-		JsonTok j_name= json_value_by_key(j_joint, "name");
-		JsonTok j_super= json_value_by_key(j_joint, "super");
-		JsonTok j_offset= json_value_by_key(j_joint, "offset");
+		JsonTok j_name = json_value_by_key(j_joint, "name");
+		JsonTok j_super = json_value_by_key(j_joint, "super");
+		JsonTok j_offset = json_value_by_key(j_joint, "offset");
 
 		if (json_is_null(j_name))
 			RES_ATTRIB_MISSING("name");
@@ -49,26 +49,26 @@ int json_armature_to_blob(struct BlobBuf *buf, JsonTok j)
 		if (json_is_null(j_offset))
 			RES_ATTRIB_MISSING("offset");
 
-		JointDef *def= &defs[joint_i];
-		def->name= json_str(j_name);
-		def->super_name= json_str(j_super);
-		def->offset= t3d_to_t3f(json_t3(j_offset));
+		JointDef *def = &defs[joint_i];
+		def->name = json_str(j_name);
+		def->super_name = json_str(j_super);
+		def->offset = t3d_to_t3f(json_t3(j_offset));
 		++def_count;
 	}
 
-	Armature a= {};	
-	for (U32 i= 0; i < def_count; ++i) {
-		Joint *joint= &a.joints[i];
-		JointDef *def= &defs[i];
+	Armature a = {};	
+	for (U32 i = 0; i < def_count; ++i) {
+		Joint *joint = &a.joints[i];
+		JointDef *def = &defs[i];
 
 		fmt_str(	a.joint_names[i], sizeof(a.joint_names[i]), "%s",
 					def->name);
-		joint->id= i;
-		joint->super_id= NULL_JOINT_ID;
-		joint->bind_pose= def->offset;
+		joint->id = i;
+		joint->super_id = NULL_JOINT_ID;
+		joint->bind_pose = def->offset;
 
 		if (strlen(def->super_name) > 0) {
-			joint->super_id=
+			joint->super_id =
 				super_id_from_defs(defs, def_count, def->super_name);
 			if (joint->super_id == NULL_JOINT_ID) {
 				critical_print("Unknown super joint: %s", def->super_name);
@@ -92,16 +92,16 @@ error:
 
 void armature_to_json(WJson *j, const Armature *a)
 {
-	WJson *j_joints= wjson_named_member(j, JsonType_array, "joints");
+	WJson *j_joints = wjson_named_member(j, JsonType_array, "joints");
 
-	for (U32 i= 0; i < a->joint_count; ++i) {
+	for (U32 i = 0; i < a->joint_count; ++i) {
 		/// @todo Name and super joints
 
-		WJson *j_offset= wjson_str("offset");
+		WJson *j_offset = wjson_str("offset");
 		wjson_append(	j_offset,
 						wjson_t3(t3f_to_t3d(a->joints[i].bind_pose)));
 
-		WJson *j_joint= wjson_object();
+		WJson *j_joint = wjson_object();
 		wjson_append(j_joint, j_offset);
 		wjson_append(j_joints, j_joint);
 	}
@@ -109,7 +109,7 @@ void armature_to_json(WJson *j, const Armature *a)
 
 JointId joint_id_by_name(const Armature *a, const char *name)
 {
-	for (JointId i= 0; i < a->joint_count; ++i) {
+	for (JointId i = 0; i < a->joint_count; ++i) {
 		if (!strcmp(a->joint_names[i], name))
 			return i;
 	}
