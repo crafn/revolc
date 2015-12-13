@@ -12,6 +12,9 @@ void *commit_uninit_mem(void *data, U32 size)
 
 void * alloc_impl(Ator *ator, U32 size, void *realloc_ptr, const char *tag, bool zero)
 {
+	if (size == 0)
+		return NULL;
+
 	// @note Memory allocated from system heap should be always written over so that
 	// - accessing uninitialized memory bugs will happen consistently
 	// - memory is committed so that costly page faults during game are avoided

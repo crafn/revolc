@@ -18,6 +18,11 @@ typedef void (*UpdNodeImpl)(void *begin,
 typedef void (*PackNodeImpl)(WArchive *ar, const void *begin, const void *end);
 typedef void (*UnpackNodeImpl)(RArchive *ar, void *begin, void *end);
 
+typedef enum PackSync {
+	PackSync_presence, // Only creation, destroying, and cmds
+	PackSync_full, // Full state
+} PackSync;
+
 typedef struct NodeType {
 	Resource res;
 
@@ -36,7 +41,7 @@ typedef struct NodeType {
 	bool auto_impl_mgmt;
 	U32 max_count;
 
-	bool serialize; // If false, node is not netsynced or saved
+	PackSync packsync;
 
 	// Cached
 	const struct Module *module;

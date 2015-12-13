@@ -67,6 +67,8 @@ void upd_rts()
 	RtsEnv *env= rts_env();
 	env->game_time += g_env.dt;
 
+	upd_rts_net();
+
 	{ // UI
 		Device *d= g_env.device;
 		V2d cursor_on_world= screen_to_world_point(g_env.device->cursor_pos);
@@ -88,8 +90,6 @@ void upd_rts()
 			already_selected= hit || already_selected;
 		}
 	}
-
-	upd_rts_net();
 }
 
 MOD_API void worldgen_rts(World *w)

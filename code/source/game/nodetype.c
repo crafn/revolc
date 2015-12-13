@@ -79,7 +79,7 @@ int json_nodetype_to_blob(struct BlobBuf *buf, JsonTok j)
 	JsonTok j_storage= json_value_by_key(j, "storage_func");
 	JsonTok j_pack= json_value_by_key(j, "pack_func");
 	JsonTok j_unpack= json_value_by_key(j, "unpack_func");
-	JsonTok j_serialize= json_value_by_key(j, "serialize");
+	JsonTok j_packsync= json_value_by_key(j, "packsync");
 
 	if (json_is_null(j_impl_mgmt))
 		RES_ATTRIB_MISSING("impl_mgmt");
@@ -130,8 +130,17 @@ int json_nodetype_to_blob(struct BlobBuf *buf, JsonTok j)
 			n.storage_func_name, sizeof(n.storage_func_name), "%s", json_str(j_storage));
 	}
 
-	if (!json_is_null(j_serialize))
-		n.serialize= json_bool(j_serialize);
+	if (!json_is_null(j_packsync)) {
+		const char *net= json_str(j_packsync);
+		if (!strcmp(net, "presence")) {
+			n.packsync= PackSync_presence;
+		} else if (!strcmp(net, "full")) {
+			n.packsync= PackSync_full;
+		} else {
+			critical_print("Invalid packsync: %s", net);
+			goto error;
+		}
+	}
 
 	blob_write(	buf,
 				(U8*)&n + sizeof(Resource),
