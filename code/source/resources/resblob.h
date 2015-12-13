@@ -2,7 +2,7 @@
 #define REVOLC_RESOURCES_RESBLOB_H
 
 #include "build.h"
-#include "core/ptr.h"
+#include "core/basic.h"
 #include "resource.h"
 
 typedef struct ResBlob {

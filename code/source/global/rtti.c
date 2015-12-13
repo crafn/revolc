@@ -1,5 +1,5 @@
+#include "core/dll.h"
 #include "rtti.h"
-#include "platform/dll.h"
 
 void * query_sym_concat(const char* a, const char *b)
 {

@@ -2,9 +2,9 @@
 #define REVOLC_GLOBAL_MODULE_H
 
 #include "build.h"
+#include "core/dll.h"
 #include "core/json.h"
 #include "global/cfg.h"
-#include "platform/dll.h"
 #include "resources/resource.h"
 
 struct World;

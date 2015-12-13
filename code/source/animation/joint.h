@@ -3,7 +3,7 @@
 
 #include "build.h"
 #include "global/cfg.h"
-#include "core/transform.h"
+#include "core/math.h"
 #include "resources/resource.h"
 
 typedef U8 JointId;

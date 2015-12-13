@@ -2,7 +2,7 @@
 #define REVOLC_VISUAL_ATLAS_H
 
 #include "build.h"
-#include "core/vector.h"
+#include "core/math.h"
 
 typedef struct AtlasUv {
 	V3f uv;

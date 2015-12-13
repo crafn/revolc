@@ -1,5 +1,5 @@
-#include "core/vector.h"
-#include "platform/dll.h"
+#include "core/math.h"
+#include "core/dll.h"
 
 // Prevent X11 header from typedeffing `Font`
 #define _XTYPEDEF_FONT

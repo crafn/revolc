@@ -1,4 +1,4 @@
-#include "platform/file.h"
+#include "core/basic.h"
 #include "global/module.h"
 
 void init_for_modules()

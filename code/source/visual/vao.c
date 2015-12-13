@@ -1,6 +1,6 @@
-#include "core/ensure.h"
-#include "core/debug_print.h"
-#include "platform/gl.h"
+#include "core/basic.h"
+#include "core/debug.h"
+#include "core/gl.h"
 #include "vao.h"
 
 Vao create_vao(MeshType m, U32 max_v_count, U32 max_i_count)

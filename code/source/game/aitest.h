@@ -4,7 +4,7 @@
 // Testing node system here
 
 #include "build.h"
-#include "core/vector.h"
+#include "core/math.h"
 #include "physics/physworld.h"
 #include "visual/modelentity.h"
 

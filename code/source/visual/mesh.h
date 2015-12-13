@@ -3,11 +3,11 @@
 
 #include "build.h"
 #include "core/color.h"
-#include "core/ptr.h"
-#include "core/vector.h"
+#include "core/basic.h"
+#include "core/math.h"
 #include "core/json.h"
 #include "resources/resource.h"
-#include "platform/gl.h"
+#include "core/gl.h"
 
 typedef enum { MeshType_tri, MeshType_brush } MeshType_enum;
 typedef U32 MeshType;

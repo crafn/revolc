@@ -2,7 +2,7 @@
 #define REVOLC_PHYSICS_RIGIDBODY_H
 
 #include "build.h"
-#include "core/transform.h"
+#include "core/math.h"
 #include "global/cfg.h"
 #include "physmat.h"
 #include "shapes.h"

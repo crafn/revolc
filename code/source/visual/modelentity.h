@@ -4,8 +4,7 @@
 #include "atlas.h"
 #include "build.h"
 #include "core/json.h"
-#include "core/transform.h"
-#include "core/vector.h"
+#include "core/math.h"
 #include "model.h"
 #include "mesh.h"
 

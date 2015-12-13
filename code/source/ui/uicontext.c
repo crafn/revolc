@@ -1,5 +1,5 @@
+#include "core/device.h"
 #include "global/env.h"
-#include "platform/device.h"
 #include "uicontext.h"
 
 void create_uicontext()

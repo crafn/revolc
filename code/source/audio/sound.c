@@ -1,5 +1,4 @@
-#include "core/file.h"
-#include "core/string.h"
+#include "core/basic.h"
 #include "resources/resblob.h"
 #include "sound.h"
 

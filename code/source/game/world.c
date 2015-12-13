@@ -1,8 +1,8 @@
-#include "core/file.h"
+#include "core/basic.h"
 #include "core/memory.h"
+#include "core/math.h"
 #include "game/world.h"
 #include "global/env.h"
-#include "platform/math.h"
 
 typedef struct SaveHeader {
 	U16 version;

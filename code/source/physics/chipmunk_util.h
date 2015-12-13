@@ -2,7 +2,7 @@
 #define REVOLC_CHIPMUNK_UTIL_H
 
 #include "build.h"
-#include "core/vector.h"
+#include "core/math.h"
 
 #include <chipmunk/chipmunk.h>
 

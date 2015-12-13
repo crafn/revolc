@@ -1,11 +1,8 @@
 #include "core/array.h"
-#include "core/debug_print.h"
-#include "core/ensure.h"
-#include "core/file.h"
+#include "core/basic.h"
+#include "core/debug.h"
 #include "core/json.h"
 #include "resblob.h"
-#include "platform/stdlib.h"
-#include "platform/io.h"
 
 #define HEADERS
 #	include "resources/resources.def"

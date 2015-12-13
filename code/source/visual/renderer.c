@@ -1,10 +1,8 @@
-#include "core/debug_print.h"
-#include "core/ensure.h"
+#include "core/basic.h"
+#include "core/debug.h"
 #include "core/memory.h"
-#include "core/matrix.h"
-#include "core/vector.h"
+#include "core/math.h"
 #include "model.h"
-#include "platform/stdlib.h"
 #include "renderer.h"
 #include "resources/resblob.h"
 

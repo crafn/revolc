@@ -3,6 +3,8 @@
 
 #include "build.h"
 
+// @todo Copy dynamic array "template" from some other project. This is unnerving.
+
 REVOLC_API WARN_UNUSED
 void * enlarge_array(void *array, U32 *old_count, U32 elem_size);
 

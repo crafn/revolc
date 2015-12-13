@@ -2,7 +2,7 @@
 #define REVOLC_CORE_GRID_H
 
 #include "build.h"
-#include "vector.h"
+#include "math.h"
 
 // Utility for grid calculations
 typedef struct GridDef {

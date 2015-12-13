@@ -1,5 +1,5 @@
 #include "core/socket.h"
-#include "core/string.h"
+#include "core/basic.h"
 
 const char *ip_to_str(IpAddress addr)
 {

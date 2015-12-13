@@ -1,5 +1,5 @@
 #include "json.h"
-#include "platform/stdlib.h"
+#include "basic.h"
 
 ParsedJsonFile malloc_parsed_json_file(const char *file)
 {

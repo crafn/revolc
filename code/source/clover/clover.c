@@ -2,11 +2,10 @@
 #include "animation/joint.h"
 #include "audio/audiosystem.h"
 #include "build.h"
-#include "core/debug_print.h"
-#include "core/ensure.h"
+#include "core/debug.h"
+#include "core/device.h"
 #include "core/random.h"
-#include "core/vector.h"
-#include "core/scalar.h"
+#include "core/math.h"
 #include "global/env.h"
 #include "game/world.h"
 #include "game/worldgen.h"
@@ -14,7 +13,6 @@
 #include "physics/rigidbody.h"
 #include "physics/physworld.h"
 #include "physics/query.h"
-#include "platform/device.h"
 #include "resources/resblob.h"
 #include "visual/renderer.h" // screen_to_world_point, camera
 

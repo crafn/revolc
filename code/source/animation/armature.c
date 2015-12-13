@@ -1,10 +1,8 @@
 #include "armature.h"
-#include "core/debug_print.h"
-#include "core/ensure.h"
+#include "core/debug.h"
 #include "core/memory.h"
+#include "core/basic.h"
 #include "resources/resblob.h"
-#include "platform/io.h"
-#include "platform/stdlib.h"
 
 typedef struct JointDef {
 	const char *name;

@@ -1,7 +1,6 @@
-#include "core/debug_print.h"
-#include "core/string.h"
-#include "core/file.h"
-#include "platform/gl.h"
+#include "core/basic.h"
+#include "core/debug.h"
+#include "core/gl.h"
 #include "resources/resblob.h"
 #include "shadersource.h"
 

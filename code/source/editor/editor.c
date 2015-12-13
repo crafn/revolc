@@ -1,11 +1,11 @@
 #include "armature_editor.h"
+#include "core/basic.h"
+#include "core/device.h"
 #include "core/memory.h"
-#include "core/misc.h"
 #include "editor.h"
 #include "editor_util.h"
 #include "global/env.h"
 #include "mesh_editor.h"
-#include "platform/device.h"
 #include "ui/uicontext.h"
 #include "visual/renderer.h"
 

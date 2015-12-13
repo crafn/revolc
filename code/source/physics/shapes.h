@@ -2,7 +2,7 @@
 #define REVOLC_PHYSICS_SHAPES_H
 
 #include "build.h"
-#include "core/vector.h"
+#include "core/math.h"
 
 typedef struct Circle {
 	V2d pos;

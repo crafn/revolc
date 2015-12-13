@@ -330,7 +330,7 @@ void clip_to_json(WJson *j, const Clip *c)
 internal
 F64 wrap_float(F64 t, const F64 max)
 {
-	return fmod(t, max);
+	return t - max*floor(t/max);
 }
 
 JointPoseArray calc_clip_pose(const Clip *c, F64 t)

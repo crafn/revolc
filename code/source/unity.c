@@ -6,17 +6,17 @@
 #include "audio/sound.c"
 #include "core/archive.c"
 #include "core/array.c"
-#include "core/debug_print.c"
-#include "core/ensure.c"
+#include "core/basic.c"
+#include "core/debug.c"
+#include "core/device.c"
+#include "core/gl.c"
 #include "core/grid.c"
 #include "core/hashtable.c"
-#include "core/file.c"
 #include "core/json.c"
 #include "core/memory.c"
-#include "core/matrix.c"
+#include "core/math.c"
 #include "core/socket.c"
 #include "core/sparsetable.c"
-#include "core/string.c"
 #include "core/udp.c"
 #include "editor/armature_editor.c"
 #include "editor/editor.c"
@@ -37,10 +37,6 @@
 #include "physics/query.c"
 #include "physics/rigidbody.c"
 #include "physics/rigidbodydef.c"
-#include "platform/device.c"
-#include "platform/file.c"
-#include "platform/gl.c"
-#include "platform/stdlib.c"
 #include "resources/resblob.c"
 #include "resources/resource.c"
 #include "ui/uicontext.c"
@@ -59,9 +55,9 @@
 
 #ifndef CODEGEN
 #	if PLATFORM == PLATFORM_LINUX
-#		include "platform/linux.c"
+#		include "core/linux.c"
 #	elif PLATFORM == PLATFORM_WINDOWS
-#		include "platform/windows.c"
+#		include "core/windows.c"
 #	else
 #		error "Unknown platform"
 #	endif

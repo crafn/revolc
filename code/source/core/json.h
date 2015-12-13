@@ -3,9 +3,7 @@
 
 #include "build.h"
 #include "core/color.h"
-#include "core/quaternion.h"
-#include "core/transform.h"
-#include "core/vector.h"
+#include "core/math.h"
 
 #ifndef CODEGEN
 #	include <jsmn/jsmn.h>

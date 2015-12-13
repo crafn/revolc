@@ -5,7 +5,7 @@
 #include "animation/joint.h"
 #include "compdef.h"
 #include "build.h"
-#include "core/transform.h"
+#include "core/math.h"
 
 typedef enum {
 	VEntityType_model,

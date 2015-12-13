@@ -4,7 +4,7 @@
 #include "build.h"
 #include "resources/resource.h"
 #include "core/json.h"
-#include "core/ptr.h"
+#include "core/basic.h"
 
 #define MAX_NODES_IN_GROUP_DEF 16
 #define MAX_CMDS_IN_GROUP_DEF 8
