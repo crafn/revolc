@@ -708,7 +708,7 @@ void free_node(World *w, U32 handle)
 	U32 impl_handle= n->impl_handle;
 	if (n->type->auto_impl_mgmt) {
 		if (n->type->free)
-			n->type->free(impl_handle);
+			n->type->free(impl_handle, node_impl(w, NULL, n));
 
 		ensure(n->type->auto_storage_handle < w->auto_storage_count);
 		AutoNodeImplStorage *st= &w->auto_storages[n->type->auto_storage_handle];
@@ -716,7 +716,7 @@ void free_node(World *w, U32 handle)
 		st->allocated[impl_handle]= false;
 	} else {
 		if (n->type->free)
-			n->type->free(impl_handle);
+			n->type->free(impl_handle, node_impl(w, NULL, n));
 	}
 
 	--w->node_count;
@@ -903,7 +903,7 @@ void world_on_res_reload(ResBlob *old)
 		}
 
 		if (node->type->free) {
-			node->type->free(node->impl_handle);
+			node->type->free(node->impl_handle, node_impl(w, NULL, node));
 		}
 		if (node->type->resurrect) {
 			U32 ret= node->type->resurrect(node_impl(w, NULL, node));

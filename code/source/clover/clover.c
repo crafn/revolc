@@ -256,7 +256,7 @@ typedef struct PlayerCh {
 	ResId idle_clip_id;
 	ResId dig_clip_id;
 
-	RigidBody *body;
+	HANDLE(RigidBody) body;
 } PlayerCh;
 
 MOD_API U32 resurrect_playerch(PlayerCh *p)
@@ -265,7 +265,7 @@ MOD_API U32 resurrect_playerch(PlayerCh *p)
 		.def_name= "playerch_body",
 		.tf= p->tf,
 	};
-	p->body= get_rigidbody(resurrect_rigidbody(&dead_body));
+	p->body= resurrect_rigidbody(&dead_body);
 
 	p->run_clip_id= res_id(ResType_Clip, "playerch_run");
 	p->idle_clip_id= res_id(ResType_Clip, "playerch_idle");
@@ -338,15 +338,16 @@ MOD_API void upd_playerch(PlayerCh *p, PlayerCh *e)
 		//const F64 leg_width= 0.2;
 		F64 leg_space= leg_height;
 		RigidBody *ground_body= NULL;
+		RigidBody *body= get_rigidbody(p->body);
 
 		{ // Levitate box
 			V2d a= {
-				p->body->tf.pos.x,
-				p->body->tf.pos.y - box_lower_height - 0.02,
+				body->tf.pos.x,
+				body->tf.pos.y - box_lower_height - 0.02,
 			};
 			V2d b= {
-				p->body->tf.pos.x,
-				p->body->tf.pos.y - box_lower_height - leg_height,
+				body->tf.pos.x,
+				body->tf.pos.y - box_lower_height - leg_height,
 			};
 
 			PlayerChFirstHitResult result= {};
@@ -369,11 +370,11 @@ MOD_API void upd_playerch(PlayerCh *p, PlayerCh *e)
 					yforce = SIGN(yforce)*max_force;
 
 				// Damping
-				V2d vel= p->body->velocity;
+				V2d vel= body->velocity;
 				yforce -= vel.y*50.0;
 
 				V2d force= (V2d) {0, yforce};
-				apply_force(p->body, force);
+				apply_force(body, force);
 
 				if (ground_body)
 					apply_force_at(	ground_body,
@@ -387,9 +388,9 @@ MOD_API void upd_playerch(PlayerCh *p, PlayerCh *e)
 			V2d ground_vel= p->last_ground_velocity;
 			V2d target_vel= {
 				walking_speed*dir + ground_vel.x,
-				p->body->velocity.y + ground_vel.y
+				body->velocity.y + ground_vel.y
 			};
-			V2d force= apply_velocity_target(	p->body,
+			V2d force= apply_velocity_target(	body,
 												target_vel,
 												100.0);
 			if (ground_body)
@@ -403,30 +404,30 @@ MOD_API void upd_playerch(PlayerCh *p, PlayerCh *e)
 			p->time_from_jump= 0.0;
 
 			V2d vel_after_jump= {
-				p->body->velocity.x,
+				body->velocity.x,
 				p->last_ground_velocity.y + 11,
 			};
-			V2d vel_dif= sub_v2d(p->body->velocity, vel_after_jump);
-			rigidbody_set_velocity(p->body, vel_after_jump);
+			V2d vel_dif= sub_v2d(body->velocity, vel_after_jump);
+			rigidbody_set_velocity(body, vel_after_jump);
 
 			if (ground_body) // @todo fix ground_body is NULL if we have already detached
 				apply_impulse_at(	ground_body,
-									scaled_v2d(rigidbody_mass(p->body), vel_dif),
+									scaled_v2d(rigidbody_mass(body), vel_dif),
 									p->last_ground_contact_point);
 		}
 
 		if (p->on_ground_timer < 0.0) { // Air control
 			V2d target_vel= {
 				p->last_ground_velocity.x + dir*walking_speed*1.1,
-				p->body->velocity.y,
+				body->velocity.y,
 			};
-			apply_velocity_target(p->body, target_vel, dir ? 40 : 10);
+			apply_velocity_target(body, target_vel, dir ? 40 : 10);
 		}
 
-		p->tf.pos= add_v3d(p->body->tf.pos, (V3d) {0, 0.25, 0});
+		p->tf.pos= add_v3d(body->tf.pos, (V3d) {0, 0.25, 0});
 		p->tf.pos.y -= leg_space;
 
-		F64 dif_to_target_v= (dir*walking_speed - p->body->velocity.x)*0.2;
+		F64 dif_to_target_v= (dir*walking_speed - body->velocity.x)*0.2;
 		p->fake_dif= exp_drive(p->fake_dif, dif_to_target_v, dt*8);
 		p->fake_dif= CLAMP(p->fake_dif, -0.1, 0.1);
 		//p->tf.pos.x += p->fake_dif;
@@ -457,7 +458,7 @@ MOD_API void upd_playerch(PlayerCh *p, PlayerCh *e)
 			const F64 max_build_reach= 3.0;
 
 			PlayerChFirstHitResult result= {
-				.ignore_body= p->body,
+				.ignore_body= body,
 			};
 			const V2d start= v3d_to_v2d(p->tf.pos);
 			V2d end= cursor_on_world;
@@ -573,8 +574,9 @@ MOD_API void upd_playerch(PlayerCh *p, PlayerCh *e)
 	}
 }
 
-MOD_API void free_playerch(PlayerCh *p)
+MOD_API void free_playerch(Handle h, PlayerCh *p)
 {
+	// @todo Physics things to be "immediate mode" - then freeing is not needed
 	free_rigidbody(p->body);
 }
 

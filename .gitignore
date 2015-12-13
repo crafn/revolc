@@ -39,7 +39,7 @@ code/obj
 .*
 
 # Resources
-resources/gamedata
+resources
 
 # Generated
 gen_rtti.c

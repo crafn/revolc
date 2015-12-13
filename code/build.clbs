@@ -194,8 +194,8 @@ def buildInfo(env, tags):
 	only_something= only_revolc or only_clover or only_rts
 	build_deps= only_revolc or not only_something
 	build_revolc= only_revolc or not only_something
-	build_rts= only_rts or not only_something
-	build_clover= not build_rts and (only_clover or not only_something)
+	build_clover= only_clover or not only_something
+	build_rts= not build_clover and (only_rts or not only_something)
 
 	### Codegen ##
 

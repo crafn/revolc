@@ -2,6 +2,7 @@
 #define REVOLC_GLOBAL_ENV_H
 
 #include "build.h"
+#include "core/memory.h"
 
 struct AudioSystem;
 struct Editor;

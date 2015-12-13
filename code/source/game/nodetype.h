@@ -11,7 +11,7 @@ struct WArchive;
 struct RArchive;
 typedef void (*InitNodeImpl)(void *data);
 typedef Handle (*ResurrectNodeImpl)(void *dead);
-typedef void (*FreeNodeImpl)(Handle h);
+typedef void (*FreeNodeImpl)(Handle h, void *data);
 typedef void * (*StorageNodeImpl)();
 typedef void (*UpdNodeImpl)(void *begin,
 							void *end);

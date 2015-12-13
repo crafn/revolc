@@ -23,6 +23,9 @@ typedef U32 Handle;
 // Typically 4bn ids (unique) is not enough
 typedef U64 Id;
 
+// Usage HANDLE(Sprite) foo;
+#define HANDLE(type) U32
+
 typedef void (*VoidFunc)();
 
 #define U8_MAX 255
