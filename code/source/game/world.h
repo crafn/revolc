@@ -20,7 +20,8 @@ typedef struct SlotVal {
 
 // @todo Simplify:
 // - conditions -> bool enabled;
-typedef struct SlotCmd {
+typedef struct NodeCmd {
+	bool allocated;
 	CmdType type;
 
 	bool has_condition;
@@ -34,6 +35,7 @@ typedef struct SlotCmd {
 			U16 dst_offset;
 			U16 size;
 			U32 src_node;
+			U32 dst_node;
 		};
 		struct { // call
 			void *fptr;
@@ -43,16 +45,14 @@ typedef struct SlotCmd {
 		};
 	};
 
-} SlotCmd;
+} NodeCmd;
 
 typedef struct NodeInfo {
-	SlotCmd cmds[MAX_NODE_CMD_COUNT]; // @todo Cmds out of nodes, to a single array
 	char type_name[RES_NAME_SIZE];
 	NodeType *type; // @todo Resource id
 	Id node_id; // Unique id
 	Id group_id; // Entity id
 	Handle impl_handle; // e.g. Handle to ModelEntity
-	Handle cmd_count;
 	bool allocated; /// @todo Can be substituted by type ( == NULL)
 	bool remove;
 } NodeInfo;
@@ -76,6 +76,10 @@ typedef struct World {
 	Handle next_node;
 	U32 node_count;
 	Id next_node_id;
+
+	NodeCmd cmds[MAX_NODE_CMD_COUNT];
+	Handle next_cmd;
+	U32 cmd_count;
 
 	Id_Handle_Tbl id_to_handle;
 
@@ -109,6 +113,9 @@ REVOLC_API U32 node_impl_handle(World *w, U32 node_handle);
 
 REVOLC_API Id node_handle_to_id(World *w, Handle handle);
 REVOLC_API Handle node_id_to_handle(World *w, Id id);
+
+REVOLC_API U32 resurrect_cmd(World *w, NodeCmd cmd);
+REVOLC_API void free_cmd(World *w, U32 handle);
 
 // Not intended to be widely used
 REVOLC_API void * node_impl(World *w, U32 *size, NodeInfo *node);

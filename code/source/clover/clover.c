@@ -39,7 +39,7 @@ MOD_API void clover_worldgen(World *w)
 	spawn_visual_prop(w, (V3d) {400, -70, -350}, 0, (V3d) {200, 110, 1}, "bg_meadow");
 
 
-	for (int i = 0; i < 5; ++i) {
+	for (int i = 0; i < 1; ++i) {
 		V2d pos = {
 			random_f64(-30.0, 30.0, &seed),
 			0
@@ -72,7 +72,7 @@ MOD_API void clover_worldgen(World *w)
 	}
 
 	// Compound test
-	for (U32 i = 0; i < 5; ++i) {
+	for (U32 i = 0; i < 1; ++i) {
 		T3d tf = {(V3d) {1, 1, 1}, identity_qd(), {-3, 15, 0}};
 		SlotVal init_vals[] = {
 			{"body", "tf", WITH_DEREF_SIZEOF(&tf)},

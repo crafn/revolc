@@ -40,8 +40,6 @@ typedef struct NodeGroupDef_Cmd {
 			void *fptr; // Cached
 
 			U32 p_node_i[MAX_CMD_CALL_PARAMS];
-			//U32 p_offsets[MAX_CMD_CALL_PARAMS];
-			//U32 p_sizes[MAX_CMD_CALL_PARAMS];
 			U32 p_count;
 		};
 	};
