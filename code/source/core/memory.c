@@ -1,12 +1,6 @@
 #include "memory.h"
 
 internal
-U32 malloc_size(void *ptr)
-{
-	return _msize(ptr);
-}
-
-internal
 void *commit_uninit_mem(void *data, U32 size)
 { return memset(data, 0x95, size); }
 
@@ -34,7 +28,7 @@ void * alloc_impl(Ator *ator, U32 size, void *realloc_ptr, const char *tag, bool
 				}
 			} else {
 				if (realloc_ptr) {
-					U32 old_size = malloc_size(realloc_ptr);
+					U32 old_size = plat_malloc_size(realloc_ptr);
 					void *ptr = realloc(realloc_ptr, size);
 					if (old_size < size)
 						memset(ptr + old_size, 0, size - old_size);

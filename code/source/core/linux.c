@@ -1,19 +1,25 @@
 #include "core/math.h"
 #include "core/dll.h"
+#include "core/memory.h"
 
 // Prevent X11 header from typedeffing `Font`
 #define _XTYPEDEF_FONT
 
 #include <dlfcn.h>
+#include <errno.h>
 #include <GL/glx.h>
-#include <X11/X.h>
-#include <X11/Xlib.h>
 #include <time.h>
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <pmmintrin.h>
+#include <malloc.h>
+#include <X11/X.h>
+#include <X11/Xlib.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 
 typedef struct DevicePlatformData {
 	Display* dpy;
@@ -45,7 +51,7 @@ VoidFunc plat_query_gl_func_impl(const char *name)
 void plat_init_impl(Device* d, const char* title, V2i reso)
 {
 	d->win_size = reso;
-	d->impl = zero_malloc(sizeof(*d->impl));
+	d->impl = ZERO_ALLOC(gen_ator(), sizeof(*d->impl), "linux impl");
 	{
 		/// Original code from https://www.opengl.org/wiki/Tutorial:_OpenGL_3.0_Context_Creation_%28GLX%29
 		Display *display = XOpenDisplay(NULL);
@@ -233,7 +239,7 @@ void plat_update_impl(Device *d)
 	d->quit_requested = false;
 
 	while(XPending(d->impl->dpy)) {
-		XEvent xev;
+		XEvent xev = {0};
         XNextEvent(d->impl->dpy, &xev);
 
 		if (	xev.type == KeyPress ||
@@ -346,12 +352,12 @@ void plat_update_impl(Device *d)
 	d->dt = (new_us - old_us)/1000000.0;
 }
 
-void plat_sleep_impl(int ms)
+void plat_sleep(int ms)
 {
 	usleep(ms*1000);
 }
 
-void plat_flush_denormals_impl(bool enable)
+void plat_flush_denormals(bool enable)
 {
 	if (enable)
 		_mm_setcsr(_mm_getcsr() | (_MM_FLUSH_ZERO_ON | _MM_DENORMALS_ZERO_ON));
@@ -433,3 +439,92 @@ void plat_set_term_color(TermColor c)
 
 int v_fmt_str(char *str, U32 size, const char *fmt, va_list args)
 { return vsnprintf(str, size, fmt, args); }
+
+int socket_error()
+{ return errno; }
+
+#define INVALID_SOCKET 0
+
+Socket invalid_socket()
+{ return INVALID_SOCKET; }
+
+void close_socket(Socket *fd)
+{
+	close(*fd);
+	*fd = INVALID_SOCKET;
+}
+
+Socket open_udp_socket(U16 port)
+{
+	int fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	if (fd == INVALID_SOCKET)
+		fail("Error calling socket()");
+	// Set non-blocking
+	u_long iMode =1;
+	ioctl(fd, FIONBIO, &iMode);
+
+	// Set send and recv buffer sizes
+	int buf_size = UDP_KERNEL_BUFFER_SIZE;
+	if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, (char*)&buf_size, sizeof(buf_size)) < 0)
+		fail("Error calling setsockopt (send)");
+	if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, (char*)&buf_size, sizeof(buf_size)) < 0)
+		fail("Error calling setsockopt (recv)");
+
+	struct sockaddr_in servaddr;
+	memset(&servaddr, 0, sizeof(servaddr));
+	servaddr.sin_family      = AF_INET;
+	servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+	servaddr.sin_port        = htons(port);
+
+	if (bind(fd, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0 )
+		fail("Error calling bind()");
+	return fd;
+}
+
+U32 send_packet(Socket sock, IpAddress addr, const void *data, U32 size)
+{
+	struct sockaddr_in to;
+	to.sin_family = AF_INET;
+	to.sin_addr.s_addr = htonl(	(addr.a << 24) |
+								(addr.b << 16) |
+								(addr.c << 8) |
+								(addr.d << 0));
+	to.sin_port = htons(addr.port);
+	int bytes = sendto(	sock,
+						(const char *)data, size,
+						0,
+						(struct sockaddr*)&to, sizeof(struct sockaddr_in));
+	if (bytes < 0) {
+		int err = socket_error();
+		fail("sendto failed: %i, %i", bytes, err);
+	}
+	ensure(bytes >= 0);
+	return (U32)bytes;
+}
+
+U32 recv_packet(Socket sock, IpAddress *addr, void *dst, U32 dst_size)
+{
+	struct sockaddr_in from;
+	socklen_t from_size = sizeof(from);
+	int bytes = recvfrom(	sock,
+							dst, dst_size,
+							0,
+							(struct sockaddr*)&from, &from_size);
+	if (bytes < 0)
+	{
+		int err = socket_error();
+		if (err != EWOULDBLOCK && err != ECONNRESET)
+			fail("recvfrom failed: %i, %i", bytes, err);
+		bytes = 0;
+	}
+	U32 from_address = ntohl(from.sin_addr.s_addr); 
+	addr->a = (from_address & 0xFF000000) >> 24;
+	addr->b = (from_address & 0x00FF0000) >> 16;
+	addr->c = (from_address & 0x0000FF00) >> 8;
+	addr->d = (from_address & 0x000000FF) >> 0;
+	addr->port = ntohs(from.sin_port);
+	return (U32)bytes;
+}
+
+U32 plat_malloc_size(void *ptr)
+{ return malloc_usable_size(ptr); }

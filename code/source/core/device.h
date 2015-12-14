@@ -80,6 +80,7 @@ REVOLC_API void plat_quit(Device *d);
 REVOLC_API void plat_update(Device *d);
 REVOLC_API void plat_sleep(int ms);
 REVOLC_API void plat_flush_denormals(bool enable);
+REVOLC_API U32 plat_malloc_size(void *ptr);
 
 /// @return Mallocated null-terminated array of null-terminated, mallocated strings
 REVOLC_API char ** plat_find_paths_with_end(const char *path_to_dir, const char *end);

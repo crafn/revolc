@@ -52,7 +52,7 @@ typedef struct PhysGrid {
 
 struct WArchive;
 struct RArchive;
-void pack_physgrid(struct WArchive *ar, const PhysGrid *begin, const PhysGrid *end);
-void unpack_physgrid(struct RArchive *ar, PhysGrid *begin, PhysGrid *end);
+REVOLC_API void pack_physgrid(struct WArchive *ar, const PhysGrid *begin, const PhysGrid *end);
+REVOLC_API void unpack_physgrid(struct RArchive *ar, PhysGrid *begin, PhysGrid *end);
 
 #endif // REVOLC_PHYSICS_PHYSGRID_H

@@ -349,9 +349,7 @@ int v_fmt_str(char *str, U32 size, const char *fmt, va_list args)
 }
 
 int socket_error()
-{
-	return WSAGetLastError();
-}
+{ return WSAGetLastError(); }
 
 Socket invalid_socket()
 { return INVALID_SOCKET; }
@@ -403,7 +401,7 @@ U32 send_packet(Socket sock, IpAddress addr, const void *data, U32 size)
 						0,
 						(struct sockaddr*)&to, sizeof(struct sockaddr_in));
 	if (bytes < 0) {
-		int err = WSAGetLastError();
+		int err = socket_error();
 		fail("sendto failed: %i, %i", bytes, err);
 	}
 	ensure(bytes >= 0);
@@ -420,7 +418,7 @@ U32 recv_packet(Socket sock, IpAddress *addr, void *dst, U32 dst_size)
 							(struct sockaddr*)&from, &from_size);
 	if (bytes < 0)
 	{
-		int err = WSAGetLastError();
+		int err = socket_error();
 		if (err != WSAEWOULDBLOCK && err != WSAECONNRESET)
 			fail("recvfrom failed: %i, %i", bytes, err);
 		bytes = 0;
@@ -433,4 +431,7 @@ U32 recv_packet(Socket sock, IpAddress *addr, void *dst, U32 dst_size)
 	addr->port = ntohs(from.sin_port);
 	return (U32)bytes;
 }
+
+U32 plat_malloc_size(void *ptr)
+{ return _msize(ptr); }
 
