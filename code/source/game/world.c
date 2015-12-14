@@ -14,12 +14,15 @@ typedef struct DeadCmd {
 	char func_name[MAX_FUNC_NAME_SIZE];
 	Id cond_node_id;
 	Id src_node_id;
+	Id call_param_ids[MAX_CMD_CALL_PARAMS];
+	SlotCmd slot_cmd; // @todo This contains unnecessary stuff (handles, ptrs)
 } PACKED DeadCmd;
 typedef struct DeadNode {
 	char type_name[RES_NAME_SIZE];
 	Id node_id;
 	Id group_id;
 
+	// @todo Don't supply cmds if they haven't changed (which is like never)
 	DeadCmd *cmds; // frame-allocated
 	U16 cmd_count;
 
@@ -37,7 +40,11 @@ void load_deadnode(RArchive *ar, DeadNode *dead_node);
 internal
 void make_deadnode(DeadNode *dead_node, World *w, NodeInfo *node);
 internal
+void resurrect_deadnode_impl(World *w, U32 handle, const DeadNode *dead_node);
+internal
 void resurrect_deadnode(World *w, const DeadNode *dead_node);
+internal
+void free_node_impl(World *w, U32 handle);
 
 World * create_world()
 {
@@ -234,8 +241,8 @@ void upd_world(World *w, F64 dt)
 					break;
 					case 1: {
 						void * p1_impl =
-							node_impl(w, NULL, &w->sort_space[r->p_nodes[0]]);
-						U32 p1_size = w->sort_space[r->p_nodes[0]].type->size;
+							node_impl(w, NULL, &w->nodes[r->p_nodes[0]]);
+						U32 p1_size = w->nodes[r->p_nodes[0]].type->size;
 						((void (*)(void *, void *,
 								   void *, void *))r->fptr)(
 							dst_impl, dst_impl + dst_node->type->size,
@@ -243,11 +250,11 @@ void upd_world(World *w, F64 dt)
 					} break;
 					case 2: {
 						void * p1_impl =
-							node_impl(w, NULL, &w->sort_space[r->p_nodes[0]]);
-						U32 p1_size = w->sort_space[r->p_nodes[0]].type->size;
+							node_impl(w, NULL, &w->nodes[r->p_nodes[0]]);
+						U32 p1_size = w->nodes[r->p_nodes[0]].type->size;
 						void * p2_impl =
-							node_impl(w, NULL, &w->sort_space[r->p_nodes[1]]);
-						U32 p2_size = w->sort_space[r->p_nodes[1]].type->size;
+							node_impl(w, NULL, &w->nodes[r->p_nodes[1]]);
+						U32 p2_size = w->nodes[r->p_nodes[1]].type->size;
 						((void (*)(void *, void *,
 								   void *, void *,
 								   void *, void *))r->fptr)(
@@ -434,13 +441,16 @@ void load_world_delta(RArchive *ar, World *w, RArchive *base_ar)
 			resurrect_deadnode(w, &dead_delta);
 		} else if (dead_delta.destroyed) {
 			// Destroyed
+			debug_print("DESTROYED: %i", node_h);
 			free_node(w, node_h);
 		} else {
 			// Updated
 			// @todo Cmds etc.
 			// @todo Through custom logic for only required fields
-			free_node(w, node_h);
-			resurrect_deadnode(w, &dead_delta);
+
+			// Don't destroy the node, because that breaks cmds referring to that node
+			free_node_impl(w, node_h);
+			resurrect_deadnode_impl(w, node_h, &dead_delta);
 		}
 	}
 }
@@ -457,18 +467,24 @@ void make_deadnode(DeadNode *dead_node, World *w, NodeInfo *node)
 		ZERO_ALLOC(frame_ator(), dead_node->cmd_count*sizeof(*dead_node->cmds), "cmds");
 
 	for (U32 i = 0; i < node->cmd_count; ++i) {
-		const SlotCmd *cmd = &node->cmds[i];
-		if (cmd->has_condition)
-			dead_node->cmds[i].cond_node_id =
-				node_handle_to_id(w, cmd->cond_node_h);
-		if (cmd->type == CmdType_call) {
+		SlotCmd cmd = node->cmds[i];
+
+		if (cmd.has_condition)
+			dead_node->cmds[i].cond_node_id = node_handle_to_id(w, cmd.cond_node_h);
+		if (cmd.type == CmdType_call) {
 			fmt_str(dead_node->cmds[i].func_name,
 					sizeof(dead_node->cmds[i].func_name),
-					"%s", rtti_sym_name(cmd->fptr));
-		} else if (cmd->type == CmdType_memcpy)  {
-			dead_node->cmds[i].src_node_id =
-				node_handle_to_id(w, cmd->src_node);
+					"%s", rtti_sym_name(cmd.fptr));
+			for (U32 k = 0; k < cmd.p_node_count; ++k)
+				dead_node->cmds[i].call_param_ids[k] = node_handle_to_id(w, cmd.p_nodes[k]);
+		} else if (cmd.type == CmdType_memcpy)  {
+			dead_node->cmds[i].src_node_id = node_handle_to_id(w, cmd.src_node);
 		}
+
+		// Reset local things for safety (can't reset union stuff, overwrites info which needs to be transmitted)
+		cmd.cond_node_h = NULL_HANDLE;
+
+		dead_node->cmds[i].slot_cmd = cmd;
 	}
 
 	NodeType *node_type = (NodeType*)res_by_name(
@@ -491,32 +507,32 @@ void make_deadnode(DeadNode *dead_node, World *w, NodeInfo *node)
 	}
 }
 
-void resurrect_deadnode(World *w, const DeadNode *dead_node)
+void resurrect_deadnode_impl(World *w, U32 node_h, const DeadNode *dead_node)
 {
-	U32 node_h = alloc_node_without_impl(
-			w,
-			(NodeType*)res_by_name(
-				g_env.resblob,
-				ResType_NodeType,
-				dead_node->type_name),
-			dead_node->node_id,
-			dead_node->group_id);
-
 	NodeInfo *n = &w->nodes[node_h];
 	n->cmd_count = dead_node->cmd_count;
 	n->node_id = dead_node->node_id;
 	n->group_id = dead_node->group_id;
 
-	debug_print("deserializing %s", dead_node->type_name);
+	debug_print("deserializing %s, %i cmds", dead_node->type_name, dead_node->cmd_count);
 
-	// @todo Cmd handles should be assigned after every node has been spawned
+	// @todo Cmd handles should be assigned after every new node has been assigned an id (circular refs)
 	for (U32 i = 0; i < n->cmd_count; ++i) {
+		// First copy whole cmd
+		n->cmds[i] = dead_node->cmds[i].slot_cmd;
+
+		// Then overwrite local things (like ptrs)
 		if (n->cmds[i].has_condition)
 			n->cmds[i].cond_node_h =
 				node_id_to_handle(w, dead_node->cmds[i].cond_node_id);
 		if (n->cmds[i].type == CmdType_call) {
 			n->cmds[i].fptr =
 				rtti_func_ptr(dead_node->cmds[i].func_name);
+			ensure(n->cmds[i].fptr != NULL);
+			for (U32 k = 0; k < n->cmds[i].p_node_count; ++k) {
+				n->cmds[i].p_nodes[k] = node_id_to_handle(w, dead_node->cmds[i].call_param_ids[k]);
+				ensure(n->cmds[i].p_nodes[k] != NULL_HANDLE);
+			}
 		} else if (n->cmds[i].type == CmdType_memcpy) {
 			n->cmds[i].src_node =
 				node_id_to_handle(w, dead_node->cmds[i].src_node_id);
@@ -545,9 +561,23 @@ void resurrect_deadnode(World *w, const DeadNode *dead_node)
 		// @todo Default values from node def and group def
 		if (node_type->init)
 			node_type->init(dead_impl);
-		ensure(w->nodes[n->cmds[0].src_node].allocated);
+		//ensure(w->nodes[n->cmds[0].src_node].allocated);
 		resurrect_node_impl(w, n, dead_impl);
 	}
+}
+
+void resurrect_deadnode(World *w, const DeadNode *dead_node)
+{
+	U32 node_h = alloc_node_without_impl(
+			w,
+			(NodeType*)res_by_name(
+				g_env.resblob,
+				ResType_NodeType,
+				dead_node->type_name),
+			dead_node->node_id,
+			dead_node->group_id);
+
+	resurrect_deadnode_impl(w, node_h, dead_node);
 }
 
 void save_deadnode(WArchive *ar, const DeadNode *dead_node)
@@ -599,7 +629,7 @@ void create_nodes(	World *w,
 							group_id);
 		handles[node_i] = h;
 		NodeInfo *node = &w->nodes[h];
-		
+
 		ensure(node_def->default_struct_size > 0);
 
 		U8 *default_struct = ZERO_ALLOC(frame_ator(), node_def->default_struct_size, "default_struct");
@@ -697,14 +727,9 @@ void create_nodes(	World *w,
 	}
 }
 
-void free_node(World *w, U32 handle)
+void free_node_impl(World *w, U32 handle)
 {
-	ensure(handle < MAX_NODE_COUNT);
 	NodeInfo *n = &w->nodes[handle];
-	ensure(n->allocated);
-
-	set_tbl(Id, Handle)(&w->id_to_handle, n->node_id, NULL_HANDLE);
-
 	U32 impl_handle = n->impl_handle;
 	if (n->type->auto_impl_mgmt) {
 		if (n->type->free)
@@ -714,10 +739,22 @@ void free_node(World *w, U32 handle)
 		AutoNodeImplStorage *st = &w->auto_storages[n->type->auto_storage_handle];
 		ensure(impl_handle < st->max_count);
 		st->allocated[impl_handle] = false;
+		--st->count;
 	} else {
 		if (n->type->free)
 			n->type->free(impl_handle, node_impl(w, NULL, n));
 	}
+}
+
+void free_node(World *w, U32 handle)
+{
+	ensure(handle < MAX_NODE_COUNT);
+	NodeInfo *n = &w->nodes[handle];
+	ensure(n->allocated);
+
+	set_tbl(Id, Handle)(&w->id_to_handle, n->node_id, NULL_HANDLE);
+
+	free_node_impl(w, handle);
 
 	--w->node_count;
 	*n = (NodeInfo) { .allocated = false };
@@ -773,6 +810,9 @@ Handle node_id_to_handle(World *w, Id id)
 
 void * node_impl(World *w, U32 *size, NodeInfo *node)
 {
+	ensure(node->allocated);
+	ensure(node->type);
+
 	if (size)
 		*size = node->type->size;
 

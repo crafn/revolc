@@ -7,7 +7,7 @@
 
 // Animation clip being played
 typedef struct ClipInst {
-	// @todo Use some hash instead
+	// @todo Use ResId instead
 	char clip_name[RES_NAME_SIZE];
 
 	JointPoseArray pose; // Interpolated straight from Clip

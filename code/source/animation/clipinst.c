@@ -24,7 +24,7 @@ void upd_clipinst(ClipInst *inst, ClipInst *e)
 			(Clip*)res_by_name(g_env.resblob, ResType_Clip, inst->clip_name);
 
 		inst->t += dt;
-		while(inst->t > c->duration)
+		while (inst->t > c->duration)
 			inst->t -= c->duration;
 
 		inst->pose = calc_clip_pose(c, inst->t);

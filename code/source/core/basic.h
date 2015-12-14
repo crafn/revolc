@@ -54,6 +54,7 @@ typedef void (*VoidFunc)();
 #	error Unknown platform bitness
 #endif
 
+// @todo CAPS
 #define internal static
 #define local_persist static
 

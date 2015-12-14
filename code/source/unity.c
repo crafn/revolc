@@ -23,6 +23,7 @@
 #include "editor/mesh_editor.c"
 #include "editor/editor_util.c"
 #include "game/aitest.c"
+#include "game/net.c"
 #include "game/nodegroupdef.c"
 #include "game/nodetype.c"
 #include "game/world.c"

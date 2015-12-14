@@ -1,0 +1,73 @@
+#ifndef REVOLC_GAME_NET_H
+#define REVOLC_GAME_NET_H
+
+#include "build.h"
+#include "core/basic.h"
+#include "core/array.h"
+#include "core/udp.h"
+
+// World snapshot to which deltas are relative
+typedef struct WorldBaseState {
+	U32 seq;
+	U8 *data ALIGNED(MAX_ALIGNMENT);
+	U32 size;
+	U32 capacity;
+} WorldBaseState;
+
+DECLARE_ARRAY(WorldBaseState)
+
+// Client/server state
+typedef struct NetState {
+	UdpPeer *peer;
+	bool authority; // Do we have authority over the game world
+	F64 game_time; // Same at client and server
+	F64 delta_interval;
+
+	F64 world_upd_time; // Send/recv time
+	F64 stats_timer;
+	U32 world_seq; // Incremented at every delta
+	Array(WorldBaseState) bases;
+	U32 cur_base_ix;
+} NetState;
+
+REVOLC_API NetState *create_netstate(	bool authority, F64 delta_interval,
+										U32 state_history_count, U32 state_max_size,
+										U16 local_port, IpAddress *remote_addr);
+REVOLC_API void destroy_netstate(NetState *net);
+REVOLC_API void upd_netstate(NetState *net);
+
+// Messaging
+
+typedef enum NetMsg {
+	NetMsg_chat = 1,
+	NetMsg_base,
+	NetMsg_delta,
+	// Debug
+	NetMsg_brush_action,
+	NetMsg_spawn_action,
+} NetMsg;
+
+typedef struct NetMsgHeader {
+	NetMsg type;
+	//F64 time; // Game time
+} PACKED NetMsgHeader;
+
+typedef struct BrushAction { // @todo Range and precision "attributes"
+	V2d pos;
+	F64 size;
+	U8 material;
+} BrushAction;
+
+typedef struct SpawnAction {
+	char name[RES_NAME_SIZE];
+	V2d pos;
+} SpawnAction;
+
+
+REVOLC_API void send_net_msg(NetMsg type, void *data, U32 data_size);
+REVOLC_API void local_brush_action(BrushAction *action);
+REVOLC_API void brush_action(BrushAction *action);
+REVOLC_API void local_spawn_action(SpawnAction *action);
+REVOLC_API void spawn_action(SpawnAction *action);
+
+#endif

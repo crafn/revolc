@@ -130,7 +130,9 @@ int json_nodetype_to_blob(struct BlobBuf *buf, JsonTok j)
 			n.storage_func_name, sizeof(n.storage_func_name), "%s", json_str(j_storage));
 	}
 
-	if (!json_is_null(j_packsync)) {
+	if (json_is_null(j_packsync)) {
+		n.packsync = PackSync_full;
+	} else {
 		const char *net = json_str(j_packsync);
 		if (!strcmp(net, "presence")) {
 			n.packsync = PackSync_presence;

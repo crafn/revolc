@@ -10,6 +10,7 @@ struct Device;
 struct PhysWorld;
 struct ResBlob;
 struct Renderer;
+struct NetState;
 struct UiContext;
 struct World;
 
@@ -22,6 +23,7 @@ typedef struct Env {
 	struct PhysWorld *physworld;
 	struct Renderer *renderer;
 	struct ResBlob *resblob;
+	struct NetState *netstate;
 	struct UiContext *uicontext;
 	struct World *world;
 

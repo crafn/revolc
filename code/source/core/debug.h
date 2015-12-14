@@ -7,7 +7,7 @@ REVOLC_API void debug_print(const char *format, ...);
 REVOLC_API void critical_print(const char *format, ...);
 
 // @todo release/debug ensure
-// @todo CAPS
+// @todo ensure -> ASSERT
 #define ensure(x) \
 	do { if (!(x)) fail("ensure failed (%s: %i): %s", __FILE__, __LINE__, #x); } while(0)
 

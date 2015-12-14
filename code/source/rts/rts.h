@@ -13,6 +13,8 @@
 
 DECLARE_SPARSETABLE(Selection);
 
+// @todo Replace net code with almost identical code in game/net.h
+
 typedef struct WorldBaseState {
 	U32 seq;
 	U8 data[RTS_BASE_SIZE] ALIGNED(MAX_ALIGNMENT);

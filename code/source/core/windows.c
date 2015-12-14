@@ -68,7 +68,7 @@ void plat_init_impl(Device* d, const char* title, V2i reso)
 			wc.lpszClassName,
 			title,
 			WS_OVERLAPPEDWINDOW|WS_VISIBLE,
-			0, 0, reso.x, reso.y, 0, 0, wc.hInstance, 0);
+			CW_USEDEFAULT, CW_USEDEFAULT, reso.x, reso.y, 0, 0, wc.hInstance, 0);
 
 		// Create OpenGL context
 		PIXELFORMATDESCRIPTOR pfd = {

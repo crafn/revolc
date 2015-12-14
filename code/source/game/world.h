@@ -18,13 +18,15 @@ typedef struct SlotVal {
 	U32 size;
 } SlotVal;
 
+// @todo Simplify:
+// - conditions -> bool enabled;
 typedef struct SlotCmd {
 	CmdType type;
 
 	bool has_condition;
 	U32 cond_node_h;
-	U32 cond_offset;
-	U32 cond_size;
+	U16 cond_offset;
+	U16 cond_size;
 
 	union {
 		struct { // memcpy
@@ -44,7 +46,7 @@ typedef struct SlotCmd {
 } SlotCmd;
 
 typedef struct NodeInfo {
-	SlotCmd cmds[MAX_NODE_CMD_COUNT];
+	SlotCmd cmds[MAX_NODE_CMD_COUNT]; // @todo Cmds out of nodes, to a single array
 	char type_name[RES_NAME_SIZE];
 	NodeType *type; // @todo Resource id
 	Id node_id; // Unique id
