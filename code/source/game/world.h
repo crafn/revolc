@@ -23,6 +23,7 @@ typedef struct SlotVal {
 typedef struct NodeCmd {
 	bool allocated;
 	CmdType type;
+	Id cmd_id;
 
 	bool has_condition;
 	U32 cond_node_h;
@@ -80,8 +81,10 @@ typedef struct World {
 	NodeCmd cmds[MAX_NODE_CMD_COUNT];
 	Handle next_cmd;
 	U32 cmd_count;
+	Id next_cmd_id;
 
-	Id_Handle_Tbl id_to_handle;
+	Id_Handle_Tbl node_id_to_handle;
+	Id_Handle_Tbl cmd_id_to_handle;
 
 	// Storages for node types specified with auto_impl_mgmt
 	AutoNodeImplStorage *auto_storages;
@@ -113,6 +116,9 @@ REVOLC_API U32 node_impl_handle(World *w, U32 node_handle);
 
 REVOLC_API Id node_handle_to_id(World *w, Handle handle);
 REVOLC_API Handle node_id_to_handle(World *w, Id id);
+
+REVOLC_API Id cmd_handle_to_id(World *w, Handle handle);
+REVOLC_API Handle cmd_id_to_handle(World *w, Id id);
 
 REVOLC_API U32 resurrect_cmd(World *w, NodeCmd cmd);
 REVOLC_API void free_cmd(World *w, U32 handle);

@@ -7,11 +7,13 @@
 typedef struct SaveHeader {
 	U16 version;
 	U32 node_count;
+	U32 cmd_count;
 	bool delta;
 } PACKED SaveHeader;
 
 typedef struct DeadCmd {
 	CmdType type;
+	Id cmd_id;
 
 	bool has_condition;
 	Id cond_node_id;
@@ -29,10 +31,14 @@ typedef struct DeadCmd {
 		struct { // call
 			char func_name[MAX_FUNC_NAME_SIZE];
 
-			Id call_param_ids[MAX_CMD_CALL_PARAMS];
+			Id p_node_ids[MAX_CMD_CALL_PARAMS];
 			U16 p_node_count;
 		};
 	};
+
+	// Used on delta
+	bool created;
+	bool destroyed;
 } PACKED DeadCmd;
 
 typedef struct DeadNode {
@@ -43,22 +49,22 @@ typedef struct DeadNode {
 	void *packed_impl; // frame-allocated
 	U32 packed_impl_size;
 
+	// Used on delta
 	bool destroyed;
 } PACKED DeadNode;
 
-internal
-void save_deadnode(WArchive *ar, const DeadNode *n);
-internal
-void load_deadnode(RArchive *ar, DeadNode *dead_node);
+internal void make_deadnode(DeadNode *dead_node, World *w, NodeInfo *node);
+internal void resurrect_deadnode_impl(World *w, U32 handle, const DeadNode *dead_node);
+internal void resurrect_deadnode(World *w, const DeadNode *dead_node);
+internal void save_deadnode(WArchive *ar, const DeadNode *n);
+internal void load_deadnode(RArchive *ar, DeadNode *dead_node);
 
-internal
-void make_deadnode(DeadNode *dead_node, World *w, NodeInfo *node);
-internal
-void resurrect_deadnode_impl(World *w, U32 handle, const DeadNode *dead_node);
-internal
-void resurrect_deadnode(World *w, const DeadNode *dead_node);
-internal
-void free_node_impl(World *w, U32 handle);
+internal void make_deadcmd(DeadCmd *dead_cmd, World *w, NodeCmd *cmd);
+internal void resurrect_deadcmd(World *w, const DeadCmd *dead_cmd);
+internal void save_deadcmd(WArchive *ar, const DeadCmd *dead_cmd);
+internal void load_deadcmd(RArchive *ar, DeadCmd *dead_cmd);
+
+internal void free_node_impl(World *w, U32 handle);
 
 World * create_world()
 {
@@ -106,9 +112,10 @@ World * create_world()
 		type->auto_storage_handle = st_i++;
 	}
 
-	w->id_to_handle = create_tbl(Id, Handle)(NULL_ID, NULL_HANDLE, gen_ator(), MAX_NODE_COUNT);
+	w->node_id_to_handle = create_tbl(Id, Handle)(NULL_ID, NULL_HANDLE, gen_ator(), MAX_NODE_COUNT);
+	w->cmd_id_to_handle = create_tbl(Id, Handle)(NULL_ID, NULL_HANDLE, gen_ator(), MAX_NODE_CMD_COUNT);
 
-	{ // Builtin engine nodes
+	if (!g_env.netstate || g_env.netstate->authority) { // Builtin engine nodes
 		SlotVal init_vals[] = {};
 		NodeGroupDef *def =
 			(NodeGroupDef*)res_by_name(	g_env.resblob,
@@ -134,7 +141,8 @@ void destroy_world(World *w)
 	}
 	FREE(gen_ator(), w->auto_storages);
 
-	destroy_tbl(Id, Handle)(&w->id_to_handle);
+	destroy_tbl(Id, Handle)(&w->node_id_to_handle);
+	destroy_tbl(Id, Handle)(&w->cmd_id_to_handle);
 	FREE(gen_ator(), w);
 }
 
@@ -307,13 +315,13 @@ void save_world(WArchive *ar, World *w)
 {
 	SaveHeader header = {
 		.node_count = 0, // Patch afterwards
+		.cmd_count = 0,
 		.delta = false,
 	};
 
 	U32 header_offset = ar->data_size;
 	pack_buf(ar, &header, sizeof(header));
 
-	U32 saved_node_count = 0;
 	for (U32 node_i = 0; node_i < MAX_NODE_COUNT; ++node_i) {
 		NodeInfo *node = &w->nodes[node_i];
 		if (!node->allocated)
@@ -321,16 +329,24 @@ void save_world(WArchive *ar, World *w)
 
 		DeadNode dead_node;
 		make_deadnode(&dead_node, w, node);
-
 		save_deadnode(ar, &dead_node);
-
-		++saved_node_count;
+		++header.node_count;
 	}
 
-	header.node_count = saved_node_count;
+	for (U32 cmd_i = 0; cmd_i < MAX_NODE_CMD_COUNT; ++cmd_i) {
+		NodeCmd *cmd = &w->cmds[cmd_i];
+		if (!cmd->allocated)
+			continue;
+
+		DeadCmd dead_cmd;
+		make_deadcmd(&dead_cmd, w, cmd);
+		save_deadcmd(ar, &dead_cmd);
+		++header.cmd_count;
+	}
+
 	pack_buf_patch(ar, header_offset, &header, sizeof(header));
 
-	debug_print("save_world: saved node count: %i", saved_node_count);
+	debug_print("save_world: nodes: %i, cmds: %i", header.node_count, header.cmd_count);
 }
 
 void load_world(RArchive *ar, World *w)
@@ -348,15 +364,22 @@ void load_world(RArchive *ar, World *w)
 	U32 node_count = 0;
 	for (U32 node_i = 0; node_i < header.node_count;
 			++node_i, w->next_node = (w->next_node + 1) % MAX_NODE_COUNT) {
-		// New NodeInfo from binary
 		DeadNode dead_node;
 		load_deadnode(ar, &dead_node);
 		resurrect_deadnode(w, &dead_node);
-
 		++node_count;
 	}
-
 	ensure(node_count == w->node_count);
+
+	U32 cmd_count = 0;
+	for (U32 cmd_i = 0; cmd_i < header.cmd_count;
+			++cmd_i, w->next_cmd = (w->next_cmd + 1) % MAX_NODE_CMD_COUNT) {
+		DeadCmd dead_cmd;
+		load_deadcmd(ar, &dead_cmd);
+		resurrect_deadcmd(w, &dead_cmd);
+		++cmd_count;
+	}
+	ensure(cmd_count == w->cmd_count);
 }
 
 void save_world_delta(WArchive *ar, World *w, RArchive *base_ar)
@@ -369,16 +392,16 @@ void save_world_delta(WArchive *ar, World *w, RArchive *base_ar)
 	U32 header_offset = ar->data_size;
 	pack_buf(ar, &header, sizeof(header)); // Patch later
 
+	//
+	// Nodes
+	//
+
 	// Used to detect which nodes have been created
-	Id *handle_to_id = ALLOC(	frame_ator(),
-								sizeof(*handle_to_id)*MAX_NODE_COUNT,
-								"handle_to_id");
-	for (U32 i = 0; i < MAX_NODE_COUNT; ++i) {
-		if (w->nodes[i].allocated)
-			handle_to_id[i] = w->nodes[i].node_id;
-		else
-			handle_to_id[i] = NULL_ID;
-	}
+	Id *processed_nodes = ALLOC(	frame_ator(),
+									sizeof(*processed_nodes)*MAX_NODE_COUNT,
+									"processed_nodes");
+	for (U32 i = 0; i < MAX_NODE_COUNT; ++i)
+		processed_nodes[i] = !w->nodes[i].allocated;
 
 	// Go through base state and write deleted/modified nodes
 	for (U32 node_i = 0; node_i < base_header.node_count; ++node_i) {
@@ -387,7 +410,7 @@ void save_world_delta(WArchive *ar, World *w, RArchive *base_ar)
 		load_deadnode(base_ar, &dead_base);
 
 		// Find node from world
-		Handle node_h = get_tbl(Id, Handle)(&w->id_to_handle, dead_base.node_id);
+		Handle node_h = node_id_to_handle(w, dead_base.node_id);
 
 		if (node_h == NULL_HANDLE) {
 			// Node destroyed
@@ -395,7 +418,7 @@ void save_world_delta(WArchive *ar, World *w, RArchive *base_ar)
 			dead_node.destroyed = true;
 			save_deadnode(ar, &dead_node);
 		} else {
-			handle_to_id[node_h] = NULL_ID;
+			processed_nodes[node_h] = true;
 			NodeInfo delta_node = w->nodes[node_h];
 
 			DeadNode dead_delta;
@@ -421,7 +444,7 @@ void save_world_delta(WArchive *ar, World *w, RArchive *base_ar)
 
 	// Go through remaining handles (which are the created nodes)
 	for (U32 i = 0; i < MAX_NODE_COUNT; ++i) {
-		if (handle_to_id[i] == NULL_ID)
+		if (processed_nodes[i])
 			continue;
 
 		NodeInfo *created_node = &w->nodes[i];
@@ -430,8 +453,54 @@ void save_world_delta(WArchive *ar, World *w, RArchive *base_ar)
 		make_deadnode(&dead, w, created_node);
 		save_deadnode(ar, &dead);
 		debug_print("delta created node: %s", w->nodes[i].type->res.name);
-
 		++header.node_count;
+	}
+
+	//
+	// Cmds
+	//
+
+
+	// Used to detect which cmds have been created
+	Id *processed_cmds = ALLOC(	frame_ator(),
+								sizeof(*processed_cmds)*MAX_NODE_CMD_COUNT,
+								"processed_cmds");
+	for (U32 i = 0; i < MAX_NODE_CMD_COUNT; ++i)
+		processed_cmds[i] = !w->cmds[i].allocated;
+
+	// Go through base state and write deleted cmds
+	for (U32 cmd_i = 0; cmd_i < base_header.cmd_count; ++cmd_i) {
+		DeadCmd dead_base;
+		load_deadcmd(base_ar, &dead_base);
+
+		Handle cmd_h = cmd_id_to_handle(w, dead_base.cmd_id);
+		if (cmd_h == NULL_HANDLE) {
+			// Cmd destroyed
+			DeadCmd dead_cmd = dead_base;
+			dead_cmd.destroyed = true;
+			save_deadcmd(ar, &dead_cmd);
+			++header.cmd_count;
+			debug_print("cmd destroyed");
+		} else {
+			// Cmd still alive
+			processed_cmds[cmd_h] = true;
+		}
+	}
+
+	// Go through remaining handles (which are the created cmds)
+	for (U32 i = 0; i < MAX_NODE_CMD_COUNT; ++i) {
+		if (processed_cmds[i])
+			continue;
+
+		NodeCmd *created_cmd = &w->cmds[i];
+
+		DeadCmd dead;
+		make_deadcmd(&dead, w, created_cmd);
+		dead.created = true;
+		save_deadcmd(ar, &dead);
+		++header.cmd_count;
+		debug_print("delta created cmd");
+		fail("");
 	}
 
 	pack_buf_patch(ar, header_offset, &header, sizeof(header));
@@ -454,23 +523,36 @@ void load_world_delta(RArchive *ar, World *w, RArchive *base_ar)
 		load_deadnode(ar, &dead_delta);
 
 		// Find node from world
-		Handle node_h = get_tbl(Id, Handle)(&w->id_to_handle, dead_delta.node_id);
+		Handle node_h = node_id_to_handle(w, dead_delta.node_id);
 		if (node_h == NULL_HANDLE) {
 			// Created
 			ensure(dead_delta.destroyed == false);
 			resurrect_deadnode(w, &dead_delta);
 		} else if (dead_delta.destroyed) {
 			// Destroyed
-			debug_print("DESTROYED: %i", node_h);
 			free_node(w, node_h);
 		} else {
 			// Updated
-			// @todo Cmds etc.
 			// @todo Through custom logic for only required fields
-
 			// Don't destroy the node, because that breaks cmds referring to that node
 			free_node_impl(w, node_h);
 			resurrect_deadnode_impl(w, node_h, &dead_delta);
+		}
+	}
+
+	for (U32 cmd_i = 0; cmd_i < delta_header.cmd_count; ++cmd_i) {
+		DeadCmd dead_delta;
+		load_deadcmd(ar, &dead_delta);
+
+		if (dead_delta.created) {
+			resurrect_deadcmd(w, &dead_delta);
+			fail("");
+		} else if (dead_delta.destroyed) {
+			Handle cmd_h = cmd_id_to_handle(w, dead_delta.cmd_id);
+			if (cmd_h != NULL_HANDLE) // Cmd can be destroyed with node, so NULL_HANDLE is ok
+				free_cmd(w, cmd_h);
+		} else {
+			fail("Corrupted cmd delta");
 		}
 	}
 }
@@ -482,31 +564,6 @@ void make_deadnode(DeadNode *dead_node, World *w, NodeInfo *node)
 		.group_id = node->group_id,
 	};
 	fmt_str(dead_node->type_name, sizeof(dead_node->type_name), "%s", node->type_name);
-
-/*
-	dead_node->cmds =
-		ZERO_ALLOC(frame_ator(), dead_node->cmd_count*sizeof(*dead_node->cmds), "cmds");
-	for (U32 i = 0; i < node->cmd_count; ++i) {
-		SlotCmd cmd = node->cmds[i];
-
-		if (cmd.has_condition)
-			dead_node->cmds[i].cond_node_id = node_handle_to_id(w, cmd.cond_node_h);
-		if (cmd.type == CmdType_call) {
-			fmt_str(dead_node->cmds[i].func_name,
-					sizeof(dead_node->cmds[i].func_name),
-					"%s", rtti_sym_name(cmd.fptr));
-			for (U32 k = 0; k < cmd.p_node_count; ++k)
-				dead_node->cmds[i].call_param_ids[k] = node_handle_to_id(w, cmd.p_nodes[k]);
-		} else if (cmd.type == CmdType_memcpy)  {
-			dead_node->cmds[i].src_node_id = node_handle_to_id(w, cmd.src_node);
-		}
-
-		// Reset local things for safety (can't reset union stuff, overwrites info which needs to be transmitted)
-		cmd.cond_node_h = NULL_HANDLE;
-
-		dead_node->cmds[i].slot_cmd = cmd;
-	}
-*/
 
 	NodeType *node_type = (NodeType*)res_by_name(
 							g_env.resblob,
@@ -535,35 +592,6 @@ void resurrect_deadnode_impl(World *w, U32 node_h, const DeadNode *dead_node)
 	n->group_id = dead_node->group_id;
 
 	debug_print("resurrect_deadnode_impl %s, h %i, id %i", dead_node->type_name, node_h, n->node_id);
-
-	// @todo Cmd handles should be assigned after every new node has been assigned an id (circular refs)
-#if 0
-	for (U32 i = 0; i < n->cmd_count; ++i) {
-		// First copy whole cmd
-		n->cmds[i] = dead_node->cmds[i].slot_cmd;
-
-		// Then overwrite local things (like ptrs)
-		if (n->cmds[i].has_condition)
-			n->cmds[i].cond_node_h =
-				node_id_to_handle(w, dead_node->cmds[i].cond_node_id);
-		if (n->cmds[i].type == CmdType_call) {
-			n->cmds[i].fptr =
-				rtti_func_ptr(dead_node->cmds[i].func_name);
-			ensure(n->cmds[i].fptr != NULL);
-			for (U32 k = 0; k < n->cmds[i].p_node_count; ++k) {
-				n->cmds[i].p_nodes[k] = node_id_to_handle(w, dead_node->cmds[i].call_param_ids[k]);
-				if (n->cmds[i].p_nodes[k] == NULL_HANDLE) {
-					fail("Not found: id: %i", dead_node->cmds[i].call_param_ids[k]);
-				}
-			}
-		} else if (n->cmds[i].type == CmdType_memcpy) {
-			n->cmds[i].src_node =
-				node_id_to_handle(w, dead_node->cmds[i].src_node_id);
-			ensure(n->cmds[i].src_node != NULL_HANDLE);
-			ensure(w->nodes[n->cmds[i].src_node].allocated);
-		}
-	}
-#endif
 
 	NodeType *node_type = (NodeType*)res_by_name(
 							g_env.resblob,
@@ -610,9 +638,6 @@ void save_deadnode(WArchive *ar, const DeadNode *dead_node)
 	if (dead_node->destroyed)
 		return;
 
-#if 0
-	pack_buf(ar, dead_node->cmds, dead_node->cmd_count*sizeof(*dead_node->cmds));
-#endif
 	if (dead_node->packed_impl_size > 0)
 		pack_buf(ar, dead_node->packed_impl, dead_node->packed_impl_size);
 }
@@ -623,12 +648,6 @@ void load_deadnode(RArchive *ar, DeadNode *dead_node)
 	if (dead_node->destroyed)
 		return;
 
-#if 0
-	const U32 cmds_size = dead_node->cmd_count*sizeof(*dead_node->cmds);
-	dead_node->cmds = ALLOC(frame_ator(), cmds_size, "packed_impl");
-	unpack_buf(ar, dead_node->cmds, cmds_size);
-#endif
-
 	if (dead_node->packed_impl_size > 0) {
 		// New Node implementation from binary
 		dead_node->packed_impl =
@@ -637,11 +656,88 @@ void load_deadnode(RArchive *ar, DeadNode *dead_node)
 	}
 }
 
+void make_deadcmd(DeadCmd *dead_cmd, World *w, NodeCmd *cmd)
+{
+	*dead_cmd = (DeadCmd) {
+		.type = cmd->type,
+		.cmd_id = cmd->cmd_id,
+	};
+
+	if (cmd->has_condition) {
+		dead_cmd->has_condition = true;
+		dead_cmd->cond_node_id = node_handle_to_id(w, cmd->cond_node_h);
+		dead_cmd->cond_offset = cmd->cond_offset;
+		dead_cmd->cond_size = cmd->cond_size;
+	}
+
+	if (cmd->type == CmdType_memcpy)  {
+		dead_cmd->src_node_id = node_handle_to_id(w, cmd->src_node);
+		dead_cmd->dst_node_id = node_handle_to_id(w, cmd->dst_node);
+		dead_cmd->src_offset = cmd->src_offset;
+		dead_cmd->dst_offset = cmd->dst_offset;
+		dead_cmd->size = cmd->size;
+	} else if (cmd->type == CmdType_call) {
+		fmt_str(dead_cmd->func_name,
+				sizeof(dead_cmd->func_name),
+				"%s", rtti_sym_name(cmd->fptr));
+		for (U32 k = 0; k < cmd->p_node_count; ++k)
+			dead_cmd->p_node_ids[k] = node_handle_to_id(w, cmd->p_nodes[k]);
+		dead_cmd->p_node_count = cmd->p_node_count;
+	}
+}
+
+void resurrect_deadcmd(World *w, const DeadCmd *dead_cmd)
+{
+	NodeCmd cmd = {
+		.type = dead_cmd->type,
+		.cmd_id = dead_cmd->cmd_id,
+	};
+
+	cmd.has_condition = dead_cmd->has_condition;
+	if (dead_cmd->has_condition) {
+		cmd.cond_node_h = node_id_to_handle(w, dead_cmd->cond_node_id);
+		cmd.cond_offset = dead_cmd->cond_offset;
+		cmd.cond_size = dead_cmd->cond_size;
+	}
+
+	if (dead_cmd->type == CmdType_memcpy) {
+		cmd.src_node = node_id_to_handle(w, dead_cmd->src_node_id);
+		cmd.dst_node = node_id_to_handle(w, dead_cmd->dst_node_id);
+		ensure(cmd.src_node != NULL_HANDLE);
+		ensure(cmd.dst_node != NULL_HANDLE);
+		ensure(w->nodes[cmd.src_node].allocated);
+		ensure(w->nodes[cmd.dst_node].allocated);
+		cmd.src_offset = dead_cmd->src_offset;
+		cmd.dst_offset = dead_cmd->dst_offset;
+		cmd.size = dead_cmd->size;
+	} else if (dead_cmd->type == CmdType_call) {
+		cmd.fptr = rtti_func_ptr(dead_cmd->func_name);
+		ensure(cmd.fptr != NULL);
+		cmd.p_node_count = dead_cmd->p_node_count;
+		for (U32 k = 0; k < dead_cmd->p_node_count; ++k) {
+			cmd.p_nodes[k] = node_id_to_handle(w, dead_cmd->p_node_ids[k]);
+			if (cmd.p_nodes[k] == NULL_HANDLE) {
+				fail("Not found: id: %i", dead_cmd->p_node_ids[k]);
+			}
+		}
+	}
+
+	resurrect_cmd(w, cmd);
+}
+
+void save_deadcmd(WArchive *ar, const DeadCmd *dead_cmd)
+{ pack_buf(ar, dead_cmd, sizeof(*dead_cmd)); }
+
+void load_deadcmd(RArchive *ar, DeadCmd *dead_cmd)
+{ unpack_buf(ar, dead_cmd, sizeof(*dead_cmd)); }
+
 void create_nodes(	World *w,
 					const NodeGroupDef *def,
 					const SlotVal *init_vals, U32 init_vals_count,
 					U64 group_id)
 {
+	ensure(!g_env.netstate || g_env.netstate->authority);
+
 	U32 handles[MAX_NODES_IN_GROUP_DEF] = {};
 
 	// Create nodes
@@ -733,6 +829,8 @@ void create_nodes(	World *w,
 		cmd.cond_node_h = handles[cmd_def->cond_node_i];
 		cmd.cond_offset = cmd_def->cond_offset;
 		cmd.cond_size = cmd_def->cond_size;
+
+		cmd.cmd_id = w->next_cmd_id++;
 		resurrect_cmd(w, cmd);
 	}
 }
@@ -762,9 +860,7 @@ void free_node(World *w, U32 handle)
 	NodeInfo *n = &w->nodes[handle];
 	ensure(n->allocated);
 
-	set_tbl(Id, Handle)(&w->id_to_handle, n->node_id, NULL_HANDLE);
-
-	debug_print("free_node: h: %i, id: %i", handle, n->node_id);
+	set_tbl(Id, Handle)(&w->node_id_to_handle, n->node_id, NULL_HANDLE);
 
 	// Remove commands involving this node
 	// @todo Don't loop, use hash
@@ -789,7 +885,6 @@ void free_node(World *w, U32 handle)
 		}
 
 		if (remove) {
-			debug_print("removing cmd %i", i);
 			free_cmd(w, i);
 		}
 	}
@@ -839,14 +934,16 @@ U32 node_impl_handle(World *w, U32 node_handle)
 }
 
 Id node_handle_to_id(World *w, Handle handle)
-{
-	return w->nodes[handle].node_id;
-}
+{ return w->nodes[handle].node_id; }
 
 Handle node_id_to_handle(World *w, Id id)
-{
-	return get_tbl(Id, Handle)(&w->id_to_handle, id);
-}
+{ return get_tbl(Id, Handle)(&w->node_id_to_handle, id); }
+
+Id cmd_handle_to_id(World *w, Handle handle)
+{ return w->cmds[handle].cmd_id; }
+
+Handle cmd_id_to_handle(World *w, Id id)
+{ return get_tbl(Id, Handle)(&w->cmd_id_to_handle, id); }
 
 U32 resurrect_cmd(World *w, NodeCmd cmd)
 {
@@ -861,6 +958,8 @@ U32 resurrect_cmd(World *w, NodeCmd cmd)
 	++w->cmd_count;
 	cmd.allocated = true;
 	w->cmds[w->next_cmd] = cmd;
+	ensure(cmd_id_to_handle(w, cmd.cmd_id) == NULL_HANDLE);
+	set_tbl(Id, Handle)(&w->cmd_id_to_handle, cmd.cmd_id, w->next_cmd);
 	return w->next_cmd;
 }
 
@@ -870,6 +969,8 @@ void free_cmd(World *w, U32 handle)
 
 	NodeCmd *cmd = &w->cmds[handle];
 	ensure(cmd->allocated);
+
+	set_tbl(Id, Handle)(&w->cmd_id_to_handle, cmd->cmd_id, NULL_HANDLE);
 
 	--w->cmd_count;
 	*cmd = (NodeCmd) { .allocated = false };
@@ -947,7 +1048,7 @@ U32 alloc_node_without_impl(World *w, NodeType *type, U64 node_id, U64 group_id)
 	ensure(!w->nodes[w->next_node].allocated);
 	++w->node_count;
 	w->nodes[w->next_node] = info;
-	set_tbl(Id, Handle)(&w->id_to_handle, node_id, w->next_node);
+	set_tbl(Id, Handle)(&w->node_id_to_handle, node_id, w->next_node);
 	return w->next_node;
 }
 
