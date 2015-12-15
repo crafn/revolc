@@ -85,7 +85,7 @@ MOD_API void clover_worldgen(World *w)
 	{ // Player test
 		T3d tf = {{1, 1, 1}, identity_qd(), {0, 12}};
 		SlotVal init_vals[] = {
-			{"char", "tf", WITH_DEREF_SIZEOF(&tf)},
+			{"body", "tf", WITH_DEREF_SIZEOF(&tf)},
 		};
 		NodeGroupDef *def =
 			(NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, "playerch");
@@ -106,7 +106,7 @@ MOD_API void clover_worldgen(World *w)
 }
 
 typedef struct WorldEnv {
-	U8 placeholder;
+	F64 time; // Game world time
 } WorldEnv;
 
 internal
@@ -122,14 +122,15 @@ void adjust_soundtrack(const char *sound_name, F32 vol)
 MOD_API void upd_worldenv(WorldEnv *w, WorldEnv *e)
 {
 	ensure(w + 1 == e);
+	w->time += g_env.world->dt;
 
 	if (g_env.device->key_down[KEY_KP_9])
-		g_env.world->time += g_env.world->dt*50;
+		w->time += g_env.world->dt*50;
 	if (g_env.device->key_down[KEY_KP_6])
-		g_env.world->time -= g_env.world->dt*50;
+		w->time -= g_env.world->dt*50;
 
 	const F32 day_duration = 60.0*4;
-	F64 time = g_env.world->time + day_duration/3.0; // Start somewhere morning
+	F64 time = w->time + day_duration/3.0; // Start somewhere morning
 	F32 dayphase = fmod(time, day_duration)/day_duration;
 
 	Color night = {0.15*0.3, 0.1*0.3, 0.6*0.3}; // Night

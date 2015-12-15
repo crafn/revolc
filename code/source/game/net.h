@@ -20,7 +20,7 @@ DECLARE_ARRAY(WorldBaseState)
 typedef struct NetState {
 	UdpPeer *peer;
 	bool authority; // Do we have authority over the game world
-	F64 game_time; // Same at client and server
+	F64 game_time; // Increasing monotonically in real time
 	F64 delta_interval;
 
 	F64 world_upd_time; // Send/recv time

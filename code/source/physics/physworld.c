@@ -385,6 +385,8 @@ void set_rigidbody(U32 h, RigidBodyDef *def)
 
 	cpBodySetPosition(b->cp_body, to_cpv((V2d) {b->tf.pos.x, b->tf.pos.y}));
 	cpBodySetAngle(b->cp_body, rotation_z_qd(b->tf.rot));
+	cpBodySetVelocity(b->cp_body, to_cpv(b->velocity));
+	// @todo Other properties
 
 	U32 circle_count = def->circle_count;
 	U32 poly_count = def->poly_count;

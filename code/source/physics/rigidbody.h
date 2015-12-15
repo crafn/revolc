@@ -34,6 +34,7 @@ typedef struct RigidBody {
 	bool tf_changed;
 	bool has_own_shape; // Ignores shape of def_name
 
+	// @todo Shapes to own arrays
 	Poly polys[MAX_SHAPES_PER_BODY];
 	Circle circles[MAX_SHAPES_PER_BODY];
 	U8 poly_count;
@@ -41,6 +42,7 @@ typedef struct RigidBody {
 
 	RigidBodyCpData cp_data;
 
+	// @todo Could store these in-line for perf (?)
 	// Cached
 	cpShape *cp_shapes[MAX_SHAPES_PER_BODY];
 	cpBody *cp_body;

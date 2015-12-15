@@ -1,13 +1,14 @@
 #include "playerch.h"
 
+void init_playerch(PlayerCh *p)
+{
+	*p = (PlayerCh) {
+		.tf = identity_t3d(),
+	};
+}
+
 U32 resurrect_playerch(PlayerCh *p)
 {
-	RigidBody dead_body = {
-		.def_name = "playerch_body",
-		.tf = p->tf,
-	};
-	p->body = resurrect_rigidbody(&dead_body);
-
 	p->run_clip_id = res_id(ResType_Clip, "playerch_run");
 	p->idle_clip_id = res_id(ResType_Clip, "playerch_idle");
 	p->dig_clip_id = res_id(ResType_Clip, "playerch_dig");
@@ -47,8 +48,9 @@ void playerch_ray_callback(RigidBody *body, V2d point, V2d normal, F64 fraction,
 	}
 }
 
-void upd_playerch(PlayerCh *p, PlayerCh *e)
+void upd_playerch(PlayerCh *p, PlayerCh *p_e, RigidBody *body, RigidBody *body_e)
 {
+	bool in_control = g_env.netstate->authority;
 	// @todo Input from configurable input layer
 	int dir = 0;
 	if (g_env.device->key_down['a'])
@@ -72,14 +74,13 @@ void upd_playerch(PlayerCh *p, PlayerCh *e)
 	F64 dt = g_env.world->dt;
 	V2d cursor_p = screen_to_world_point(g_env.device->cursor_pos);
 
-	for (; p != e; ++p) {
+	for (; p != p_e; ++p, ++body) {
 		const F64 box_lower_height = 0.5; // @todo Should be in data
 		const F64 leg_height = 0.65;
 		const F64 on_ground_timer_start = 0.2; // Time to jump after ground has disappeared
 		//const F64 leg_width = 0.2;
 		F64 leg_space = leg_height;
 		RigidBody *ground_body = NULL;
-		RigidBody *body = get_rigidbody(p->body);
 
 		{ // Levitate box
 			V2d a = {
@@ -173,7 +174,7 @@ void upd_playerch(PlayerCh *p, PlayerCh *e)
 		p->fake_dif = CLAMP(p->fake_dif, -0.1, 0.1);
 		//p->tf.pos.x += p->fake_dif;
 
-		if (g_env.netstate->authority) { // Camera
+		if (in_control) { // Camera
 			V2d target_pos = {
 				p->tf.pos.x, // + cursor_p.x*0.5,
 				p->tf.pos.y, // + cursor_p.y*0.5,
@@ -268,12 +269,14 @@ void upd_playerch(PlayerCh *p, PlayerCh *e)
 		int facing_dir = 0;
 		{
 			F64 rot = angle_qd(p->tf.rot);
-			if (cursor_p.x < p->tf.pos.x) {
-				facing_dir = -1;
-				rot = exp_drive(rot, TAU/2.0, dt*15);
-			} else {
-				facing_dir = 1;
-				rot = exp_drive(rot, 0, dt*25);
+			if (in_control) {
+				if (cursor_p.x < p->tf.pos.x) {
+					facing_dir = -1;
+					rot = exp_drive(rot, TAU/2.0, dt*15);
+				} else {
+					facing_dir = 1;
+					rot = exp_drive(rot, 0, dt*25);
+				}
 			}
 			p->tf.rot = qd_by_axis((V3d) {0, 1, 0}, rot);
 		}
@@ -317,6 +320,4 @@ void upd_playerch(PlayerCh *p, PlayerCh *e)
 
 void free_playerch(Handle h, PlayerCh *p)
 {
-	// @todo Physics things to be "immediate mode" - then freeing is not needed
-	free_rigidbody(p->body);
 }

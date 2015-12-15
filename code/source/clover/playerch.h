@@ -23,12 +23,10 @@ typedef struct PlayerCh {
 	ResId run_clip_id;
 	ResId idle_clip_id;
 	ResId dig_clip_id;
-
-	HANDLE(RigidBody) body;
 } PlayerCh;
 
 MOD_API U32 resurrect_playerch(PlayerCh *p);
-MOD_API void upd_playerch(PlayerCh *p, PlayerCh *e);
+MOD_API void upd_playerch(PlayerCh *p, PlayerCh *p_e, RigidBody *body, RigidBody *body_e);
 MOD_API void free_playerch(Handle h, PlayerCh *p);
 
 #endif

@@ -177,7 +177,6 @@ int node_cmp(const void * a_, const void * b_)
 void upd_world(World *w, F64 dt)
 {
 	w->dt = dt;
-	w->time += dt;
 
 	memcpy(w->sort_space, w->nodes, sizeof(w->nodes));
 	/// @todo	Optimize sorting -- this qsort causes a major fps drop.

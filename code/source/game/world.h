@@ -68,7 +68,6 @@ typedef struct AutoNodeImplStorage {
 } AutoNodeImplStorage;
 
 typedef struct World {
-	F64 time;
 	F64 dt;
 	Id next_entity_id;
 
