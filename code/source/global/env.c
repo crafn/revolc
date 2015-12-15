@@ -1,3 +1,4 @@
+#include "core/debug.h"
 #include "env.h"
 #include "symbol.h"
 #include "memory.h"
@@ -19,11 +20,15 @@ void init_env(U32 argc, const char **argv)
 
 	g_env.used_rtti_symbols =
 		ZERO_ALLOC(gen_ator(), sizeof(*g_env.used_rtti_symbols), "rtti_symbols");
+
+	g_env.debug = create_debug();
 }
 
 void deinit_env()
 {
 	FREE(gen_ator(), g_env.used_rtti_symbols);
 	FREE(gen_ator(), g_env.frame_ator.buf);
+
+	destroy_debug(g_env.debug);
 }
 

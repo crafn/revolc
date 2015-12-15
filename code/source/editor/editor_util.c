@@ -113,7 +113,7 @@ bool gui_button(const char *label, bool *is_down, bool *is_hovered)
 	{ // Leave margin
 		V2i p = add_v2i(px_pos, (V2i) {1, 1});
 		V2i s = sub_v2i(px_size, (V2i) {2, 2});
-		gui_quad(p, s, bg_color);
+		drawcmd_px_quad(p, s, bg_color, gui_next_draw_layer());
 	}
 
 	gui_set_turtle_pos(add_v2i(px_pos, (V2i) {5, 1}));
@@ -289,36 +289,6 @@ CursorDeltaMode cursor_transform_delta_pixels(	T3f *out,
 	return CursorDeltaMode_translate;
 }
 
-void gui_quad(V2i px_pos, V2i px_size, Color c)
-{
-	gui_wrap(&px_pos, &px_size);
-	drawcmd_model(	px_tf(px_pos, px_size),
-					(Model*)res_by_name(g_env.resblob, ResType_Model, "guibox_singular"),
-					c,
-					gui_next_draw_layer(),
-					0.0);
-}
-
-void gui_model_image(V2i px_pos, V2i px_size, ModelEntity *src_model)
-{
-	ensure(src_model);
-
-	V3d pos = v2d_to_v3d(screen_to_world_point(px_pos)); 
-	V3d size = v2d_to_v3d(screen_to_world_size(px_size));
-
-	const Model *model = (Model*)res_by_name(g_env.resblob, ResType_Model, "guibox");
-	const Mesh *mesh = model_mesh(model);
-
-	drawcmd((T3d) {size, identity_qd(), pos},
-			mesh_vertices(mesh), mesh->v_count,
-			mesh_indices(mesh), mesh->i_count,
-			(AtlasUv) {src_model->atlas_uv, src_model->scale_to_atlas_uv},
-			(Color) {1, 1, 1, 1},
-			gui_next_draw_layer(),
-			0.0,
-			NULL_PATTERN);
-}
-
 void gui_res_info(ResType t, const Resource *res)
 {
 	gui_set_turtle_pos((V2i) {0, 0});
@@ -327,7 +297,7 @@ void gui_res_info(ResType t, const Resource *res)
 							res ? res->name : "<none>");
 	V2i size = calc_text_mesh_size(gui_font(), str);
 	size.y += 3;
-	gui_quad((V2i) {0, 0}, size, gui_dev_panel_color());
+	drawcmd_px_quad((V2i) {0, 0}, size, gui_dev_panel_color(), gui_next_draw_layer());
 	gui_text(str);
 }
 
@@ -406,7 +376,7 @@ EditorBoxState gui_editorbox(	const char *label,
 	}
 
 	if (!invisible)
-		gui_quad(px_pos, px_size, c);
+		drawcmd_px_quad(px_pos, px_size, c, gui_next_draw_layer());
 
 	return state;
 }

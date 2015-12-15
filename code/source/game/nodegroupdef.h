@@ -6,12 +6,6 @@
 #include "core/json.h"
 #include "core/basic.h"
 
-#define MAX_NODES_IN_GROUP_DEF 16
-#define MAX_CMDS_IN_GROUP_DEF 8
-#define MAX_CMD_CALL_PARAMS 4
-#define MAX_CMD_STR_SIZE 128
-#define MAX_NODE_DEFAULTS 4
-
 typedef enum {
 	CmdType_memcpy,
 	CmdType_call,

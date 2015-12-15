@@ -5,6 +5,7 @@
 #include "core/memory.h"
 
 struct AudioSystem;
+struct Debug;
 struct Editor;
 struct Device;
 struct PhysWorld;
@@ -18,6 +19,7 @@ struct SymbolTable;
 
 typedef struct Env {
 	struct AudioSystem *audiosystem;
+	struct Debug *debug;
 	struct Editor *editor;
 	struct Device *device;
 	struct PhysWorld *physworld;

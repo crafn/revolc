@@ -103,6 +103,7 @@ int main(int argc, const char **argv)
 
 	F64 time_accum = 0.0; // For fps
 	U32 frame = 0;
+	plat_update(d); // First dt should not include initialization
 
 	g_env.os_allocs_forbidden = true; // Keep fps steady
 	while (1) {
@@ -283,6 +284,9 @@ int main(int argc, const char **argv)
 		upd_editor();
 
 		upd_for_modules(); // This should be in multiple places with different enum params
+
+		if (g_env.debug)
+			upd_debug(g_env.debug);
 
 		F64 game_dt = d->dt;
 		if (g_env.editor->state != EditorState_invisible)

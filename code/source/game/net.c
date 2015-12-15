@@ -241,8 +241,6 @@ void upd_netstate(NetState *net)
 				}
 				RArchive ar = create_rarchive(ArchiveType_binary, data, data_size);
 				debug_print("received delta %.3fkb", 1.0*ar.data_size/1024);
-				static int asd = 0;
-				debug_print("DELTA %i", asd++);
 				resurrect_world_delta(net, &ar);
 				destroy_rarchive(&ar);
 

@@ -112,6 +112,13 @@ REVOLC_API void drawcmd_model(	T3d tf,
 								S32 layer,
 								F32 emission);
 
+// Draws single-color quad
+REVOLC_API void drawcmd_px_quad(V2i px_pos, V2i px_size, Color c, S32 layer);
+
+// Draws texture of a model
+REVOLC_API void drawcmd_px_model_image(	V2i px_pos,
+										V2i px_size, ModelEntity *src_model, S32 layer);
+
 // Valid for only a frame (because camera can move)
 REVOLC_API T3d px_tf(V2i px_pos, V2i px_size);
 

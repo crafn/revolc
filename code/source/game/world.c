@@ -66,6 +66,33 @@ internal void load_deadcmd(RArchive *ar, DeadCmd *dead_cmd);
 
 internal void free_node_impl(World *w, U32 handle);
 
+internal void add_node_assoc_cmd(World *w, U32 node_h, U32 cmd_h)
+{
+	ensure(node_h != NULL_HANDLE);
+	ensure(cmd_h != NULL_HANDLE);
+	NodeInfo *node = &w->nodes[node_h];
+	for (U32 i = 0; i < MAX_NODE_ASSOC_CMD_COUNT; ++i) {
+		if (node->assoc_cmds[i] == NULL_HANDLE) {
+			node->assoc_cmds[i] = cmd_h;
+			return;
+		}
+	}
+	fail("Node is full of cmds");
+}
+
+internal void remove_node_assoc_cmd(World *w, U32 node_h, U32 cmd_h)
+{
+	ensure(node_h != NULL_HANDLE);
+	ensure(cmd_h != NULL_HANDLE);
+	NodeInfo *node = &w->nodes[node_h];
+	for (U32 i = 0; i < MAX_NODE_ASSOC_CMD_COUNT; ++i) {
+		if (node->assoc_cmds[i] == cmd_h) {
+			node->assoc_cmds[i] = NULL_HANDLE;
+			break;
+		}
+	}
+}
+
 World * create_world()
 {
 	World *w = ZERO_ALLOC(gen_ator(), sizeof(*w), "world");
@@ -590,7 +617,7 @@ void resurrect_deadnode_impl(World *w, U32 node_h, const DeadNode *dead_node)
 	n->node_id = dead_node->node_id;
 	n->group_id = dead_node->group_id;
 
-	debug_print("resurrect_deadnode_impl %s, h %i, id %i", dead_node->type_name, node_h, n->node_id);
+	//debug_print("resurrect_deadnode_impl %s, h %i, id %i", dead_node->type_name, node_h, n->node_id);
 
 	NodeType *node_type = (NodeType*)res_by_name(
 							g_env.resblob,
@@ -862,30 +889,10 @@ void free_node(World *w, U32 handle)
 	set_tbl(Id, Handle)(&w->node_id_to_handle, n->node_id, NULL_HANDLE);
 
 	// Remove commands involving this node
-	// @todo Don't loop, use hash
-	for (U32 i = 0; i < MAX_NODE_CMD_COUNT; ++i) {
-		NodeCmd cmd = w->cmds[i];
-		if (!cmd.allocated)
-			continue;
-		bool remove = false;
-		if (cmd.has_condition && cmd.cond_node_h == handle) {
-			remove = true;
-		} else {
-			switch (cmd.type) {
-			case CmdType_memcpy:
-				remove = (cmd.src_node == handle || cmd.dst_node == handle);
-			break;
-			case CmdType_call:
-				for (U32 k = 0; k < cmd.p_node_count && !remove; ++k)
-					remove = (cmd.p_nodes[k] == handle);
-			break;
-			default: fail("Unknown cmd type %i", cmd.type);
-			}
-		}
-
-		if (remove) {
-			free_cmd(w, i);
-		}
+	for (U32 i = 0; i < MAX_NODE_ASSOC_CMD_COUNT; ++i) {
+		Handle cmd_h = n->assoc_cmds[i];
+		if (cmd_h != NULL_HANDLE)
+			free_cmd(w, cmd_h);
 	}
 
 	free_node_impl(w, handle);
@@ -951,15 +958,36 @@ U32 resurrect_cmd(World *w, NodeCmd cmd)
 
 	while (w->cmds[w->next_cmd].allocated)
 		w->next_cmd = (w->next_cmd + 1) % MAX_NODE_CMD_COUNT;
+	Handle cmd_h = w->next_cmd;
 
 	ensure(w->next_cmd < MAX_NODE_CMD_COUNT);
-	ensure(!w->cmds[w->next_cmd].allocated);
+	ensure(!w->cmds[cmd_h].allocated);
 	++w->cmd_count;
 	cmd.allocated = true;
-	w->cmds[w->next_cmd] = cmd;
+	w->cmds[cmd_h] = cmd;
 	ensure(cmd_id_to_handle(w, cmd.cmd_id) == NULL_HANDLE);
-	set_tbl(Id, Handle)(&w->cmd_id_to_handle, cmd.cmd_id, w->next_cmd);
-	return w->next_cmd;
+	set_tbl(Id, Handle)(&w->cmd_id_to_handle, cmd.cmd_id, cmd_h);
+
+	{ // Add cmd to all associated nodes
+		NodeCmd *cmd = &w->cmds[cmd_h];
+		if (cmd->has_condition)
+			add_node_assoc_cmd(w, cmd->cond_node_h, cmd_h);
+		switch (cmd->type) {
+		case CmdType_memcpy:
+			// Might add duplicates
+			add_node_assoc_cmd(w, cmd->src_node, cmd_h);
+			add_node_assoc_cmd(w, cmd->dst_node, cmd_h);
+		break;
+		case CmdType_call:
+			// Might add duplicates
+			for (U32 k = 0; k < cmd->p_node_count; ++k)
+				add_node_assoc_cmd(w, cmd->p_nodes[k], cmd_h);
+		break;
+		default: fail("Unknown cmd type %i", cmd->type);
+		}
+	}
+
+	return cmd_h;
 }
 
 void free_cmd(World *w, U32 handle)
@@ -968,6 +996,22 @@ void free_cmd(World *w, U32 handle)
 
 	NodeCmd *cmd = &w->cmds[handle];
 	ensure(cmd->allocated);
+
+	{ // Remove cmd from associated nodes
+		if (cmd->has_condition)
+			remove_node_assoc_cmd(w, cmd->cond_node_h, handle);
+		switch (cmd->type) {
+		case CmdType_memcpy:
+			remove_node_assoc_cmd(w, cmd->src_node, handle);
+			remove_node_assoc_cmd(w, cmd->dst_node, handle);
+		break;
+		case CmdType_call:
+			for (U32 k = 0; k < cmd->p_node_count; ++k)
+				remove_node_assoc_cmd(w, cmd->p_nodes[k], handle);
+		break;
+		default: fail("Unknown cmd type %i", cmd->type);
+		}
+	}
 
 	set_tbl(Id, Handle)(&w->cmd_id_to_handle, cmd->cmd_id, NULL_HANDLE);
 
@@ -1039,6 +1083,8 @@ U32 alloc_node_without_impl(World *w, NodeType *type, U64 node_id, U64 group_id)
 		.group_id = group_id,
 	};
 	fmt_str(info.type_name, sizeof(info.type_name), "%s", type->res.name);
+	for (U32 i = 0; i < MAX_NODE_ASSOC_CMD_COUNT; ++i)
+		info.assoc_cmds[i] = NULL_HANDLE;
 
 	while (w->nodes[w->next_node].allocated)
 		w->next_node = (w->next_node + 1) % MAX_NODE_COUNT;

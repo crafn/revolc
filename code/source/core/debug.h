@@ -19,6 +19,16 @@ typedef enum {
 	TermColor_red,
 } TermColor;
 
-void plat_set_term_color(TermColor c);
+REVOLC_API void plat_set_term_color(TermColor c);
+
+// Misc debug and dev info
+typedef struct Debug {
+#	define DT_HISTORY_COUNT (60*10)
+	F32 dt_history[DT_HISTORY_COUNT];
+} Debug;
+
+REVOLC_API Debug *create_debug();
+REVOLC_API void destroy_debug(Debug *d);
+REVOLC_API void upd_debug(Debug *d);
 
 #endif // REVOLC_CORE_DEBUG_PRINT_H

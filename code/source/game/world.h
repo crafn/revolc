@@ -54,6 +54,7 @@ typedef struct NodeInfo {
 	Id node_id; // Unique id
 	Id group_id; // Entity id
 	Handle impl_handle; // e.g. Handle to ModelEntity
+	Handle assoc_cmds[MAX_NODE_ASSOC_CMD_COUNT];
 	bool allocated; /// @todo Can be substituted by type ( == NULL)
 	bool remove;
 } NodeInfo;

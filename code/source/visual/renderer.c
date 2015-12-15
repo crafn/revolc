@@ -663,6 +663,37 @@ void drawcmd_model(	T3d tf,
 			model->pattern);
 }
 
+void drawcmd_px_quad(V2i px_pos, V2i px_size, Color c, S32 layer)
+{
+	gui_wrap(&px_pos, &px_size);
+	drawcmd_model(	px_tf(px_pos, px_size),
+					(Model*)res_by_name(g_env.resblob, ResType_Model, "guibox_singular"),
+					c,
+					layer,
+					0.0);
+}
+
+void drawcmd_px_model_image(V2i px_pos, V2i px_size, ModelEntity *src_model, S32 layer)
+{
+	ensure(src_model);
+
+	V3d pos = v2d_to_v3d(screen_to_world_point(px_pos)); 
+	V3d size = v2d_to_v3d(screen_to_world_size(px_size));
+
+	const Model *model = (Model*)res_by_name(g_env.resblob, ResType_Model, "guibox");
+	const Mesh *mesh = model_mesh(model);
+
+	drawcmd((T3d) {size, identity_qd(), pos},
+			mesh_vertices(mesh), mesh->v_count,
+			mesh_indices(mesh), mesh->i_count,
+			(AtlasUv) {src_model->atlas_uv, src_model->scale_to_atlas_uv},
+			(Color) {1, 1, 1, 1},
+			layer,
+			0.0,
+			NULL_PATTERN);
+}
+
+
 T3d px_tf(V2i px_pos, V2i px_size)
 {
 	T3d tf = identity_t3d();

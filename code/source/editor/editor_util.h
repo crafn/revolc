@@ -50,13 +50,6 @@ REVOLC_API CursorDeltaMode cursor_transform_delta_world(	T3f *out,
 REVOLC_API CursorDeltaMode cursor_transform_delta_pixels(	T3f *out,
 															const char *label,
 															T3d coords);
-// Draws single-color quad
-REVOLC_API void gui_quad(V2i px_pos, V2i px_size, Color c);
-
-// Draws texture of a model
-REVOLC_API void gui_model_image(	V2i px_pos,
-									V2i px_size, ModelEntity *src_model);
-
 
 // Top-left box
 REVOLC_API void gui_res_info(ResType t, const Resource *res);

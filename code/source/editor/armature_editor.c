@@ -188,7 +188,7 @@ void do_armature_editor(	ArmatureEditor *state,
 		{ // Timeline box
 			V2i px_pos = {0, -150};
 			V2i px_size = {g_env.device->win_size.x, 150};
-			gui_quad(px_pos, px_size, gui_dev_panel_color());
+			drawcmd_px_quad(px_pos, px_size, gui_dev_panel_color(), gui_next_draw_layer());
 
 			gui_begin((V2i) {1, 0});
 			gui_set_turtle_pos(px_pos);
@@ -271,7 +271,7 @@ void do_armature_editor(	ArmatureEditor *state,
 			px_pos.y += 27;
 			px_size.x -= 20;
 			px_size.y -= 27;
-			gui_quad(px_pos, px_size, darken_color(gui_dev_panel_color()));
+			drawcmd_px_quad(px_pos, px_size, darken_color(gui_dev_panel_color()), gui_next_draw_layer());
 			const char *clip_timeline_label = "clip_timeline";
 			EditorBoxState bstate =
 				gui_editorbox(clip_timeline_label, px_pos, px_size, true);
@@ -342,7 +342,7 @@ void do_armature_editor(	ArmatureEditor *state,
 							color = (Color) {1.0, 1.0, 1.0, 1.0};
 							size.y += 5;
 						}
-						gui_quad(pos, size, color);
+						drawcmd_px_quad(pos, size, color, gui_next_draw_layer());
 					}
 
 					// Update animation to CompEntity when not actively editing
@@ -360,8 +360,8 @@ void do_armature_editor(	ArmatureEditor *state,
 					V2i time_cursor_pos = {
 						px_pos.x + px_size.x*lerp - 1, px_pos.y
 					};
-					gui_quad(	time_cursor_pos, (V2i){2, px_size.y},
-								(Color) {1, 1, 0, 0.8});
+					drawcmd_px_quad(	time_cursor_pos, (V2i){2, px_size.y},
+								(Color) {1, 1, 0, 0.8}, gui_next_draw_layer());
 				}
 			}
 
