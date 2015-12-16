@@ -4,6 +4,7 @@ void init_playerch(PlayerCh *p)
 {
 	*p = (PlayerCh) {
 		.tf = identity_t3d(),
+		.facing_dir = 1,
 	};
 }
 
@@ -51,12 +52,6 @@ void playerch_ray_callback(RigidBody *body, V2d point, V2d normal, F64 fraction,
 void upd_playerch(PlayerCh *p, PlayerCh *p_e, RigidBody *body, RigidBody *body_e)
 {
 	bool in_control = g_env.netstate->authority;
-	// @todo Input from configurable input layer
-	int dir = 0;
-	if (g_env.device->key_down['a'])
-		dir -= 1;
-	if (g_env.device->key_down['d'])
-		dir += 1;
 	bool jump = g_env.device->key_pressed[KEY_SPACE];
 	bool dig = g_env.device->key_down[KEY_LMB];
 	bool build_immediately = g_env.device->key_pressed[KEY_RMB];
@@ -81,6 +76,15 @@ void upd_playerch(PlayerCh *p, PlayerCh *p_e, RigidBody *body, RigidBody *body_e
 		//const F64 leg_width = 0.2;
 		F64 leg_space = leg_height;
 		RigidBody *ground_body = NULL;
+
+		if (in_control) {
+			// @todo Input from configurable input layer
+			p->walk_dir = 0;
+			if (g_env.device->key_down['a'])
+				p->walk_dir -= 1;
+			if (g_env.device->key_down['d'])
+				p->walk_dir += 1;
+		}
 
 		{ // Levitate box
 			V2d a = {
@@ -129,7 +133,7 @@ void upd_playerch(PlayerCh *p, PlayerCh *p_e, RigidBody *body, RigidBody *body_e
 		if (p->on_ground_timer > 0.0) { // Walking
 			V2d ground_vel = p->last_ground_velocity;
 			V2d target_vel = {
-				walking_speed*dir + ground_vel.x,
+				walking_speed*p->walk_dir + ground_vel.x,
 				body->velocity.y + ground_vel.y
 			};
 			V2d force = apply_velocity_target(	body,
@@ -160,16 +164,16 @@ void upd_playerch(PlayerCh *p, PlayerCh *p_e, RigidBody *body, RigidBody *body_e
 
 		if (p->on_ground_timer < 0.0) { // Air control
 			V2d target_vel = {
-				p->last_ground_velocity.x + dir*walking_speed*1.1,
+				p->last_ground_velocity.x + p->walk_dir*walking_speed*1.1,
 				body->velocity.y,
 			};
-			apply_velocity_target(body, target_vel, dir ? 40 : 10);
+			apply_velocity_target(body, target_vel, p->walk_dir ? 40 : 10);
 		}
 
 		p->tf.pos = add_v3d(body->tf.pos, (V3d) {0, 0.25, 0});
 		p->tf.pos.y -= leg_space;
 
-		F64 dif_to_target_v = (dir*walking_speed - body->velocity.x)*0.2;
+		F64 dif_to_target_v = (p->walk_dir*walking_speed - body->velocity.x)*0.2;
 		p->fake_dif = exp_drive(p->fake_dif, dif_to_target_v, dt*8);
 		p->fake_dif = CLAMP(p->fake_dif, -0.1, 0.1);
 		//p->tf.pos.x += p->fake_dif;
@@ -266,27 +270,28 @@ void upd_playerch(PlayerCh *p, PlayerCh *p_e, RigidBody *body, RigidBody *body_e
 			}
 		}
 
-		int facing_dir = 0;
 		{
 			F64 rot = angle_qd(p->tf.rot);
 			if (in_control) {
-				if (cursor_p.x < p->tf.pos.x) {
-					facing_dir = -1;
-					rot = exp_drive(rot, TAU/2.0, dt*15);
-				} else {
-					facing_dir = 1;
-					rot = exp_drive(rot, 0, dt*25);
-				}
+				if (cursor_p.x < p->tf.pos.x)
+					p->facing_dir = -1;
+				else
+					p->facing_dir = 1;
 			}
+
+			if (p->facing_dir < 0)
+				rot = exp_drive(rot, TAU/2.0, dt*15);
+			else
+				rot = exp_drive(rot, 0, dt*25);
 			p->tf.rot = qd_by_axis((V3d) {0, 1, 0}, rot);
 		}
 
 		{ // Animations
 			const F64 run_anim_mul = 1.1;
-			if (dir) {
+			if (p->walk_dir) {
 				// If moving
 				p->idle_run_lerp = exp_drive(p->idle_run_lerp, 1, dt*15.0);
-				p->clip_time += dt*dir*facing_dir*run_anim_mul;
+				p->clip_time += dt*p->walk_dir*p->facing_dir*run_anim_mul;
 			} else {
 				p->clip_time += dt*run_anim_mul;
 				p->idle_run_lerp = exp_drive(p->idle_run_lerp, 0, dt*15.0);

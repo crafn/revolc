@@ -15,6 +15,8 @@ typedef struct PlayerCh {
 	F64 time_from_jump;
 	F64 dig_timer;
 	F64 build_timer;
+	S8 walk_dir;
+	S8 facing_dir;
 
 	U8 active_slot; // 0-9
 	S32 dirt_amount;
