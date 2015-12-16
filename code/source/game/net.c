@@ -201,7 +201,7 @@ void upd_netstate(NetState *net)
 					critical_print("@todo supply whole map to client");
 				} else {
 					WArchive measure = create_warchive(ArchiveType_measure, NULL, 0);
-					make_world_delta(net, &measure, net->cur_base_ix);
+					make_world_delta(net, &measure, base_ix);
 					U32 delta_size = measure.data_size;
 					destroy_warchive(&measure);
 
