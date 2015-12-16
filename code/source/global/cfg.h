@@ -68,9 +68,9 @@
 #define UDP_MAX_BUFFERED_PACKET_COUNT (1024*8)
 #define UDP_OUTGOING_LIMIT_FRAME (1024*8) // 8k/frame ~ 512k/s ~ 4mbit/s
 #define UDP_ACK_COUNT 65 // Limited by header
-#define UDP_HEARTBEAT_INTERVAL 0.1 // Determines minimum rtt
+#define UDP_HEARTBEAT_INTERVAL 0.05 // Determines minimum rtt
 #define UDP_KERNEL_BUFFER_SIZE (1024*1024)
-#define UDP_DROP_RTT_MUL 3.0
+#define UDP_DROP_RTT_MUL 2.0
 #define UDP_COMPRESSION_LEVEL 1 // 1-10
 #define UDP_MAX_MSG_SIZE (1024*1024) // This limit could be removed with some effort
 

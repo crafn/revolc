@@ -81,6 +81,9 @@ typedef struct UdpPeer {
 
 	// Contains packets of incomplete messages
 	UdpPacket recv_buffer[UDP_MAX_BUFFERED_PACKET_COUNT];
+
+	// For incoming packets
+	F32 simulated_packet_loss;
 } UdpPeer;
 
 // Read-only convenience struct for receiving messages.

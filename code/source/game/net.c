@@ -41,23 +41,37 @@ internal void make_and_save_base(NetState *net)
 {
 	debug_print("make_and_save_base");
 	U32 next_base_ix = (net->cur_base_ix + 1) % net->bases.size;
+	WorldBaseState *base = &net->bases.data[next_base_ix];
 
-	Ator ator = linear_ator(net->bases.data[next_base_ix].data,
-							net->bases.data[next_base_ix].capacity,
+	Ator ator = linear_ator(base->data,
+							base->capacity,
 							"base_buf");
 	WArchive ar = create_warchive(ArchiveType_binary, &ator, ator.capacity);
 
-	net->bases.data[next_base_ix].seq = net->world_seq;
-	pack_u32(&ar, &net->bases.data[next_base_ix].seq);
+	base->seq = net->world_seq;
+	pack_u32(&ar, &base->seq);
 	save_world(&ar, g_env.world);
 
-	if (ar.data_size > net->bases.data[next_base_ix].capacity)
+	if (ar.data_size > base->capacity)
 		fail("Too large world");
 
-	net->bases.data[next_base_ix].size = ar.data_size;
+	base->size = ar.data_size;
+	base->peer_has_this = false; // Reset
 
 	net->cur_base_ix = next_base_ix;
 
+	destroy_warchive(&ar);
+}
+
+// Send confirmation of receiving and applying world state succesfully
+internal void send_confirmation(U32 seq)
+{
+	debug_print("SENDING CONFIRMATION seq %i", seq);
+	WArchive ar = create_warchive(	ArchiveType_binary,
+									frame_ator(),
+									32);
+	pack_u32(&ar, &seq);
+	send_net_msg(NetMsg_world_seq_confirm, ar.data, ar.data_size);
 	destroy_warchive(&ar);
 }
 
@@ -82,14 +96,13 @@ internal void resurrect_and_save_base(NetState *net, RArchive *ar)
 	g_env.physworld->grid.modified = true;
 }
 
-internal void make_world_delta(NetState *net, WArchive *ar)
+internal void make_world_delta(NetState *net, WArchive *ar, int base_ix)
 {
 	debug_print("make_world_delta: world_seq: %i", net->world_seq);
 
-	// @todo Use base which has been received by remote
 	RArchive base = create_rarchive(	ArchiveType_binary,
-									net->bases.data[net->cur_base_ix].data,
-									net->bases.data[net->cur_base_ix].size);
+										net->bases.data[base_ix].data,
+										net->bases.data[base_ix].size);
 	U32 base_seq;
 	unpack_u32(&base, &base_seq);
 
@@ -100,7 +113,7 @@ internal void make_world_delta(NetState *net, WArchive *ar)
 	destroy_rarchive(&base);
 }
 
-internal void resurrect_world_delta(NetState *net, RArchive *ar)
+internal bool resurrect_world_delta(NetState *net, RArchive *ar)
 {
 	debug_print("resurrect_world_delta");
 
@@ -108,6 +121,11 @@ internal void resurrect_world_delta(NetState *net, RArchive *ar)
 	U32 delta_seq;
 	unpack_u32(ar, &delta_base_seq);
 	unpack_u32(ar, &delta_seq);
+
+	if (delta_seq < net->world_seq) {
+		debug_print("Dismissing world update from the past");
+		goto error;
+	}
 
 	// Find base with correct sequence number
 	U32 base_ix = (U32)-1;
@@ -118,8 +136,8 @@ internal void resurrect_world_delta(NetState *net, RArchive *ar)
 		}
 	}
 	if (base_ix == (U32)-1) {
-		critical_print("Base not present for delta: %i", delta_seq);
-		goto cleanup;
+		critical_print("Base %i not present for delta %i", delta_base_seq, delta_seq);
+		goto error;
 	}
 
 	RArchive base = create_rarchive(	ArchiveType_binary,
@@ -135,8 +153,10 @@ internal void resurrect_world_delta(NetState *net, RArchive *ar)
 	destroy_rarchive(&base);
 
 	net->world_seq = delta_seq;
-cleanup:
-	return;
+
+	return true;
+error:
+	return false;
 }
 
 void upd_netstate(NetState *net)
@@ -162,21 +182,43 @@ void upd_netstate(NetState *net)
 				send_net_msg(	NetMsg_base,
 								net->bases.data[net->cur_base_ix].data,
 								net->bases.data[net->cur_base_ix].size);
-			} else {
+			} else if (net->peer_has_received_base) {
 				// Send a delta
-				WArchive measure = create_warchive(ArchiveType_measure, NULL, 0);
-				make_world_delta(net, &measure);
-				U32 delta_size = measure.data_size;
-				destroy_warchive(&measure);
-		
-				WArchive ar = create_warchive(	ArchiveType_binary,
-												frame_ator(),
-												delta_size);
-				make_world_delta(net, &ar);
-				send_net_msg(NetMsg_delta, ar.data, ar.data_size);
 
-				// New base using this delta
-				make_and_save_base(net);
+				// Find most recent which the remote has
+				U32 base_ix = NULL_HANDLE;
+				U32 max_seq = 0;
+				for (U32 i = 0; i < net->bases.size; ++i) {
+					WorldBaseState *base = &net->bases.data[i];
+					if (!base->peer_has_this)
+						continue;
+					if (base_ix == NULL_HANDLE || max_seq < base->seq) {
+						max_seq = base->seq;
+						base_ix = i;
+					}
+				}
+				if (base_ix == NULL_HANDLE) {
+					critical_print("@todo supply whole map to client");
+				} else {
+					WArchive measure = create_warchive(ArchiveType_measure, NULL, 0);
+					make_world_delta(net, &measure, net->cur_base_ix);
+					U32 delta_size = measure.data_size;
+					destroy_warchive(&measure);
+
+					WArchive ar = create_warchive(	ArchiveType_binary,
+													frame_ator(),
+													delta_size);
+					make_world_delta(net, &ar, base_ix);
+
+					// New base using this delta
+					make_and_save_base(net);
+
+					debug_print("Sending world update %i with base %i",
+								net->bases.data[net->cur_base_ix].seq, net->bases.data[base_ix].seq);
+					send_net_msg(NetMsg_delta, ar.data, ar.data_size);
+
+					// @todo Destroy archive?
+				}
 			}
 
 			net->world_upd_time = net->game_time;
@@ -206,7 +248,8 @@ void upd_netstate(NetState *net)
 
 	UdpMsg *msgs;
 	U32 msg_count;
-	upd_udp_peer(peer, &msgs, &msg_count, NULL, NULL);
+	U32 sent_msg_count, *sent_msgs;
+	upd_udp_peer(peer, &msgs, &msg_count, &sent_msgs, &sent_msg_count);
 
 	for (U32 i = 0; i < msg_count; ++i) {
 		if (msgs[i].data_size < 2) // NetMsg takes 1 byte
@@ -232,6 +275,8 @@ void upd_netstate(NetState *net)
 				debug_print("received base %.fkb", 1.0*ar.data_size/1024);
 				resurrect_and_save_base(net, &ar);
 				destroy_rarchive(&ar);
+
+				send_confirmation(net->world_seq);
 			} break;
 
 			case NetMsg_delta: {
@@ -241,10 +286,35 @@ void upd_netstate(NetState *net)
 				}
 				RArchive ar = create_rarchive(ArchiveType_binary, data, data_size);
 				debug_print("received delta %.3fkb", 1.0*ar.data_size/1024);
-				resurrect_world_delta(net, &ar);
+				bool success = resurrect_world_delta(net, &ar);
 				destroy_rarchive(&ar);
 
-				make_and_save_base(net);
+				if (success) {
+					make_and_save_base(net);
+
+					send_confirmation(net->world_seq);
+				}
+			} break;
+
+			case NetMsg_world_seq_confirm: {
+				if (!net->authority) {
+					critical_print("Ignoring incoming seq confirm");
+					break;
+				}
+				U32 seq;
+				RArchive ar = create_rarchive(ArchiveType_binary, data, data_size);
+				unpack_u32(&ar, &seq);
+				destroy_rarchive(&ar);
+
+				net->peer_has_received_base = true;
+
+				for (U32 k = 0; k < net->bases.size; ++k) {
+					if (net->bases.data[k].seq == seq) {
+						// @todo Cancel previous deltas which have not yet reached
+						debug_print("World update %i went through", net->bases.data[k].seq);
+						net->bases.data[k].peer_has_this = true;
+					}
+				}
 			} break;
 
 			case NetMsg_brush_action: {
@@ -273,7 +343,7 @@ void upd_netstate(NetState *net)
 
 // Messaging
 
-void send_net_msg(NetMsg type, void *data, U32 data_size)
+U32 send_net_msg(NetMsg type, void *data, U32 data_size)
 {
 	NetMsgHeader *header;
 	U32 buf_size = sizeof(*header) + data_size;
@@ -283,7 +353,8 @@ void send_net_msg(NetMsg type, void *data, U32 data_size)
 	memcpy(buf + sizeof(*header), data, buf_size - sizeof(*header));
 
 	SentMsgInfo info = buffer_udp_msg(g_env.netstate->peer, buf, buf_size);
-	debug_print("net send %i: %.3fkb", type, info.msg_size/1024.0);
+	debug_print("net send %i, %.3fkb, msg id %i", type, info.msg_size/1024.0, info.msg_id);
+	return info.msg_id;
 }
 
 void local_brush_action(BrushAction *action)

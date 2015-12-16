@@ -12,6 +12,8 @@ typedef struct WorldBaseState {
 	U8 *data ALIGNED(MAX_ALIGNMENT);
 	U32 size;
 	U32 capacity;
+
+	bool peer_has_this;
 } WorldBaseState;
 
 DECLARE_ARRAY(WorldBaseState)
@@ -22,6 +24,8 @@ typedef struct NetState {
 	bool authority; // Do we have authority over the game world
 	F64 game_time; // Increasing monotonically in real time
 	F64 delta_interval;
+
+	bool peer_has_received_base;
 
 	F64 world_upd_time; // Send/recv time
 	F64 stats_timer;
@@ -42,6 +46,7 @@ typedef enum NetMsg {
 	NetMsg_chat = 1,
 	NetMsg_base,
 	NetMsg_delta,
+	NetMsg_world_seq_confirm, // Client sends to server, so server knows which base it can use
 	// Debug
 	NetMsg_brush_action,
 	NetMsg_spawn_action,
@@ -64,7 +69,7 @@ typedef struct SpawnAction {
 } SpawnAction;
 
 
-REVOLC_API void send_net_msg(NetMsg type, void *data, U32 data_size);
+REVOLC_API U32 send_net_msg(NetMsg type, void *data, U32 data_size);
 REVOLC_API void local_brush_action(BrushAction *action);
 REVOLC_API void brush_action(BrushAction *action);
 REVOLC_API void local_spawn_action(SpawnAction *action);

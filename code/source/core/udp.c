@@ -30,6 +30,9 @@ UdpPeer *create_udp_peer(U16 local_port, IpAddress *remote_addr)
 									UDP_HEARTBEAT_MSG_ID, 0,
 									gen_ator(), UDP_MAX_BUFFERED_PACKET_COUNT),
 	};
+	for (U32 i = 0; i < UDP_PACKET_ID_COUNT; ++i) {
+		peer->packet_id_to_send_buffer_ix[i] = NULL_HANDLE;
+	}
 	if (remote_addr)
 		debug_print("Trying to connect: %s", ip_to_str(peer->remote_addr));
 	else
@@ -84,6 +87,7 @@ SentMsgInfo buffer_udp_msg(UdpPeer *peer, const void *data, U32 size)
 	unsigned char *comp_data = NULL;
 	mz_ulong comp_size = size*2; // Maybe compressed data won't grow 2x
 	if (size > 0) {
+		comp_size += 64; // Add a little more, tiny messages might get longer when compressed
 		comp_data = ALLOC(frame_ator(), comp_size, "comp_data");
 		int ret =
 			mz_compress2(comp_data, &comp_size, data, size, UDP_COMPRESSION_LEVEL);
@@ -103,7 +107,8 @@ SentMsgInfo buffer_udp_msg(UdpPeer *peer, const void *data, U32 size)
 		left_size -= UDP_MAX_PACKET_DATA_SIZE;
 	}
 
-	//debug_print("buffer_udp_msg: %.3fkb", comp_size/1024.0);
+	if (msg_id != UDP_HEARTBEAT_MSG_ID)
+		debug_print("SENDING MSG %i WITH %i PACKETS", msg_id, frag_count);
 	
 	SentMsgInfo info = {
 		.msg_id = msg_id,
@@ -204,6 +209,8 @@ void upd_udp_peer(	UdpPeer *peer,
 			header->ack_id = peer->remote_packet_id;
 			header->previous_acks = peer->prev_out_acks;
 			U32 packet_size = sizeof(*header) + header->data_size;
+			if (peer->next_packet_id == 0)
+				debug_print("PACKET_ID WRAPPED");
 
 			if (first_packet) {
 				first_packet = false;
@@ -263,6 +270,9 @@ void upd_udp_peer(	UdpPeer *peer,
 		U32 bytes = 0;
 		while (	(bytes = recv_packet(peer->socket, &addr, &packet, UDP_MAX_PACKET_SIZE))
 				> 0) {
+			if (peer->simulated_packet_loss > 0.0f && (rand() % 1000)/1000.0f < peer->simulated_packet_loss)
+				continue;
+
 			if (peer->connected && !ip_equals(peer->remote_addr, addr))
 				continue; // Discard packets from others when connected
 
@@ -323,11 +333,11 @@ void upd_udp_peer(	UdpPeer *peer,
 					}
 
 					U32 acked_ix = peer->packet_id_to_send_buffer_ix[ack];
+					if (acked_ix == NULL_HANDLE)
+						continue; // Packet already acknowledged
 					ensure(acked_ix < UDP_MAX_BUFFERED_PACKET_COUNT);
-
-					if (	peer->send_buffer_state[acked_ix] !=
-							UdpPacketState_waiting_ack)
-						continue;
+					if (peer->send_buffer_state[acked_ix] != UdpPacketState_waiting_ack)
+						continue; // New packet has been written to this place, or 
 
 					F64 rtt_sample = g_env.time_from_start - peer->send_times[ack];
 					//debug_print("ack %i", ack);
@@ -336,26 +346,29 @@ void upd_udp_peer(	UdpPeer *peer,
 					const F64 change_p = 0.1;
 					peer->rtt = peer->rtt*(1 - change_p) + rtt_sample*change_p;
 					++peer->acked_packet_count;
-					
+
 					// Update msg progression
 					const UdpPacket* acked_packet = &peer->send_buffer[acked_ix];
+
 					if (acked_packet->header.msg_id != UDP_HEARTBEAT_MSG_ID) {
-						U32 packet_sent_count =
-							get_tbl(U32, U32)(	&peer->sent_msg_acks,
-												packet.header.msg_id);
-						ensure(packet_sent_count < packet.header.msg_frag_count);
+						U32 packet_sent_count = get_tbl(U32, U32)(&peer->sent_msg_acks, acked_packet->header.msg_id);
+						ensure(packet_sent_count < acked_packet->header.msg_frag_count);
+						if (ack != acked_packet->header.packet_id) {
+							fail("ack mismatch %i != %i", ack, acked_packet->header.packet_id);
+						}
 						++packet_sent_count;
-						if (packet_sent_count == packet.header.msg_frag_count) {
+						if (packet_sent_count == acked_packet->header.msg_frag_count) {
+							debug_print("MSG %i SUCCESFULLY SENT, %i packets", acked_packet->header.msg_id, acked_packet->header.msg_frag_count);
 							// Msg succesfully sent, notify caller
 							if (acked_msgs && acked_msg_count) {
 								ensure(*acked_msg_count < UDP_ACK_COUNT);
-								(*acked_msgs)[(*acked_msg_count)++] =
-									acked_packet->header.msg_id;
+								(*acked_msgs)[(*acked_msg_count)++] = acked_packet->header.msg_id;
 							}
 							set_tbl(U32, U32)(	&peer->sent_msg_acks,
 												acked_packet->header.msg_id,
 												0);
 						} else {
+							debug_print("MSG %i PIECE %i/%i (%i) ACKNOWLEDGED", acked_packet->header.msg_id, acked_packet->header.msg_frag_ix, acked_packet->header.msg_frag_count - 1, acked_packet->header.packet_id);
 							// Update succesfully sent packet count of the msg
 							set_tbl(U32, U32)(	&peer->sent_msg_acks,
 												acked_packet->header.msg_id,
@@ -364,10 +377,8 @@ void upd_udp_peer(	UdpPeer *peer,
 					}
 
 					// Remove succesfully transferred packet from send-buffer
-					if (	peer->send_buffer_state[acked_ix] !=
-							UdpPacketState_waiting_ack)
-						fail("Corrupted send buffer");
 					peer->send_buffer_state[acked_ix] = UdpPacketState_free;
+					peer->packet_id_to_send_buffer_ix[ack] = NULL_HANDLE;
 				}
 			}
 
@@ -383,6 +394,7 @@ void upd_udp_peer(	UdpPeer *peer,
 					fail(	"Too many packets in recv buffer, max %i",
 							UDP_MAX_BUFFERED_PACKET_COUNT);
 
+				debug_print("MSG %i PIECE %i/%i (%i) RECV", packet.header.msg_id, packet.header.msg_frag_ix, packet.header.msg_frag_count - 1, packet.header.packet_id);
 				ensure(packet.header.data_size > 0);
 				peer->recv_buffer[free_i] = packet;
 			}
@@ -505,11 +517,17 @@ void upd_udp_peer(	UdpPeer *peer,
 
 			// @todo Only for reliable messages
 			if (packet->header.msg_id != UDP_HEARTBEAT_MSG_ID) {
+				debug_print("RESENDING MSG %i PIECE %i/%i (%i)", packet->header.msg_id, packet->header.msg_frag_ix, packet->header.msg_frag_count - 1, packet->header.packet_id);
+				// Note that rebuffering is a bit unnecessary.
+				// UdpPacket would just need a new packet id and state set to buffered for resending.
 				buffer_udp_packet(	peer, packet->data, packet->header.data_size,
 									packet->header.msg_id,
 									packet->header.msg_frag_ix, packet->header.msg_frag_count);
 			}
+
+			// Remove dropped packet
 			peer->send_buffer_state[i] = UdpPacketState_free;
+			peer->packet_id_to_send_buffer_ix[packet->header.packet_id] = NULL_HANDLE;
 		}
 	}
 }

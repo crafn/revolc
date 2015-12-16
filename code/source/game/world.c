@@ -372,14 +372,14 @@ void save_world(WArchive *ar, World *w)
 
 	pack_buf_patch(ar, header_offset, &header, sizeof(header));
 
-	debug_print("save_world: nodes: %i, cmds: %i", header.node_count, header.cmd_count);
+	//debug_print("save_world: nodes: %i, cmds: %i", header.node_count, header.cmd_count);
 }
 
 void load_world(RArchive *ar, World *w)
 {
-	debug_print("load_world");
+	//debug_print("load_world");
 	if (w->node_count > 0) {
-		debug_print("load_world: cleaning current world");
+		//debug_print("load_world: cleaning current world");
 		clear_world_nodes(w);
 	}
 	ensure(w->node_count == 0);
@@ -541,7 +541,7 @@ void load_world_delta(RArchive *ar, World *w, RArchive *base_ar)
 	unpack_buf(ar, &delta_header, sizeof(delta_header));
 	ensure(delta_header.delta == true);
 
-	debug_print("load_world_delta count: %i", delta_header.node_count);
+	//debug_print("load_world_delta count: %i", delta_header.node_count);
 
 	// Go through delta archive and apply changes
 	for (U32 node_i = 0; node_i < delta_header.node_count; ++node_i) {

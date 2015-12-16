@@ -277,9 +277,13 @@ MOD_API void init_clover()
 	const int auth_port = 19995;
 	const int client_port = 19996;
 	remote_addr.port = authority ? client_port : auth_port;
-	create_netstate(authority, 0.1,
+	create_netstate(authority, 0.2,
 					10, 1024*1024*5,
 					authority ? auth_port : client_port, connect ? &remote_addr : NULL);
+#if 0
+	critical_print("Simulated packet loss is ON!");
+	g_env.netstate->peer->simulated_packet_loss = 0.05f;
+#endif
 }
 
 MOD_API void deinit_clover()
