@@ -79,7 +79,7 @@ void try_spawn_ground(World *world, V2d pos)
 	};
 	NodeGroupDef *def =
 		(NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, "block");
-	create_nodes(world, def, WITH_ARRAY_COUNT(init_vals), world->next_entity_id++);
+	create_nodes(world, def, WITH_ARRAY_COUNT(init_vals), world->next_entity_id++, AUTHORITY_PEER);
 }
 
 void spawn_visual_prop(World *world, V3d pos, F64 rot, V3d scale, const char *name)
@@ -91,7 +91,7 @@ void spawn_visual_prop(World *world, V3d pos, F64 rot, V3d scale, const char *na
 	};
 	NodeGroupDef *def =
 		(NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, "visual_prop");
-	create_nodes(world, def, WITH_ARRAY_COUNT(init_vals), world->next_entity_id++);
+	create_nodes(world, def, WITH_ARRAY_COUNT(init_vals), world->next_entity_id++, AUTHORITY_PEER);
 }
 
 void spawn_phys_prop(World *world, V2d pos, const char *name, bool is_static)
@@ -105,7 +105,7 @@ void spawn_phys_prop(World *world, V2d pos, const char *name, bool is_static)
 	};
 	NodeGroupDef *def =
 		(NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, "phys_prop");
-	create_nodes(world, def, WITH_ARRAY_COUNT(init_vals), world->next_entity_id++);
+	create_nodes(world, def, WITH_ARRAY_COUNT(init_vals), world->next_entity_id++, AUTHORITY_PEER);
 }
 
 void generate_test_world(World *w)

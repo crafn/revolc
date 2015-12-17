@@ -107,8 +107,8 @@ SentMsgInfo buffer_udp_msg(UdpPeer *peer, const void *data, U32 size)
 		left_size -= UDP_MAX_PACKET_DATA_SIZE;
 	}
 
-	if (msg_id != UDP_HEARTBEAT_MSG_ID)
-		debug_print("SENDING MSG %i WITH %i PACKETS", msg_id, frag_count);
+	//if (msg_id != UDP_HEARTBEAT_MSG_ID)
+	//	debug_print("SENDING MSG %i WITH %i PACKETS", msg_id, frag_count);
 	
 	SentMsgInfo info = {
 		.msg_id = msg_id,
@@ -358,7 +358,7 @@ void upd_udp_peer(	UdpPeer *peer,
 						}
 						++packet_sent_count;
 						if (packet_sent_count == acked_packet->header.msg_frag_count) {
-							debug_print("MSG %i SUCCESFULLY SENT, %i packets", acked_packet->header.msg_id, acked_packet->header.msg_frag_count);
+							//debug_print("MSG %i SUCCESFULLY SENT, %i packets", acked_packet->header.msg_id, acked_packet->header.msg_frag_count);
 							// Msg succesfully sent, notify caller
 							if (acked_msgs && acked_msg_count) {
 								ensure(*acked_msg_count < UDP_ACK_COUNT);
@@ -368,7 +368,7 @@ void upd_udp_peer(	UdpPeer *peer,
 												acked_packet->header.msg_id,
 												0);
 						} else {
-							debug_print("MSG %i PIECE %i/%i (%i) ACKNOWLEDGED", acked_packet->header.msg_id, acked_packet->header.msg_frag_ix, acked_packet->header.msg_frag_count - 1, acked_packet->header.packet_id);
+							//debug_print("MSG %i PIECE %i/%i (%i) ACKNOWLEDGED", acked_packet->header.msg_id, acked_packet->header.msg_frag_ix, acked_packet->header.msg_frag_count - 1, acked_packet->header.packet_id);
 							// Update succesfully sent packet count of the msg
 							set_tbl(U32, U32)(	&peer->sent_msg_acks,
 												acked_packet->header.msg_id,
@@ -394,7 +394,7 @@ void upd_udp_peer(	UdpPeer *peer,
 					fail(	"Too many packets in recv buffer, max %i",
 							UDP_MAX_BUFFERED_PACKET_COUNT);
 
-				debug_print("MSG %i PIECE %i/%i (%i) RECV", packet.header.msg_id, packet.header.msg_frag_ix, packet.header.msg_frag_count - 1, packet.header.packet_id);
+				//debug_print("MSG %i PIECE %i/%i (%i) RECV", packet.header.msg_id, packet.header.msg_frag_ix, packet.header.msg_frag_count - 1, packet.header.packet_id);
 				ensure(packet.header.data_size > 0);
 				peer->recv_buffer[free_i] = packet;
 			}
@@ -517,7 +517,7 @@ void upd_udp_peer(	UdpPeer *peer,
 
 			// @todo Only for reliable messages
 			if (packet->header.msg_id != UDP_HEARTBEAT_MSG_ID) {
-				debug_print("RESENDING MSG %i PIECE %i/%i (%i)", packet->header.msg_id, packet->header.msg_frag_ix, packet->header.msg_frag_count - 1, packet->header.packet_id);
+				//debug_print("RESENDING MSG %i PIECE %i/%i (%i)", packet->header.msg_id, packet->header.msg_frag_ix, packet->header.msg_frag_count - 1, packet->header.packet_id);
 				// Note that rebuffering is a bit unnecessary.
 				// UdpPacket would just need a new packet id and state set to buffered for resending.
 				buffer_udp_packet(	peer, packet->data, packet->header.data_size,

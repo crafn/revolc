@@ -12,6 +12,7 @@ NetState *create_netstate(	bool authority, F64 delta_interval,
 	g_env.netstate = net;
 
 	net->authority = authority;
+	net->peer_id = (authority ? 0 : NULL_PEER);
 	net->peer = create_udp_peer(local_port, remote_addr);
 	net->delta_interval = delta_interval;
 	net->world_upd_time = -10000.0;
@@ -148,7 +149,7 @@ internal bool resurrect_world_delta(NetState *net, RArchive *ar)
 
 	ensure(base_seq == delta_base_seq);
 
-	load_world_delta(ar, g_env.world, &base);
+	load_world_delta(ar, g_env.world, &base, net->peer_id); // Don't resurrect nodes which we control
 	g_env.physworld->grid.modified = true;
 	destroy_rarchive(&base);
 
@@ -175,7 +176,13 @@ void upd_netstate(NetState *net)
 
 			++net->world_seq;
 			if (net->world_upd_time <= 0.0) {
-				// Send a base.
+				// Send init message
+				ClientInit init = {
+					.peer_id = 1,
+				};
+				send_net_msg(NetMsg_client_init, &init, sizeof(init));
+
+				// Send the world.
 				// This might not include the most recent client commands (latency), but
 				// they will be rescheduled after the base instead of dropping.
 				make_and_save_base(net);
@@ -198,7 +205,7 @@ void upd_netstate(NetState *net)
 					}
 				}
 				if (base_ix == NULL_HANDLE) {
-					critical_print("@todo supply whole map to client");
+					critical_print("Client map is outdated. @todo resend whole map to client");
 				} else {
 					WArchive measure = create_warchive(ArchiveType_measure, NULL, 0);
 					make_world_delta(net, &measure, base_ix);
@@ -265,6 +272,20 @@ void upd_netstate(NetState *net)
 			case NetMsg_chat:
 				debug_print("> %.*s", data_size, data);
 			break;
+
+			case NetMsg_client_init: {
+				if (net->authority) {
+					critical_print("Ignoring incoming client init");
+					break;
+				}
+
+				ClientInit init;
+				RArchive ar = create_rarchive(ArchiveType_binary, data, data_size);
+				unpack_buf(&ar, &init, sizeof(init));
+				destroy_rarchive(&ar);
+
+				net->peer_id = init.peer_id;
+			} break;
 
 			case NetMsg_base: {
 				if (net->authority) {
@@ -380,7 +401,7 @@ void local_spawn_action(SpawnAction *action)
 	};
 	NodeGroupDef *def =
 		(NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, action->name);
-	create_nodes(g_env.world, def, WITH_ARRAY_COUNT(init_vals), 0);
+	create_nodes(g_env.world, def, WITH_ARRAY_COUNT(init_vals), 0, AUTHORITY_PEER);
 }
 
 void spawn_action(SpawnAction *action)

@@ -18,10 +18,15 @@ typedef struct WorldBaseState {
 
 DECLARE_ARRAY(WorldBaseState)
 
+#define NULL_PEER ((U8)-1)
+#define AUTHORITY_PEER 0
+
 // Client/server state
 typedef struct NetState {
 	UdpPeer *peer;
 	bool authority; // Do we have authority over the game world
+	U8 peer_id; // server = 0, clients = 1, ..
+
 	F64 game_time; // Increasing monotonically in real time
 	F64 delta_interval;
 
@@ -44,6 +49,7 @@ REVOLC_API void upd_netstate(NetState *net);
 
 typedef enum NetMsg {
 	NetMsg_chat = 1,
+	NetMsg_client_init,
 	NetMsg_base,
 	NetMsg_delta,
 	NetMsg_world_seq_confirm, // Client sends to server, so server knows which base it can use
@@ -56,6 +62,10 @@ typedef struct NetMsgHeader {
 	NetMsg type;
 	//F64 time; // Game time
 } PACKED NetMsgHeader;
+
+typedef struct ClientInit {
+	U8 peer_id;
+} ClientInit;
 
 typedef struct BrushAction { // @todo Range and precision "attributes"
 	V2d pos;

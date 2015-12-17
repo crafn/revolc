@@ -55,6 +55,7 @@ typedef struct NodeInfo {
 	Id group_id; // Entity id
 	Handle impl_handle; // e.g. Handle to ModelEntity
 	Handle assoc_cmds[MAX_NODE_ASSOC_CMD_COUNT];
+	U8 peer_id;
 	bool allocated; /// @todo Can be substituted by type ( == NULL)
 	bool remove;
 } NodeInfo;
@@ -83,8 +84,8 @@ typedef struct World {
 	U32 cmd_count;
 	Id next_cmd_id;
 
-	Id_Handle_Tbl node_id_to_handle;
-	Id_Handle_Tbl cmd_id_to_handle;
+	HashTbl(Id, Handle) node_id_to_handle;
+	HashTbl(Id, Handle) cmd_id_to_handle;
 
 	// Storages for node types specified with auto_impl_mgmt
 	AutoNodeImplStorage *auto_storages;
@@ -103,12 +104,12 @@ REVOLC_API void save_world(WArchive *ar, World *w);
 REVOLC_API void load_world(RArchive *ar, World *w);
 
 REVOLC_API void save_world_delta(WArchive *ar, World *w, RArchive *base_ar);
-REVOLC_API void load_world_delta(RArchive *ar, World *w, RArchive *base_ar);
+REVOLC_API void load_world_delta(RArchive *ar, World *w, RArchive *base_ar, U8 ignore_peer_id);
 
 REVOLC_API void create_nodes(	World *w,
 								const NodeGroupDef *def,
 								const SlotVal *init_vals, U32 init_vals_count,
-								U64 group_id);
+								U64 group_id, U8 peer_id);
 REVOLC_API void free_node(World *w, U32 handle);
 REVOLC_API void free_node_group(World *w, U64 group_id);
 REVOLC_API void remove_node_group(World *w, void *node_impl_in_group);
@@ -126,7 +127,7 @@ REVOLC_API void free_cmd(World *w, U32 handle);
 // Not intended to be widely used
 REVOLC_API void * node_impl(World *w, U32 *size, NodeInfo *node);
 REVOLC_API void resurrect_node_impl(World *w, NodeInfo *n, void *dead_impl_bytes);
-REVOLC_API U32 alloc_node_without_impl(World *w, NodeType *n, U64 node_id, U64 group_id);
+REVOLC_API U32 alloc_node_without_impl(World *w, NodeType *n, U64 node_id, U64 group_id, U8 peer_id);
 
 void world_on_res_reload(struct ResBlob *old);
 

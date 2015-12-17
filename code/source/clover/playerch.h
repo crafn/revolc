@@ -21,11 +21,13 @@ typedef struct PlayerCh {
 	U8 active_slot; // 0-9
 	S32 dirt_amount;
 
+	U8 peer_id; // To distinguish which peer controls which character
+
 	// Cached
 	ResId run_clip_id;
 	ResId idle_clip_id;
 	ResId dig_clip_id;
-} PlayerCh;
+} PACKED PlayerCh;
 
 MOD_API void init_playerch(PlayerCh *p);
 MOD_API U32 resurrect_playerch(PlayerCh *p);

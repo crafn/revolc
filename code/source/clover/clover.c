@@ -27,7 +27,7 @@ MOD_API void clover_worldgen(World *w)
 		SlotVal init_vals[] = { };
 		NodeGroupDef *def =
 			(NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, "world_env");
-		create_nodes(w, def, WITH_ARRAY_COUNT(init_vals), w->next_entity_id++);
+		create_nodes(w, def, WITH_ARRAY_COUNT(init_vals), w->next_entity_id++, AUTHORITY_PEER);
 	}
 
 	spawn_visual_prop(w, (V3d) {-100, -50, -490}, 0, (V3d) {700, 250, 1}, "bg_mountain");
@@ -68,7 +68,7 @@ MOD_API void clover_worldgen(World *w)
 		};
 		NodeGroupDef *def =
 			(NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, "grass");
-		create_nodes(w, def, WITH_ARRAY_COUNT(init_vals), w->next_entity_id++);
+		create_nodes(w, def, WITH_ARRAY_COUNT(init_vals), w->next_entity_id++, AUTHORITY_PEER);
 	}
 
 	// Compound test
@@ -79,17 +79,27 @@ MOD_API void clover_worldgen(World *w)
 		};
 		NodeGroupDef *def =
 			(NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, "test_comp");
-		create_nodes(w, def, WITH_ARRAY_COUNT(init_vals), w->next_entity_id++);
+		create_nodes(w, def, WITH_ARRAY_COUNT(init_vals), w->next_entity_id++, AUTHORITY_PEER);
 	}
 
-	{ // Player test
+	{ // Server character
 		T3d tf = {{1, 1, 1}, identity_qd(), {0, 12}};
 		SlotVal init_vals[] = {
 			{"body", "tf", WITH_DEREF_SIZEOF(&tf)},
 		};
-		NodeGroupDef *def =
-			(NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, "playerch");
-		create_nodes(w, def, WITH_ARRAY_COUNT(init_vals), w->next_entity_id++);
+		NodeGroupDef *def = (NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, "playerch");
+		create_nodes(w, def, WITH_ARRAY_COUNT(init_vals), w->next_entity_id++, AUTHORITY_PEER);
+	}
+
+	{ // Client character
+		T3d tf = {{1, 1, 1}, identity_qd(), {3, 12}};
+		U8 peer_id = 1;
+		SlotVal init_vals[] = {
+			{"char", "peer_id", WITH_DEREF_SIZEOF(&peer_id)},
+			{"body", "tf", WITH_DEREF_SIZEOF(&tf)},
+		};
+		NodeGroupDef *def = (NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, "playerch");
+		create_nodes(w, def, WITH_ARRAY_COUNT(init_vals), w->next_entity_id++, 1);
 	}
 
 #if 0
@@ -100,7 +110,7 @@ MOD_API void clover_worldgen(World *w)
 		};
 		NodeGroupDef *def =
 			(NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, "dirtbug");
-		create_nodes(w, def, WITH_ARRAY_COUNT(init_vals), w->next_entity_id++);
+		create_nodes(w, def, WITH_ARRAY_COUNT(init_vals), w->next_entity_id++, AUTHORITY_PEER);
 	}
 #endif
 }

@@ -62,7 +62,7 @@ void spawn_entity(World *world, ResBlob *blob, V2d pos)
 	};
 	NodeGroupDef *def =
 		(NodeGroupDef*)res_by_name(blob, ResType_NodeGroupDef, "phys_prop");
-	create_nodes(world, def, WITH_ARRAY_COUNT(init_vals), group_i);
+	create_nodes(world, def, WITH_ARRAY_COUNT(init_vals), group_i, AUTHORITY_PEER);
 }
 
 #define SAVEFILE_PATH "save.bin"
