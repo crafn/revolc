@@ -24,6 +24,7 @@
 // @todo Compression (arithmetic coding)
 // @todo Warnings when buffers are too full (packet ids might get wrongly interpreted)
 // @todo Threading (fps dependency is not nice)
+// @todo Random corruption test -> proper validating
 
 typedef enum UdpPacketState {
 	UdpPacketState_free,

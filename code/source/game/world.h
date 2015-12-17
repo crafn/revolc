@@ -73,7 +73,6 @@ typedef struct World {
 	F64 dt;
 	Id next_entity_id;
 
-	// @todo Nodes don't need to be limited to game world
 	NodeInfo nodes[MAX_NODE_COUNT];
 	Handle next_node;
 	U32 node_count;
@@ -105,6 +104,9 @@ REVOLC_API void load_world(RArchive *ar, World *w);
 
 REVOLC_API void save_world_delta(WArchive *ar, World *w, RArchive *base_ar);
 REVOLC_API void load_world_delta(RArchive *ar, World *w, RArchive *base_ar, U8 ignore_peer_id);
+
+REVOLC_API void save_single_node(WArchive *ar, World *w, Handle handle);
+REVOLC_API void load_single_node(RArchive *ar, World *w);
 
 REVOLC_API void create_nodes(	World *w,
 								const NodeGroupDef *def,

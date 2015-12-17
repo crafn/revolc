@@ -50,9 +50,10 @@ REVOLC_API void upd_netstate(NetState *net);
 typedef enum NetMsg {
 	NetMsg_chat = 1,
 	NetMsg_client_init,
-	NetMsg_base,
-	NetMsg_delta,
-	NetMsg_world_seq_confirm, // Client sends to server, so server knows which base it can use
+	NetMsg_base, // Authority sends to peers at start
+	NetMsg_delta, // Authority sends regularly
+	NetMsg_world_seq_confirm, // Peers send to authority, so authority knows which base it can use
+	NetMsg_single_node, // Peers send to authority for nodes which they have authority over (player character)
 	// Debug
 	NetMsg_brush_action,
 	NetMsg_spawn_action,

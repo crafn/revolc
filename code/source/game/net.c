@@ -40,7 +40,7 @@ void destroy_netstate(NetState *net)
 
 internal void make_and_save_base(NetState *net)
 {
-	debug_print("make_and_save_base");
+	//debug_print("make_and_save_base");
 	U32 next_base_ix = (net->cur_base_ix + 1) % net->bases.size;
 	WorldBaseState *base = &net->bases.data[next_base_ix];
 
@@ -67,7 +67,7 @@ internal void make_and_save_base(NetState *net)
 // Send confirmation of receiving and applying world state succesfully
 internal void send_confirmation(U32 seq)
 {
-	debug_print("SENDING CONFIRMATION seq %i", seq);
+	//debug_print("SENDING CONFIRMATION seq %i", seq);
 	WArchive ar = create_warchive(	ArchiveType_binary,
 									frame_ator(),
 									32);
@@ -116,7 +116,7 @@ internal void make_world_delta(NetState *net, WArchive *ar, int base_ix)
 
 internal bool resurrect_world_delta(NetState *net, RArchive *ar)
 {
-	debug_print("resurrect_world_delta");
+	//debug_print("resurrect_world_delta");
 
 	U32 delta_base_seq;
 	U32 delta_seq;
@@ -160,6 +160,85 @@ error:
 	return false;
 }
 
+internal void deliver_world_authority(NetState *net)
+{
+	++net->world_seq;
+	if (net->world_upd_time <= 0.0) {
+		// Send init message
+		ClientInit init = {
+			.peer_id = 1,
+		};
+		send_net_msg(NetMsg_client_init, &init, sizeof(init));
+
+		// Send the world.
+		// This might not include the most recent client commands (latency), but
+		// they will be rescheduled after the base instead of dropping.
+		make_and_save_base(net);
+		send_net_msg(	NetMsg_base,
+						net->bases.data[net->cur_base_ix].data,
+						net->bases.data[net->cur_base_ix].size);
+	} else if (net->peer_has_received_base) {
+		// Send a delta
+
+		// Find most recent which the remote has
+		U32 base_ix = NULL_HANDLE;
+		U32 max_seq = 0;
+		for (U32 i = 0; i < net->bases.size; ++i) {
+			WorldBaseState *base = &net->bases.data[i];
+			if (!base->peer_has_this)
+				continue;
+			if (base_ix == NULL_HANDLE || max_seq < base->seq) {
+				max_seq = base->seq;
+				base_ix = i;
+			}
+		}
+		if (base_ix == NULL_HANDLE) {
+			critical_print("Client map is outdated. @todo resend whole map to client");
+		} else {
+			WArchive measure = create_warchive(ArchiveType_measure, NULL, 0);
+			make_world_delta(net, &measure, base_ix);
+			U32 delta_size = measure.data_size;
+			destroy_warchive(&measure);
+
+			WArchive ar = create_warchive(	ArchiveType_binary,
+											frame_ator(),
+											delta_size);
+			make_world_delta(net, &ar, base_ix);
+
+			// New base using this delta
+			make_and_save_base(net);
+
+			debug_print("Sending world update %i with base %i",
+						net->bases.data[net->cur_base_ix].seq, net->bases.data[base_ix].seq);
+			send_net_msg(NetMsg_delta, ar.data, ar.data_size);
+
+			// @todo Destroy archive?
+		}
+	}
+}
+
+internal void deliver_world_client(NetState *net)
+{
+	// Send updates on nodes which we control.
+	// This should only be a small amount (character nodes), so we don't need delta machinery.
+	for (U32 i = 0; i < MAX_NODE_COUNT; ++i) {
+		if (!g_env.world->nodes[i].allocated)
+			continue;
+		if (g_env.world->nodes[i].peer_id != net->peer_id)
+			continue; // Send only nodes which we have authority on
+
+		WArchive measure = create_warchive(ArchiveType_measure, NULL, 0);
+		save_single_node(&measure, g_env.world, i);
+		U32 size = measure.data_size;
+		destroy_warchive(&measure);
+
+		WArchive ar = create_warchive(ArchiveType_binary, frame_ator(), size);
+		save_single_node(&ar, g_env.world, i);
+		send_net_msg(NetMsg_single_node, ar.data, ar.data_size);
+		destroy_warchive(&ar);
+	}
+}
+
 void upd_netstate(NetState *net)
 {
 	net->game_time += g_env.dt;
@@ -170,63 +249,11 @@ void upd_netstate(NetState *net)
 	if (peer->connected) {
 		net->stats_timer += g_env.dt;
 
-		if (	net->authority &&
-				net->world_upd_time + net->delta_interval < net->game_time) {
-			// Deliver world state
-
-			++net->world_seq;
-			if (net->world_upd_time <= 0.0) {
-				// Send init message
-				ClientInit init = {
-					.peer_id = 1,
-				};
-				send_net_msg(NetMsg_client_init, &init, sizeof(init));
-
-				// Send the world.
-				// This might not include the most recent client commands (latency), but
-				// they will be rescheduled after the base instead of dropping.
-				make_and_save_base(net);
-				send_net_msg(	NetMsg_base,
-								net->bases.data[net->cur_base_ix].data,
-								net->bases.data[net->cur_base_ix].size);
-			} else if (net->peer_has_received_base) {
-				// Send a delta
-
-				// Find most recent which the remote has
-				U32 base_ix = NULL_HANDLE;
-				U32 max_seq = 0;
-				for (U32 i = 0; i < net->bases.size; ++i) {
-					WorldBaseState *base = &net->bases.data[i];
-					if (!base->peer_has_this)
-						continue;
-					if (base_ix == NULL_HANDLE || max_seq < base->seq) {
-						max_seq = base->seq;
-						base_ix = i;
-					}
-				}
-				if (base_ix == NULL_HANDLE) {
-					critical_print("Client map is outdated. @todo resend whole map to client");
-				} else {
-					WArchive measure = create_warchive(ArchiveType_measure, NULL, 0);
-					make_world_delta(net, &measure, base_ix);
-					U32 delta_size = measure.data_size;
-					destroy_warchive(&measure);
-
-					WArchive ar = create_warchive(	ArchiveType_binary,
-													frame_ator(),
-													delta_size);
-					make_world_delta(net, &ar, base_ix);
-
-					// New base using this delta
-					make_and_save_base(net);
-
-					debug_print("Sending world update %i with base %i",
-								net->bases.data[net->cur_base_ix].seq, net->bases.data[base_ix].seq);
-					send_net_msg(NetMsg_delta, ar.data, ar.data_size);
-
-					// @todo Destroy archive?
-				}
-			}
+		if (net->world_upd_time + net->delta_interval < net->game_time) {
+			if (net->authority)
+				deliver_world_authority(net);
+			else
+				deliver_world_client(net);
 
 			net->world_upd_time = net->game_time;
 		}
@@ -332,10 +359,23 @@ void upd_netstate(NetState *net)
 				for (U32 k = 0; k < net->bases.size; ++k) {
 					if (net->bases.data[k].seq == seq) {
 						// @todo Cancel previous deltas which have not yet reached
-						debug_print("World update %i went through", net->bases.data[k].seq);
+						//debug_print("World update %i went through", net->bases.data[k].seq);
 						net->bases.data[k].peer_has_this = true;
 					}
 				}
+			} break;
+
+			case NetMsg_single_node: {
+				if (!net->authority) {
+					critical_print("Ignoring incoming single node");
+					break;
+				}
+
+				RArchive ar = create_rarchive(ArchiveType_binary, data, data_size);
+				// @todo Make sure that peer had authority over this node
+				// @todo Don't load updates which are older than most recent (reordered messages)
+				load_single_node(&ar, g_env.world);
+				destroy_rarchive(&ar);
 			} break;
 
 			case NetMsg_brush_action: {
@@ -374,7 +414,7 @@ U32 send_net_msg(NetMsg type, void *data, U32 data_size)
 	memcpy(buf + sizeof(*header), data, buf_size - sizeof(*header));
 
 	SentMsgInfo info = buffer_udp_msg(g_env.netstate->peer, buf, buf_size);
-	debug_print("net send %i, %.3fkb, msg id %i", type, info.msg_size/1024.0, info.msg_id);
+	debug_print("net send type %i id %i size %.3fkb", type, info.msg_id, info.msg_size/1024.0);
 	return info.msg_id;
 }
 

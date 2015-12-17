@@ -94,6 +94,14 @@ internal void remove_node_assoc_cmd(World *w, U32 node_h, U32 cmd_h)
 	}
 }
 
+internal void update_node_impl_data(World *w, Handle node_h, const DeadNode *dead)
+{
+	// @todo Through custom logic for only required fields. pack/unpack don't work, because they operate on the dead 
+	// Don't destroy the node (only impl), because that breaks cmds referring to that node
+	free_node_impl(w, node_h);
+	resurrect_deadnode_impl(w, node_h, dead);
+}
+
 World * create_world()
 {
 	World *w = ZERO_ALLOC(gen_ator(), sizeof(*w), "world");
@@ -589,10 +597,7 @@ void load_world_delta(RArchive *ar, World *w, RArchive *base_ar, U8 ignore_peer_
 				free_node(w, node_h);
 			} else {
 				// Updated
-				// @todo Through custom logic for only required fields. pack/unpack don't work, because they operate on the dead 
-				// Don't destroy the node, because that breaks cmds referring to that node
-				free_node_impl(w, node_h);
-				resurrect_deadnode_impl(w, node_h, &dead);
+				update_node_impl_data(w, node_h, &dead);
 			}
 		}
 	}
@@ -638,6 +643,27 @@ void load_world_delta(RArchive *ar, World *w, RArchive *base_ar, U8 ignore_peer_
 				// Maintain cmd (do nothing)
 			}
 		}
+	}
+}
+
+void save_single_node(WArchive *ar, World *w, Handle handle)
+{
+	ensure(handle != NULL_HANDLE);
+
+	DeadNode dead;
+	make_deadnode(&dead, w, &w->nodes[handle]);
+	save_deadnode(ar, &dead);
+}
+
+void load_single_node(RArchive *ar, World *w)
+{
+	DeadNode dead;
+	load_deadnode(ar, &dead);
+	Handle h = node_id_to_handle(w, dead.node_id);
+	if (h != NULL_HANDLE) {
+		update_node_impl_data(w, h, &dead);
+	} else {
+		critical_print("load_single_node: node %i not found", dead.node_id);
 	}
 }
 
@@ -1080,7 +1106,6 @@ void free_cmd(World *w, U32 handle)
 	--w->cmd_count;
 	*cmd = (NodeCmd) { .allocated = false };
 }
-
 
 void * node_impl(World *w, U32 *size, NodeInfo *node)
 {
