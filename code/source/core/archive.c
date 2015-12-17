@@ -197,14 +197,30 @@ void unpack_strbuf(RArchive *ar, char *str, U32 str_max_size)
 // Compound types
 
 
-void pack_t3d(WArchive *ar, const T3d *tf)
-{ pack_buf(ar, tf, sizeof(*tf)); }
+void lossy_pack_t3d(WArchive *ar, const T3d *tf)
+{
+	T3f temp = t3d_to_t3f(*tf);
+	pack_buf(ar, &temp, sizeof(temp));
+}
 
-void unpack_t3d(RArchive *ar, T3d *tf)
-{ unpack_buf(ar, tf, sizeof(*tf)); }
+void lossy_unpack_t3d(RArchive *ar, T3d *tf)
+{
+	T3f temp;
+	unpack_buf(ar, &temp, sizeof(temp));
+	*tf = t3f_to_t3d(temp);
+	tf->rot = normalized_qd(tf->rot);
+}
 
-void pack_v2d(WArchive *ar, const struct V2d *v)
-{ pack_buf(ar, v, sizeof(*v)); }
-void unpack_v2d(RArchive *ar, struct V2d *v)
-{ unpack_buf(ar, v, sizeof(*v)); }
+void lossy_pack_v2d(WArchive *ar, const struct V2d *v)
+{
+	V2f temp = v2d_to_v2f(*v);
+	pack_buf(ar, &temp, sizeof(temp));
+}
+
+void lossy_unpack_v2d(RArchive *ar, struct V2d *v)
+{
+	V2f temp;
+	unpack_buf(ar, &temp, sizeof(temp));
+	*v = v2f_to_v2d(temp);
+}
 

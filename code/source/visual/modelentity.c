@@ -16,7 +16,9 @@ T3d smoothed_tf(T3d tf, F32 phase, T3d delta)
 	if (phase == 0.0f)
 		return tf;
 
-	return lerp_t3d(tf, mul_t3d(tf, delta), phase);
+	T3d ret = lerp_t3d(tf, mul_t3d(tf, delta), phase);
+	ret.rot = normalized_qd(ret.rot);
+	return ret;
 }
 
 void init_modelentity(ModelEntity *data)
@@ -32,7 +34,7 @@ void pack_modelentity(WArchive *ar, const ModelEntity *begin, const ModelEntity 
 	for (const ModelEntity *it = begin; it != end; ++it) {
 		ensure(!it->has_own_mesh && "@todo");
 		pack_strbuf(ar, it->model_name, sizeof(it->model_name));
-		pack_t3d(ar, &it->tf);
+		lossy_pack_t3d(ar, &it->tf);
 		pack_s32(ar, &it->layer);
 	}
 }
@@ -43,7 +45,7 @@ void unpack_modelentity(RArchive *ar, ModelEntity *begin, ModelEntity *end)
 		init_modelentity(it);
 
 		unpack_strbuf(ar, it->model_name, sizeof(it->model_name));
-		unpack_t3d(ar, &it->tf);
+		lossy_unpack_t3d(ar, &it->tf);
 		unpack_s32(ar, &it->layer);
 	}
 }

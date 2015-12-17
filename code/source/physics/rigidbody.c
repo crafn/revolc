@@ -72,8 +72,8 @@ void pack_rigidbody(	struct WArchive *ar,
 {
 	for (const RigidBody *it = begin; it != end; ++it) {
 		pack_strbuf(ar, it->def_name, sizeof(it->def_name));
-		pack_t3d(ar, &it->tf);
-		pack_v2d(ar, &it->velocity);
+		lossy_pack_t3d(ar, &it->tf);
+		lossy_pack_v2d(ar, &it->velocity);
 	}
 }
 
@@ -84,7 +84,7 @@ void unpack_rigidbody(	struct RArchive *ar,
 	for (RigidBody *it = begin; it != end; ++it) {
 		*it = (RigidBody) {};
 		unpack_strbuf(ar, it->def_name, sizeof(it->def_name));
-		unpack_t3d(ar, &it->tf);
-		unpack_v2d(ar, &it->velocity);
+		lossy_unpack_t3d(ar, &it->tf);
+		lossy_unpack_v2d(ar, &it->velocity);
 	}
 }

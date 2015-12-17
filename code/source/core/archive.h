@@ -5,7 +5,7 @@
 #include "core/memory.h"
 
 typedef enum ArchiveType {
-	ArchiveType_measure, // Doesn't write anything
+	ArchiveType_measure, // Doesn't write anything // @todo Get rid of
 	ArchiveType_binary, // Binary
 	// @todo Think about json archive (replacing hand-written json serialization)
 } ArchiveType;
@@ -31,7 +31,7 @@ REVOLC_API void destroy_warchive(WArchive *ar);
 REVOLC_API RArchive create_rarchive(ArchiveType t, const void *data, U32 data_size);
 REVOLC_API void destroy_rarchive(RArchive *ar);
 
-// @todo Options parameters (range, precision, ...)
+// @todo Pass by value
 REVOLC_API void pack_u32(WArchive *ar, const U32 *value);
 REVOLC_API void pack_u64(WArchive *ar, const U64 *value);
 REVOLC_API void pack_s32(WArchive *ar, const S32 *value);
@@ -52,14 +52,15 @@ REVOLC_API void unpack_f64(RArchive *ar, F64 *value);
 REVOLC_API void unpack_buf(RArchive *ar, void *data, U32 data_size);
 REVOLC_API void unpack_strbuf(RArchive *ar, char *str, U32 str_max_size);
 
-// Compound types
+// Lossy packing implemented on top of the regular packing
+// @todo Fine-tuning, now just F64 -> F32
 
 struct T3d;
-REVOLC_API void pack_t3d(WArchive *ar, const struct T3d *tf);
-REVOLC_API void unpack_t3d(RArchive *ar, struct T3d *tf);
+REVOLC_API void lossy_pack_t3d(WArchive *ar, const struct T3d *tf);
+REVOLC_API void lossy_unpack_t3d(RArchive *ar, struct T3d *tf);
 
 struct V2d;
-REVOLC_API void pack_v2d(WArchive *ar, const struct V2d *v);
-REVOLC_API void unpack_v2d(RArchive *ar, struct V2d *v);
+REVOLC_API void lossy_pack_v2d(WArchive *ar, const struct V2d *v);
+REVOLC_API void lossy_unpack_v2d(RArchive *ar, struct V2d *v);
 
 #endif // REVOLC_CORE_ARCHIVE_H

@@ -530,6 +530,8 @@ void save_world_delta(WArchive *ar, World *w, RArchive *base_ar)
 	}
 
 	pack_buf_patch(ar, header_offset, &header, sizeof(header));
+
+	debug_print("delta nodes: %i, cmds: %i", header.node_count, header.cmd_count);
 }
 
 void load_world_delta(RArchive *ar, World *w, RArchive *base_ar, U8 ignore_peer_id)

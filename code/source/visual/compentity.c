@@ -16,7 +16,7 @@ void pack_compentity(	struct WArchive *ar,
 {
 	for (const CompEntity *it = begin; it != end; ++it) {
 		pack_strbuf(ar, it->def_name, sizeof(it->def_name));
-		pack_t3d(ar, &it->tf);
+		lossy_pack_t3d(ar, &it->tf);
 		pack_buf(ar, &it->pose, sizeof(it->pose));
 	}
 }
@@ -27,7 +27,7 @@ void unpack_compentity(	struct RArchive *ar,
 {
 	for (CompEntity *it = begin; it != end; ++it) {
 		unpack_strbuf(ar, it->def_name, sizeof(it->def_name));
-		unpack_t3d(ar, &it->tf);
+		lossy_unpack_t3d(ar, &it->tf);
 		unpack_buf(ar, &it->pose, sizeof(it->pose));
 	}
 }
