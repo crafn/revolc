@@ -48,6 +48,9 @@ const char *blob_path(const char *game)
 internal
 void spawn_entity(World *world, ResBlob *blob, V2d pos)
 {
+	if (g_env.netstate && !g_env.netstate->authority)
+		return;
+
 	local_persist U64 group_i = 0;
 	group_i = (group_i + 1) % 3;
 

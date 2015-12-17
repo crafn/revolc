@@ -528,8 +528,6 @@ void save_world_delta(WArchive *ar, World *w, RArchive *base_ar)
 		dead.created = true;
 		save_deadcmd(ar, &dead);
 		++header.cmd_count;
-		debug_print("delta created cmd");
-		fail("");
 	}
 
 	pack_buf_patch(ar, header_offset, &header, sizeof(header));
