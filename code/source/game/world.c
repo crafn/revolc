@@ -462,7 +462,7 @@ void save_world_delta(WArchive *ar, World *w, RArchive *base_ar)
 						dead_base.packed_impl_size)) {
 				continue; // Identical
 			} else {
-				debug_print("delta differ: %s", node_h == NULL_HANDLE ? "null" : w->nodes[node_h].type->res.name);
+				//debug_print("delta differ: %s", node_h == NULL_HANDLE ? "null" : w->nodes[node_h].type->res.name);
 			}
 
 			save_deadnode(ar, &dead_delta);
@@ -481,7 +481,7 @@ void save_world_delta(WArchive *ar, World *w, RArchive *base_ar)
 		DeadNode dead;
 		make_deadnode(&dead, w, created_node);
 		save_deadnode(ar, &dead);
-		debug_print("delta created node: %s", w->nodes[i].type->res.name);
+		//debug_print("delta created node: %s", w->nodes[i].type->res.name);
 		++header.node_count;
 	}
 
@@ -582,8 +582,8 @@ void load_world_delta(RArchive *ar, World *w, RArchive *base_ar, U8 ignore_peer_
 			Handle node_h = node_id_to_handle(w, dead.node_id);
 			if (node_h == NULL_HANDLE) {
 				// Created
-				ensure(dead.destroyed == false);
-				resurrect_deadnode(w, &dead);
+				if (!dead.destroyed)
+					resurrect_deadnode(w, &dead);
 			} else if (dead.destroyed) {
 				// Destroyed
 				free_node(w, node_h);
