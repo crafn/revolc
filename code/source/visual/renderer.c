@@ -754,6 +754,21 @@ U32 resurrect_modelentity(const ModelEntity *dead)
 	return h;
 }
 
+void overwrite_modelentity(ModelEntity *entity, const ModelEntity *dead)
+{
+	entity->smoothing_delta =
+		delta_t3d(	smoothed_tf(entity->tf, entity->smoothing_phase, entity->smoothing_delta),
+					dead->tf);
+	entity->smoothing_phase = 1.0f;
+
+	memcpy(entity->model_name, dead->model_name, sizeof(entity->model_name));
+	entity->tf = dead->tf;
+	entity->layer = dead->layer;
+
+	// @todo No need to recache if model hasn't changed etc.
+	recache_modelentity(entity);
+}
+
 void free_modelentity(Handle h)
 {
 	Renderer *r = g_env.renderer;
@@ -823,6 +838,23 @@ U32 resurrect_compentity(const CompEntity *dead)
 	return h;
 }
 
+void overwrite_compentity(CompEntity *entity, const CompEntity *dead)
+{
+	entity->smoothing_delta =
+		delta_t3d(	smoothed_tf(entity->tf, entity->smoothing_phase, entity->smoothing_delta),
+					dead->tf);
+	entity->smoothing_phase = 1.0f;
+
+	memcpy(entity->def_name, dead->def_name, sizeof(entity->def_name));
+	entity->tf = dead->tf;
+	memcpy(&entity->pose, &dead->pose, sizeof(entity->pose));
+
+	// @todo Mark error in position for network smoothing
+
+	// @todo No need to recache if model hasn't changed etc.
+	recache_compentity(entity);
+}
+
 void free_compentity(Handle h)
 {
 	Renderer *r = g_env.renderer;
@@ -865,6 +897,8 @@ void render_frame()
 			continue;
 		ensure(e->armature);
 
+		upd_smoothing_phase(&e->smoothing_phase, g_env.device->dt);
+
 		T3d global_pose[MAX_ARMATURE_JOINT_COUNT];
 		calc_global_pose(global_pose, e);
 
@@ -881,7 +915,9 @@ void render_frame()
 		ModelEntity *e = &r->m_entities[i];
 		if (!e->allocated)
 			continue;
-		drawcmd(e->tf,
+
+		upd_smoothing_phase(&e->smoothing_phase, g_env.device->dt);
+		drawcmd(smoothed_tf(e->tf, e->smoothing_phase, e->smoothing_delta),
 				e->vertices, e->mesh_v_count,
 				e->indices, e->mesh_i_count,
 				(AtlasUv) {e->atlas_uv, e->scale_to_atlas_uv},

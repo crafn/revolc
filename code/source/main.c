@@ -171,8 +171,8 @@ int main(int argc, const char **argv)
 				};
 			}
 
-			//if (d->key_down['e'])
-			//	spawn_entity(world, g_env.resblob, cursor_on_world);
+			if (d->key_down['e'])
+				spawn_entity(world, g_env.resblob, cursor_on_world);
 
 #			ifdef USE_FLUID
 			if (d->key_down['r']) {

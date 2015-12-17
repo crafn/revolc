@@ -1,24 +1,30 @@
 #include "core/archive.h"
 #include "modelentity.h"
 
+void upd_smoothing_phase(F32 *phase, F64 dt)
+{
+	if (*phase < 0.001f) {
+		*phase = 0.0f;
+		return;
+	}
+
+	*phase = exp_drive(*phase, 0, dt*15);
+}
+
+T3d smoothed_tf(T3d tf, F32 phase, T3d delta)
+{
+	if (phase == 0.0f)
+		return tf;
+
+	return lerp_t3d(tf, mul_t3d(tf, delta), phase);
+}
+
 void init_modelentity(ModelEntity *data)
 {
 	*data = (ModelEntity) {
 		.tf = identity_t3d(),
 		.color = (Color) {1, 1, 1, 1},
 	};
-}
-
-internal
-void pack_t3d(WArchive *ar, const T3d *tf)
-{
-	pack_buf(ar, tf, sizeof(*tf));
-}
-
-internal
-void unpack_t3d(RArchive *ar, T3d *tf)
-{
-	unpack_buf(ar, tf, sizeof(*tf));
 }
 
 void pack_modelentity(WArchive *ar, const ModelEntity *begin, const ModelEntity *end)

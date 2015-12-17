@@ -15,6 +15,10 @@ typedef struct ModelEntity {
 	bool allocated;
 	bool has_own_mesh; // If true, vertices and indices are free'd along this
 
+	// Local
+	T3d smoothing_delta;
+	F32 smoothing_phase; // 1 at start of smoothing, 0 when done 
+
 	// Cached
 	Color color;
 	F32 emission;
@@ -26,6 +30,13 @@ typedef struct ModelEntity {
 	TriMeshVertex* vertices;
 	MeshIndexType* indices;
 } ModelEntity;
+
+
+// Visual smoothing for discontinuities caused by net sync
+REVOLC_API void upd_smoothing_phase(F32 *phase, F64 dt);
+REVOLC_API T3d smoothed_tf(T3d tf, F32 phase, T3d delta);
+
+// Rest of node-API or ModelEntity is in renderer
 
 REVOLC_API void init_modelentity(ModelEntity *data);
 

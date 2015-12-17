@@ -32,6 +32,13 @@ static
 F32 lerp_f32(F32 a, F32 b, F32 t)
 { return a*(1 - t) + b*t; }
 
+// FPS independent exponential decay towards `target`
+static
+F64 exp_drive(F64 value, F64 target, F64 dt)
+{
+	return (value - target)*pow(2, -dt) + target;
+}
+
 
 // Vectors
 
@@ -512,9 +519,14 @@ Qf qf_by_xy_rot_matrix(F32 cs, F32 sn)
 	return (Qf) {0, 0, sin(rot/2.0), cos(rot/2.0) };
 }
 
+// Not normalized, use only for small angles
 static
 Qf lerp_qf(Qf a, Qf b, F32 t)
-{ return (Qf) {a.x*(1 - t) + b.x*t, a.y*(1 - t) + b.y*t, a.z*(1 - t) + b.z*t, a.w*(1 - t) + b.w*t, }; }
+{
+	if (a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w < 0.0f) // Pick shortest path
+		b = (Qf) {-b.x, -b.y, -b.z, -b.w};
+	return (Qf) {a.x*(1 - t) + b.x*t, a.y*(1 - t) + b.y*t, a.z*(1 - t) + b.z*t, a.w*(1 - t) + b.w*t, };
+}
 
 static
 bool equals_qd(Qd a, Qd b)
@@ -637,9 +649,14 @@ Qd qd_by_xy_rot_matrix(F64 cs, F64 sn)
 	return (Qd) {0, 0, sin(rot/2.0), cos(rot/2.0) };
 }
 
+// Not normalized, use only for small angles
 static
 Qd lerp_qd(Qd a, Qd b, F64 t)
-{ return (Qd) {a.x*(1 - t) + b.x*t, a.y*(1 - t) + b.y*t, a.z*(1 - t) + b.z*t, a.w*(1 - t) + b.w*t, }; }
+{
+	if (a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w < 0.0) // Pick shortest path
+		b = (Qd) {-b.x, -b.y, -b.z, -b.w};
+	return (Qd) {a.x*(1 - t) + b.x*t, a.y*(1 - t) + b.y*t, a.z*(1 - t) + b.z*t, a.w*(1 - t) + b.w*t, };
+}
 
 static
 Qf qd_to_qf(Qd q)
@@ -725,6 +742,16 @@ T3d inv_t3d(T3d tf)
 	return t;
 }
 
+// mul(a, delta(b, a)) == b
+
+static
+T3f delta_t3f(T3f to, T3f from)
+{ return mul_t3f(inv_t3f(from), to); }
+
+static
+T3d delta_t3d(T3d to, T3d from)
+{ return mul_t3d(inv_t3d(from), to); }
+
 static
 T3f t3d_to_t3f(T3d tf)
 { return (T3f) {v3d_to_v3f(tf.scale), qd_to_qf(tf.rot), v3d_to_v3f(tf.pos)}; }
@@ -748,6 +775,16 @@ T3f lerp_t3f(T3f a, T3f b, F32 t)
 		lerp_v3f(a.scale, b.scale, t),
 		lerp_qf(a.rot, b.rot, t),
 		lerp_v3f(a.pos, b.pos, t)
+	};
+}
+
+static
+T3d lerp_t3d(T3d a, T3d b, F64 t)
+{
+	return (T3d) {
+		lerp_v3d(a.scale, b.scale, t),
+		lerp_qd(a.rot, b.rot, t),
+		lerp_v3d(a.pos, b.pos, t)
 	};
 }
 

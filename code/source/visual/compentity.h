@@ -28,6 +28,10 @@ typedef struct CompEntity {
 
 	JointPoseArray pose; // Relative to bind offsets
 
+	// Local
+	T3d smoothing_delta;
+	F32 smoothing_phase; // 1 at start of smoothing, 0 when done 
+
 	// Cached
 	Armature *armature;
 	SubEntity subs[MAX_SUBENTITY_COUNT];
@@ -35,6 +39,14 @@ typedef struct CompEntity {
 } CompEntity;
 
 REVOLC_API void init_compentity(CompEntity *data);
+struct WArchive;
+struct RArchive;
+REVOLC_API void pack_compentity(	struct WArchive *ar,
+									const CompEntity *begin,
+									const CompEntity *end);
+REVOLC_API void unpack_compentity(	struct RArchive *ar,
+									CompEntity *begin,
+									CompEntity *end);
 
 REVOLC_API SubEntity create_subentity(const Armature *a, CompDef_Sub sub);
 REVOLC_API void destroy_subentity(SubEntity e);

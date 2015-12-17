@@ -52,4 +52,10 @@ REVOLC_API void unpack_f64(RArchive *ar, F64 *value);
 REVOLC_API void unpack_buf(RArchive *ar, void *data, U32 data_size);
 REVOLC_API void unpack_strbuf(RArchive *ar, char *str, U32 str_max_size);
 
+// Compound types
+
+struct T3d;
+REVOLC_API void pack_t3d(WArchive *ar, const struct T3d *tf);
+REVOLC_API void unpack_t3d(RArchive *ar, struct T3d *tf);
+
 #endif // REVOLC_CORE_ARCHIVE_H

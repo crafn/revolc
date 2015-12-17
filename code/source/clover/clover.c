@@ -72,8 +72,8 @@ MOD_API void clover_worldgen(World *w)
 	}
 
 	// Compound test
-	for (U32 i = 0; i < 1; ++i) {
-		T3d tf = {(V3d) {1, 1, 1}, identity_qd(), {-3, 15, 0}};
+	for (U32 i = 0; i < 5; ++i) {
+		T3d tf = {(V3d) {1, 1, 1}, identity_qd(), {-3 + i, 15, 0}};
 		SlotVal init_vals[] = {
 			{"body", "tf", WITH_DEREF_SIZEOF(&tf)},
 		};

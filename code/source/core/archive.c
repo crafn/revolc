@@ -1,4 +1,5 @@
 #include "archive.h"
+#include "core/math.h" // Compound types
 
 // @note No caring about endianness
 
@@ -191,4 +192,14 @@ void unpack_buf(RArchive *ar, void *data, U32 data_size)
 { unpack_buf_funcs[ar->type](ar, data, data_size); }
 void unpack_strbuf(RArchive *ar, char *str, U32 str_max_size)
 { unpack_strbuf_funcs[ar->type](ar, str, str_max_size); }
+
+
+// Compound types
+
+
+void pack_t3d(WArchive *ar, const T3d *tf)
+{ pack_buf(ar, tf, sizeof(*tf)); }
+
+void unpack_t3d(RArchive *ar, T3d *tf)
+{ unpack_buf(ar, tf, sizeof(*tf)); }
 

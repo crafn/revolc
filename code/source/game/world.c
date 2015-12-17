@@ -55,6 +55,7 @@ typedef struct DeadNode {
 } PACKED DeadNode;
 
 internal void make_deadnode(DeadNode *dead_node, World *w, NodeInfo *node);
+internal void unpack_deadnode_impl(void **dead_impl, const DeadNode *dead_node);
 internal void resurrect_deadnode_impl(World *w, U32 handle, const DeadNode *dead_node);
 internal void resurrect_deadnode(World *w, const DeadNode *dead_node);
 internal void save_deadnode(WArchive *ar, const DeadNode *n);
@@ -65,9 +66,10 @@ internal void resurrect_deadcmd(World *w, const DeadCmd *dead_cmd);
 internal void save_deadcmd(WArchive *ar, const DeadCmd *dead_cmd);
 internal void load_deadcmd(RArchive *ar, DeadCmd *dead_cmd);
 
+internal void overwrite_node_impl(World *w, Handle node_h, const DeadNode *dead);
 internal void free_node_impl(World *w, U32 handle);
 
-internal void add_node_assoc_cmd(World *w, U32 node_h, U32 cmd_h)
+internal void add_node_assoc_cmd(World *w, Handle node_h, Handle cmd_h)
 {
 	ensure(node_h != NULL_HANDLE);
 	ensure(cmd_h != NULL_HANDLE);
@@ -81,7 +83,7 @@ internal void add_node_assoc_cmd(World *w, U32 node_h, U32 cmd_h)
 	fail("Node is full of cmds");
 }
 
-internal void remove_node_assoc_cmd(World *w, U32 node_h, U32 cmd_h)
+internal void remove_node_assoc_cmd(World *w, Handle node_h, Handle cmd_h)
 {
 	ensure(node_h != NULL_HANDLE);
 	ensure(cmd_h != NULL_HANDLE);
@@ -92,14 +94,6 @@ internal void remove_node_assoc_cmd(World *w, U32 node_h, U32 cmd_h)
 			break;
 		}
 	}
-}
-
-internal void update_node_impl_data(World *w, Handle node_h, const DeadNode *dead)
-{
-	// @todo Through custom logic for only required fields. pack/unpack don't work, because they operate on the dead 
-	// Don't destroy the node (only impl), because that breaks cmds referring to that node
-	free_node_impl(w, node_h);
-	resurrect_deadnode_impl(w, node_h, dead);
 }
 
 World * create_world()
@@ -597,7 +591,7 @@ void load_world_delta(RArchive *ar, World *w, RArchive *base_ar, U8 ignore_peer_
 				free_node(w, node_h);
 			} else {
 				// Updated
-				update_node_impl_data(w, node_h, &dead);
+				overwrite_node_impl(w, node_h, &dead);
 			}
 		}
 	}
@@ -661,7 +655,7 @@ void load_single_node(RArchive *ar, World *w)
 	load_deadnode(ar, &dead);
 	Handle h = node_id_to_handle(w, dead.node_id);
 	if (h != NULL_HANDLE) {
-		update_node_impl_data(w, h, &dead);
+		overwrite_node_impl(w, h, &dead);
 	} else {
 		critical_print("load_single_node: node %i not found", dead.node_id);
 	}
@@ -696,6 +690,30 @@ void make_deadnode(DeadNode *dead_node, World *w, NodeInfo *node)
 	}
 }
 
+void unpack_deadnode_impl(void **dead_impl, const DeadNode *dead_node)
+{
+	NodeType *node_type = (NodeType*)res_by_name(
+							g_env.resblob,
+							ResType_NodeType,
+							dead_node->type_name);
+
+	if (node_type->packsync == PackSync_full) {
+		*dead_impl = ALLOC(frame_ator(), node_type->size, "dead_impl");
+		RArchive ar = create_rarchive(	ArchiveType_binary,
+										dead_node->packed_impl, dead_node->packed_impl_size);
+		if (node_type->unpack)
+			node_type->unpack(&ar, *dead_impl, (U8*)*dead_impl + node_type->size);
+		else
+			unpack_buf(&ar, *dead_impl, node_type->size);
+		destroy_rarchive(&ar);
+	} else {
+		*dead_impl = ZERO_ALLOC(frame_ator(), node_type->size, "dead_impl");
+		// @todo Default values from node def and group def
+		if (node_type->init)
+			node_type->init(*dead_impl);
+	}
+}
+
 void resurrect_deadnode_impl(World *w, U32 node_h, const DeadNode *dead_node)
 {
 	NodeInfo *n = &w->nodes[node_h];
@@ -705,29 +723,9 @@ void resurrect_deadnode_impl(World *w, U32 node_h, const DeadNode *dead_node)
 
 	//debug_print("resurrect_deadnode_impl %s, h %i, id %i", dead_node->type_name, node_h, n->node_id);
 
-	NodeType *node_type = (NodeType*)res_by_name(
-							g_env.resblob,
-							ResType_NodeType,
-							dead_node->type_name);
-
-	if (node_type->packsync == PackSync_full) {
-		void *dead_impl = ALLOC(frame_ator(), node_type->size, "dead_impl");
-		RArchive ar = create_rarchive(	ArchiveType_binary,
-										dead_node->packed_impl, dead_node->packed_impl_size);
-		if (node_type->unpack)
-			node_type->unpack(&ar, dead_impl, (U8*)dead_impl + node_type->size);
-		else
-			unpack_buf(&ar, dead_impl, node_type->size);
-		resurrect_node_impl(w, n, dead_impl);
-		destroy_rarchive(&ar);
-	} else {
-		void *dead_impl = ZERO_ALLOC(frame_ator(), node_type->size, "dead_impl");
-		// @todo Default values from node def and group def
-		if (node_type->init)
-			node_type->init(dead_impl);
-		//ensure(w->nodes[n->cmds[0].src_node].allocated);
-		resurrect_node_impl(w, n, dead_impl);
-	}
+	void *dead_impl;
+	unpack_deadnode_impl(&dead_impl, dead_node);
+	resurrect_node_impl(w, n, dead_impl);
 }
 
 void resurrect_deadnode(World *w, const DeadNode *dead_node)
@@ -948,6 +946,22 @@ void create_nodes(	World *w,
 		resurrect_cmd(w, cmd);
 	}
 }
+
+void overwrite_node_impl(World *w, Handle node_h, const DeadNode *deadnode)
+{
+	ensure(node_h != NULL_HANDLE);
+	NodeInfo *node = &w->nodes[node_h];
+	if (node->type->overwrite) {
+		void *dead_impl;
+		unpack_deadnode_impl(&dead_impl, deadnode);
+		node->type->overwrite(node_impl(w, NULL, node), dead_impl);
+	} else {
+		// Don't destroy the node (only impl), because that breaks cmds referring to that node
+		free_node_impl(w, node_h);
+		resurrect_deadnode_impl(w, node_h, deadnode);
+	}
+}
+
 
 void free_node_impl(World *w, U32 handle)
 {

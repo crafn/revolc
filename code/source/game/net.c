@@ -397,8 +397,6 @@ void upd_netstate(NetState *net)
 			brush_action(&(BrushAction) {cursor_on_world, 2.0, GRIDCELL_MATERIAL_AIR});
 		if (d->key_down['g'])
 			brush_action(&(BrushAction) {cursor_on_world, 1.0, GRIDCELL_MATERIAL_GROUND});
-		if (d->key_pressed['e'])
-			spawn_action(&(SpawnAction) {"playerch", cursor_on_world});
 	}
 }
 

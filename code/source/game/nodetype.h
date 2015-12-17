@@ -11,6 +11,7 @@ struct WArchive;
 struct RArchive;
 typedef void (*InitNodeImpl)(void *data);
 typedef Handle (*ResurrectNodeImpl)(void *dead);
+typedef void (*OverwriteNodeImpl)(void *node, const void *dead);
 typedef void (*FreeNodeImpl)(Handle h, void *data);
 typedef void * (*StorageNodeImpl)();
 typedef void (*UpdNodeImpl)(void *begin,
@@ -28,9 +29,9 @@ typedef struct NodeType {
 
 	char init_func_name[MAX_FUNC_NAME_SIZE];
 	char resurrect_func_name[MAX_FUNC_NAME_SIZE];
-	char upd_func_name[MAX_FUNC_NAME_SIZE];
-
+	char overwrite_func_name[MAX_FUNC_NAME_SIZE];
 	char free_func_name[MAX_FUNC_NAME_SIZE];
+	char upd_func_name[MAX_FUNC_NAME_SIZE];
 	char storage_func_name[MAX_FUNC_NAME_SIZE];
 	char pack_func_name[MAX_FUNC_NAME_SIZE];
 	char unpack_func_name[MAX_FUNC_NAME_SIZE];
@@ -45,13 +46,14 @@ typedef struct NodeType {
 
 	// Cached
 	const struct Module *module;
-	InitNodeImpl init;
-	ResurrectNodeImpl resurrect;
-	UpdNodeImpl upd;
-	FreeNodeImpl free;
-	StorageNodeImpl storage;
-	PackNodeImpl pack;
-	UnpackNodeImpl unpack;
+	InitNodeImpl init; // Provides default values as dead data
+	ResurrectNodeImpl resurrect; // Creates living node from dead data
+	OverwriteNodeImpl overwrite; // Overwrites data of living node by dead data. Used in net game updates.
+	UpdNodeImpl upd; // Updates living node
+	FreeNodeImpl free; // Frees living node
+	StorageNodeImpl storage; // Pointer to storage of nodes
+	PackNodeImpl pack; // Picks necessary info from dead node for reconstructing node
+	UnpackNodeImpl unpack; // Puts back necessary info to dead node, which can then be resurrected
 	U32 size;
 
 	// Set by node system!

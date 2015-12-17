@@ -1,3 +1,4 @@
+#include "core/archive.h"
 #include "compentity.h"
 #include "global/env.h"
 
@@ -7,6 +8,28 @@ void init_compentity(CompEntity *data)
 		.tf = identity_t3d(),
 		.pose = identity_pose(),
 	};
+}
+
+void pack_compentity(	struct WArchive *ar,
+						const CompEntity *begin,
+						const CompEntity *end)
+{
+	for (const CompEntity *it = begin; it != end; ++it) {
+		pack_strbuf(ar, it->def_name, sizeof(it->def_name));
+		pack_t3d(ar, &it->tf);
+		pack_buf(ar, &it->pose, sizeof(it->pose));
+	}
+}
+
+void unpack_compentity(	struct RArchive *ar,
+						CompEntity *begin,
+						CompEntity *end)
+{
+	for (CompEntity *it = begin; it != end; ++it) {
+		unpack_strbuf(ar, it->def_name, sizeof(it->def_name));
+		unpack_t3d(ar, &it->tf);
+		unpack_buf(ar, &it->pose, sizeof(it->pose));
+	}
 }
 
 SubEntity create_subentity(const Armature *a, CompDef_Sub sub)
@@ -76,7 +99,8 @@ void calc_global_pose(T3d *global_pose, const CompEntity *e)
 		}
 
 		joint_poses[j_i] = joint_pose;
-		global_pose[j_i] = mul_t3d(e->tf, t3f_to_t3d(joint_pose));
+		global_pose[j_i] = mul_t3d(	smoothed_tf(e->tf, e->smoothing_phase, e->smoothing_delta),
+									t3f_to_t3d(joint_pose));
 	}
 }
 

@@ -17,13 +17,6 @@ U32 resurrect_playerch(PlayerCh *p)
 	return NULL_HANDLE;
 }
 
-// FPS independent exponential decay towards `target`
-internal
-F64 exp_drive(F64 value, F64 target, F64 dt)
-{
-	return (value - target)*pow(2, -dt) + target;
-}
-
 typedef struct PlayerChFirstHitResult {
 	const RigidBody *ignore_body;
 
