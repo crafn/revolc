@@ -73,4 +73,14 @@ REVOLC_API void remove_constraint(Constraint *c);
 // Returns applied force
 REVOLC_API V2d apply_velocity_target(RigidBody *b, V2d velocity, F64 max_force);
 
+
+struct WArchive;
+struct RArchive;
+REVOLC_API void pack_rigidbody(	struct WArchive *ar,
+								const RigidBody *begin,
+								const RigidBody *end);
+REVOLC_API void unpack_rigidbody(	struct RArchive *ar,
+									RigidBody *begin,
+									RigidBody *end);
+
 #endif // REVOLC_PHYSICS_RIGIDBODY_H

@@ -58,4 +58,8 @@ struct T3d;
 REVOLC_API void pack_t3d(WArchive *ar, const struct T3d *tf);
 REVOLC_API void unpack_t3d(RArchive *ar, struct T3d *tf);
 
+struct V2d;
+REVOLC_API void pack_v2d(WArchive *ar, const struct V2d *v);
+REVOLC_API void unpack_v2d(RArchive *ar, struct V2d *v);
+
 #endif // REVOLC_CORE_ARCHIVE_H

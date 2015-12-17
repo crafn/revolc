@@ -203,3 +203,8 @@ void pack_t3d(WArchive *ar, const T3d *tf)
 void unpack_t3d(RArchive *ar, T3d *tf)
 { unpack_buf(ar, tf, sizeof(*tf)); }
 
+void pack_v2d(WArchive *ar, const struct V2d *v)
+{ pack_buf(ar, v, sizeof(*v)); }
+void unpack_v2d(RArchive *ar, struct V2d *v)
+{ unpack_buf(ar, v, sizeof(*v)); }
+

@@ -1,3 +1,4 @@
+#include "core/archive.h"
 #include "chipmunk_util.h"
 #include "global/env.h"
 #include "rigidbody.h"
@@ -62,4 +63,28 @@ V2d apply_velocity_target(RigidBody *b, V2d velocity, F64 max_force)
 	apply_force(b, force);
 
 	return force;
+}
+
+
+void pack_rigidbody(	struct WArchive *ar,
+						const RigidBody *begin,
+						const RigidBody *end)
+{
+	for (const RigidBody *it = begin; it != end; ++it) {
+		pack_strbuf(ar, it->def_name, sizeof(it->def_name));
+		pack_t3d(ar, &it->tf);
+		pack_v2d(ar, &it->velocity);
+	}
+}
+
+void unpack_rigidbody(	struct RArchive *ar,
+						RigidBody *begin,
+						RigidBody *end)
+{
+	for (RigidBody *it = begin; it != end; ++it) {
+		*it = (RigidBody) {};
+		unpack_strbuf(ar, it->def_name, sizeof(it->def_name));
+		unpack_t3d(ar, &it->tf);
+		unpack_v2d(ar, &it->velocity);
+	}
 }

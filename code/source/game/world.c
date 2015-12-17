@@ -454,7 +454,6 @@ void save_world_delta(WArchive *ar, World *w, RArchive *base_ar)
 			make_deadnode(&dead_delta, w, &delta_node);
 
 			// Check if dead node has different packed data.
-			// @todo Cmds etc.
 			// @todo Allow ensure below in future when not a bug
 			ensure(dead_delta.packed_impl_size == dead_base.packed_impl_size); 
 			if (!memcmp(dead_delta.packed_impl,
