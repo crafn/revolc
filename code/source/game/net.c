@@ -396,7 +396,7 @@ void upd_netstate(NetState *net)
 		}
 	}
 
-	{ // UI
+	if (g_env.editor->state == EditorState_invisible) { // Debug UI
 		Device *d = g_env.device;
 		V2d cursor_on_world = screen_to_world_point(g_env.device->cursor_pos);
 		if (d->key_down['t'])

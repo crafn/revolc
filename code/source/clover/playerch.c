@@ -44,9 +44,10 @@ void playerch_ray_callback(RigidBody *body, V2d point, V2d normal, F64 fraction,
 
 void upd_playerch(PlayerCh *p, PlayerCh *p_e, RigidBody *body, RigidBody *body_e)
 {
-	V2d cursor_on_world = screen_to_world_point(g_env.device->cursor_pos);
-
 	F64 dt = g_env.world->dt;
+	if (dt == 0.0)
+		return;
+	V2d cursor_on_world = screen_to_world_point(g_env.device->cursor_pos);
 	V2d cursor_p = screen_to_world_point(g_env.device->cursor_pos);
 
 	for (; p != p_e; ++p, ++body) {

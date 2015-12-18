@@ -17,7 +17,7 @@ U32 resurrect_clipinst(ClipInst *dead)
 
 void upd_clipinst(ClipInst *inst, ClipInst *e)
 {
-	F32 dt = g_env.world->dt;
+	F64 dt = g_env.world->dt;
 	for (; inst != e; ++inst) {
 		// This hurts!
 		const Clip *c =

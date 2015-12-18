@@ -207,6 +207,7 @@ int node_cmp(const void * a_, const void * b_)
 void upd_world(World *w, F64 dt)
 {
 	w->dt = dt;
+	bool paused = (dt == 0.0);
 
 	memcpy(w->sort_space, w->nodes, sizeof(w->nodes));
 	/// @todo	Optimize sorting -- this qsort causes a major fps drop.
@@ -274,6 +275,8 @@ void upd_world(World *w, F64 dt)
 
 		switch (cmd.type) {
 		case CmdType_memcpy: {
+			if (paused)
+				break; // Allow editing of individual struct members without overwriting
 			ensure(cmd.src_node < MAX_NODE_COUNT);
 			NodeInfo *src_node = &w->nodes[cmd.src_node];
 			NodeInfo *dst_node = &w->nodes[cmd.dst_node];
@@ -281,7 +284,7 @@ void upd_world(World *w, F64 dt)
 
 			U8 *dst = (U8*)node_impl(w, NULL, dst_node) + cmd.dst_offset;
 			U8 *src = (U8*)node_impl(w, NULL, src_node) + cmd.src_offset;
-			for (U32 i = 0; i < cmd.size; ++i)
+			for (U32 i = 0; i < cmd.size; ++i) 
 				dst[i] = src[i];
 		} break;
 		case CmdType_call: {
