@@ -278,6 +278,12 @@ void upd_netstate(NetState *net)
 			env->stats_timer = 0.0;
 		}
 #endif
+	} else {
+		// Reset net state for new client
+		net->world_upd_time = -10000;
+		net->peer_has_received_base = false;
+		for (U32 i = 0; i < net->bases.size; ++i)
+			net->bases.data[i].peer_has_this = false;
 	}
 
 	UdpMsg *msgs;

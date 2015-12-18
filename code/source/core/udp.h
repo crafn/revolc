@@ -58,6 +58,7 @@ typedef struct UdpPeer {
 	F64 last_recv_time;
 	bool connected;
 	IpAddress remote_addr;
+	U16 local_port;
 	F64 rtt; // Round-trip time
 
 	U32 next_msg_id; // Non-wrapping multi-packet message

@@ -18,17 +18,16 @@ bool wrapped_gr(U32 s1, U32 s2, U32 max)
 { return	((s1 > s2) && (s1 - s2 <= max/2)) ||
 			((s2 > s1) && (s2 - s1 > max/2)); }
 
-UdpPeer *create_udp_peer(U16 local_port, IpAddress *remote_addr)
+// (re)init
+internal void init_udp_peer(UdpPeer *peer, U16 local_port, IpAddress *remote_addr)
 {
-	UdpPeer *peer = ALLOC(gen_ator(), sizeof(*peer), "udp_peer");
 	*peer = (UdpPeer) {
 		.socket = open_udp_socket(local_port),
+		.local_port = local_port,
 		.remote_addr = remote_addr ? *remote_addr : (IpAddress) {},
 		.rtt = 0.5, // Better to be too large than too small at the startup
 		.next_msg_id = 1, // 0 is heartbeat
-		.sent_msg_acks = create_tbl(U32, U32)(
-									UDP_HEARTBEAT_MSG_ID, 0,
-									gen_ator(), UDP_MAX_BUFFERED_PACKET_COUNT),
+		.sent_msg_acks = peer->sent_msg_acks,
 	};
 	for (U32 i = 0; i < UDP_PACKET_ID_COUNT; ++i) {
 		peer->packet_id_to_send_buffer_ix[i] = NULL_HANDLE;
@@ -40,12 +39,27 @@ UdpPeer *create_udp_peer(U16 local_port, IpAddress *remote_addr)
 
 	if (peer->socket == invalid_socket())
 		fail("Socket creation failed");
+
+}
+
+internal void deinit_udp_peer(UdpPeer *peer)
+{
+	close_socket(&peer->socket);
+	clear_tbl(U32, U32)(&peer->sent_msg_acks);
+}
+
+UdpPeer *create_udp_peer(U16 local_port, IpAddress *remote_addr)
+{
+	UdpPeer *peer = ZERO_ALLOC(gen_ator(), sizeof(*peer), "udp_peer");
+	init_udp_peer(peer, local_port, remote_addr);
+	peer->sent_msg_acks = create_tbl(U32, U32)(	UDP_HEARTBEAT_MSG_ID, 0,
+												gen_ator(), UDP_MAX_BUFFERED_PACKET_COUNT);
 	return peer;
 }
 
 void destroy_udp_peer(UdpPeer *peer)
 {
-	close_socket(&peer->socket);
+	deinit_udp_peer(peer);
 	destroy_tbl(U32, U32)(&peer->sent_msg_acks);
 	FREE(gen_ator(), peer);
 }
@@ -405,7 +419,10 @@ void upd_udp_peer(	UdpPeer *peer,
 
 		if (	!packet_received && peer->connected &&
 				peer->last_recv_time + UDP_CONNECTION_TIMEOUT < g_env.time_from_start) {
-			peer->connected = false;
+			U16 local_port = peer->local_port;
+			IpAddress remote_addr = peer->remote_addr;
+			deinit_udp_peer(peer);
+			init_udp_peer(peer, local_port, remote_addr.port == 0 ? NULL : &remote_addr);
 			debug_print("Disconnected from %s", ip_to_str(peer->remote_addr));
 		}
 

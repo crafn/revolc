@@ -89,6 +89,13 @@ void set_tbl(K, V)(HashTbl(K, V) *tbl, K key, V value)\
 \
 	ensure(tbl->count < tbl->array_size);\
 }\
+void clear_tbl(K, V)(HashTbl(K, V) *tbl)\
+{\
+	tbl->count = 0;\
+	for (U32 i = 0; i < tbl->array_size; ++i)\
+		tbl->array[i] = null_tbl_entry(K, V)(tbl);\
+}\
+
 
 DEFINE_HASHTABLE(U64, U32)
 DEFINE_HASHTABLE(U32, U32)

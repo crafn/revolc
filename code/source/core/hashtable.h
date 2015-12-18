@@ -17,6 +17,7 @@
 #define destroy_tbl(K, V) JOIN3(destroy_, LC_KV(K, V), _tbl)
 #define get_tbl(K, V) JOIN3(get_, LC_KV(K, V), _tbl)
 #define set_tbl(K, V) JOIN3(set_, LC_KV(K, V), _tbl)
+#define clear_tbl(K, V) JOIN3(clear_tbl, LC_KV(K, V), _tbl)
 #define null_tbl_entry(K, V) JOIN3(null_, LC_KV(K, V), _tbl_entry)
 #define HashTbl(K, V) JOIN2(KV(K, V), _Tbl)
 #define HashTbl_Entry(K, V) JOIN2(KV(K, V), _Tbl_Entry)
@@ -43,6 +44,7 @@ REVOLC_API void destroy_tbl(K, V)(HashTbl(K, V) *tbl);\
 \
 REVOLC_API V get_tbl(K, V)(HashTbl(K, V) *tbl, K key);\
 REVOLC_API void set_tbl(K, V)(HashTbl(K, V) *tbl, K key, V value);\
+REVOLC_API void clear_tbl(K, V)(HashTbl(K, V) *tbl);\
 
 
 DECLARE_HASHTABLE(U64, U32)

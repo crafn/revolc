@@ -55,6 +55,7 @@ void destroy_debug(Debug *d)
 
 void upd_debug(Debug *d)
 {
+#if 0
 	memmove(d->dt_history, d->dt_history + 1, sizeof(*d->dt_history)*(DT_HISTORY_COUNT - 1));
 	d->dt_history[DT_HISTORY_COUNT - 1] = g_env.device->dt;
 
@@ -70,5 +71,6 @@ void upd_debug(Debug *d)
 		V2i pos = {i, height - size.y};
 		drawcmd_px_quad(pos, size, (Color) {1.f, 0.f, 0.f, 0.9f}, 9999999);
 	}
+#endif
 }
 
