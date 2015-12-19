@@ -19,7 +19,7 @@ int json_physmat_to_blob(struct BlobBuf *buf, JsonTok j)
 		.friction = json_real(j_friction),
 		.restitution = json_real(j_restitution),
 	};
-	blob_write(buf, (U8*)&mat + sizeof(Resource), sizeof(mat) - sizeof(Resource));
+	blob_write(buf, &mat, sizeof(mat));
 
 	return 0;
 error:

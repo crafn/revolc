@@ -8,13 +8,11 @@
 #include "visual/renderer.h"
 
 internal
-Clip *get_or_create_rt_clip(const char *name)
+Clip *get_modifiable_clip(const char *name)
 {
-	Clip *clip =
-		(Clip*)res_by_name(	g_env.resblob,
-							ResType_Clip,
-							name);
-	return clip;
+	return (Clip*)substitute_res(res_by_name(	g_env.resblob,
+												ResType_Clip,
+												name));
 }
 
 // Armature editing on world
@@ -40,7 +38,7 @@ bool gui_armature_overlay(ArmatureEditor *state, bool is_edit_mode)
 		entity = get_compentity(state->comp_h);
 	else
 		return editing_happening;
-	Armature *a = entity->armature;
+	Armature *a = (Armature*)substitute_res(&entity->armature->res);
 	T3d global_pose[MAX_ARMATURE_JOINT_COUNT];
 	calc_global_pose(global_pose, entity);
 
@@ -71,7 +69,7 @@ bool gui_armature_overlay(ArmatureEditor *state, bool is_edit_mode)
 			editing_happening = true;
 
 			if (state->clip_is_bind_pose) {
-				a->res.needs_saving = true;
+				resource_modified(&a->res);
 
 				// Modify bind pose
 				T3d coords = entity->tf;
@@ -134,7 +132,7 @@ bool gui_armature_overlay(ArmatureEditor *state, bool is_edit_mode)
 				default: fail("Unknown CursorDeltaMode: %i", m);
 				}
 
-				Clip *clip = get_or_create_rt_clip(state->clip_name);
+				Clip *clip = get_modifiable_clip(state->clip_name);
 				update_rt_clip_key(clip, key);
 			}
 		}
@@ -220,14 +218,14 @@ void do_armature_editor(	ArmatureEditor *state,
 			// "Make looping", "Delete" and "Play" -buttons
 			if (!state->clip_is_bind_pose) {
 				if (gui_button("Make looping", NULL, NULL)) {
-					Clip *clip = get_or_create_rt_clip(state->clip_name);
+					Clip *clip = get_modifiable_clip(state->clip_name);
 					make_rt_clip_looping(clip);
 				}
 
 				if (	gui_button("Delete key <x>", NULL, NULL)
 						|| ctx->dev.delete) {
 
-					Clip *clip = get_or_create_rt_clip(state->clip_name);
+					Clip *clip = get_modifiable_clip(state->clip_name);
 
 					// Delete all keys of selected joints at current time
 					bool key_deleted;
@@ -306,7 +304,7 @@ void do_armature_editor(	ArmatureEditor *state,
 					// Move keys
 					CursorDeltaMode m = cursor_delta_mode(clip_timeline_label);
 					if (m == CursorDeltaMode_translate) {
-						Clip *clip = get_or_create_rt_clip(state->clip_name);
+						Clip *clip = get_modifiable_clip(state->clip_name);
 
 						T3d coords = {{1, 1, 1}, identity_qd(), {0, 0, 0}};
 						T3f delta;

@@ -79,6 +79,8 @@ void editor_store_res_state()
 internal
 void editor_revert_res_state()
 {
+	debug_print("Trying to revert res state");
+#if 0
 	Editor *e = g_env.editor;
 	if (e->stored.vertices && e->cur_model_h != NULL_HANDLE) {
 		ModelEntity *m = get_modelentity(e->cur_model_h);
@@ -131,6 +133,7 @@ void editor_revert_res_state()
 
 		recache_ptrs_to_clips();
 	}
+#endif
 }
 
 

@@ -6,9 +6,9 @@
 
 void init_shadersource(ShaderSource *shd)
 {
-	const GLchar* vs_src = blob_ptr(&shd->res, shd->vs_src_offset);
-	const GLchar* gs_src = blob_ptr(&shd->res, shd->gs_src_offset);
-	const GLchar* fs_src = blob_ptr(&shd->res, shd->fs_src_offset);
+	const GLchar* vs_src = rel_ptr(&shd->vs_src_offset);
+	const GLchar* gs_src = rel_ptr(&shd->gs_src_offset);
+	const GLchar* fs_src = rel_ptr(&shd->fs_src_offset);
 
 	U32 attrib_count;
 	const VertexAttrib *attribs;
@@ -128,13 +128,17 @@ int json_shadersource_to_blob(struct BlobBuf *buf, JsonTok j)
 	if (!json_is_null(j_fs_file))
 		fs_src = malloc_file(fs_total_path, &fs_src_len);
 
-	BlobOffset vs_src_offset = buf->offset + sizeof(ShaderSource) - sizeof(Resource);
-	BlobOffset gs_src_offset = vs_src_offset + vs_src_len + 1;
-	BlobOffset fs_src_offset = gs_src_offset + gs_src_len + 1;
+	U64 vs_src_offset = buf->offset + offsetof(ShaderSource, vs_src_offset);
+	U64 gs_src_offset = buf->offset + offsetof(ShaderSource, gs_src_offset);
+	U64 fs_src_offset = buf->offset + offsetof(ShaderSource, fs_src_offset);
 	MeshType mesh_type = MeshType_tri;
 	U32 cached = 0;
 	U8 null_byte = 0;
 
+	// @todo Fill ShaderSource and write that instead of separate members
+	Resource res;
+
+	blob_write(buf, &res, sizeof(res));
 	blob_write(buf, &vs_src_offset, sizeof(vs_src_offset));
 	blob_write(buf, &gs_src_offset, sizeof(gs_src_offset));
 	blob_write(buf, &fs_src_offset, sizeof(fs_src_offset));
@@ -144,10 +148,13 @@ int json_shadersource_to_blob(struct BlobBuf *buf, JsonTok j)
 	blob_write(buf, &cached, sizeof(cached));
 	blob_write(buf, &cached, sizeof(cached));
 	blob_write(buf, &cached, sizeof(cached));
+	blob_patch_rel_ptr(buf, vs_src_offset);
 	blob_write(buf, vs_src, vs_src_len);
 	blob_write(buf, &null_byte, 1);
+	blob_patch_rel_ptr(buf, gs_src_offset);
 	blob_write(buf, gs_src, gs_src_len);
 	blob_write(buf, &null_byte, 1);
+	blob_patch_rel_ptr(buf, fs_src_offset);
 	blob_write(buf, fs_src, fs_src_len);
 	blob_write(buf, &null_byte, 1);
 

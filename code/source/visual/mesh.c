@@ -96,7 +96,9 @@ int json_mesh_to_blob(struct BlobBuf *buf, JsonTok j)
 			indices[i] = json_integer(json_member(j_ind, i));
 
 		// @todo Fill Mesh and write it instead of individual members
+		Resource res;
 
+		blob_write(buf, &res, sizeof(res));
 		blob_write(buf, &type, sizeof(type));
 		blob_write(buf, &v_count, sizeof(v_count));
 		blob_write(buf, &i_count, sizeof(i_count));
@@ -142,35 +144,4 @@ void mesh_to_json(WJson *j, const Mesh *m)
 						wjson_number(mesh_indices(m)[i]));
 	}
 }
-
-/*
-internal
-void destroy_rt_mesh(Resource *res)
-{
-	Mesh *m = (Mesh*)res;
-	FREE(dev_ator(), blob_ptr(res, m->v_offset));
-	FREE(dev_ator(), blob_ptr(res, m->i_offset));
-	FREE(dev_ator(), m);
-}
-
-Mesh *create_rt_mesh(Mesh *src)
-{
-	Mesh *rt_mesh = ALLOC(dev_ator(), sizeof(*rt_mesh), "rt_mesh");
-	*rt_mesh = *src;
-	substitute_res(&src->res, &rt_mesh->res, destroy_rt_mesh);
-
-	rt_mesh->v_offset =
-		alloc_substitute_res_member(	&rt_mesh->res, &src->res,
-										src->v_offset,
-										sizeof(TriMeshVertex)*src->v_count);
-	rt_mesh->i_offset =
-		alloc_substitute_res_member(	&rt_mesh->res, &src->res,
-										src->i_offset,
-										sizeof(MeshIndexType)*src->i_count);
-
-	recache_ptrs_to_meshes();
-
-	return rt_mesh;
-}
-*/
 

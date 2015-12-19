@@ -24,7 +24,7 @@ U32 ipow(U32 base, U32 exp)
 Texel * texture_texels(const Texture *tex, U32 lod)
 {
 	ensure(lod < tex->lod_count);
-	return blob_ptr(&tex->res, tex->texel_offsets[lod]);
+	return rel_ptr(&tex->texel_offsets[lod]);
 }
 
 V2i lod_reso(V2i base, U32 lod)
@@ -80,13 +80,10 @@ int json_texture_to_blob(struct BlobBuf *buf, JsonTok j)
 	};
 
 	// Calculate mip-map data and offsets to it
-	U32 offset = buf->offset + sizeof(tex) - sizeof(tex.res);
 	for (U32 lod_i = 0; lod_i < lod_count; ++lod_i) {
-		tex.texel_offsets[lod_i] = offset;
 
 		const V2i reso = lod_reso(tex.reso, lod_i);
 		const U32 byte_count = reso.x*reso.y*sizeof(Texel);
-		offset += byte_count;
 
 		if (lod_i == 0) // Not a mip-level
 			continue;
@@ -127,10 +124,17 @@ int json_texture_to_blob(struct BlobBuf *buf, JsonTok j)
 		}
 	}
 
-	blob_write(buf, (U8*)&tex + sizeof(tex.res), sizeof(tex) - sizeof(tex.res));
+	U64 texel_member_buf_offsets[MAX_TEXTURE_LOD_COUNT];
+	for (U32 i = 0; i < MAX_TEXTURE_LOD_COUNT; ++i)
+		texel_member_buf_offsets[i] = buf->offset + offsetof(Texture, texel_offsets[i]);
+
+	blob_write(buf, &tex, sizeof(tex));
+	blob_patch_rel_ptr(buf, texel_member_buf_offsets[0]);
 	blob_write(buf, image, width*height*comps);
-	for (U32 i = 0; i < MAX_MIP_COUNT && mips[i]; ++i)
+	for (U32 i = 0; i < MAX_MIP_COUNT && mips[i]; ++i) {
+		blob_patch_rel_ptr(buf, texel_member_buf_offsets[i + 1]);
 		blob_write(buf, mips[i], mip_byte_counts[i]);
+	}
 
 cleanup:
 	free(loaded_image);

@@ -146,9 +146,8 @@ int json_nodetype_to_blob(struct BlobBuf *buf, JsonTok j)
 		}
 	}
 
-	blob_write(	buf,
-				(U8*)&n + sizeof(Resource),
-				sizeof(n) - sizeof(Resource));
+	blob_write(buf, &n, sizeof(n));
+
 	return 0;
 
 error:

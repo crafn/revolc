@@ -11,7 +11,7 @@
 internal
 int json_res_to_blob(BlobBuf *buf, JsonTok j, ResType res_t)
 {
-#define RESOURCE(name, init, deinit, blobify, jsonify) \
+#define RESOURCE(name, init, deinit, blobify, jsonify, recache) \
 	if (res_t == ResType_ ## name) \
 		return blobify(buf, j);
 #	include "resources.def"
@@ -22,7 +22,7 @@ int json_res_to_blob(BlobBuf *buf, JsonTok j, ResType res_t)
 internal
 void res_to_json(WJson *j, const Resource *res)
 {
-#define RESOURCE(rtype, init, deinit, blobify, jsonify) \
+#define RESOURCE(rtype, init, deinit, blobify, jsonify, recache) \
 	{ \
 		void *fptr = (void*)jsonify; \
 		if (ResType_ ## rtype == res->type) { \
@@ -39,7 +39,7 @@ void res_to_json(WJson *j, const Resource *res)
 internal
 void init_res(Resource *res)
 {
-#define RESOURCE(rtype, init, deinit, blobify, jsonify) \
+#define RESOURCE(rtype, init, deinit, blobify, jsonify, recache) \
 	{ \
 		void *fptr = (void*)init; \
 		if (fptr && ResType_ ## rtype == res->type) \
@@ -61,6 +61,7 @@ void load_blob(ResBlob **blob, const char *path)
 	{ // Load from file
 		U32 blob_size;
 		*blob = (ResBlob*)malloc_file(path, &blob_size);
+		(*blob)->size = blob_size;
 		debug_print("load_blob: %s, %iM", path, (int)blob_size/(1024*1024));
 
 		for (U32 i = 0; i < (*blob)->res_file_count; ++i)
@@ -88,7 +89,7 @@ void load_blob(ResBlob **blob, const char *path)
 internal
 void deinit_res(Resource *res)
 {
-#define RESOURCE(rtype, init, deinit, blobify, jsonify) \
+#define RESOURCE(rtype, init, deinit, blobify, jsonify, recache) \
 	{ \
 		void* fptr = (void*)deinit; \
 		if (fptr && ResType_ ## rtype == res->type) \
@@ -123,11 +124,11 @@ void free_blob(ResBlob *blob)
 	while (res) {
 		RuntimeResource *next = res->next;
 		deinit_res(res->res);
-		if (res->rt_free) {
-			res->rt_free(res->res);
-		} else {
-			FREE(dev_ator(), res->res);
+		for (U32 i = 0; i < MAX_RESOURCE_REL_PTR_COUNT; ++i) {
+			if (res->allocated_ptrs[i])
+				FREE(dev_ator(), rel_ptr(res->allocated_ptrs[i]));
 		}
+		FREE(dev_ator(), res->res);
 		FREE(dev_ator(), res);
 		res = next;
 	}
@@ -155,11 +156,19 @@ void reload_blob(ResBlob **new_blob, ResBlob *old_blob, const char *path)
 	free_blob(old_blob);
 }
 
+internal void add_rt_res(ResBlob *blob, RuntimeResource *res)
+{
+	// Insert to runtime resources of the blob in reverse order
+	// this way destruction happens naturally in reverse
+	res->next = blob->first_runtime_res;
+	blob->first_runtime_res = res;
+}
+
 Resource * res_by_name(ResBlob *blob, ResType type, const char *name)
 {
 	Resource *res = find_res_by_name(blob, type, name);
 	if (res)
-		return res;
+		return res->substitute ? res->substitute : res;
 
 	// Search already created runtime resources
 	RuntimeResource *runtime_res = NULL;
@@ -179,14 +188,14 @@ Resource * res_by_name(ResBlob *blob, ResType type, const char *name)
 		critical_print("Resource not found: %s, %s", name, restype_to_str(type));
 		critical_print("Creating MissingResource");
 
+		RuntimeResource *new_res = ALLOC(dev_ator(), sizeof(*new_res), "new_res");
+		*new_res = (RuntimeResource) {};
+
 		Resource res_header = {};
 		fmt_str(res_header.name, RES_NAME_SIZE, "%s", name);
 		res_header.type = type;
 		res_header.blob = blob;
-		res_header.is_runtime_res = true;
-
-		RuntimeResource *new_res = ALLOC(dev_ator(), sizeof(*new_res), "new_res");
-		*new_res = (RuntimeResource) {};
+		res_header.runtime_owner = new_res;
 
 		const U32 missing_res_max_size = 1024*4;
 		new_res->res = ZERO_ALLOC(dev_ator(), missing_res_max_size, "new_res->res");
@@ -216,10 +225,7 @@ Resource * res_by_name(ResBlob *blob, ResType type, const char *name)
 		free_parsed_json_file(parsed_json);
 		init_res(new_res->res);
 
-		// Insert to runtime resources of the blob in reverse order
-		// this way destruction happens naturally in reverse
-		new_res->next = blob->first_runtime_res;
-		blob->first_runtime_res = new_res;
+		add_rt_res(blob, new_res);
 		return new_res->res;
 	}
 }
@@ -303,22 +309,6 @@ Resource ** all_res_by_type(	U32 *count,
 		}
 	}
 	return res_list;
-}
-
-void* blob_ptr(const Resource *who_asks, BlobOffset offset)
-{
-	if (!who_asks->is_runtime_res)
-		return (void*)((U8*)who_asks->blob + offset);
-	else /// @see RuntimeResource definition
-		return (void*)((U8*)who_asks + offset);
-}
-
-BlobOffset blob_offset(const Resource *who_asks, const void *ptr)
-{
-	if (!who_asks->is_runtime_res)
-		return (U64)((U8*)ptr - (U8*)who_asks->blob);
-	else /// @see RuntimeResource definition
-		return (U64)((U8*)ptr - (U8*)who_asks);
 }
 
 void print_blob(const ResBlob *blob)
@@ -498,9 +488,14 @@ void make_blob(const char *dst_file_path, char **res_file_paths)
 			ResInfo *res = &res_infos[res_i];
 			debug_print("blobbing: %s, %s", res->header.name, restype_to_str(res->header.type));
 
+			U64 offset_before_res = buf.offset;
 			res_offsets[res_i] = buf.offset;
-			blob_write(&buf, &res->header, sizeof(res->header));
 			int err = json_res_to_blob(&buf, res->tok, res->header.type);
+
+			// Patch res header
+			res->header.size = buf.offset - offset_before_res;
+			memcpy((U8*)buf.data + res_offsets[res_i], &res->header, sizeof(res->header));
+			
 			if (err) {
 				critical_print("Failed to process resource: %s, %s",
 					res->header.name, restype_to_str(res->header.type));
@@ -547,25 +542,92 @@ error:
 	goto exit;
 }
 
-void realloc_res_member(RelPtr *member, U32 size, U32 old_size)
+bool inside_blob(const ResBlob *blob, void *ptr)
 {
-	// @todo
-	//if (inside_blob(g_env.resblob, rel_ptr(member)))
-	//	FREE(leakable_dev_ator());
-
-	void *data = ZERO_ALLOC(leakable_dev_ator(), size, "substitute_res_member");
-	memcpy(data, rel_ptr(member), old_size);
-	set_rel_ptr(member, data);
+	if ((U8*)ptr >= (U8*)blob && (U8*)ptr < (U8*)blob + blob->size)
+		return true;
+	return false;
 }
 
-/*
-void alloc_substitute_res_member(	Resource *dst,
-									RelPtr *member,
-									void *src_data,
-									U32 src_size)
+internal void recache_ptrs_to(Resource *res)
 {
+#define RESOURCE(rtype, init, deinit, blobify, jsonify, recache) \
+	{ \
+		void (*fptr)() = recache; \
+		if (fptr && ResType_ ## rtype == res->type) \
+			fptr();\
+	}
+#	include "resources/resources.def"
+#undef RESOURCE
 }
-*/
+
+Resource *substitute_res(Resource *res)
+{
+	ensure(!res->substitute || !res->runtime_owner); // Can't be both
+	ensure(res->size > sizeof(Resource));
+
+	if (res->substitute)
+		return res->substitute; // This has already a substitute
+	if (res->runtime_owner)
+		return res->runtime_owner->res; // Runtime resources can't be substituted (no need)
+
+	RuntimeResource *new_rt = ALLOC(dev_ator(), sizeof(*new_rt), "new_rt");
+	*new_rt = (RuntimeResource) {};
+
+	// Copy node from blob to separately allocated
+	Resource *new_res = ALLOC(dev_ator(), res->size, "new_res");
+	memcpy(new_res, res, res->size);
+
+	res->substitute = new_res;
+	new_res->runtime_owner = new_rt;
+	new_rt->res = new_res;
+
+	add_rt_res(g_env.resblob, new_rt);
+
+	// Update pointers to 'res' to point 'new_res', and same with the members
+	debug_print("recaching subs %s", res->name);
+	recache_ptrs_to(res);
+
+	return new_res;
+}
+
+void realloc_res_member(Resource *res, RelPtr *member, U32 size, U32 old_size)
+{
+	if (!res->runtime_owner)
+		fail("realloc_res_member: resource is not runtime resource");
+
+	RuntimeResource *rt = res->runtime_owner;
+
+	Handle free_ix = NULL_HANDLE;
+	Handle old_ix = NULL_HANDLE;
+	for (U32 i = 0; i < MAX_RESOURCE_REL_PTR_COUNT; ++i) {
+		if (rt->allocated_ptrs[i] == NULL)
+			free_ix = i;
+		if (rt->allocated_ptrs[i] == member)
+			old_ix = i;
+	}
+
+	if (old_ix != NULL_HANDLE) {
+		void *ptr = REALLOC(dev_ator(), rel_ptr(member), size, "realloc_res_member");
+		set_rel_ptr(member, ptr);
+		rt->allocated_ptrs[old_ix] = member;
+		rt->allocated_sizes[old_ix] = size;
+	} else if (free_ix != NULL_HANDLE) {
+		void *ptr = ALLOC(dev_ator(), size, "alloc_res_member");
+		memcpy(ptr, rel_ptr(member), old_size);
+		set_rel_ptr(member, ptr);
+		rt->allocated_ptrs[free_ix] = member;
+		rt->allocated_sizes[free_ix] = size;
+	} else {
+		fail("Too many simultaneous allocations for a resource");
+	}
+
+	debug_print("recaching realloc %s", res->name);
+
+	// Update pointers pointing to the old/freed member
+	recache_ptrs_to(res);
+}
+
 
 // Mirror possibly modified resource to json
 internal
@@ -606,18 +668,26 @@ error:
 	goto cleanup;
 }
 
+void resource_modified(Resource *res)
+{
+	if (!res->runtime_owner)
+		fail("resource_modified: only runtime resources can be modified");
+	else
+		res->runtime_owner->needs_saving = true;
+}
+
 U32 mirror_blob_modifications(ResBlob *blob)
 {
 	U32 count = 0;
 	RuntimeResource *rt_res = blob->first_runtime_res;
 	while (rt_res) {
 		Resource *res = rt_res->res;
-		if (res->needs_saving) {
+		if (rt_res->needs_saving) {
 			// Reloading & writing json for every modified resource
 			// shouldn't be a problem, because typically few resources
 			// are modified at once
 			mirror_res(res);
-			res->needs_saving = false;
+			rt_res->needs_saving = false;
 			++count;
 		}
 		rt_res = rt_res->next;
@@ -630,7 +700,7 @@ bool blob_has_modifications(const ResBlob *blob)
 {
 	RuntimeResource *rt_res = blob->first_runtime_res;
 	while (rt_res) {
-		if (rt_res->res->needs_saving)
+		if (rt_res->needs_saving)
 			return true;
 		rt_res = rt_res->next;
 	}

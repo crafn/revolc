@@ -42,7 +42,7 @@ int json_model_to_blob(struct BlobBuf *buf, JsonTok j)
 	if (!json_is_null(j_pattern))
 		m.pattern = json_integer(j_pattern);
 
-	blob_write(buf, (U8*)&m + sizeof(m.res), sizeof(m) - sizeof(m.res));
+	blob_write(buf, &m, sizeof(m));
 	return 0;
 
 error:

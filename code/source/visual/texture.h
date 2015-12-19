@@ -19,8 +19,7 @@ typedef struct Texture {
 	// Renderer sets
 	AtlasUv atlas_uv;
 
-	/// @todo Mipmaps
-	U32 texel_offsets[MAX_TEXTURE_LOD_COUNT];
+	REL_PTR(Texel) texel_offsets[MAX_TEXTURE_LOD_COUNT];
 	U32 lod_count;
 } PACKED Texture;
 

@@ -20,7 +20,7 @@ typedef struct Font {
 	stbtt_packedchar chars[FONT_CHAR_COUNT];
 	// @todo Should probably have rgba bitmap, or ttf data.
 	//       Monochrome bitmap is no good for anyone.
-	BlobOffset bitmap_offset; // U8
+	REL_PTR(U8) bitmap_offset;
 	V2i bitmap_reso;
 	F32 px_height;
 } PACKED Font;

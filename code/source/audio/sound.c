@@ -307,6 +307,9 @@ int json_sound_to_blob(struct BlobBuf *buf, JsonTok j)
 	samples = malloc_decoded_ogg_vorbis(	&frame_count, &ch_count,
 										file_contents, file_size);
 
+	// @todo Fill Sound struct and write that
+	Resource res;
+	blob_write(buf, &res, sizeof(res));
 	blob_write(buf, &ch_count, sizeof(ch_count));
 	blob_write(buf, &frame_count, sizeof(frame_count));
 	blob_write(buf, samples, sizeof(*samples)*ch_count*frame_count);

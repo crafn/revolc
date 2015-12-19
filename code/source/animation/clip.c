@@ -232,14 +232,13 @@ int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 	fmt_str(clip.armature_name, sizeof(clip.armature_name),
 			"%s", armature->res.name);
 
-	const U32 samples_offset = buf->offset + offsetof(Clip, local_samples) - sizeof(clip.res);
-	const U32 keys_offset = buf->offset + offsetof(Clip, keys) - sizeof(clip.res);
+	const U32 samples_offset = buf->offset + offsetof(Clip, local_samples);
+	const U32 keys_offset = buf->offset + offsetof(Clip, keys);
 
 	const U32 samples_size = sizeof(*samples)*sample_count;
 	const U32 keys_size = sizeof(*keys)*total_key_count;
 
-	blob_write(buf, (U8*)&clip + sizeof(clip.res),
-					sizeof(clip) - sizeof(clip.res));
+	blob_write(buf, &clip, sizeof(clip));
 
 	blob_patch_rel_ptr(buf, samples_offset);
 	blob_write(buf, samples, samples_size);
@@ -360,60 +359,24 @@ JointPoseArray calc_clip_pose(const Clip *c, F64 t)
 	return pose;
 }
 
-/*
-internal
-void destroy_rt_clip(Resource *res)
-{
-	Clip *c = (Clip*)res;
-	dev_free(rel_ptr(&c->keys));
-	dev_free(rel_ptr(&c->local_samples));
-	dev_free(c);
-}
-
-Clip *create_rt_clip(Clip *src)
-{
-	Clip *rt_clip = dev_malloc(sizeof(*rt_clip));
-	*rt_clip = *src;
-
-	substitute_res(&src->res, &rt_clip->res, destroy_rt_clip);
-
-	alloc_substitute_res_member(	&rt_clip->res,
-									&rt_clip->keys,
-									rel_ptr(&src->keys),
-									sizeof(Clip_Key)*src->key_count);
-	alloc_substitute_res_member(	&rt_clip->res,
-									&rt_clip->local_samples,
-									rel_ptr(&src->local_samples),
-									sizeof(T3f)*clip_sample_count(src));
-
-	recache_ptrs_to_clips();
-	return rt_clip;
-}
-*/
-
 internal
 void add_rt_clip_key(Clip *c, Clip_Key key)
 {
 	const U32 old_count = c->key_count;
 	const U32 new_count = old_count + 1;
 
-	realloc_res_member(	&c->keys,
-						sizeof(Clip_Key)*new_count,
-						sizeof(Clip_Key)*old_count);
+	realloc_res_member(&c->res, &c->keys, sizeof(Clip_Key)*new_count, sizeof(Clip_Key)*old_count);
 	Clip_Key *keys = rel_ptr(&c->keys);
 
 	keys[old_count] = key;
 
 	c->key_count = new_count;
 
-	c->res.is_runtime_res = true;
-	c->res.needs_saving = true;
+	resource_modified(&c->res);
 }
 
 void update_rt_clip_key(Clip *c, Clip_Key key)
 {
-	ensure(c->res.is_runtime_res);
-
 	Clip_Key *edit_key = NULL;
 	for (U32 i = 0; i < c->key_count; ++i) {
 		Clip_Key *cmp = &clip_keys(c)[i];
@@ -436,7 +399,7 @@ void update_rt_clip_key(Clip *c, Clip_Key key)
 							clip_keys(c), c->key_count,
 							c->duration);
 
-	c->res.needs_saving = true;
+	resource_modified(&c->res);
 }
 
 void delete_rt_clip_key(Clip *c, U32 del_i)
@@ -451,13 +414,12 @@ void delete_rt_clip_key(Clip *c, U32 del_i)
 							c->joint_count, c->frame_count,
 							clip_keys(c), c->key_count,
 							c->duration);
-	c->res.needs_saving = true;
+	resource_modified(&c->res);
 }
 
 void make_rt_clip_looping(Clip *c)
 {
-
-	Clip_Key *keys = dev_malloc(sizeof(*keys)*c->key_count);
+	Clip_Key *keys = ALLOC(frame_ator(), sizeof(*keys)*c->key_count, "keys");
 	U32 key_count = 0;
 
 	// Find keys to-be-appended
@@ -480,14 +442,12 @@ void make_rt_clip_looping(Clip *c)
 	for (U32 i = 0; i < key_count; ++i)
 		update_rt_clip_key(c, keys[i]);
 
-	c->res.needs_saving = true;
-
-	dev_free(keys);
+	resource_modified(&c->res);
 }
 
 void move_rt_clip_keys(Clip *c, F64 from, F64 to)
 {
-	const Armature *a = (Armature *)res_by_name(	c->res.blob,
+	const Armature *a = (Armature *)res_by_name(c->res.blob,
 												ResType_Armature,
 												c->armature_name);
 
@@ -505,7 +465,7 @@ void move_rt_clip_keys(Clip *c, F64 from, F64 to)
 							clip_keys(c), c->key_count,
 							c->duration);
 
-	c->res.needs_saving = true;
+	resource_modified(&c->res);
 }
 
 void recache_ptrs_to_clips()

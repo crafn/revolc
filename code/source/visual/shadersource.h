@@ -9,9 +9,9 @@
 typedef struct ShaderSource {
 	Resource res;
 	// NULL-terminated strings
-	BlobOffset vs_src_offset;
-	BlobOffset gs_src_offset;
-	BlobOffset fs_src_offset;
+	REL_PTR(char) vs_src_offset;
+	REL_PTR(char) gs_src_offset;
+	REL_PTR(char) fs_src_offset;
 	MeshType mesh_type;
 	char feedback_varyings[MAX_SHADER_VARYING_COUNT][RES_NAME_SIZE];
 

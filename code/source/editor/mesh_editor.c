@@ -32,8 +32,10 @@ void transform_mesh(ModelEntity *m, T3f tf, bool uv)
 	}
 
 	Mesh *mesh = model_mesh((Model*)res_by_name(	g_env.resblob,
-												ResType_Model,
-												m->model_name));
+													ResType_Model,
+													m->model_name));
+	mesh = (Mesh*)substitute_res(&mesh->res);
+
 	for (U32 i = 0; i < mesh->v_count; ++i) {
 		TriMeshVertex *v = &mesh_vertices(mesh)[i];
 		if (!v->selected)
@@ -49,7 +51,7 @@ void transform_mesh(ModelEntity *m, T3f tf, bool uv)
 		}
 	}
 
-	mesh->res.needs_saving = true;
+	resource_modified(&mesh->res);
 }
 
 internal

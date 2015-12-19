@@ -17,19 +17,19 @@
 
 #else
 
-RESOURCE(Module, init_module, deinit_module, json_module_to_blob, NULL)
-RESOURCE(Texture, NULL, NULL, json_texture_to_blob, NULL)
-RESOURCE(Mesh, NULL, NULL, json_mesh_to_blob, mesh_to_json)
-RESOURCE(Model, NULL, NULL, json_model_to_blob, NULL)
-RESOURCE(CompDef, NULL, NULL, json_compdef_to_blob, NULL)
-RESOURCE(ShaderSource, init_shadersource, deinit_shadersource, json_shadersource_to_blob, NULL)
-RESOURCE(RigidBodyDef, NULL, NULL, json_rigidbodydef_to_blob, NULL)
-RESOURCE(PhysMat, NULL, NULL, json_physmat_to_blob, NULL)
-RESOURCE(NodeType, init_nodetype, NULL, json_nodetype_to_blob, NULL)
-RESOURCE(NodeGroupDef, init_nodegroupdef, deinit_nodegroupdef, json_nodegroupdef_to_blob, NULL)
-RESOURCE(Sound, NULL, NULL, json_sound_to_blob, NULL)
-RESOURCE(Armature, NULL, NULL, json_armature_to_blob, armature_to_json)
-RESOURCE(Clip, NULL, NULL, json_clip_to_blob, clip_to_json)
-RESOURCE(Font, NULL, NULL, json_font_to_blob, NULL)
+RESOURCE(Module, init_module, deinit_module, json_module_to_blob, NULL, NULL)
+RESOURCE(Texture, NULL, NULL, json_texture_to_blob, NULL, NULL)
+RESOURCE(Mesh, NULL, NULL, json_mesh_to_blob, mesh_to_json, recache_ptrs_to_meshes)
+RESOURCE(Model, NULL, NULL, json_model_to_blob, NULL, NULL)
+RESOURCE(CompDef, NULL, NULL, json_compdef_to_blob, NULL, NULL)
+RESOURCE(ShaderSource, init_shadersource, deinit_shadersource, json_shadersource_to_blob, NULL, NULL)
+RESOURCE(RigidBodyDef, NULL, NULL, json_rigidbodydef_to_blob, NULL, NULL)
+RESOURCE(PhysMat, NULL, NULL, json_physmat_to_blob, NULL, NULL)
+RESOURCE(NodeType, init_nodetype, NULL, json_nodetype_to_blob, NULL, NULL)
+RESOURCE(NodeGroupDef, init_nodegroupdef, deinit_nodegroupdef, json_nodegroupdef_to_blob, NULL, NULL)
+RESOURCE(Sound, NULL, NULL, json_sound_to_blob, NULL, NULL)
+RESOURCE(Armature, NULL, NULL, json_armature_to_blob, armature_to_json, recache_ptrs_to_armatures)
+RESOURCE(Clip, NULL, NULL, json_clip_to_blob, clip_to_json, recache_ptrs_to_clips)
+RESOURCE(Font, NULL, NULL, json_font_to_blob, NULL, NULL)
 
 #endif

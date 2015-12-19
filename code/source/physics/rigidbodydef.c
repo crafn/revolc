@@ -73,7 +73,7 @@ int json_rigidbodydef_to_blob(struct BlobBuf *buf, JsonTok j)
 		}
 	}
 
-	blob_write(buf, (U8*)&def + sizeof(Resource), sizeof(def) - sizeof(Resource));
+	blob_write(buf, &def, sizeof(def));
 	return 0;
 
 error:

@@ -41,9 +41,7 @@ int json_compdef_to_blob(struct BlobBuf *buf, JsonTok j)
 		++def.sub_count;
 	}
 
-	blob_write(	buf,
-				(U8*)&def + sizeof(Resource),
-				sizeof(def) - sizeof(Resource));
+	blob_write(buf, &def, sizeof(def));
 
 	return 0;
 

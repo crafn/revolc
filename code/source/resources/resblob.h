@@ -8,6 +8,7 @@
 typedef struct ResBlob {
 	U32 version;
 	U32 res_count;
+	U32 size; // Size of whole blob. Set at load time.
 
 	char res_file_paths[MAX_RES_FILES][MAX_PATH_SIZE];
 	U32 res_file_count;
@@ -38,10 +39,6 @@ REVOLC_API Resource ** all_res_by_type(	U32 *count,
 										const ResBlob *blob,
 										ResType t);
 
-REVOLC_API void * blob_ptr(const Resource *who_asks, BlobOffset offset);
-// @todo Don't use this. Use relative ptr from core/ptr.h
-REVOLC_API BlobOffset blob_offset(const Resource *who_asks, const void *ptr);
-
 REVOLC_API void print_blob(const ResBlob *blob);
 
 // Gathers human-readable resources from `res_file_paths` and
@@ -49,12 +46,18 @@ REVOLC_API void print_blob(const ResBlob *blob);
 // `res_file_paths` is a null-terminated array of null-terminated strings
 REVOLC_API void make_blob(const char *dst_file, char **res_file_paths);
 
-// @todo
-//REVOLC_API bool inside_blob(const ResBlob *blob, void *ptr);
+REVOLC_API bool inside_blob(const ResBlob *blob, void *ptr);
 
-// Can be called for any resource
-// Dev-only - no need to free :))))
-REVOLC_API void realloc_res_member(RelPtr *member, U32 size, U32 old_size);
+// Create modifiable resource. After calling this the original resource can't be queried anymore.
+REVOLC_API Resource *substitute_res(Resource *res);
+
+// Resize a RelPtr in a resource. Freeing happens automatically.
+// Only for runtime resources.
+REVOLC_API void realloc_res_member(Resource *res, RelPtr *member, U32 size, U32 old_size);
+
+// Notify that resource data was changed.
+// 'res' better be a runtime resource.
+REVOLC_API void resource_modified(Resource *res);
 
 // Saves changes to original, unpacked resource files
 REVOLC_API U32 mirror_blob_modifications(ResBlob *blob);

@@ -55,7 +55,7 @@ void clip_to_json(WJson *j, const Clip *c);
 REVOLC_API JointPoseArray calc_clip_pose(const Clip *c, F64 t);
 
 //
-// These all all are kind of editor functions, but there's all kinds of caching
+// These all are kind of editor functions, but there's all kinds of caching
 // (sorting keys, recalculating samples from keys) to be caren of so it's
 //  maybe better that they're near Clip
 //

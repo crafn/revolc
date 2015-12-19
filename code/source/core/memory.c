@@ -48,12 +48,24 @@ void * alloc_impl(Ator *ator, U32 size, void *realloc_ptr, const char *tag, bool
 				memset(block, 0, size);
 			return block;
 		} case AtorType_dev:
-			if (realloc_ptr)
-				dev_free(realloc_ptr);
-			if (zero)
-				return memset(dev_malloc(size), 0, size); 
-			else
-				return commit_uninit_mem(dev_malloc(size), size);
+			if (!zero) {
+				if (realloc_ptr) {
+					// @todo Commit
+					return dev_realloc(realloc_ptr, size);
+				} else {
+					return commit_uninit_mem(dev_malloc(size), size);
+				}
+			} else {
+				if (realloc_ptr) {
+					U32 old_size = plat_malloc_size(realloc_ptr);
+					void *ptr = dev_realloc(realloc_ptr, size);
+					if (old_size < size)
+						memset(ptr + old_size, 0, size - old_size);
+					return ptr;
+				} else {
+					return memset(dev_malloc(size), 0, size);
+				}
+			}
 		default: fail("Unknown allocator type");
 	}
 }

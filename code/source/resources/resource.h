@@ -12,7 +12,7 @@ typedef U64 BlobOffset;
 
 typedef enum {
 	ResType_None,
-#define RESOURCE(x, init, deinit, blobify, jsonify) ResType_ ## x,
+#define RESOURCE(x, init, deinit, blobify, jsonify, recache) ResType_ ## x,
 #	include "resources.def"
 #undef RESOURCE
 	ResType_last
@@ -31,16 +31,18 @@ typedef struct ResId {
 
 struct ResBlob;
 struct BlobBuf;
+struct RuntimeResource;
 
 typedef struct Resource {
 	ResType type;
 	char name[RES_NAME_SIZE];
 	struct ResBlob *blob;
+	U32 size;
 
 	// Dev info
 	U32 res_file_index;
-	bool is_runtime_res; // true if Resource is owned by RuntimeResource (missing/created)
-	bool needs_saving; // Can be true only for RuntimeResources
+	struct Resource *substitute; // If set, this resource is substituted by another (modified) resource
+	struct RuntimeResource *runtime_owner; // If set, this is a missing/created/modified resource
 } PACKED Resource;
 
 // RuntimeResource are created on demand to separately allocated
@@ -49,16 +51,17 @@ typedef struct Resource {
 // Can't use just a single Resource represent runtime ones, as then
 // pointers can't be resolved when reloading updated blob.
 //
-// For RuntimeResource, BlobOffsets are calculated from the
-// beginning of the Resource, NOT from the beginning of the ResBlob.
-/// @todo Change offsets to always refer from beginning of the res
-//
 // RuntimeResources are used for missing and edited resources
 typedef void (*RtResFree)(Resource *res);
 typedef struct RuntimeResource {
 	Resource *res;
 	struct RuntimeResource *next;
-	RtResFree rt_free; // Called after ordinary res deinit
+
+	bool needs_saving;
+	// Allocated RelPtrs in the resource
+#	define MAX_RESOURCE_REL_PTR_COUNT 4
+	RelPtr *allocated_ptrs[MAX_RESOURCE_REL_PTR_COUNT];
+	U32 allocated_sizes[MAX_RESOURCE_REL_PTR_COUNT];
 } RuntimeResource;
 
 #endif // REVOLC_RESOURCES_RESOURCE_H

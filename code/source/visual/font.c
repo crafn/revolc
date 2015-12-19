@@ -32,11 +32,9 @@ int json_font_to_blob(struct BlobBuf *buf, JsonTok j)
 						font.chars);
 	stbtt_PackEnd(&ctx);
 
-	U32 res_size = sizeof(font) - sizeof(Resource);
-	font.bitmap_offset = buf->offset + res_size;
-	blob_write(	buf,
-				(U8*)&font + sizeof(Resource),
-				res_size);
+	U32 bitmap_ptr_buf_offset = buf->offset + offsetof(Font, bitmap_offset);
+	blob_write(buf, &font, sizeof(font));
+	blob_patch_rel_ptr(buf, bitmap_ptr_buf_offset);
 	blob_write(buf, bitmap, reso*reso);
 
 cleanup:
@@ -51,7 +49,7 @@ error:
 
 internal
 U8 *font_bitmap(const Font *font)
-{ return blob_ptr(&font->res, font->bitmap_offset); }
+{ return rel_ptr(&font->bitmap_offset); }
 
 Texel * malloc_rgba_font_bitmap(const Font *font)
 {

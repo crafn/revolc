@@ -404,9 +404,7 @@ int json_nodegroupdef_to_blob(struct BlobBuf *buf, JsonTok j)
 		++def.cmd_count;
 	}
 
-	blob_write(	buf,
-				(U8*)&def + sizeof(Resource),
-				sizeof(def) - sizeof(Resource));
+	blob_write(buf, &def, sizeof(def));
 
 /*
 	for (U32 i = 0; i < def.node_count; ++i) {

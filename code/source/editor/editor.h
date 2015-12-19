@@ -14,6 +14,7 @@ typedef struct Editor {
 	ArmatureEditor ae_state;
 
 	// Values restored when cancelling current action
+	// @todo Use json, works with every resource
 	struct {
 		TriMeshVertex *vertices;
 		MeshIndexType *indices;

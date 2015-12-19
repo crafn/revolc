@@ -81,9 +81,8 @@ int json_armature_to_blob(struct BlobBuf *buf, JsonTok j)
 		++a.joint_count;
 	}
 
-	blob_write(	buf,
-				(U8*)&a + sizeof(Resource),
-				sizeof(a) - sizeof(Resource));
+	blob_write(buf, &a, sizeof(a));
+
 	return 0;
 
 error:

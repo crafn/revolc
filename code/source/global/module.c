@@ -151,7 +151,8 @@ int json_module_to_blob(struct BlobBuf *buf, JsonTok j)
 	fmt_str(m.extless_file, sizeof(m.extless_file), "%s%s", j.json_dir, json_str(j_file));
 	if (!strcmp(json_str(json_value_by_key(j, "name")), "main_prog"))
 		m.is_main_prog_module = true;
-	blob_write(buf, (U8*)&m + sizeof(Resource), sizeof(m) - sizeof(Resource));
+
+	blob_write(buf, &m, sizeof(m));
 
 	return 0;
 error:
