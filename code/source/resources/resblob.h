@@ -49,7 +49,7 @@ REVOLC_API void make_blob(const char *dst_file, char **res_file_paths);
 REVOLC_API bool inside_blob(const ResBlob *blob, void *ptr);
 
 // Create modifiable resource. After calling this the original resource can't be queried anymore.
-REVOLC_API Resource *substitute_res(Resource *res);
+REVOLC_API WARN_UNUSED Resource *substitute_res(Resource *res);
 
 // Resize a RelPtr in a resource. Freeing happens automatically.
 // Only for runtime resources.
@@ -62,6 +62,15 @@ REVOLC_API void resource_modified(Resource *res);
 // Saves changes to original, unpacked resource files
 REVOLC_API U32 mirror_blob_modifications(ResBlob *blob);
 REVOLC_API bool blob_has_modifications(const ResBlob *blob);
+
+// Saving and restoring of resource state. For editor undo.
+// Data contains pointers so this is only short-term storage.
+// @todo Make this safer:
+//       - no stored pointers
+//       - not just overwrite of data but proper init and deinit
+//       - no reallocation of the resources, can be done in-place
+REVOLC_API void *save_res_state(const Resource *res);
+REVOLC_API void load_res_state(void *data);
 
 typedef struct BlobBuf {
 	// @todo Use WArchive

@@ -279,10 +279,11 @@ Resource ** all_res_by_type(	U32 *count,
 								ResType t)
 {
 	*count = 0;
+	// @todo Use Array with frame_ator() (reallocs internally)
 	{ // Find count
 		for (U32 i = 0; i < blob->res_count; ++i) {
 			Resource *res = res_by_index(blob, i);
-			if (res->type == t)
+			if (res->type == t && !res->substitute)
 				++*count;
 		}
 		RuntimeResource *res = blob->first_runtime_res;
@@ -298,7 +299,7 @@ Resource ** all_res_by_type(	U32 *count,
 	{
 		for (U32 i = 0; i < blob->res_count; ++i) {
 			Resource *res = res_by_index(blob, i);
-			if (res->type == t)
+			if (res->type == t && !res->substitute)
 				*(res_it++) = res;
 		}
 		RuntimeResource *res = blob->first_runtime_res;
@@ -338,26 +339,6 @@ void print_blob(const ResBlob *blob)
 			default: break;
 		}
 	}
-}
-
-//
-// JSON to blob
-//
-
-void blob_write(BlobBuf *buf, const void *data, U32 byte_count)
-{
-	ensure(buf->offset + byte_count <= buf->max_size);
-	if (data)
-		memcpy(buf->data + buf->offset, data, byte_count);
-	else
-		memset(buf->data + buf->offset, 0, byte_count);
-	buf->offset += byte_count;
-}
-
-void blob_patch_rel_ptr(BlobBuf *buf, U32 offset_to_ptr)
-{
-	RelPtr ptr = { .value = buf->offset - offset_to_ptr };
-	memcpy(buf->data + offset_to_ptr, &ptr, sizeof(ptr));
 }
 
 /// Used only in blob making
@@ -706,3 +687,96 @@ bool blob_has_modifications(const ResBlob *blob)
 	}
 	return false;
 }
+
+void *save_res_state(const Resource *res)
+{
+	if (!res->runtime_owner)
+		fail("Resource packing is only for runtime resources");
+	RuntimeResource *rt = res->runtime_owner;
+
+	// Calc archived size
+	U32 size = res->size;
+	for (U32 i = 0; i < MAX_RESOURCE_REL_PTR_COUNT; ++i) {
+		if (rt->allocated_ptrs[i])
+			size += rt->allocated_sizes[i];
+	}
+	debug_print("save_res_state: name %s size %i", res->name, size);
+
+	WArchive ar = create_warchive(ArchiveType_binary, dev_ator(), size);
+
+	pack_buf(&ar, res, res->size); // Pack res struct and possibly appended data
+	Resource header = *res;
+	header.size = size; // This gets larger because of below
+	pack_buf_patch(&ar, 0, &header, sizeof(header));
+
+	// Make separately allocated data to appended data
+	for (U32 i = 0; i < MAX_RESOURCE_REL_PTR_COUNT; ++i) {
+		if (rt->allocated_ptrs[i]) {
+			U32 offset_to_rel_ptr = (U8*)rt->allocated_ptrs[i] - (U8*)res;
+			U32 offset_to_data = ar.data_size;
+			// Patch the relative pointer in res struct
+			RelPtr rel = { .value = offset_to_data - offset_to_rel_ptr };
+			pack_buf_patch(&ar, offset_to_rel_ptr, &rel, sizeof(rel));
+			// Write the external array
+			pack_buf(&ar, rel_ptr(rt->allocated_ptrs[i]), rt->allocated_sizes[i]);
+		}
+	}
+
+	void *ret;
+	release_warchive(&ret, NULL, &ar);
+	return ret;
+}
+
+void load_res_state(void *data)
+{
+	Resource header = *(Resource*)data;
+	if (!header.runtime_owner)
+		fail("Resource unpacking is only for runtime resources");
+	RuntimeResource *rt = header.runtime_owner; // Assuming all ptrs are valid in the saved res state
+	Resource *old_res = rt->res;
+
+	debug_print("load_res_state: name %s size %i", header.name, header.size);
+
+	Resource *new_res = ALLOC(dev_ator(), header.size, "new_res");
+	memcpy(new_res, data, header.size);
+
+	rt->res = new_res;
+	// Expecting that all ptrs packed to archive are part of the resource, not separately allocated.
+	// Therefore free the old allocated members.
+	for (U32 i = 0; i < MAX_RESOURCE_REL_PTR_COUNT; ++i) {
+		if (rt->allocated_ptrs[i]) {
+			FREE(dev_ator(), rel_ptr(rt->allocated_ptrs[i]));
+			rt->allocated_ptrs[i] = NULL;
+			rt->allocated_sizes[i] = 0;
+		}
+	}
+
+	// Original blob resource .substitute points to the old runtime res. Fix that.
+	for (U32 i = 0; i < header.blob->res_count; ++i) {
+		Resource *orig_res = (Resource*)((U8*)header.blob + header.blob->res_offsets[i]);
+		if (orig_res->substitute == old_res)
+			orig_res->substitute = new_res;
+	}
+
+	// Need not to uninit + init anything, as new resource has the same device handles etc.
+	// Only relative member arrays have changed place in memory, recaching fixes that
+	FREE(dev_ator(), old_res);
+	recache_ptrs_to(new_res);
+}
+
+void blob_write(BlobBuf *buf, const void *data, U32 byte_count)
+{
+	ensure(buf->offset + byte_count <= buf->max_size);
+	if (data)
+		memcpy(buf->data + buf->offset, data, byte_count);
+	else
+		memset(buf->data + buf->offset, 0, byte_count);
+	buf->offset += byte_count;
+}
+
+void blob_patch_rel_ptr(BlobBuf *buf, U32 offset_to_ptr)
+{
+	RelPtr ptr = { .value = buf->offset - offset_to_ptr };
+	memcpy(buf->data + offset_to_ptr, &ptr, sizeof(ptr));
+}
+

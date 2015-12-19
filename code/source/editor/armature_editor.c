@@ -279,9 +279,9 @@ void do_armature_editor(	ArmatureEditor *state,
 					state->is_playing = false;
 				} else {
 					const Clip *clip =
-						(Clip*)res_by_name(	g_env.resblob,
-											ResType_Clip,
-											state->clip_name);
+						(Clip*)substitute_res(res_by_name(	g_env.resblob,
+															ResType_Clip,
+															state->clip_name));
 
 					if (bstate.ldown) { // LMB
 						// Set time

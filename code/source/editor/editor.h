@@ -13,21 +13,10 @@ typedef struct Editor {
 	U32 cur_model_h;
 	ArmatureEditor ae_state;
 
-	// Values restored when cancelling current action
-	// @todo Use json, works with every resource
-	struct {
-		TriMeshVertex *vertices;
-		MeshIndexType *indices;
-		U32 v_count;
-		U32 i_count;
-
-		JointPoseArray bind_pose;
-		U32 joint_count;
-
-		Clip_Key *keys;
-		T3f *samples; // Sample count doesn't change (?)
-		U32 key_count;
-	} stored;
+	// Undo states
+	void *mesh_state;
+	void *armature_state;
+	void *clip_state;
 
 	bool is_edit_mode; // Edit or object mode
 

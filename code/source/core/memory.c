@@ -38,6 +38,8 @@ void * alloc_impl(Ator *ator, U32 size, void *realloc_ptr, const char *tag, bool
 				}
 			}
 		case AtorType_linear: {
+			if (realloc_ptr)
+				fail("@todo Realloc if possible (realloc ptr is the last alloc)");
 			void *next_mem = ator->buf + ator->offset;
 			ensure(MAX_ALIGNMENT == 16);
 			U8 *block = (void*)((U64)(next_mem + 15) & ~0x0F); // 16-aligned

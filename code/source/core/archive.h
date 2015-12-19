@@ -27,6 +27,7 @@ typedef struct RArchive {
 
 REVOLC_API WArchive create_warchive(ArchiveType t, Ator *ator, U32 capacity);
 REVOLC_API void destroy_warchive(WArchive *ar);
+REVOLC_API void release_warchive(void **data, U32 *size, WArchive *ar); // Another way of destructing
 
 REVOLC_API RArchive create_rarchive(ArchiveType t, const void *data, U32 data_size);
 REVOLC_API void destroy_rarchive(RArchive *ar);

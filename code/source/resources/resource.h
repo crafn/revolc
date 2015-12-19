@@ -37,7 +37,7 @@ typedef struct Resource {
 	ResType type;
 	char name[RES_NAME_SIZE];
 	struct ResBlob *blob;
-	U32 size;
+	U32 size; // Size of actual resource struct + appended rel_ptr data
 
 	// Dev info
 	U32 res_file_index;

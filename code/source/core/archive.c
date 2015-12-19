@@ -135,6 +135,14 @@ void destroy_warchive(WArchive *ar)
 	*ar = (WArchive) {};
 }
 
+void release_warchive(void **data, U32 *size, WArchive *ar)
+{
+	*data = ar->data;
+	if (size)
+		*size = ar->data_size;
+	*ar = (WArchive) {};
+}
+
 RArchive create_rarchive(ArchiveType t, const void *data, U32 data_size)
 {
 	ensure(t == ArchiveType_binary);
