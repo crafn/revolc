@@ -70,8 +70,8 @@ bool gui_armature_overlay(ArmatureEditor *state, bool is_edit_mode)
 
 			if (state->clip_is_bind_pose) {
 				resource_modified(&a->res);
-
 				// Modify bind pose
+
 				T3d coords = entity->tf;
 				U32 super_i = a->joints[i].super_id;
 				if (super_i != NULL_JOINT_ID) {
@@ -98,14 +98,16 @@ bool gui_armature_overlay(ArmatureEditor *state, bool is_edit_mode)
 				// Modify/create keyframe
 
 				T3d coords = global_pose[i];
-				{ // cur pose coords -> bind pose coords
-					T3f to_bind = inv_t3f(entity->pose.tf[i]);
-					// @todo Figure out why transforming whole `coords` causes
-					// problems with rotation (.pos goes somewhere?)
-					coords.rot = mul_t3d(t3f_to_t3d(to_bind), coords).rot;
-				}
 				T3f delta;
 				cursor_transform_delta_world(&delta, box_label, coords);
+				V3f translation = delta.pos;
+				{ // Not sure what happens here. It's almost the same as bind pose modifying, but with inverse transform...
+					T3f from_bind = entity->pose.tf[i];
+					V3f a = transform_v3f(from_bind, (V3f) {0, 0, 0});
+					V3f b = transform_v3f(from_bind, translation);
+					translation = sub_v3f(b, a);
+				}
+				delta.pos = translation;
 
 				const T3f base = entity->pose.tf[i];
 

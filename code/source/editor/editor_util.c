@@ -170,14 +170,8 @@ V3f cursor_delta_in_tf_coords(T3d tf)
 	UiContext *ctx = g_env.uicontext;
 	V3d cur_wp = v2d_to_v3d(screen_to_world_point(ctx->dev.cursor_pos));
 	V3d prev_wp = v2d_to_v3d(screen_to_world_point(ctx->dev.prev_cursor_pos));
-	V3d cur = mul_t3d(	inv_t3d(tf),
-						(T3d) {	{1, 1, 1},
-								identity_qd(),
-								cur_wp}).pos;
-	V3d prev = mul_t3d(	inv_t3d(tf),
-						(T3d) {	{1, 1, 1},
-								identity_qd(),
-								prev_wp}).pos;
+	V3d cur = transform_v3d(inv_t3d(tf), cur_wp);
+	V3d prev = transform_v3d(inv_t3d(tf), prev_wp);
 	return v3d_to_v3f(sub_v3d(cur, prev));
 }
 
@@ -190,9 +184,15 @@ Qf cursor_rot_delta_in_tf_coords(T3d tf)
 	UiContext *ctx = g_env.uicontext;
 	V3d cur_wp = v2d_to_v3d(screen_to_world_point(ctx->dev.cursor_pos));
 	V3d prev_wp = v2d_to_v3d(screen_to_world_point(ctx->dev.prev_cursor_pos));
-	V3f v1 = v3d_to_v3f(sub_v3d(prev_wp, center));
-	V3f v2 = v3d_to_v3f(sub_v3d(cur_wp, center));
-	return qf_by_from_to(v1, v2);
+	V3d a1 = sub_v3d(prev_wp, center);
+	V3d a2 = sub_v3d(cur_wp, center);
+	V3d b1 = rot_v3d(tf.rot, sub_v3d(prev_wp, center));
+	V3d b2 = rot_v3d(tf.rot, sub_v3d(cur_wp, center));
+	Qf rot = qf_by_from_to(v3d_to_v3f(a1), v3d_to_v3f(a2));
+
+	if ((cross_v3d(a1, a2).z > 0) != (cross_v3d(b1, b2).z > 0))
+		rot = neg_qf(rot); // Mirror
+	return rot;
 }
 
 internal
