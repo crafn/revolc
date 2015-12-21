@@ -1,20 +1,26 @@
 #ifndef GUILIB_H
 #define GUILIB_H
 
-// Non-bloaty immediate mode gui library in C.
-// This should be self-contained, so include and use only standard library.
+/*
 
-// Todo list
-// - C99 -> C89
-// - layouting
-// - header-only
-// - simple example
-// - advanced example
+Non-bloaty immediate mode gui library in C.
+This should be self-contained, so include and use only standard library.
 
-// Define before including for custom declspec
-#ifndef GUI_API
-#	define GUI_API
-#endif
+Common voluntary options to be defined before including this file, or in this file.
+
+#define GUI_BOOL <type>
+#define GUI_API <declspec>
+
+
+Todo list
+ - C99 -> C89
+ - layouting
+ - header-only
+ - simple example
+ - advanced example
+ - name for the library
+
+*/
 
 #define MAX_GUI_LABEL_SIZE 256
 #define MAX_GUI_STACK_SIZE 32
@@ -23,8 +29,27 @@
 #define MAX_GUI_FRAME_COUNT 64 // @todo Remove limit
 #define GUI_FILENAME_SIZE MAX_PATH_SIZE // @todo Remove limit
 
+#ifndef GUI_API
+#	define GUI_API
+#endif
+
+#ifndef GUI_BOOL
+#	if __cplusplus || _MSC_VER
+#		define GUI_BOOL bool
+#	else
+#		define GUI_BOOL unsigned char
+#	endif
+#endif
+
 #include <stdint.h>
 #include <stddef.h>
+#if _MSC_VER
+#	include <stdbool.h>
+#endif
+
+#if __cplusplus
+extern "C" {
+#endif
 
 typedef uint32_t GuiId;
 
@@ -43,7 +68,7 @@ typedef struct GuiContext_Turtle {
     int frame_ix;
     int window_ix;
     int layer; // Graphical layer
-    bool detached; // If true, moving of this turtle doesn't affect parent bounding boxes etc.
+    GUI_BOOL detached; // If true, moving of this turtle doesn't affect parent bounding boxes etc.
     DragDropData inactive_dragdropdata; // This is copied to gui context when actual dragging and dropping within this turtle starts
 
     GuiScissor scissor; // Depends on window/panel/whatever pos and sizes. Given to draw commands. Zero == unused.
@@ -59,8 +84,8 @@ typedef struct GuiContext_Frame {
 // Stored data for window elements
 typedef struct GuiContext_Window {
     GuiId id;
-    bool used;
-    bool used_in_last_frame;
+    GUI_BOOL used;
+    GUI_BOOL used_in_last_frame;
 
     int frame_ix; // Corresponding GuiContext_Frame
 
@@ -92,13 +117,13 @@ typedef struct GuiContext_Window {
 #define GUI_KEY_8 '8'
 #define GUI_KEY_9 '9'
 
-typedef void (*DrawButtonFunc)(void *user_data, float x, float y, float w, float h, bool down, bool hover, int layer, GuiScissor *s);
-typedef void (*DrawCheckBoxFunc)(void *user_data, float x, float y, float w, bool checked, bool down, bool hover, int layer, GuiScissor *s);
-typedef void (*DrawRadioButtonFunc)(void *user_data, float x, float y, float w, bool checked, bool down, bool hover, int layer, GuiScissor *s);
-typedef void (*DrawTextBoxFunc)(void *user_data, float x, float y, float w, float h, bool active, bool hover, int layer, GuiScissor *s);
+typedef void (*DrawButtonFunc)(void *user_data, float x, float y, float w, float h, GUI_BOOL down, GUI_BOOL hover, int layer, GuiScissor *s);
+typedef void (*DrawCheckBoxFunc)(void *user_data, float x, float y, float w, GUI_BOOL checked, GUI_BOOL down, GUI_BOOL hover, int layer, GuiScissor *s);
+typedef void (*DrawRadioButtonFunc)(void *user_data, float x, float y, float w, GUI_BOOL checked, GUI_BOOL down, GUI_BOOL hover, int layer, GuiScissor *s);
+typedef void (*DrawTextBoxFunc)(void *user_data, float x, float y, float w, float h, GUI_BOOL active, GUI_BOOL hover, int layer, GuiScissor *s);
 typedef void (*DrawTextFunc)(void *user_data, float x, float y, const char *text, int layer, GuiScissor *s);
 typedef void (*CalcTextSizeFunc)(float ret[2], void *user_data, const char *text, int layer);
-typedef void (*DrawWindowFunc)(void *user_data, float x, float y, float w, float h, float title_bar_height, const char *title, bool focus, int layer);
+typedef void (*DrawWindowFunc)(void *user_data, float x, float y, float w, float h, float title_bar_height, const char *title, GUI_BOOL focus, int layer);
 
 // User-supplied callbacks
 // TODO: Not sure if callbacks are better than providing an array containing all drawing commands of a frame.
@@ -132,7 +157,7 @@ typedef struct GuiContext {
     int next_window_pos[2];
 
     int drag_start_pos[2]; // Pixel coordinates
-    bool dragging;
+    GUI_BOOL dragging;
     float drag_start_value[2]; // Knob value, or xy position, or ...
     DragDropData dragdropdata; // Data from gui component which is currently dragged
 
@@ -193,21 +218,21 @@ GUI_API void gui_window_client_size(GuiContext *ctx, int *w, int *h);
 
 GUI_API void gui_begin_contextmenu(GuiContext *ctx, const char *label);
 GUI_API void gui_end_contextmenu(GuiContext *ctx);
-GUI_API bool gui_contextmenu_item(GuiContext *ctx, const char *label);
+GUI_API GUI_BOOL gui_contextmenu_item(GuiContext *ctx, const char *label);
 
 GUI_API void gui_begin_dragdrop_src(GuiContext *ctx, DragDropData data);
 GUI_API void gui_end_dragdrop_src(GuiContext *ctx);
 
 // Gui controls
-GUI_API bool gui_knob(GuiContext *ctx, const char *label, float min, float max, float *value, const char *value_str);
+GUI_API GUI_BOOL gui_knob(GuiContext *ctx, const char *label, float min, float max, float *value, const char *value_str);
 GUI_API void gui_label(GuiContext *ctx, const char *label);
 
-GUI_API bool gui_button(GuiContext *ctx, const char *label);
-GUI_API bool gui_selectable(GuiContext *ctx, const char *label, bool selected);
-GUI_API bool gui_checkbox(GuiContext *ctx, const char *label, bool *value);
-GUI_API bool gui_radiobutton(GuiContext *ctx, const char *label, bool value);
+GUI_API GUI_BOOL gui_button(GuiContext *ctx, const char *label);
+GUI_API GUI_BOOL gui_selectable(GuiContext *ctx, const char *label, GUI_BOOL selected);
+GUI_API GUI_BOOL gui_checkbox(GuiContext *ctx, const char *label, GUI_BOOL *value);
+GUI_API GUI_BOOL gui_radiobutton(GuiContext *ctx, const char *label, GUI_BOOL value);
 GUI_API void gui_slider(GuiContext *ctx, const char *label, float *value, float min, float max);
-GUI_API bool gui_textfield(GuiContext *ctx, const char *label, char *buf, int buf_size);
+GUI_API GUI_BOOL gui_textfield(GuiContext *ctx, const char *label, char *buf, int buf_size);
 
 GUI_API void gui_begin_listbox(GuiContext *ctx, const char *label);
 GUI_API void gui_end_listbox(GuiContext *ctx);
@@ -215,7 +240,7 @@ GUI_API void gui_end_listbox(GuiContext *ctx);
 GUI_API void gui_begin(GuiContext *ctx, const char *label);
 GUI_API void gui_end(GuiContext *ctx);
 GUI_API void gui_end_droppable(GuiContext *ctx, DragDropData *dropped);
-GUI_API void gui_end_ex(GuiContext *ctx, bool make_zero_size, DragDropData *dropped);
+GUI_API void gui_end_ex(GuiContext *ctx, GUI_BOOL make_zero_size, DragDropData *dropped);
 
 GUI_API void gui_set_next_window_pos(GuiContext *ctx, int x, int y);
 GUI_API void gui_set_turtle_pos(GuiContext *ctx, int x, int y);
@@ -226,5 +251,9 @@ GUI_API void gui_enlarge_bounding(GuiContext *ctx, int x, int y);
 
 GUI_API void gui_ver_space(GuiContext *ctx);
 GUI_API void gui_hor_space(GuiContext *ctx);
+
+#if __cplusplus
+}
+#endif
 
 #endif

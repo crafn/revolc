@@ -44,6 +44,8 @@ void sprintf_impl(char *buf, size_t count, const char *fmt, ...)
 #define GUI_SCROLL_BAR_WIDTH 15
 #define GUI_LAYERS_PER_WINDOW 10000 // Maybe 10k layers inside a window is enough
 #define GUI_UNUSED(x) (void)(x) // For unused params. C doesn't allow omitting param name.
+#define GUI_TRUE 1
+#define GUI_FALSE 0
 
 #define GUI_NONE_WINDOW_IX (-2)
 #define GUI_BG_WINDOW_IX (-1)
@@ -56,20 +58,22 @@ static void *check_ptr(void *ptr)
     return ptr;
 }
 
+#define GUI_DECL_V2(type, name, x, y) type name[2]; name[0] = x; name[1] = y;
 #define GUI_V2(stmt) do { int c = 0; stmt; c = 1; stmt; } while(0)
 #define GUI_ASSIGN_V2(a, b) GUI_V2((a)[c] = (b)[c])
 #define GUI_EQUALS_V2(a, b) ((a)[0] == (b)[0] && (a)[1] == (b)[1])
+#define GUI_ZERO(var) memset(&var, 0, sizeof(var))
 
-bool v2i_in_rect(int v[2], int pos[2], int size[2])
+GUI_BOOL v2i_in_rect(int v[2], int pos[2], int size[2])
 { return v[0] >= pos[0] && v[1] >= pos[1] && v[0] < pos[0] + size[0] && v[1] < pos[1] + size[1]; }
 
 void destroy_window(GuiContext *ctx, int handle)
 {
-    bool found = false;
+    GUI_BOOL found = GUI_FALSE;
     for (int i = 0; i < ctx->window_count; ++i) {
         if (!found) {
             if (ctx->window_order[i] == handle)
-                found = true;
+                found = GUI_TRUE;
         } else {
             ctx->window_order[i - 1] = ctx->window_order[i];
         }
@@ -78,8 +82,7 @@ void destroy_window(GuiContext *ctx, int handle)
 
     GuiContext_Window *win = &ctx->windows[handle];
 
-    GuiContext_Window zero_win = {};
-    *win = zero_win;
+    GUI_ZERO(*win);
 }
 
 int gui_window_order(GuiContext *ctx, int handle)
@@ -264,10 +267,10 @@ GuiContext_Window *gui_window(GuiContext *ctx)
 }
 
 // @note Change of focus is delayed by one frame (similar to activation)
-bool gui_focused(GuiContext *ctx)
+GUI_BOOL gui_focused(GuiContext *ctx)
 {
     if (ctx->window_count == 0)
-        return true;
+        return GUI_TRUE;
     return gui_turtle(ctx)->window_ix == ctx->focused_win_ix;
 }
 
@@ -293,23 +296,23 @@ GuiScissor *gui_scissor(GuiContext *ctx)
 }
 
 // Returns whether the current turtle with certain size is at least partially visible in the client area of the current window
-bool gui_is_inside_window(GuiContext *ctx, int size[2])
+GUI_BOOL gui_is_inside_window(GuiContext *ctx, int size[2])
 {
     // TODO: Take size into account
     int pos[2];
     gui_turtle_pos(ctx, &pos[0], &pos[1]);
     GuiContext_Window *win = gui_window(ctx);
     if (pos[0] + size[0] <= win->pos[0] || pos[1] + size[1] <= win->pos[1] + GUI_WINDOW_TITLE_BAR_HEIGHT)
-        return false;
+        return GUI_FALSE;
     if (pos[0] >= win->pos[0] + win->total_size[0] || pos[1] >= win->pos[1] + win->total_size[1])
-        return false;
-    return true;
+        return GUI_FALSE;
+    return GUI_TRUE;
 }
 
 void gui_start_dragging(GuiContext *ctx, float start_value[2])
 {
     assert(!ctx->dragging);
-    ctx->dragging = true;
+    ctx->dragging = GUI_TRUE;
     GUI_ASSIGN_V2(ctx->drag_start_pos, ctx->cursor_pos);
     GUI_ASSIGN_V2(ctx->drag_start_value, start_value);
     // Store dragdropdata
@@ -426,13 +429,13 @@ int gui_layer(GuiContext *ctx) { return gui_turtle(ctx)->layer; }
 void gui_set_hot(GuiContext *ctx, const char *label)
 {
     if (ctx->active_id == 0) {
-        bool set_hot = false;
+        GUI_BOOL set_hot = GUI_FALSE;
         if (ctx->hot_id == 0) {
-            set_hot = true;
+            set_hot = GUI_TRUE;
         } else {
             // Last overlapping element of the topmost window gets to be hot
             if (ctx->hot_layer <= gui_turtle(ctx)->layer)
-                set_hot = true;
+                set_hot = GUI_TRUE;
         }
         if (set_hot) {
             ctx->hot_id = gui_id(label);
@@ -441,7 +444,7 @@ void gui_set_hot(GuiContext *ctx, const char *label)
     }
 }
 
-bool gui_is_hot(GuiContext *ctx, const char *label)
+GUI_BOOL gui_is_hot(GuiContext *ctx, const char *label)
 {
     return ctx->last_hot_id == gui_id(label);
 }
@@ -463,33 +466,33 @@ void gui_set_inactive(GuiContext *ctx, GuiId id)
     }
 }
 
-bool gui_is_active(GuiContext *ctx, const char *label)
+GUI_BOOL gui_is_active(GuiContext *ctx, const char *label)
 {
     return ctx->active_id == gui_id(label);
 }
 
-void gui_button_logic(GuiContext *ctx, const char *label, int pos[2], int size[2], bool *went_up, bool *went_down, bool *down, bool *hover)
+void gui_button_logic(GuiContext *ctx, const char *label, int pos[2], int size[2], GUI_BOOL *went_up, GUI_BOOL *went_down, GUI_BOOL *down, GUI_BOOL *hover)
 {
-    if (went_up) *went_up = false;
-    if (went_down) *went_down = false;
-    if (down) *down = false;
-    if (hover) *hover = false;
+    if (went_up) *went_up = GUI_FALSE;
+    if (went_down) *went_down = GUI_FALSE;
+    if (down) *down = GUI_FALSE;
+    if (hover) *hover = GUI_FALSE;
 
-    bool was_released = false;
+    GUI_BOOL was_released = GUI_FALSE;
     if (gui_is_active(ctx, label)) {
         if (ctx->key_state[GUI_KEY_LMB] & GUI_KEYSTATE_DOWN_BIT) {
-            if (down) *down = true;
+            if (down) *down = GUI_TRUE;
         }
         else if (ctx->key_state[GUI_KEY_LMB] & GUI_KEYSTATE_RELEASED_BIT) {
-            if (went_up) *went_up = true;
+            if (went_up) *went_up = GUI_TRUE;
             gui_set_inactive(ctx, gui_id(label));
-            was_released = true;
+            was_released = GUI_TRUE;
         }
     }
     else if (gui_is_hot(ctx, label)) {
         if (ctx->key_state[GUI_KEY_LMB] & GUI_KEYSTATE_PRESSED_BIT) {
-            if (down) *down = true;
-            if (went_down) *went_down = true;
+            if (down) *down = GUI_TRUE;
+            if (went_down) *went_down = GUI_TRUE;
             gui_set_active(ctx, label);
         }
     }
@@ -500,7 +503,7 @@ void gui_button_logic(GuiContext *ctx, const char *label, int pos[2], int size[2
     if (    v2i_in_rect(c_p, pos, size) &&
             (!s || v2i_in_rect(c_p, s->pos, s->size))) {
         gui_set_hot(ctx, label);
-        if (hover && (gui_is_hot(ctx, label) || gui_is_active(ctx, label) || was_released)) *hover = true;
+        if (hover && (gui_is_hot(ctx, label) || gui_is_active(ctx, label) || was_released)) *hover = GUI_TRUE;
     }
 }
 
@@ -527,7 +530,8 @@ void gui_begin(GuiContext *ctx, const char *label)
     GuiContext_Turtle *prev = &ctx->turtles[ctx->turtle_ix];
     GuiContext_Turtle *cur = &ctx->turtles[++ctx->turtle_ix];
 
-    GuiContext_Turtle new_turtle = {};
+	GuiContext_Turtle new_turtle;
+    GUI_ZERO(new_turtle);
     gui_pos(ctx, new_turtle.pos, label, prev->pos);
     GUI_ASSIGN_V2(new_turtle.start_pos, new_turtle.pos);
     GUI_ASSIGN_V2(new_turtle.bounding_max, new_turtle.pos);
@@ -535,7 +539,7 @@ void gui_begin(GuiContext *ctx, const char *label)
     new_turtle.frame_ix = prev->frame_ix;
     new_turtle.window_ix = prev->window_ix;
     new_turtle.layer = prev->layer + 1;
-    new_turtle.detached = false;
+    new_turtle.detached = GUI_FALSE;
     new_turtle.inactive_dragdropdata = prev->inactive_dragdropdata;
     new_turtle.scissor = prev->scissor;
     GUI_FMT_STR(new_turtle.label, MAX_GUI_LABEL_SIZE, "%s", label);
@@ -555,7 +559,7 @@ void gui_begin(GuiContext *ctx, const char *label)
 
 #if 0
 // Resize handle for parent element
-void do_resize_handle(GuiContext *ctx, bool right_handle)
+void do_resize_handle(GuiContext *ctx, GUI_BOOL right_handle)
 {
     V2i panel_size = gui_turtle(ctx)->bounding_max - gui_turtle(ctx)->start_pos;
     //GuiId panel_id = gui_id(gui_turtle(ctx)->label);
@@ -574,9 +578,9 @@ void do_resize_handle(GuiContext *ctx, bool right_handle)
         handle_pos = gui_turtle(ctx)->pos + v2i(panel_size[0] / 2 - handle_size[0] / 2, panel_size[1] - handle_size[1] / 2);
     }
 
-    bool went_down;
-    bool down;
-    bool hover;
+    GUI_BOOL went_down;
+    GUI_BOOL down;
+    GUI_BOOL hover;
     gui_button_logic(ctx, handle_label, handle_pos, handle_size, NULL, &went_down, &down, &hover);
 
     if (went_down)
@@ -599,26 +603,25 @@ void do_resize_handle(GuiContext *ctx, bool right_handle)
     //Color col = ctx->skin.default_color;
     //col.a *= 0.5f; // @todo Color to skin
     //draw_rect(gui_rendering(ctx), pt_to_px(handle_pos, ctx->dpi_scale), pt_to_px(handle_size, ctx->dpi_scale), col);
-    gui_end_ex(ctx, true, NULL); }
+    gui_end_ex(ctx, GUI_TRUE, NULL); }
 }
 #endif
 
 void gui_end(GuiContext *ctx)
 {
-    gui_end_ex(ctx, false, NULL);
+    gui_end_ex(ctx, GUI_FALSE, NULL);
 }
 
 void gui_end_droppable(GuiContext *ctx, DragDropData *dropdata)
 {
-    gui_end_ex(ctx, false, dropdata);
+    gui_end_ex(ctx, GUI_FALSE, dropdata);
 }
 
-void gui_end_ex(GuiContext *ctx, bool make_zero_size, DragDropData *dropdata)
+void gui_end_ex(GuiContext *ctx, GUI_BOOL make_zero_size, DragDropData *dropdata)
 {
     // Initialize outputs
     if (dropdata) {
-        DragDropData empty = {};
-        *dropdata = empty;
+		GUI_ZERO(*dropdata);
     }
 
 #if 0
@@ -654,13 +657,12 @@ void gui_end_ex(GuiContext *ctx, bool make_zero_size, DragDropData *dropdata)
                 if (v2i_in_rect(c_p, pos, size)) {
                     // Release dragdropdata
                     *dropdata = ctx->dragdropdata;
-                    DragDropData empty = {};
-                    ctx->dragdropdata = empty;
+                    GUI_ZERO(ctx->dragdropdata);
                 }
             }
 
             // This doesn't need to be here. Once per frame would be enough.
-            ctx->dragging = false;
+            ctx->dragging = GUI_FALSE;
         }
     }
 
@@ -669,13 +671,13 @@ void gui_end_ex(GuiContext *ctx, bool make_zero_size, DragDropData *dropdata)
         GuiId panel_id = gui_id(gui_turtle(ctx)->label);
         U8 handle_bitfield = get_tbl(GuiId, U8)(&ctx->skin.element_resize_handles, panel_id);
         if (handle_bitfield & GUI_HANDLE_RIGHT_BIT)
-            do_resize_handle(ctx, true);
+            do_resize_handle(ctx, GUI_TRUE);
         if (handle_bitfield & GUI_HANDLE_BOTTOM_BIT)
-            do_resize_handle(ctx, false);
+            do_resize_handle(ctx, GUI_FALSE);
     }
 #endif
 
-    bool detached = make_zero_size || gui_turtle(ctx)->detached;
+    GUI_BOOL detached = make_zero_size || gui_turtle(ctx)->detached;
 
     assert(ctx->turtle_ix > 0);
     --ctx->turtle_ix;
@@ -706,7 +708,7 @@ void gui_end_ex(GuiContext *ctx, bool make_zero_size, DragDropData *dropdata)
             }
 
             ctx->windows[i].used_in_last_frame = ctx->windows[i].used;
-            ctx->windows[i].used = false;
+            ctx->windows[i].used = GUI_FALSE;
         }
 
         ctx->mouse_scroll = 0;
@@ -740,9 +742,9 @@ void do_skinning(GuiContext *ctx, const char *label, V2i pos, V2i size, Color co
     GUI_FMT_STR(buf, ARRAY_COUNT(buf), "skin_overlay_%s", label);
 
     ButtonAction action;
-    bool down;
-    bool hover;
-    bool went_down;
+    GUI_BOOL down;
+    GUI_BOOL hover;
+    GUI_BOOL went_down;
     gui_button_logic(ctx, buf, pos, size, &action, &went_down, &down, &hover);
 
     //if (hover || down)
@@ -827,7 +829,7 @@ void do_skinning(GuiContext *ctx, const char *label, V2i pos, V2i size, Color co
 }
 #endif
 
-void gui_slider_ex(GuiContext *ctx, const char *label, float *value, float min, float max, float handle_rel_size, bool v, int length)
+void gui_slider_ex(GuiContext *ctx, const char *label, float *value, float min, float max, float handle_rel_size, GUI_BOOL v, int length)
 {
     const int scroll_bar_width = GUI_SCROLL_BAR_WIDTH;
 
@@ -841,11 +843,11 @@ void gui_slider_ex(GuiContext *ctx, const char *label, float *value, float min, 
 
     const int scroll_handle_height = GUI_MAX((int)(handle_rel_size*size[v]), 10);
 
-    bool went_down, down, hover;
+    GUI_BOOL went_down, down, hover;
     gui_button_logic(ctx, label, pos, size, NULL, &went_down, &down, &hover);
 
     if (went_down) {
-        float tmp[2] = {*value, 0};
+        GUI_DECL_V2(float, tmp, *value, 0);
         gui_start_dragging(ctx, tmp);
     }
 
@@ -861,7 +863,7 @@ void gui_slider_ex(GuiContext *ctx, const char *label, float *value, float min, 
             pt_to_px(px_pos, pos, ctx->dpi_scale);
             pt_to_px(px_size, size, ctx->dpi_scale);
             ctx->callbacks.draw_button(ctx->callbacks.user_data, 1.f*px_pos[0], 1.f*px_pos[1], 1.f*px_size[0], 1.f*px_size[1],
-                                       false, false, gui_layer(ctx), gui_scissor(ctx));
+                                       GUI_FALSE, GUI_FALSE, gui_layer(ctx), gui_scissor(ctx));
         }
 
         { // Handle
@@ -888,8 +890,8 @@ void gui_slider_ex(GuiContext *ctx, const char *label, float *value, float min, 
 
 void gui_begin_frame(GuiContext *ctx, const char *label, int x, int y, int w, int height)
 {
-    int pos[2] = {x, y};
-    int size[2] = {w, height};
+    GUI_DECL_V2(int, pos, x, y);
+    GUI_DECL_V2(int, size, w, height);
 
     int frame_handle = -1;
     { // Find/create frame
@@ -915,12 +917,13 @@ void gui_begin_frame(GuiContext *ctx, const char *label, int x, int y, int w, in
     assert(frame_handle >= 0);
     GuiContext_Frame *frame = &ctx->frames[frame_handle];
     gui_begin(ctx, label);
-	gui_turtle(ctx)->detached = true;
+	gui_turtle(ctx)->detached = GUI_TRUE;
     GUI_ASSIGN_V2(gui_turtle(ctx)->pos, pos);
     GUI_ASSIGN_V2(gui_turtle(ctx)->start_pos, pos);
     gui_turtle(ctx)->frame_ix = frame_handle;
 
-    GuiScissor scissor = {};
+    GuiScissor scissor;
+	GUI_ZERO(scissor);
     GUI_ASSIGN_V2(scissor.pos, pos);
     GUI_ASSIGN_V2(scissor.size, size);
     gui_turtle(ctx)->scissor = scissor;
@@ -936,7 +939,7 @@ void gui_begin_frame(GuiContext *ctx, const char *label, int x, int y, int w, in
         char scroll_panel_label[MAX_GUI_LABEL_SIZE];
         GUI_FMT_STR(scroll_panel_label, sizeof(scroll_panel_label), "framescrollpanel_%s", label);
         gui_begin(ctx, scroll_panel_label);
-		gui_turtle(ctx)->detached = true; // Detach so that the scroll doesn't take part in window contents size
+		gui_turtle(ctx)->detached = GUI_TRUE; // Detach so that the scroll doesn't take part in window contents size
         gui_turtle(ctx)->layer += GUI_LAYERS_PER_WINDOW/2; // Make topmost in window @todo Then should move this to end_window
         for (int d = 0; d < 2; ++d) {
             if (size[d] < frame->last_bounding_size[d]) {
@@ -1006,7 +1009,7 @@ void gui_frame_scroll(GuiContext *ctx, int *x, int *y)
 
 void gui_begin_window_ex(GuiContext *ctx, const char *label, int default_size_x, int default_size_y)
 {
-    int default_size[2] = {default_size_x, default_size_y};
+    GUI_DECL_V2(int, default_size, default_size_x, default_size_y);
     int win_handle = -1;
     { // Find/create window
         int free_handle = -1;
@@ -1033,7 +1036,7 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, int default_size_x,
         } else {
             assert(free_handle >= 0);
             // Create new window
-            //bool toplevel_turtle = (ctx->turtle_ix == 0);
+            //GUI_BOOL toplevel_turtle = (ctx->turtle_ix == 0);
             assert(ctx->window_count < MAX_GUI_WINDOW_COUNT);
 
             ctx->windows[free_handle].id = gui_id(label);
@@ -1047,12 +1050,12 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, int default_size_x,
     assert(win_handle >= 0);
     GuiContext_Window *win = &ctx->windows[win_handle];
     assert(!win->used && "Same window used twice in a frame");
-    win->used = true;
+    win->used = GUI_TRUE;
     if (!win->used_in_last_frame)
         ctx->focused_win_ix = win_handle; // Appearing window will be focused
 
     gui_begin(ctx, label);
-	gui_turtle(ctx)->detached = true;
+	gui_turtle(ctx)->detached = GUI_TRUE;
     gui_turtle(ctx)->window_ix = win_handle;
     gui_turtle(ctx)->layer = 1337 + gui_window_order(ctx, win_handle) * GUI_LAYERS_PER_WINDOW;
 
@@ -1069,17 +1072,17 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, int default_size_x,
         // Title bar logic
         char bar_label[MAX_GUI_LABEL_SIZE];
         GUI_FMT_STR(bar_label, sizeof(bar_label), "winbar_%s", label);
-        bool went_down, down, hover;
-        int btn_size[2] = {size[0], GUI_WINDOW_TITLE_BAR_HEIGHT};
+        GUI_BOOL went_down, down, hover;
+        GUI_DECL_V2(int, btn_size, size[0], GUI_WINDOW_TITLE_BAR_HEIGHT);
         gui_button_logic(ctx, bar_label, win->pos, btn_size, NULL, &went_down, &down, &hover);
 
         if (ctx->active_win_ix == win_handle) {
             // Lift window to top
-            bool found = false;
+            GUI_BOOL found = GUI_FALSE;
             for (int i = 0; i < ctx->window_count; ++i) {
                 if (!found) {
                     if (ctx->window_order[i] == win_handle)
-                        found = true;
+                        found = GUI_TRUE;
                 } else {
                     ctx->window_order[i - 1] = ctx->window_order[i];
                 }
@@ -1119,13 +1122,13 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, int default_size_x,
         char resize_label[MAX_GUI_LABEL_SIZE];
         GUI_FMT_STR(resize_label, sizeof(resize_label), "winresize_%s", label);
         gui_begin(ctx, resize_label);
-		gui_turtle(ctx)->detached = true; // Detach so that the handle doesn't take part in window contents size
+		gui_turtle(ctx)->detached = GUI_TRUE; // Detach so that the handle doesn't take part in window contents size
         gui_turtle(ctx)->layer += GUI_LAYERS_PER_WINDOW/2; // Make topmost in window @todo Then should move this to end_window
 
         int handle_size[2] = {GUI_SCROLL_BAR_WIDTH, GUI_SCROLL_BAR_WIDTH};
         int handle_pos[2];
         GUI_V2(handle_pos[c] = win->pos[c] + win->total_size[c] - handle_size[c]);
-        bool went_down, down, hover;
+        GUI_BOOL went_down, down, hover;
         gui_button_logic(ctx, resize_label, handle_pos, handle_size, NULL, &went_down, &down, &hover);
 
         if (went_down) {
@@ -1216,9 +1219,9 @@ void gui_end_contextmenu(GuiContext *ctx)
     gui_end_window_ex(ctx);
 }
 
-bool gui_contextmenu_item(GuiContext *ctx, const char *label)
+GUI_BOOL gui_contextmenu_item(GuiContext *ctx, const char *label)
 {
-    bool ret = gui_button(ctx, label);
+    GUI_BOOL ret = gui_button(ctx, label);
     gui_next_row(ctx);
     return ret;
 }
@@ -1232,13 +1235,12 @@ void gui_begin_dragdrop_src(GuiContext *ctx, DragDropData data)
 void gui_end_dragdrop_src(GuiContext *ctx)
 {
     assert(gui_turtle(ctx)->inactive_dragdropdata.tag);
-    DragDropData empty = {};
-    gui_turtle(ctx)->inactive_dragdropdata = empty;
+    GUI_ZERO(gui_turtle(ctx)->inactive_dragdropdata);
 }
 
-bool gui_knob(GuiContext *ctx, const char *label, float min, float max, float *value, const char *value_str)
+GUI_BOOL gui_knob(GuiContext *ctx, const char *label, float min, float max, float *value, const char *value_str)
 {
-    bool ret = false;
+    GUI_BOOL ret = GUI_FALSE;
     gui_begin(ctx, label);
 
     int pos[2], size[2];
@@ -1248,9 +1250,9 @@ bool gui_knob(GuiContext *ctx, const char *label, float min, float max, float *v
 
 
     //if (ctx->skinning_mode == SkinningMode_none) {
-        bool went_down;
-        bool down;
-        bool hover;
+        GUI_BOOL went_down;
+        GUI_BOOL down;
+        GUI_BOOL hover;
         gui_button_logic(ctx, label, pos, size, NULL, &went_down, &down, &hover);
 
         if (went_down)
@@ -1306,7 +1308,7 @@ void gui_label(GuiContext *ctx, const char *label)
     gui_end(ctx);
 }
 
-bool gui_button_ex(GuiContext *ctx, const char *label, bool force_down)
+GUI_BOOL gui_button_ex(GuiContext *ctx, const char *label, GUI_BOOL force_down)
 {
     gui_begin(ctx, label);
     int margin[2] = {5, 3};
@@ -1320,7 +1322,7 @@ bool gui_button_ex(GuiContext *ctx, const char *label, bool force_down)
     ctx->callbacks.calc_text_size(text_size, ctx->callbacks.user_data, gui_label_text(label), gui_layer(ctx));
     GUI_V2(size[c] = GUI_MAX((int)text_size[c] + margin[c] * 2, size[c]));
 
-    bool went_up = false, hover = false, down = false;
+    GUI_BOOL went_up = GUI_FALSE, hover = GUI_FALSE, down = GUI_FALSE;
     if (gui_is_inside_window(ctx, size))
     {
         gui_button_logic(ctx, label, pos, size, &went_up, NULL, &down, &hover);
@@ -1343,13 +1345,13 @@ bool gui_button_ex(GuiContext *ctx, const char *label, bool force_down)
     return went_up && hover;
 }
 
-bool gui_button(GuiContext *ctx, const char *label)
-{ return gui_button_ex(ctx, label, false); }
+GUI_BOOL gui_button(GuiContext *ctx, const char *label)
+{ return gui_button_ex(ctx, label, GUI_FALSE); }
 
-bool gui_selectable(GuiContext *ctx, const char *label, bool selected)
+GUI_BOOL gui_selectable(GuiContext *ctx, const char *label, GUI_BOOL selected)
 { return gui_button_ex(ctx, label, selected); }
 
-bool gui_checkbox_ex(GuiContext *ctx, const char *label, bool *value, bool radio_button_visual)
+GUI_BOOL gui_checkbox_ex(GuiContext *ctx, const char *label, GUI_BOOL *value, GUI_BOOL radio_button_visual)
 {
     gui_begin(ctx, label);
     int margin[2] = {5, 3};
@@ -1362,13 +1364,13 @@ bool gui_checkbox_ex(GuiContext *ctx, const char *label, bool *value, bool radio
     ctx->callbacks.calc_text_size(text_size, ctx->callbacks.user_data, gui_label_text(label), gui_layer(ctx));
     GUI_V2(size[c] = GUI_MAX((int)text_size[c] + margin[c] * 2, size[c]));
 
-    bool went_up = false, hover = false, down = false;
+    GUI_BOOL went_up = GUI_FALSE, hover = GUI_FALSE, down = GUI_FALSE;
     if (gui_is_inside_window(ctx, size))
     {
         int px_margin[2];
         pt_to_px(px_margin, margin, ctx->dpi_scale);
         int box_width = size[1];
-        int tmp[2] = {0, box_width};
+        GUI_DECL_V2(int, tmp, 0, box_width);
         pt_to_px(tmp, tmp, ctx->dpi_scale);
         float px_box_width = tmp[1] - px_margin[1]*2.f;
 
@@ -1401,24 +1403,24 @@ bool gui_checkbox_ex(GuiContext *ctx, const char *label, bool *value, bool radio
     return went_up && hover;
 }
 
-bool gui_checkbox(GuiContext *ctx, const char *label, bool *value)
-{ return gui_checkbox_ex(ctx, label, value, false); }
+GUI_BOOL gui_checkbox(GuiContext *ctx, const char *label, GUI_BOOL *value)
+{ return gui_checkbox_ex(ctx, label, value, GUI_FALSE); }
 
-bool gui_radiobutton(GuiContext *ctx, const char *label, bool value)
+GUI_BOOL gui_radiobutton(GuiContext *ctx, const char *label, GUI_BOOL value)
 {
-    bool v = value;
-    return gui_checkbox_ex(ctx, label, &v, true); // @todo Proper radiobutton
+    GUI_BOOL v = value;
+    return gui_checkbox_ex(ctx, label, &v, GUI_TRUE); // @todo Proper radiobutton
 }
 
 void gui_slider(GuiContext *ctx, const char *label, float *value, float min, float max)
 {
-    gui_slider_ex(ctx, label, value, min, max, 0.1f, false, GUI_MAX(100, gui_frame(ctx)->last_bounding_size[0]));
+    gui_slider_ex(ctx, label, value, min, max, 0.1f, GUI_FALSE, GUI_MAX(100, gui_frame(ctx)->last_bounding_size[0]));
     gui_next_row(ctx); // @todo Layouting
 }
 
-bool gui_textfield(GuiContext *ctx, const char *label, char *buf, int buf_size)
+GUI_BOOL gui_textfield(GuiContext *ctx, const char *label, char *buf, int buf_size)
 {
-    bool content_changed = false;
+    GUI_BOOL content_changed = GUI_FALSE;
 
     gui_begin(ctx, label);
     int margin[2] = {5, 3};
@@ -1429,7 +1431,7 @@ bool gui_textfield(GuiContext *ctx, const char *label, char *buf, int buf_size)
     int box_size[2];
     GUI_ASSIGN_V2(box_size, size);
     int label_size[2] = {0, 0};
-    bool has_label = (strlen(gui_label_text(label)) > 0);
+    GUI_BOOL has_label = (strlen(gui_label_text(label)) > 0);
     if (has_label) {
         float label_size_f[2];
         ctx->callbacks.calc_text_size(label_size_f, ctx->callbacks.user_data, gui_label_text(label), gui_layer(ctx));
@@ -1439,10 +1441,10 @@ bool gui_textfield(GuiContext *ctx, const char *label, char *buf, int buf_size)
         box_size[0] -= label_size[0];
     }
 
-    bool went_down = false, hover = false;
+    GUI_BOOL went_down = GUI_FALSE, hover = GUI_FALSE;
     if (gui_is_inside_window(ctx, size)) {
         gui_button_logic(ctx, label, pos, size, NULL, &went_down, NULL, &hover);
-        bool active = (ctx->last_active_id == gui_id(label));
+        GUI_BOOL active = (ctx->last_active_id == gui_id(label));
 
         if (active) {
             assert(buf && buf_size > 0);
@@ -1457,7 +1459,7 @@ bool gui_textfield(GuiContext *ctx, const char *label, char *buf, int buf_size)
                 } else {
                     buf[char_count++] = ch;
                 }
-                content_changed = true;
+                content_changed = GUI_TRUE;
             }
             char_count = GUI_MIN(char_count, buf_size - 1);
             buf[char_count] = '\0';
@@ -1472,7 +1474,7 @@ bool gui_textfield(GuiContext *ctx, const char *label, char *buf, int buf_size)
         }
 
         { // Draw textbox
-            int pt_pos[2] = {pos[0] + label_size[0], pos[1]};
+            GUI_DECL_V2(int, pt_pos, pos[0] + label_size[0], pos[1]);
             int px_pos[2], px_size[2];
             pt_to_px(px_pos, pt_pos, ctx->dpi_scale);
             pt_to_px(px_size, box_size, ctx->dpi_scale);
@@ -1517,7 +1519,8 @@ void gui_next_col(GuiContext *ctx)
 
 void gui_enlarge_bounding(GuiContext *ctx, int x, int y)
 {
-    int pos[2] = {x, y};
+	GUI_DECL_V2(int, pos, x, y);
+
     GuiContext_Turtle *turtle = &ctx->turtles[ctx->turtle_ix];
 
     GUI_V2(turtle->bounding_max[c] = GUI_MAX(turtle->bounding_max[c], pos[c]));
