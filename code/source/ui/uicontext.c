@@ -49,19 +49,19 @@ void upd_uicontext()
 	ctx->hot_id = 0;
 }
 
-void gui_set_turtle_pos(V2i pos)
+void ogui_set_turtle_pos(V2i pos)
 {
 	UiContext *ctx = g_env.uicontext;
 	ctx->turtles[ctx->turtle_i].pos = pos;
 }
 
-V2i gui_turtle_pos()
+V2i ogui_turtle_pos()
 {
 	UiContext *ctx = g_env.uicontext;
 	return ctx->turtles[ctx->turtle_i].pos;
 }
 
-void gui_advance_turtle(V2i elem_size)
+void ogui_advance_turtle(V2i elem_size)
 {
 	UiContext *ctx = g_env.uicontext;
 	UiContext_Turtle *turtle = &ctx->turtles[ctx->turtle_i];
@@ -71,14 +71,14 @@ void gui_advance_turtle(V2i elem_size)
 	turtle->pos = add_v2i(turtle->pos, adv);
 }
 
-V2i gui_last_adv_size()
+V2i ogui_last_adv_size()
 {
 	UiContext *ctx = g_env.uicontext;
 	UiContext_Turtle *turtle = &ctx->turtles[ctx->turtle_i];
 	return turtle->last_adv_size;
 }
 
-S32 gui_next_draw_layer()
+S32 ogui_next_draw_layer()
 {
 	UiContext *ctx = g_env.uicontext;
 	UiContext_Turtle *turtle = &ctx->turtles[ctx->turtle_i];
@@ -87,7 +87,7 @@ S32 gui_next_draw_layer()
 	return (turtle->draw_i++) + 1337;
 }
 
-void gui_begin(V2i turtle_dir)
+void ogui_begin(V2i turtle_dir)
 {
 	UiContext *ctx = g_env.uicontext;
 	ensure(ctx->turtle_i < MAX_GUI_STACK_SIZE);
@@ -103,7 +103,7 @@ void gui_begin(V2i turtle_dir)
 	};
 }
 
-void gui_end()
+void ogui_end()
 {
 	UiContext *ctx = g_env.uicontext;
 
@@ -121,41 +121,41 @@ U32 hash32(const U8* buf, U32 size)
 	return hash;
 }
 
-GuiId gui_id(const char *label)
+GuiId ogui_id(const char *label)
 { return hash32((U8*)label, strlen(label)); }
 
-void gui_set_hot(const char *label)
+void ogui_set_hot(const char *label)
 {
 	UiContext *ctx = g_env.uicontext;
 	if (ctx->active_id == 0) {
 		//debug_print("set_hot %s", label);
-		ctx->hot_id = gui_id(label);
+		ctx->hot_id = ogui_id(label);
 	}
 }
 
-bool gui_is_hot(const char *label)
+bool ogui_is_hot(const char *label)
 {
 	UiContext *ctx = g_env.uicontext;
-	return ctx->last_hot_id == gui_id(label);
+	return ctx->last_hot_id == ogui_id(label);
 }
 
-void gui_set_active(const char *label)
+void ogui_set_active(const char *label)
 {
 	//debug_print("set_active %s", label);
 	UiContext *ctx = g_env.uicontext;
-	ctx->active_id = gui_id(label);
+	ctx->active_id = ogui_id(label);
 }
 
-void gui_set_inactive(const char *label)
+void ogui_set_inactive(const char *label)
 {
 	//debug_print("set_inactive %s", label);
 	UiContext *ctx = g_env.uicontext;
-	if (ctx->active_id == gui_id(label))
+	if (ctx->active_id == ogui_id(label))
 		ctx->active_id = 0;
 }
 
-bool gui_is_active(const char *label)
+bool ogui_is_active(const char *label)
 {
 	UiContext *ctx = g_env.uicontext;
-	return ctx->active_id == gui_id(label);
+	return ctx->active_id == ogui_id(label);
 }

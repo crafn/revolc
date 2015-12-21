@@ -665,7 +665,7 @@ void drawcmd_model(	T3d tf,
 
 void drawcmd_px_quad(V2i px_pos, V2i px_size, Color c, S32 layer)
 {
-	gui_wrap(&px_pos, &px_size);
+	ogui_wrap(&px_pos, &px_size);
 	drawcmd_model(	px_tf(px_pos, px_size),
 					(Model*)res_by_name(g_env.resblob, ResType_Model, "guibox_singular"),
 					c,

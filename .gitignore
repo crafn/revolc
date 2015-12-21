@@ -43,3 +43,6 @@ resources
 
 # Generated
 gen_rtti.c
+
+# Other
+copy_gui_to_alive.bat

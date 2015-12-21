@@ -56,23 +56,23 @@ REVOLC_API void destroy_uicontext();
 REVOLC_API void upd_uicontext();
 
 // Next gui element will be put in this position
-REVOLC_API void gui_set_turtle_pos(V2i pos);
-REVOLC_API V2i gui_turtle_pos();
+REVOLC_API void ogui_set_turtle_pos(V2i pos);
+REVOLC_API V2i ogui_turtle_pos();
 // Move turtle according to current layout
-REVOLC_API void gui_advance_turtle(V2i element_size);
-REVOLC_API V2i gui_last_adv_size();
-REVOLC_API S32 gui_next_draw_layer();
+REVOLC_API void ogui_advance_turtle(V2i element_size);
+REVOLC_API V2i ogui_last_adv_size();
+REVOLC_API S32 ogui_next_draw_layer();
 
-REVOLC_API void gui_begin(V2i turtle_dir);
-REVOLC_API void gui_end();
+REVOLC_API void ogui_begin(V2i turtle_dir);
+REVOLC_API void ogui_end();
 
-REVOLC_API void gui_set_hot(const char *label);
-REVOLC_API bool gui_is_hot(const char *label);
+REVOLC_API void ogui_set_hot(const char *label);
+REVOLC_API bool ogui_is_hot(const char *label);
 
-REVOLC_API void gui_set_active(const char *label);
-REVOLC_API void gui_set_inactive(const char *label);
-REVOLC_API bool gui_is_active(const char *label);
+REVOLC_API void ogui_set_active(const char *label);
+REVOLC_API void ogui_set_inactive(const char *label);
+REVOLC_API bool ogui_is_active(const char *label);
 
-REVOLC_API GuiId gui_id(const char *label);
+REVOLC_API GuiId ogui_id(const char *label);
 
 #endif // REVOLC_UI_UICONTEXT_H

@@ -18,7 +18,7 @@ Clip *get_modifiable_clip(const char *name)
 // Armature editing on world
 // Returns true if editing is actively happening 
 internal
-bool gui_armature_overlay(ArmatureEditor *state, bool is_edit_mode)
+bool ogui_armature_overlay(ArmatureEditor *state, bool is_edit_mode)
 {
 	bool editing_happening = false;
 	UiContext *ctx = g_env.uicontext;
@@ -26,7 +26,7 @@ bool gui_armature_overlay(ArmatureEditor *state, bool is_edit_mode)
 
 	const char *box_label = "armature_overlay_box";
 	EditorBoxState bstate =
-		gui_editorbox(box_label, (V2i) {0, 0}, g_env.device->win_size, true);
+		ogui_editorbox(box_label, (V2i) {0, 0}, g_env.device->win_size, true);
 
 	if (!is_edit_mode) {
 		if (bstate.down)
@@ -174,7 +174,7 @@ void do_armature_editor(	ArmatureEditor *state,
 {
 	UiContext *ctx = g_env.uicontext;
 	if (active) {
-		bool editing_happening = gui_armature_overlay(state, is_edit_mode);
+		bool editing_happening = ogui_armature_overlay(state, is_edit_mode);
 
 		CompEntity *entity = NULL;
 		Armature *a = NULL;
@@ -183,15 +183,15 @@ void do_armature_editor(	ArmatureEditor *state,
 			a = entity->armature;	
 		}
 
-		gui_res_info(ResType_Armature, a ? &a->res : NULL);
+		ogui_res_info(ResType_Armature, a ? &a->res : NULL);
 
 		{ // Timeline box
 			V2i px_pos = {0, -150};
 			V2i px_size = {g_env.device->win_size.x, 150};
-			drawcmd_px_quad(px_pos, px_size, gui_dev_panel_color(), gui_next_draw_layer());
+			drawcmd_px_quad(px_pos, px_size, ogui_dev_panel_color(), ogui_next_draw_layer());
 
-			gui_begin((V2i) {1, 0});
-			gui_set_turtle_pos(px_pos);
+			ogui_begin((V2i) {1, 0});
+			ogui_set_turtle_pos(px_pos);
 
 			if (strlen(state->clip_name) == 0)
 				fmt_str(state->clip_name, RES_NAME_SIZE,
@@ -203,15 +203,15 @@ void do_armature_editor(	ArmatureEditor *state,
 													ResType_Clip);
 
 			// Listbox containing all animation clips
-			if (gui_begin_listbox(frame_str("Clip: %s", state->clip_name))) {
+			if (ogui_begin_listbox(frame_str("Clip: %s", state->clip_name))) {
 				for (U32 i = 0; i < clip_count + 1; ++i) {
 					const char *name = "bind_pose";
 					if (i < clip_count)
 						name = clips[i]->res.name;
-					if (gui_listbox_item(name))
+					if (ogui_listbox_item(name))
 						fmt_str(state->clip_name, RES_NAME_SIZE, "%s", name);
 				}
-				gui_end();
+				ogui_end();
 			}
 
 			state->clip_is_bind_pose =
@@ -219,12 +219,12 @@ void do_armature_editor(	ArmatureEditor *state,
 
 			// "Make looping", "Delete" and "Play" -buttons
 			if (!state->clip_is_bind_pose) {
-				if (gui_button("Make looping", NULL, NULL)) {
+				if (ogui_button("Make looping", NULL, NULL)) {
 					Clip *clip = get_modifiable_clip(state->clip_name);
 					make_rt_clip_looping(clip);
 				}
 
-				if (	gui_button("Delete key <x>", NULL, NULL)
+				if (	ogui_button("Delete key <x>", NULL, NULL)
 						|| ctx->dev.delete) {
 
 					Clip *clip = get_modifiable_clip(state->clip_name);
@@ -245,7 +245,7 @@ void do_armature_editor(	ArmatureEditor *state,
 					} while (key_deleted);
 				}
 
-				if (	gui_button(	state->is_playing ?
+				if (	ogui_button(	state->is_playing ?
 										"Pause <space>" : "Play <space>",
 									NULL, NULL)
 						|| ctx->dev.toggle_play)
@@ -254,14 +254,14 @@ void do_armature_editor(	ArmatureEditor *state,
 
 			// Selected joints
 			if (a && is_edit_mode) {
-				gui_text(" Selected joints: ");
+				ogui_text(" Selected joints: ");
 				int count = 0;
 				for (U32 i = 0; i < a->joint_count; ++i) {
 					if (!a->joints[i].selected)
 						continue;
 					if (count > 0)
-						gui_text(", ");
-					gui_text(a->joint_names[i]);
+						ogui_text(", ");
+					ogui_text(a->joint_names[i]);
 					++count;
 				}
 			}
@@ -271,10 +271,10 @@ void do_armature_editor(	ArmatureEditor *state,
 			px_pos.y += 27;
 			px_size.x -= 20;
 			px_size.y -= 27;
-			drawcmd_px_quad(px_pos, px_size, darken_color(gui_dev_panel_color()), gui_next_draw_layer());
+			drawcmd_px_quad(px_pos, px_size, darken_color(ogui_dev_panel_color()), ogui_next_draw_layer());
 			const char *clip_timeline_label = "clip_timeline";
 			EditorBoxState bstate =
-				gui_editorbox(clip_timeline_label, px_pos, px_size, true);
+				ogui_editorbox(clip_timeline_label, px_pos, px_size, true);
 			if (entity && a) {
 				if (state->clip_is_bind_pose) {
 					entity->pose = identity_pose();
@@ -342,7 +342,7 @@ void do_armature_editor(	ArmatureEditor *state,
 							color = (Color) {1.0, 1.0, 1.0, 1.0};
 							size.y += 5;
 						}
-						drawcmd_px_quad(pos, size, color, gui_next_draw_layer());
+						drawcmd_px_quad(pos, size, color, ogui_next_draw_layer());
 					}
 
 					// Update animation to CompEntity when not actively editing
@@ -361,11 +361,11 @@ void do_armature_editor(	ArmatureEditor *state,
 						px_pos.x + px_size.x*lerp - 1, px_pos.y
 					};
 					drawcmd_px_quad(	time_cursor_pos, (V2i){2, px_size.y},
-								(Color) {1, 1, 0, 0.8}, gui_next_draw_layer());
+								(Color) {1, 1, 0, 0.8}, ogui_next_draw_layer());
 				}
 			}
 
-			gui_end();
+			ogui_end();
 		}
 	}
 

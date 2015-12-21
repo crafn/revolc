@@ -32,6 +32,8 @@
 #	endif
 #endif
 
+#define GUI_API REVOLC_API
+
 // @todo Don't include here
 #include "core/basic.h"
 

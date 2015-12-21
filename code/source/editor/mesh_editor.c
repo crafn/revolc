@@ -55,13 +55,13 @@ void transform_mesh(ModelEntity *m, T3f tf, bool uv)
 }
 
 internal
-void gui_uvbox(V2i pix_pos, V2i pix_size, ModelEntity *m)
+void ogui_uvbox(V2i pix_pos, V2i pix_size, ModelEntity *m)
 {
 	const char *box_label = "uvbox_box";
 	UiContext *ctx = g_env.uicontext;
-	gui_wrap(&pix_pos, &pix_size);
+	ogui_wrap(&pix_pos, &pix_size);
 
-	EditorBoxState state = gui_editorbox(box_label, pix_pos, pix_size, false);
+	EditorBoxState state = ogui_editorbox(box_label, pix_pos, pix_size, false);
 
 	if (!m)
 		return;
@@ -109,13 +109,13 @@ void gui_uvbox(V2i pix_pos, V2i pix_size, ModelEntity *m)
 	pix_pos = add_v2i(pix_pos, padding);
 	pix_size = sub_v2i(pix_size, scaled_v2i(2, padding));
 
-	drawcmd_px_model_image(pix_pos, pix_size, m, gui_next_draw_layer());
+	drawcmd_px_model_image(pix_pos, pix_size, m, ogui_next_draw_layer());
 
 	for (U32 i = 0; i < m->mesh_v_count; ++i) {
 		TriMeshVertex *v = &m->vertices[i];
 
 		V2i pix_uv = uv_to_pix(v->uv, pix_pos, pix_size);
-		gui_wrap(&pix_uv, NULL);
+		ogui_wrap(&pix_uv, NULL);
 		V2d p = screen_to_world_point(pix_uv);
 		const F64 v_size = editor_vertex_size();
 		V3d poly[4] = {
@@ -146,7 +146,7 @@ void gui_uvbox(V2i pix_pos, V2i pix_size, ModelEntity *m)
 
 // Mesh editing on world
 internal
-void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
+void ogui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 {
 	UiContext *ctx = g_env.uicontext;
 	V3d cur_wp = v2d_to_v3d(screen_to_world_point(ctx->dev.cursor_pos));
@@ -154,7 +154,7 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 
 	const char *box_label = "mesh_overlay_box";
 	EditorBoxState state =
-		gui_editorbox(box_label, (V2i) {0, 0}, g_env.device->win_size, true);
+		ogui_editorbox(box_label, (V2i) {0, 0}, g_env.device->win_size, true);
 
 	if (!*is_edit_mode) { // Mesh select mode
 		if (state.down)
@@ -236,19 +236,19 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 void do_mesh_editor(U32 *model_h, bool *is_edit_mode, bool active)
 {
 	if (active) {
-		gui_mesh_overlay(model_h, is_edit_mode);
+		ogui_mesh_overlay(model_h, is_edit_mode);
 
 		ModelEntity *m = NULL;
 		if (*model_h != NULL_HANDLE)
 			m = get_modelentity(*model_h);
 
-		gui_res_info(	ResType_Model,
+		ogui_res_info(	ResType_Model,
 						m ? res_by_name(g_env.resblob,
 										ResType_Model,
 										m->model_name) : NULL);
 
 		const S32 box_size = 400;
-		gui_uvbox(	(V2i) {-box_size, 0},
+		ogui_uvbox(	(V2i) {-box_size, 0},
 					(V2i) {box_size, box_size},
 					m);
 	}

@@ -41,6 +41,7 @@
 #include "resources/resblob.c"
 #include "resources/resource.c"
 #include "ui/uicontext.c"
+#include "ui/gui.c"
 #include "visual/compdef.c"
 #include "visual/compentity.c"
 #include "visual/ddraw.c"
@@ -52,7 +53,6 @@
 #include "visual/shadersource.c"
 #include "visual/texture.c"
 #include "visual/vao.c"
-
 
 #ifndef CODEGEN
 #	if PLATFORM == PLATFORM_LINUX
