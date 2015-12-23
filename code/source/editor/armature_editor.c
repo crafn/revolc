@@ -188,7 +188,7 @@ void do_armature_editor(	ArmatureEditor *state,
 		{ // Timeline box
 			V2i px_pos = {0, -150};
 			V2i px_size = {g_env.device->win_size.x, 150};
-			drawcmd_px_quad(px_pos, px_size, ogui_dev_panel_color(), ogui_dev_panel_color(), ogui_next_draw_layer());
+			drawcmd_px_quad(px_pos, px_size, 0.0, ogui_dev_panel_color(), ogui_dev_panel_color(), ogui_next_draw_layer());
 
 			ogui_begin((V2i) {1, 0});
 			ogui_set_turtle_pos(px_pos);
@@ -272,7 +272,7 @@ void do_armature_editor(	ArmatureEditor *state,
 			px_size.x -= 20;
 			px_size.y -= 27;
 			Color c = ogui_darken_color(ogui_dev_panel_color());
-			drawcmd_px_quad(px_pos, px_size, c, c, ogui_next_draw_layer());
+			drawcmd_px_quad(px_pos, px_size, 0.0, c, c, ogui_next_draw_layer());
 			const char *clip_timeline_label = "clip_timeline";
 			EditorBoxState bstate =
 				ogui_editorbox(clip_timeline_label, px_pos, px_size, true);
@@ -343,7 +343,7 @@ void do_armature_editor(	ArmatureEditor *state,
 							color = (Color) {1.0, 1.0, 1.0, 1.0};
 							size.y += 5;
 						}
-						drawcmd_px_quad(pos, size, color, color, ogui_next_draw_layer());
+						drawcmd_px_quad(pos, size, 0.0, color, color, ogui_next_draw_layer());
 					}
 
 					// Update animation to CompEntity when not actively editing
@@ -362,7 +362,7 @@ void do_armature_editor(	ArmatureEditor *state,
 						px_pos.x + px_size.x*lerp - 1, px_pos.y
 					};
 					Color c = {1, 1, 0, 0.8};
-					drawcmd_px_quad(time_cursor_pos, (V2i){2, px_size.y},
+					drawcmd_px_quad(time_cursor_pos, (V2i){2, px_size.y}, 0.0,
 									c, c, ogui_next_draw_layer());
 				}
 			}

@@ -104,7 +104,7 @@ REVOLC_API void drawcmd_model(	T3d tf,
 								F32 emission);
 
 // Draws single-color quad
-REVOLC_API void drawcmd_px_quad(V2i px_pos, V2i px_size, Color c, Color outline_c, S32 layer);
+REVOLC_API void drawcmd_px_quad(V2i px_pos, V2i px_size, F32 rot, Color c, Color outline_c, S32 layer);
 
 // Draws texture of a model
 REVOLC_API void drawcmd_px_model_image(	V2i px_pos,

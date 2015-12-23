@@ -541,10 +541,15 @@ void drawcmd_model(	T3d tf,
 			model->pattern);
 }
 
-void drawcmd_px_quad(V2i px_pos, V2i px_size, Color c, Color outline_c, S32 layer)
+void drawcmd_px_quad(V2i px_pos, V2i px_size, F32 rot, Color c, Color outline_c, S32 layer)
 {
-	ogui_wrap(&px_pos, &px_size);
-	drawcmd_model(	px_tf(px_pos, px_size),
+	// Keep center at constant position when rotating
+	px_pos.x += (int)round(px_size.x/2.0 - cos(TAU*3/8 + rot)/cos(TAU*3/8)*px_size.x/2.0);
+	px_pos.y += (int)round(px_size.y/2.0 - sin(TAU*3/8 + rot)/sin(TAU*3/8)*px_size.y/2.0);
+
+	T3d tf = px_tf(px_pos, px_size);
+	tf.rot = qd_by_axis((V3d) {0, 0, 1}, rot);
+	drawcmd_model(	tf,
 					(Model*)res_by_name(g_env.resblob, ResType_Model, "guibox_singular"),
 					c,
 					outline_c,

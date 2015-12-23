@@ -70,7 +70,7 @@ void upd_debug(Debug *d)
 		V2i size = {1, d->dt_history[i]/max*height};
 		V2i pos = {i, height - size.y};
 		Color c = {1.f, 0.f, 0.f, 0.9f};
-		drawcmd_px_quad(pos, size, c, c, 9999999);
+		drawcmd_px_quad(pos, size, 0.0, c, c, 9999999);
 	}
 #endif
 }

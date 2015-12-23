@@ -61,7 +61,7 @@ void draw_button(void *user_data, float x, float y, float w, float h, bool down,
 
 	V2f p = {x, y};
 	V2f s = {w, h};
-	drawcmd_px_quad(v2f_to_v2i(p), v2f_to_v2i(s), bg_color, outline_color(bg_color), layer);
+	drawcmd_px_quad(v2f_to_v2i(p), v2f_to_v2i(s), 0.0, bg_color, outline_color(bg_color), layer);
 }
 
 void draw_checkbox(void *user_data, float x, float y, float w, bool checked, bool down, bool hover, int layer, GuiScissor *scissor)
@@ -80,7 +80,7 @@ void draw_checkbox(void *user_data, float x, float y, float w, bool checked, boo
 
 	V2f p = {x, y};
 	V2f s = {w, h};
-	drawcmd_px_quad(v2f_to_v2i(p), v2f_to_v2i(s), bg_color, outline_color(bg_color), layer);
+	drawcmd_px_quad(v2f_to_v2i(p), v2f_to_v2i(s), 0.0, bg_color, outline_color(bg_color), layer);
 }
 
 void draw_radiobutton(void *user_data, float x, float y, float w, bool checked, bool down, bool hover, int layer, GuiScissor *scissor)
@@ -97,10 +97,9 @@ void draw_radiobutton(void *user_data, float x, float y, float w, bool checked, 
 	else if (hover)
 		bg_color = highlight_color(bg_color);
 
-	// @todo Rotate quad
-	V2f p = {x, y};
-	V2f s = {w, h};
-	drawcmd_px_quad(v2f_to_v2i(p), v2f_to_v2i(s), bg_color, outline_color(bg_color), layer);
+	V2f p = {x + 2, y + 1};
+	V2f s = {w*0.8, h*0.8};
+	drawcmd_px_quad(v2f_to_v2i(p), v2f_to_v2i(s), TAU/8, bg_color, outline_color(bg_color), layer);
 }
 
 void draw_textbox(void *user_data, float x, float y, float w, float h, bool active, bool hover, int layer, GuiScissor *scissor)
@@ -144,7 +143,7 @@ void draw_window(void *user_data, float x, float y, float w, float h, float titl
 	{ // Content bg
 		V2f p = {x, y + title_bar_height};
 		V2f s = {w, h - title_bar_height};
-		drawcmd_px_quad(v2f_to_v2i(p), v2f_to_v2i(s), bg_color, outline_color(bg_color), layer);
+		drawcmd_px_quad(v2f_to_v2i(p), v2f_to_v2i(s), 0.0, bg_color, outline_color(bg_color), layer);
 	}
 
 	bg_color = darken_color(bg_color);
@@ -153,7 +152,7 @@ void draw_window(void *user_data, float x, float y, float w, float h, float titl
 		V2f p = {x, y};
 		V2f s = {w, title_bar_height};
 
-		drawcmd_px_quad(v2f_to_v2i(p), v2f_to_v2i(s), bg_color, outline_color(bg_color), layer);
+		drawcmd_px_quad(v2f_to_v2i(p), v2f_to_v2i(s), 0.0, bg_color, outline_color(bg_color), layer);
 
 		draw_text(NULL, p.x + 5, p.y + 2, title, layer + 1, NULL);
 	}
