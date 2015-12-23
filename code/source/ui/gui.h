@@ -89,6 +89,7 @@ typedef struct GuiContext_Window {
 
 	int frame_ix; // Corresponding GuiContext_Frame
 
+	int bar_height;
 	int pos[2]; // Top-left position
 	int client_size[2]; // Size, not taking account title bar or borders
 
@@ -127,7 +128,7 @@ typedef void (*CalcTextSizeFunc)(float ret[2], void *user_data, const char *text
 typedef void (*DrawWindowFunc)(void *user_data, float x, float y, float w, float h, float title_bar_height, const char *title, GUI_BOOL focus, int layer);
 
 // User-supplied callbacks
-// TODO: Not sure if callbacks are better than providing an array containing all drawing commands of a frame.
+// @todo Change from draw callbacks to returning of an array of draw info.
 typedef struct GuiCallbacks {
 	void *user_data;
 	DrawButtonFunc draw_button;
@@ -216,6 +217,9 @@ GUI_API void gui_frame_scroll(GuiContext *ctx, int *x, int *y);
 GUI_API void gui_begin_window(GuiContext *ctx, const char *label, int default_size_x, int default_size_y);
 GUI_API void gui_end_window(GuiContext *ctx);
 GUI_API void gui_window_client_size(GuiContext *ctx, int *w, int *h);
+
+GUI_API void gui_begin_panel(GuiContext *ctx, const char *label);
+GUI_API void gui_end_panel(GuiContext *ctx);
 
 GUI_API void gui_begin_contextmenu(GuiContext *ctx, const char *label);
 GUI_API void gui_end_contextmenu(GuiContext *ctx);

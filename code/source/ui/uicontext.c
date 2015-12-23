@@ -148,7 +148,8 @@ void draw_window(void *user_data, float x, float y, float w, float h, float titl
 
 	bg_color = darken_color(bg_color);
 
-	{ // Title
+	// Title
+	if (title_bar_height > 0) {
 		V2f p = {x, y};
 		V2f s = {w, title_bar_height};
 

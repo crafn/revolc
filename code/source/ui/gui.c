@@ -303,7 +303,7 @@ GUI_BOOL gui_is_inside_window(GuiContext *ctx, int size[2])
 	GuiContext_Window *win = gui_window(ctx);
 	if (!win)
 		return GUI_TRUE; // @todo Use background size
-	if (pos[0] + size[0] <= win->pos[0] || pos[1] + size[1] <= win->pos[1] + GUI_WINDOW_TITLE_BAR_HEIGHT)
+	if (pos[0] + size[0] <= win->pos[0] || pos[1] + size[1] <= win->pos[1] + win->bar_height)
 		return GUI_FALSE;
 	if (pos[0] >= win->pos[0] + win->total_size[0] || pos[1] >= win->pos[1] + win->total_size[1])
 		return GUI_FALSE;
@@ -1006,7 +1006,7 @@ void gui_frame_scroll(GuiContext *ctx, int *x, int *y)
 	*y = gui_frame(ctx)->scroll[1];
 }
 
-void gui_begin_window_ex(GuiContext *ctx, const char *label, int default_size_x, int default_size_y)
+void gui_begin_window_ex(GuiContext *ctx, const char *label, int default_size_x, int default_size_y, GUI_BOOL panel)
 {
 	GUI_DECL_V2(int, default_size, default_size_x, default_size_y);
 	int win_handle = -1;
@@ -1041,6 +1041,7 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, int default_size_x,
 			ctx->windows[free_handle].id = gui_id(label);
 			GUI_ASSIGN_V2(ctx->windows[free_handle].client_size, default_size);
 			GUI_ASSIGN_V2(ctx->windows[free_handle].pos, ctx->next_window_pos);
+			ctx->windows[free_handle].bar_height = panel ? 0 : GUI_WINDOW_TITLE_BAR_HEIGHT;
 			ctx->window_order[ctx->window_count++] = free_handle;
 
 			win_handle = free_handle;
@@ -1063,7 +1064,7 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, int default_size_x,
 
 	{ // Ordinary gui element logic
 		int size[2];
-		GUI_V2(size[c] = win->client_size[c] + c*GUI_WINDOW_TITLE_BAR_HEIGHT);
+		GUI_V2(size[c] = win->client_size[c] + c*win->bar_height);
 		GUI_ASSIGN_V2(win->total_size, size);
 
 		// Dummy window background element. Makes clicking through window impossible.
@@ -1075,7 +1076,7 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, int default_size_x,
 		char bar_label[MAX_GUI_LABEL_SIZE];
 		GUI_FMT_STR(bar_label, sizeof(bar_label), "winbar_%s", label);
 		GUI_BOOL went_down, down, hover;
-		GUI_DECL_V2(int, btn_size, size[0], GUI_WINDOW_TITLE_BAR_HEIGHT);
+		GUI_DECL_V2(int, btn_size, size[0], win->bar_height);
 		gui_button_logic(ctx, bar_label, win->pos, btn_size, NULL, &went_down, &down, &hover);
 
 		if (ctx->active_win_ix == win_handle) {
@@ -1104,18 +1105,18 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, int default_size_x,
 
 		const int margin = 20;
 		win->pos[0] = GUI_CLAMP(win->pos[0], margin - size[0], ctx->host_win_size[0] - margin);
-		win->pos[1] = GUI_CLAMP(win->pos[1], margin - GUI_WINDOW_TITLE_BAR_HEIGHT, ctx->host_win_size[1] - margin);
+		win->pos[1] = GUI_CLAMP(win->pos[1], margin - win->bar_height, ctx->host_win_size[1] - margin);
 
 		int px_pos[2], px_size[2];
 		pt_to_px(px_pos, win->pos, ctx->dpi_scale);
 		pt_to_px(px_size, size, ctx->dpi_scale);
 		ctx->callbacks.draw_window(ctx->callbacks.user_data,
-								   1.f*px_pos[0], 1.f*px_pos[1], 1.f*px_size[0], 1.f*px_size[1], GUI_WINDOW_TITLE_BAR_HEIGHT,
+								   1.f*px_pos[0], 1.f*px_pos[1], 1.f*px_size[0], 1.f*px_size[1], win->bar_height,
 								   gui_label_text(label), gui_focused(ctx), gui_layer(ctx));
 
 		// Turtle to content area
 		int content_pos[2];
-		GUI_V2(content_pos[c] = win->pos[c] + c*GUI_WINDOW_TITLE_BAR_HEIGHT);
+		GUI_V2(content_pos[c] = win->pos[c] + c*win->bar_height);
 		GUI_ASSIGN_V2(gui_turtle(ctx)->start_pos, content_pos);
 		GUI_ASSIGN_V2(gui_turtle(ctx)->pos, content_pos);
 	}
@@ -1152,7 +1153,7 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, int default_size_x,
 		gui_end(ctx);
 	}
 
-	gui_begin_frame(ctx, label, win->pos[0], win->pos[1] + GUI_WINDOW_TITLE_BAR_HEIGHT, win->client_size[0], win->client_size[1]);
+	gui_begin_frame(ctx, label, win->pos[0], win->pos[1] + win->bar_height, win->client_size[0], win->client_size[1]);
 
 #if 0
 	begin_frame(gui_rendering(ctx), win_client_size_impl(ctx->backend, win_handle), ctx->dpi_scale);
@@ -1197,10 +1198,20 @@ void gui_end_window_ex(GuiContext *ctx)
 
 void gui_begin_window(GuiContext *ctx, const char *label, int default_size_x, int default_size_y)
 {
-	gui_begin_window_ex(ctx, label, default_size_x, default_size_y);
+	gui_begin_window_ex(ctx, label, default_size_x, default_size_y, GUI_FALSE);
 }
 
 void gui_end_window(GuiContext *ctx)
+{
+	gui_end_window_ex(ctx);
+}
+
+void gui_begin_panel(GuiContext *ctx, const char *label)
+{
+	gui_begin_window_ex(ctx, label, 200, 200, GUI_TRUE);
+}
+
+void gui_end_panel(GuiContext *ctx)
 {
 	gui_end_window_ex(ctx);
 }
@@ -1213,7 +1224,7 @@ void gui_window_client_size(GuiContext *ctx, int *w, int *h)
 
 void gui_begin_contextmenu(GuiContext *ctx, const char *label)
 {
-	gui_begin_window_ex(ctx, label, 10, 10);
+	gui_begin_window_ex(ctx, label, 10, 10, false);
 }
 
 void gui_end_contextmenu(GuiContext *ctx)
@@ -1509,10 +1520,10 @@ void gui_end_listbox(GuiContext *ctx)
 	gui_next_row(ctx); // @todo Layouting
 }
 
-bool gui_begin_combo(GuiContext *ctx, const char *label)
+GUI_BOOL gui_begin_combo(GuiContext *ctx, const char *label)
 {
 	// @todo Use borderless window for list
-	bool btn_down;
+	GUI_BOOL btn_down;
 	int combo_pos[2];
 	gui_turtle_pos(ctx, &combo_pos[0], &combo_pos[1]);
 	btn_down = gui_button(ctx, label);
@@ -1527,7 +1538,7 @@ bool gui_begin_combo(GuiContext *ctx, const char *label)
 	return btn_down;
 }
 
-bool gui_combo_item(GuiContext *ctx, const char *label)
+GUI_BOOL gui_combo_item(GuiContext *ctx, const char *label)
 {
 	return gui_button(ctx, label);
 }

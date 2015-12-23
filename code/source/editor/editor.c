@@ -145,6 +145,10 @@ void upd_editor()
 				if (gui_radiobutton(ctx, "Radio 3", btn == 2)) btn = 2;
 				gui_slider(ctx, "Slider", &slider, 0.0f, 1.0f);
 				gui_textfield(ctx, "Textfield", buf, sizeof(buf));
+
+				gui_begin_panel(ctx, "panel");
+					gui_button(ctx, "button");
+				gui_end_panel(ctx);
 			gui_end_window(ctx);
 		gui_end(ctx);
 	}
