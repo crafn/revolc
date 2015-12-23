@@ -56,7 +56,7 @@ void ogui_text(const char *text)
 			verts, v_count,
 			inds, i_count,
 			ogui_font()->atlas_uv,
-			(Color) {1, 1, 1, 1},
+			white_color(), white_color(),
 			ogui_next_draw_layer(),
 			0.0,
 			NULL_PATTERN);
@@ -113,7 +113,7 @@ bool ogui_button(const char *label, bool *is_down, bool *is_hovered)
 	{ // Leave margin
 		V2i p = add_v2i(px_pos, (V2i) {1, 1});
 		V2i s = sub_v2i(px_size, (V2i) {2, 2});
-		drawcmd_px_quad(p, s, bg_color, ogui_next_draw_layer());
+		drawcmd_px_quad(p, s, bg_color, bg_color, ogui_next_draw_layer());
 	}
 
 	ogui_set_turtle_pos(add_v2i(px_pos, (V2i) {5, 1}));
@@ -302,7 +302,7 @@ void ogui_res_info(ResType t, const Resource *res)
 							res ? res->name : "<none>");
 	V2i size = calc_text_mesh_size(ogui_font(), str);
 	size.y += 3;
-	drawcmd_px_quad((V2i) {0, 0}, size, ogui_dev_panel_color(), ogui_next_draw_layer());
+	drawcmd_px_quad((V2i) {0, 0}, size, ogui_dev_panel_color(), ogui_dev_panel_color(), ogui_next_draw_layer());
 	ogui_text(str);
 }
 
@@ -381,7 +381,7 @@ EditorBoxState ogui_editorbox(	const char *label,
 	}
 
 	if (!invisible)
-		drawcmd_px_quad(px_pos, px_size, c, ogui_next_draw_layer());
+		drawcmd_px_quad(px_pos, px_size, c, c, ogui_next_draw_layer());
 
 	return state;
 }

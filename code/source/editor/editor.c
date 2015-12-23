@@ -130,7 +130,7 @@ void upd_editor()
 			gui_begin_window(ctx, "win", 100, 100);
 				gui_button(ctx, "foo");
 				gui_button(ctx, "bar");
-				gui_button(ctx, "bazzzzzzzz");
+				gui_button(ctx, "nappi");
 			gui_end_window(ctx);
 
 			gui_begin_window(ctx, "Gui components", 200, 200);

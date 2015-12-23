@@ -195,34 +195,6 @@ internal
 void recreate_gl_textures(Renderer *r, ResBlob *blob)
 {
 	gl_check_errors("recreate_gl_textures: begin");
-	{ // Dither patterns
-		if (r->brush_tex)
-			glDeleteTextures(1, &r->brush_tex);
-
-		Texture *tex = (Texture*)res_by_name(g_env.resblob,
-											ResType_Texture,
-											"brush");
-		gl_check_errors("recreate_gl_textures brush: begin");
-		glGenTextures(1, &r->brush_tex);
-		ensure(r->brush_tex);
-		glBindTexture(GL_TEXTURE_2D, r->brush_tex);
-		// @note No sRGB because shaders depend on exact numerical values
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RED,
-				tex->reso.x, tex->reso.y, 0,
-				GL_RGBA, GL_UNSIGNED_BYTE,
-				texture_texels(tex, 0));
-
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 1);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 0);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_LOD, 0);
-
-		gl_check_errors("recreate_gl_textures brush: end");
-	}
 
 	if (r->atlas_tex)
 		glDeleteTextures(1, &r->atlas_tex);
@@ -368,13 +340,6 @@ void destroy_rendering_pipeline(Renderer *r)
 
 	glDeleteFramebuffers(1, &r->scene_fbo);
 	glDeleteTextures(1, &r->scene_color_tex);
-	glDeleteTextures(1, &r->scene_detail_tex);
-	glDeleteTextures(1, &r->scene_move_tex);
-	glDeleteTextures(1, &r->scene_src_tex);
-	glDeleteTextures(1, &r->scene_dst_tex);
-
-	glDeleteFramebuffers(1, &r->paint_fbo);
-	glDeleteTextures(1, &r->paint_fbo_tex);
 
 	glDeleteFramebuffers(1, &r->hl_fbo);
 	glDeleteTextures(1, &r->hl_tex);
@@ -399,14 +364,13 @@ void recreate_rendering_pipeline(Renderer *r)
 	destroy_rendering_pipeline(r);
 
 	r->scene_fbo_reso = g_env.device->win_size;
-	r->paint_fbo_reso = g_env.device->win_size;
 	r->hl_fbo_reso = (V2i) {512, 512};
 	r->blur_tmp_fbo_reso = r->hl_fbo_reso;
 	r->occlusion_fbo_reso = (V2i) {128, 128};
 
 	{ // Setup framebuffers
 
-		// Fbo & tex to store HDR render of the scene and "requested brush detail" -map
+		// Fbo & tex to store HDR render of the scene
 		glGenFramebuffers(1, &r->scene_fbo);
 		glBindFramebuffer(GL_FRAMEBUFFER, r->scene_fbo);
 
@@ -415,46 +379,12 @@ void recreate_rendering_pipeline(Renderer *r)
 						r->scene_fbo_reso.x, r->scene_fbo_reso.y,
 						0, GL_RGB, GL_FLOAT, NULL);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, r->scene_color_tex, 0);
-		r->scene_detail_tex = gen_tex(GL_NEAREST, GL_NEAREST);
-		glTexImage2D(	GL_TEXTURE_2D, 0, GL_RED,
-						r->scene_fbo_reso.x, r->scene_fbo_reso.y,
-						0, GL_RED, GL_FLOAT, NULL);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, r->scene_detail_tex, 0);
-		r->scene_move_tex = gen_tex(GL_NEAREST, GL_NEAREST);
-		glTexImage2D(	GL_TEXTURE_2D, 0, GL_RG16F,
-						r->scene_fbo_reso.x, r->scene_fbo_reso.y,
-						0, GL_RGB, GL_FLOAT, NULL);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, r->scene_move_tex, 0);
-		r->scene_src_tex = gen_tex(GL_NEAREST, GL_NEAREST);
-		glTexImage2D(	GL_TEXTURE_2D, 0, GL_R16UI,
-						r->scene_fbo_reso.x, r->scene_fbo_reso.y,
-						0, GL_RED_INTEGER, GL_UNSIGNED_SHORT, NULL);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, r->scene_src_tex, 0);
-		r->scene_dst_tex = gen_tex(GL_NEAREST, GL_NEAREST);
-		glTexImage2D(	GL_TEXTURE_2D, 0, GL_R16UI,
-						r->scene_fbo_reso.x, r->scene_fbo_reso.y,
-						0, GL_RED_INTEGER, GL_UNSIGNED_SHORT, NULL);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT4, GL_TEXTURE_2D, r->scene_dst_tex, 0);
 		{
 			GLenum ret = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 			if (ret != GL_FRAMEBUFFER_COMPLETE)
 				fail("Incomplete framebuffer (scene): %i", ret);
 		}
 		gl_check_errors("recreate_rendering_pipeline: scene fbo");
-
-		// Fbo & tex to store HDR painting of the scene (could try without HDR if slow)
-		r->paint_fbo_tex = gen_tex(GL_LINEAR, GL_LINEAR);
-		glTexImage2D(	GL_TEXTURE_2D, 0, GL_RGB16F,
-						r->paint_fbo_reso.x, r->paint_fbo_reso.y,
-						0, GL_RGB, GL_FLOAT, NULL);
-		glGenFramebuffers(1, &r->paint_fbo);
-		glBindFramebuffer(GL_FRAMEBUFFER, r->paint_fbo);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, r->paint_fbo_tex, 0);
-		{
-			GLenum ret = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-			if (ret != GL_FRAMEBUFFER_COMPLETE)
-				fail("Incomplete framebuffer (paint): %i", ret);
-		}
 
 		// Fbo & tex to store highlights of the scene
 		r->hl_tex = gen_tex(GL_LINEAR, GL_LINEAR);
@@ -515,59 +445,6 @@ void create_renderer()
 
 	r->vao = create_vao(MeshType_tri, MAX_DRAW_VERTEX_COUNT, MAX_DRAW_INDEX_COUNT);
 
-	{ // Create brush vao
-		struct Layer {
-			V2i brush_count;
-			F32 brush_size;
-		} layers[] = {
-			{{2, 2}, 5.12},
-			{{4, 4}, 2.56},
-			{{7, 7}, 1.28},
-			{{13, 13}, 0.64},
-			{{25, 25}, 0.32},
-			{{50, 50}, 0.16},
-			{{100, 100}, 0.08},
-			{{200, 200}, 0.04},
-			{{400, 400}, 0.02},
-			{{800, 800}, 0.01},
-		};
-		const int layer_count = ARRAY_COUNT(layers);
-
-		int total_brush_count = 0;
-		for (int i = 0; i < layer_count; ++i)
-			total_brush_count += layers[i].brush_count.x*layers[i].brush_count.y;
-		BrushMeshVertex *brushes = frame_alloc(sizeof(*brushes)*total_brush_count);
-
-		int brush_i = 0;
-		U64 seed = 42;
-		for (int i = 0; i < layer_count; ++i) {
-			struct Layer *layer = &layers[i];
-			V2i c = layer->brush_count;
-			for (int y = 0; y < c.y; ++y)
-			for (int x = 0; x < c.x; ++x) {
-				brushes[brush_i++] = (BrushMeshVertex) {
-					.pos = {
-						(2.0f*x/c.x - 1.0f)*1.1f,
-						(2.0f*y/c.y - 1.0f)*1.1f,
-					},
-					.size = layer->brush_size*random_f32(0.7f, 1.3f, &seed),
-				};
-			}
-		}
-
-		r->brush_vaos[0] = create_vao(MeshType_brush, total_brush_count, 0);
-		r->brush_vaos[1] = create_vao(MeshType_brush, total_brush_count, 0);
-		r->src_brush_vao = &r->brush_vaos[0];
-		r->dst_brush_vao = &r->brush_vaos[1];
-
-		bind_vao(r->src_brush_vao);
-		add_vertices_to_vao(r->src_brush_vao, brushes, total_brush_count);
-
-		r->dst_brush_vao->v_count = r->dst_brush_vao->v_capacity; // Filled by transform feedback
-
-		gl_check_errors("create_renderer: brush vao");
-	}
-
 	recreate_rendering_pipeline(r);
 	recreate_gl_textures(r, g_env.resblob);
 
@@ -603,11 +480,8 @@ void destroy_renderer()
 	g_env.renderer = NULL;
 
 	destroy_vao(&r->vao);
-	destroy_vao(&r->brush_vaos[0]);
-	destroy_vao(&r->brush_vaos[1]);
 
 	destroy_rendering_pipeline(r);
-	glDeleteTextures(1, &r->brush_tex);
 	glDeleteTextures(1, &r->atlas_tex);
 	glDeleteTextures(1, &r->fluid_grid_tex);
 	glDeleteTextures(1, &r->occlusion_grid_tex);
@@ -621,6 +495,7 @@ void drawcmd(	T3d tf,
 				MeshIndexType *i, U32 i_count,
 				AtlasUv uv,
 				Color c,
+				Color outline_c,
 				S32 layer,
 				F32 emission,
 				U8 pattern)
@@ -629,6 +504,7 @@ void drawcmd(	T3d tf,
 		.tf = tf,
 		.layer = layer,
 		.color = c,
+		.outline_color = outline_c,
 		.atlas_uv = uv.uv,
 		.scale_to_atlas_uv = uv.scale,
 		.mesh_v_count = v_count,
@@ -648,6 +524,7 @@ void drawcmd(	T3d tf,
 void drawcmd_model(	T3d tf,
 					const Model *model,
 					Color c,
+					Color outline_c,
 					S32 layer,
 					F32 emission)
 {
@@ -658,17 +535,19 @@ void drawcmd_model(	T3d tf,
 			mesh_indices(mesh), mesh->i_count,
 			tex->atlas_uv,
 			mul_color(model->color, c),
+			mul_color(model->color, outline_c),
 			layer,
 			model->emission + emission,
 			model->pattern);
 }
 
-void drawcmd_px_quad(V2i px_pos, V2i px_size, Color c, S32 layer)
+void drawcmd_px_quad(V2i px_pos, V2i px_size, Color c, Color outline_c, S32 layer)
 {
 	ogui_wrap(&px_pos, &px_size);
 	drawcmd_model(	px_tf(px_pos, px_size),
 					(Model*)res_by_name(g_env.resblob, ResType_Model, "guibox_singular"),
 					c,
+					outline_c,
 					layer,
 					0.0);
 }
@@ -687,7 +566,7 @@ void drawcmd_px_model_image(V2i px_pos, V2i px_size, ModelEntity *src_model, S32
 			mesh_vertices(mesh), mesh->v_count,
 			mesh_indices(mesh), mesh->i_count,
 			(AtlasUv) {src_model->atlas_uv, src_model->scale_to_atlas_uv},
-			(Color) {1, 1, 1, 1},
+			white_color(), white_color(),
 			layer,
 			0.0,
 			NULL_PATTERN);
@@ -921,7 +800,7 @@ void render_frame()
 				e->vertices, e->mesh_v_count,
 				e->indices, e->mesh_i_count,
 				(AtlasUv) {e->atlas_uv, e->scale_to_atlas_uv},
-				e->color,
+				e->color, e->color,
 				e->layer,
 				e->emission,
 				e->pattern);
@@ -980,9 +859,8 @@ void render_frame()
 				v.uv.z += cmd->atlas_uv.z;
 
 				v.color = cmd->color;
+				v.outline_color = cmd->outline_color;
 				v.emission = cmd->emission;
-
-				v.draw_id = i;
 
 				total_verts[cur_v] = v;
 				++cur_v;
@@ -1071,8 +949,6 @@ void render_frame()
 						r->env_light_color.b);
 			glUniformMatrix4fv(	uniform_loc(shd->prog_gl_id, "u_cam"),
 								1, GL_FALSE, cam_matrix(r->cam_pos, r->cam_fov).e);
-			glUniformMatrix4fv(	uniform_loc(shd->prog_gl_id, "u_prev_cam"),
-								1, GL_FALSE, cam_matrix(r->prev_cam_pos, r->cam_fov).e);
 
 			glUniform1i(uniform_loc(shd->prog_gl_id, "u_tex_color"), 0);
 			glActiveTexture(GL_TEXTURE0);
@@ -1080,18 +956,10 @@ void render_frame()
 
 			GLenum buffers[] = {
 				GL_COLOR_ATTACHMENT0,
-				GL_COLOR_ATTACHMENT1,
-				GL_COLOR_ATTACHMENT2,
-				GL_COLOR_ATTACHMENT3,
-				GL_COLOR_ATTACHMENT4,
 			};
 			// Do buffers need to be disabled afterwards?
 			glDrawBuffers(ARRAY_COUNT(buffers), buffers);
 			glBindFragDataLocation(shd->prog_gl_id, 0, "f_color"); // to scene_color_tex
-			glBindFragDataLocation(shd->prog_gl_id, 1, "f_detail"); // to scene_detail_tex
-			glBindFragDataLocation(shd->prog_gl_id, 2, "f_move"); // to scene_move_tex
-			glBindFragDataLocation(shd->prog_gl_id, 3, "f_src"); // to scene_src_tex
-			glBindFragDataLocation(shd->prog_gl_id, 4, "f_dst"); // to scene_dst_tex
 
 			bind_vao(&r->vao);
 			draw_vao(&r->vao);
@@ -1120,68 +988,6 @@ void render_frame()
 			}
 		}
 
-		if (r->brush_rendering)
-		{ // Move brushes according to scene
-			ShaderSource* shd =
-				(ShaderSource*)res_by_name(g_env.resblob, ResType_ShaderSource, "upd_brushes");
-			glUseProgram(shd->prog_gl_id);
-
-			glUniform1i(uniform_loc(shd->prog_gl_id, "u_scene_move"), 0);
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, r->scene_move_tex);
-
-			glUniform1i(uniform_loc(shd->prog_gl_id, "u_scene_src"), 1);
-			glActiveTexture(GL_TEXTURE1);
-			glBindTexture(GL_TEXTURE_2D, r->scene_src_tex);
-
-			glUniform1i(uniform_loc(shd->prog_gl_id, "u_scene_dst"), 2);
-			glActiveTexture(GL_TEXTURE2);
-			glBindTexture(GL_TEXTURE_2D, r->scene_dst_tex);
-
-			glEnable(GL_RASTERIZER_DISCARD);
-			glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, r->dst_brush_vao->vbo_id);
-		 
-			glBeginTransformFeedback(GL_POINTS);
-			bind_vao(r->src_brush_vao);
-			draw_vao(r->src_brush_vao);
-			glEndTransformFeedback();
-
-			glDisable(GL_RASTERIZER_DISCARD);
-
-			SWAP(Vao*, r->src_brush_vao, r->dst_brush_vao);
-		}
-
-		if (r->brush_rendering)
-		{ // Paintify rendered scene
-			glEnable(GL_BLEND);
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-			glBindFramebuffer(GL_FRAMEBUFFER, r->paint_fbo);
-			glViewport(0, 0, r->paint_fbo_reso.x, r->paint_fbo_reso.y);
-			// @todo Remove (just to clean up persistent pixel mess on linux)
-			glClear(GL_COLOR_BUFFER_BIT);
-
-			ShaderSource* shd =
-				(ShaderSource*)res_by_name(g_env.resblob, ResType_ShaderSource, "paint");
-			glUseProgram(shd->prog_gl_id);
-
-			glUniform1i(uniform_loc(shd->prog_gl_id, "u_scene_color"), 0);
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, r->scene_color_tex);
-
-			glUniform1i(uniform_loc(shd->prog_gl_id, "u_scene_detail"), 1);
-			glActiveTexture(GL_TEXTURE1);
-			glBindTexture(GL_TEXTURE_2D, r->scene_detail_tex);
-
-			glUniform1i(uniform_loc(shd->prog_gl_id, "u_brush"), 2);
-			glActiveTexture(GL_TEXTURE2);
-			glBindTexture(GL_TEXTURE_2D, r->brush_tex);
-
-
-			bind_vao(r->src_brush_vao);
-			draw_vao(r->src_brush_vao);
-		}
-
 		{ // Overexposed parts to small "highlight" texture
 			glDisable(GL_BLEND);
 
@@ -1192,7 +998,6 @@ void render_frame()
 				(ShaderSource*)res_by_name(g_env.resblob, ResType_ShaderSource, "highlight");
 			glUseProgram(shd->prog_gl_id);
 
-			// Should we use scene_color or paint?
 			glUniform1i(uniform_loc(shd->prog_gl_id, "u_scene_color"), 0);
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, r->scene_color_tex);
@@ -1216,15 +1021,9 @@ void render_frame()
 				(ShaderSource*)res_by_name(g_env.resblob, ResType_ShaderSource, "post");
 			glUseProgram(shd->prog_gl_id);
 
-			if (r->brush_rendering) {
-				glUniform1i(uniform_loc(shd->prog_gl_id, "u_color"), 0);
-				glActiveTexture(GL_TEXTURE0);
-				glBindTexture(GL_TEXTURE_2D, r->paint_fbo_tex);
-			} else {
-				glUniform1i(uniform_loc(shd->prog_gl_id, "u_color"), 0);
-				glActiveTexture(GL_TEXTURE0);
-				glBindTexture(GL_TEXTURE_2D, r->scene_color_tex);
-			}
+			glUniform1i(uniform_loc(shd->prog_gl_id, "u_color"), 0);
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, r->scene_color_tex);
 
 			glUniform1i(uniform_loc(shd->prog_gl_id, "u_highlight"), 1);
 			glActiveTexture(GL_TEXTURE1);

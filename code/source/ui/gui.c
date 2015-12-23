@@ -878,7 +878,7 @@ void gui_slider_ex(GuiContext *ctx, const char *label, float *value, float min, 
 			pt_to_px(px_pos, handle_pos, ctx->dpi_scale);
 			pt_to_px(px_size, handle_size, ctx->dpi_scale);
 			ctx->callbacks.draw_button(ctx->callbacks.user_data, 1.f*px_pos[0], 1.f*px_pos[1], 1.f*px_size[0], 1.f*px_size[1],
-									   down, hover, gui_layer(ctx), gui_scissor(ctx));
+									   down, hover, gui_layer(ctx) + 1, gui_scissor(ctx));
 		}
 	}
 
@@ -1472,7 +1472,7 @@ GUI_BOOL gui_textfield(GuiContext *ctx, const char *label, char *buf, int buf_si
 		if (has_label) { // Draw label
 			int px_pos[2];
 			pt_to_px(px_pos, pos, ctx->dpi_scale);
-			ctx->callbacks.draw_text(ctx->callbacks.user_data, 1.f*px_pos[0] + px_margin[0], 1.f*px_pos[1], gui_label_text(label), gui_layer(ctx), gui_scissor(ctx));
+			ctx->callbacks.draw_text(ctx->callbacks.user_data, 1.f*px_pos[0] + px_margin[0], 1.f*px_pos[1], gui_label_text(label), gui_layer(ctx) + 1, gui_scissor(ctx));
 		}
 
 		{ // Draw textbox
@@ -1483,7 +1483,7 @@ GUI_BOOL gui_textfield(GuiContext *ctx, const char *label, char *buf, int buf_si
 			// @todo down --> active
 			ctx->callbacks.draw_textbox(ctx->callbacks.user_data, 1.f*px_pos[0], 1.f*px_pos[1], 1.f*px_size[0], 1.f*px_size[1], active, hover, gui_layer(ctx), gui_scissor(ctx));
 
-			ctx->callbacks.draw_text(ctx->callbacks.user_data, 1.f*px_pos[0] + px_margin[0], 1.f*px_pos[1] + px_margin[1], buf, gui_layer(ctx), gui_scissor(ctx));
+			ctx->callbacks.draw_text(ctx->callbacks.user_data, 1.f*px_pos[0] + px_margin[0], 1.f*px_pos[1], buf, gui_layer(ctx) + 1, gui_scissor(ctx));
 		}
 
 	}

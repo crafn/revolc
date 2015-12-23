@@ -8,21 +8,14 @@ void vertex_attributes(MeshType type, const VertexAttrib **attribs, U32 *count)
 		local_persist VertexAttrib tri_attribs[] = {
 			{ "a_pos", 3, GL_FLOAT, true, false, offsetof(TriMeshVertex, pos) },
 			{ "a_uv", 3, GL_FLOAT, true, false, offsetof(TriMeshVertex, uv) },
+			{ "a_outline_uv", 2, GL_FLOAT, true, false, offsetof(TriMeshVertex, outline_uv) },
 			{ "a_color", 4, GL_FLOAT, true, false, offsetof(TriMeshVertex, color) },
+			{ "a_outline_color", 4, GL_FLOAT, true, false, offsetof(TriMeshVertex, outline_color) },
 			{ "a_emission", 1, GL_FLOAT, true, false, offsetof(TriMeshVertex, emission) },
-			{ "a_draw_id", 1, GL_UNSIGNED_SHORT, false, false, offsetof(TriMeshVertex, draw_id) },
 		};
 		if (attribs)
 			*attribs = tri_attribs;
 		*count = sizeof(tri_attribs)/sizeof(*tri_attribs);
-	} else if (type == MeshType_brush) {
-		local_persist VertexAttrib brush_attribs[] = {
-			{ "a_pos", 2, GL_FLOAT, true, false, offsetof(BrushMeshVertex, pos) },
-			{ "a_size", 1, GL_FLOAT, true, false, offsetof(BrushMeshVertex, size) },
-		};
-		if (attribs)
-			*attribs = brush_attribs;
-		*count = sizeof(brush_attribs)/sizeof(*brush_attribs);
 	} else {
 		fail("Unimplemented mesh type");
 	}
@@ -32,7 +25,6 @@ bool is_indexed_mesh(MeshType type)
 {
 	switch (type) {
 		case MeshType_tri: return true;
-		case MeshType_brush: return false;
 		default: fail("Unhandled mesh type");
 	}
 }
@@ -41,7 +33,6 @@ U32 vertex_size(MeshType type)
 {
 	switch (type) {
 		case MeshType_tri: return sizeof(TriMeshVertex);
-		case MeshType_brush: return sizeof(BrushMeshVertex);
 		default: fail("Unhandled mesh type");
 	}
 }
@@ -58,6 +49,7 @@ int json_mesh_to_blob(struct BlobBuf *buf, JsonTok j)
 
 	JsonTok j_pos = json_value_by_key(j, "pos");
 	JsonTok j_uv = json_value_by_key(j, "uv");
+	JsonTok j_outline_uv = json_value_by_key(j, "outline_uv");
 	JsonTok j_ind = json_value_by_key(j, "ind");
 
 	if (json_is_null(j_pos))
@@ -68,6 +60,13 @@ int json_mesh_to_blob(struct BlobBuf *buf, JsonTok j)
 	if (	!json_is_null(j_uv) &&
 			json_member_count(j_uv) != json_member_count(j_pos)) {
 		critical_print("Attrib 'uv' size doesn't match with 'pos' for Mesh: %s",
+				json_str(json_value_by_key(j, "name")));
+		goto error;
+	}
+
+	if (	!json_is_null(j_outline_uv) &&
+			json_member_count(j_outline_uv) != json_member_count(j_pos)) {
+		critical_print("Attrib 'outline_uv' size doesn't match with 'pos' for Mesh: %s",
 				json_str(json_value_by_key(j, "name")));
 		goto error;
 	}
@@ -84,13 +83,21 @@ int json_mesh_to_blob(struct BlobBuf *buf, JsonTok j)
 				(&p.x)[c] = json_real(json_member(j_p, c));
 			vertices[i].pos = p;
 
-			if (json_is_null(j_uv))
-				continue;
-			JsonTok j_u = json_member(j_uv, i);
-			V3f u = {};
-			for (U32 c = 0; c < json_member_count(j_u); ++c)
-				(&u.x)[c] = json_real(json_member(j_u, c));
-			vertices[i].uv = u;
+			if (!json_is_null(j_uv)) {
+				JsonTok j_u = json_member(j_uv, i);
+				V3f u = {};
+				u.x = json_real(json_member(j_u, 0));
+				u.y = json_real(json_member(j_u, 1));
+				vertices[i].uv = u;
+			}
+
+			if (!json_is_null(j_outline_uv)) {
+				JsonTok j_u = json_member(j_outline_uv, i);
+				V2f u = {};
+				u.x = json_real(json_member(j_u, 0));
+				u.y = json_real(json_member(j_u, 1));
+				vertices[i].outline_uv = u;
+			}
 		}
 		for (U32 i = 0; i < i_count; ++i)
 			indices[i] = json_integer(json_member(j_ind, i));

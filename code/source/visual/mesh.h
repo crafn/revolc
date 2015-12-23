@@ -9,7 +9,7 @@
 #include "resources/resource.h"
 #include "core/gl.h"
 
-typedef enum { MeshType_tri, MeshType_brush } MeshType_enum;
+typedef enum { MeshType_tri } MeshType_enum;
 typedef U32 MeshType;
 typedef U32 MeshIndexType;
 #define MESH_INDEX_GL_TYPE GL_UNSIGNED_INT
@@ -30,25 +30,14 @@ REVOLC_API U32 vertex_size(MeshType type);
 typedef struct TriMeshVertex {
 	V3f pos;
 	V3f uv;
-	Color color; // @todo Could be U8[4]
+	V2f outline_uv;
+	// @todo Colors could be U8[4], or at least U16[4]
+	Color color;
+	Color outline_color;
 	F32 emission;
-	U16 draw_id; // Renderer internals
 	bool selected; // Editor
-	bool pad[17];
-} TriMeshVertex ALIGNED(64);
-
-typedef struct BrushMeshVertex {
-	V2f pos; // In GL coords
-	F32 size;
-	F32 pad;
-} BrushMeshVertex ALIGNED(16);
-
-typedef struct BrushSpawnVertex {
-	V2f pos; // In GL coords
-	V2f gap;
-	V2i count;
-	F32 pad[2];
-} BrushSpawnVertex ALIGNED(32);
+	bool pad[59];
+} TriMeshVertex ALIGNED(128);
 
 typedef struct Mesh {
 	Resource res;

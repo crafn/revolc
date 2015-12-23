@@ -226,7 +226,7 @@ void upd_playerch(PlayerCh *p, PlayerCh *p_e, RigidBody *body, RigidBody *body_e
 				T3d tf = {{0.5, 0.5, 1}, identity_qd(), v2d_to_v3d(dig_reach_end)};
 				drawcmd_model(	tf,
 								(Model*)res_by_name(g_env.resblob, ResType_Model, "playerch_target"),
-								(Color) {1, 1, 1, 1}, 1, 0);
+								white_color(), white_color(), 1, 0);
 			}
 
 			local_persist U64 seed;
@@ -235,7 +235,7 @@ void upd_playerch(PlayerCh *p, PlayerCh *p_e, RigidBody *body, RigidBody *body_e
 					T3d tf = {{0.4, 0.4, 1}, identity_qd(), v2d_to_v3d(dig_center)};
 					drawcmd_model(	tf,
 									(Model*)res_by_name(g_env.resblob, ResType_Model, "playerch_target"),
-									(Color) {1, 1, 1, 1}, 1, 0);
+									white_color(), white_color(), 1, 0);
 				}
 				if (dig && p->dig_timer <= 0.0f) { // Dig
 					const F64 rad = random_f32(0.5, 0.6, &seed);
@@ -251,9 +251,10 @@ void upd_playerch(PlayerCh *p, PlayerCh *p_e, RigidBody *body, RigidBody *body_e
 					T3d tf = {{1.3, 1.3, 1}, identity_qd(), v2d_to_v3d(end)};
 					//F32 alpha = MIN(1 - ABS(dif.x)/max_build_reach, 1 - ABS(dif.y)/max_build_reach);
 					//alpha = CLAMP(alpha, 0, 1);
+					Color c = {0.7, 0.2, 0.1, 1.0};
 					drawcmd_model(	tf,
 									(Model*)res_by_name(g_env.resblob, ResType_Model, "playerch_target"),
-									(Color) {0.7, 0.2, 0.1, 1.0}, 1, 0);
+									c, c, 1, 0);
 				}
 				if ((build && p->build_timer <= 0.0f) || build_immediately) { // Build
 					const F64 rad = random_f32(0.5, 0.6, &seed);
@@ -310,7 +311,7 @@ void upd_playerch(PlayerCh *p, PlayerCh *p_e, RigidBody *body, RigidBody *body_e
 			T3d tf = {{scale_x, scale_y, 1}, identity_qd(), {p->tf.pos.x, p->tf.pos.y + 1}};
 			drawcmd_model(	tf,
 							(Model*)res_by_name(g_env.resblob, ResType_Model, "dirtbag"),
-							(Color) {1, 1, 1, 1}, 0, 0);
+							white_color(), white_color(), 0, 0);
 		}
 
 		p->on_ground_timer -= dt;

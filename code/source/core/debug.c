@@ -69,7 +69,8 @@ void upd_debug(Debug *d)
 	for (U32 i = 0; i < DT_HISTORY_COUNT; ++i) {
 		V2i size = {1, d->dt_history[i]/max*height};
 		V2i pos = {i, height - size.y};
-		drawcmd_px_quad(pos, size, (Color) {1.f, 0.f, 0.f, 0.9f}, 9999999);
+		Color c = {1.f, 0.f, 0.f, 0.9f};
+		drawcmd_px_quad(pos, size, c, c, 9999999);
 	}
 #endif
 }

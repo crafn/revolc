@@ -176,11 +176,12 @@ MOD_API void upd_worldenv(WorldEnv *w, WorldEnv *e)
 		T3d tf = {{600, 1200, 1}, identity_qd(), {0, 0, -500}};
 		drawcmd_model(	tf,
 						(Model*)res_by_name(g_env.resblob, ResType_Model, cur.model),
-						(Color) {1, 1, 1, 1}, 0, 0);
+						white_color(), white_color(), 0, 0);
 		tf.pos.z += 0.01;
 		drawcmd_model(	tf,
 						(Model*)res_by_name(g_env.resblob, ResType_Model, next.model),
-						(Color) {1, 1, 1, t} , 0, 0);
+						(Color) {1, 1, 1, t},
+						(Color) {1, 1, 1, t}, 0, 0);
 	}
 
 	if (0) { // Sounds
@@ -233,11 +234,12 @@ MOD_API void upd_worldenv(WorldEnv *w, WorldEnv *e)
 				z
 			};
 			// @todo Cache mesh so we don't need to recalculate everything every frame
+			Color c = (Color) {brightness, brightness, brightness, 1};
 			drawcmd((T3d) {size, qd_by_axis((V3d) {0, 0, 1}, rot), pos},
 					mesh_vertices(mesh), mesh->v_count,
 					mesh_indices(mesh), mesh->i_count,
 					model_texture(model, 0)->atlas_uv,
-					(Color) {brightness, brightness, brightness, 1},
+					c, c,
 					0,
 					0.0,
 					2);

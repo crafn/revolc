@@ -3,7 +3,7 @@
 #include "uicontext.h"
 
 internal Color panel_color()
-{ return (Color) {0.1/2, 0.1/2, 0.15/2, 0.9}; }
+{ return (Color) {0.1/1.5, 0.1/1.5, 0.15/1.5, 0.9}; }
 
 internal Color inactive_color()
 { return (Color) {0.2, 0.2, 0.2, 0.5}; }
@@ -14,12 +14,17 @@ internal Color darken_color(Color c)
 internal Color highlight_color(Color c)
 { return (Color) {c.r + 0.2, c.g + 0.2, c.b + 0.1, c.a}; }
 
+internal Color outline_color(Color c)
+{ return (Color) {c.r*0.3, c.g*0.3, c.b*0.3, c.a}; }
+
 internal const Font *gui_font()
 {
 	return (Font*)res_by_name(	g_env.resblob,
 								ResType_Font,
 								"dev");
 }
+
+// Callbacks to gui lib
 
 internal void limit_by_scissor(float *x, float *y, float *w, float *h, GuiScissor *s)
 {
@@ -56,7 +61,7 @@ void draw_button(void *user_data, float x, float y, float w, float h, bool down,
 
 	V2f p = {x, y};
 	V2f s = {w, h};
-	drawcmd_px_quad(v2f_to_v2i(p), v2f_to_v2i(s), bg_color, layer);
+	drawcmd_px_quad(v2f_to_v2i(p), v2f_to_v2i(s), bg_color, outline_color(bg_color), layer);
 }
 
 void draw_checkbox(void *user_data, float x, float y, float w, bool checked, bool down, bool hover, int layer, GuiScissor *scissor)
@@ -75,7 +80,7 @@ void draw_checkbox(void *user_data, float x, float y, float w, bool checked, boo
 
 	V2f p = {x, y};
 	V2f s = {w, h};
-	drawcmd_px_quad(v2f_to_v2i(p), v2f_to_v2i(s), bg_color, layer);
+	drawcmd_px_quad(v2f_to_v2i(p), v2f_to_v2i(s), bg_color, outline_color(bg_color), layer);
 }
 
 void draw_radiobutton(void *user_data, float x, float y, float w, bool checked, bool down, bool hover, int layer, GuiScissor *scissor)
@@ -95,7 +100,7 @@ void draw_radiobutton(void *user_data, float x, float y, float w, bool checked, 
 	// @todo Rotate quad
 	V2f p = {x, y};
 	V2f s = {w, h};
-	drawcmd_px_quad(v2f_to_v2i(p), v2f_to_v2i(s), bg_color, layer);
+	drawcmd_px_quad(v2f_to_v2i(p), v2f_to_v2i(s), bg_color, outline_color(bg_color), layer);
 }
 
 void draw_textbox(void *user_data, float x, float y, float w, float h, bool active, bool hover, int layer, GuiScissor *scissor)
@@ -119,7 +124,7 @@ void draw_text(void *user_data, float x, float y, const char *text, int layer, G
 			verts, v_count,
 			inds, i_count,
 			ogui_font()->atlas_uv,
-			(Color) {1, 1, 1, 1},
+			white_color(), white_color(),
 			layer,
 			0.0,
 			NULL_PATTERN);
@@ -139,7 +144,7 @@ void draw_window(void *user_data, float x, float y, float w, float h, float titl
 	{ // Content bg
 		V2f p = {x, y + title_bar_height};
 		V2f s = {w, h - title_bar_height};
-		drawcmd_px_quad(v2f_to_v2i(p), v2f_to_v2i(s), bg_color, layer);
+		drawcmd_px_quad(v2f_to_v2i(p), v2f_to_v2i(s), bg_color, outline_color(bg_color), layer);
 	}
 
 	bg_color = darken_color(bg_color);
@@ -148,7 +153,7 @@ void draw_window(void *user_data, float x, float y, float w, float h, float titl
 		V2f p = {x, y};
 		V2f s = {w, title_bar_height};
 
-		drawcmd_px_quad(v2f_to_v2i(p), v2f_to_v2i(s), bg_color, layer);
+		drawcmd_px_quad(v2f_to_v2i(p), v2f_to_v2i(s), bg_color, outline_color(bg_color), layer);
 
 		draw_text(NULL, p.x + 5, p.y + 2, title, layer + 1, NULL);
 	}

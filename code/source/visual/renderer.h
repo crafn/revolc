@@ -14,7 +14,7 @@
 typedef struct DrawCmd {
 	T3d tf;
 	S32 layer; // Overrides z-sorting. 0 for world stuff
-	Color color;
+	Color color, outline_color;
 	V3f atlas_uv;
 	F32 emission;
 	U8 pattern;
@@ -30,7 +30,6 @@ typedef struct Renderer {
 	V2d cam_fov;
 	F32 exposure;
 	Color env_light_color;
-	bool brush_rendering;
 
 	V3d prev_cam_pos;
 
@@ -67,21 +66,11 @@ typedef struct Renderer {
 
 	U32 atlas_tex;
 	Vao vao;
-	U32 brush_tex;
 
 	// Rendering pipeline
 	U32 scene_fbo;
 	U32 scene_color_tex;
-	U32 scene_detail_tex; // Requested brush detail
-	U32 scene_move_tex; // Change from previous frame to current
-	U32 scene_src_tex;
-	U32 scene_dst_tex;
 	V2i scene_fbo_reso;
-	Vao brush_vaos[2]; // Brush positions, transform feedback
-	Vao *src_brush_vao, *dst_brush_vao;
-	U32 paint_fbo; // Painted scene
-	U32 paint_fbo_tex;
-	V2i paint_fbo_reso;
 	U32 hl_fbo; // Highlights to be bloomed
 	U32 hl_tex;
 	V2i hl_fbo_reso;
@@ -103,17 +92,19 @@ REVOLC_API void drawcmd(	T3d tf,
 							MeshIndexType *i, U32 i_count,
 							AtlasUv uv,
 							Color c,
+							Color outline_c,
 							S32 layer,
 							F32 emission,
 							U8 pattern);
 REVOLC_API void drawcmd_model(	T3d tf,
 								const Model *model,
 								Color c,
+								Color outline_c,
 								S32 layer,
 								F32 emission);
 
 // Draws single-color quad
-REVOLC_API void drawcmd_px_quad(V2i px_pos, V2i px_size, Color c, S32 layer);
+REVOLC_API void drawcmd_px_quad(V2i px_pos, V2i px_size, Color c, Color outline_c, S32 layer);
 
 // Draws texture of a model
 REVOLC_API void drawcmd_px_model_image(	V2i px_pos,

@@ -19,7 +19,7 @@ Color lerp_color(Color c1, Color c2, F32 t)
 					c1.a*(1 - t) + c2.a*t}; }
 
 static
-Color identity_color()
+Color white_color()
 { return (Color) {1, 1, 1, 1}; }
 
 #endif // REVOLC_CORE_COLOR_H
