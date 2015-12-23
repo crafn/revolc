@@ -30,20 +30,25 @@ internal
 LRESULT CALLBACK wndproc(
 	HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+	Device *d = g_env.device;
 	switch (message) {
 	case WM_DESTROY:
 		PostQuitMessage(0);
 	break;
 	case WM_CLOSE:
-		g_env.device->impl->closeMessage = true;
+		d->impl->closeMessage = true;
 	break;
 	case WM_MOUSEMOVE:
 		SetCursor(LoadCursor(NULL, IDC_ARROW));
 	break;
 	case WM_MOUSEWHEEL:
-		g_env.device->mwheel_delta =
-			(F64)GET_WHEEL_DELTA_WPARAM(wParam)/WHEEL_DELTA;
+		d->mwheel_delta = (F64)GET_WHEEL_DELTA_WPARAM(wParam)/WHEEL_DELTA;
 	break;
+	case WM_CHAR: {
+		char ch = (char)wParam;
+		if (d->written_text_size < WRITTEN_TEXT_BUF_SIZE)
+			d->written_text_buf[d->written_text_size++] = ch;
+	} break;
 	default:
 		return DefWindowProc(hWnd, message, wParam, lParam);
 	}

@@ -57,6 +57,8 @@
 #define KEY_RIGHT 146
 #define KEY_DOWN 147
 
+#define WRITTEN_TEXT_BUF_SIZE 32
+
 struct DevicePlatformData;
 typedef struct Device {
 	V2i cursor_pos;
@@ -67,6 +69,9 @@ typedef struct Device {
 	bool key_down[KEY_COUNT];
 	bool key_pressed[KEY_COUNT];
 	bool key_released[KEY_COUNT];
+
+	char written_text_buf[WRITTEN_TEXT_BUF_SIZE];
+	U32 written_text_size;
 
 	F64 mwheel_delta;
 

@@ -7,6 +7,7 @@ typedef enum {
 	EditorState_invisible,
 	EditorState_mesh,
 	EditorState_armature,
+	EditorState_gui_test,
 } EditorState;
 
 typedef struct Editor {

@@ -54,45 +54,45 @@ extern "C" {
 typedef uint32_t GuiId;
 
 typedef struct DragDropData {
-    const char *tag; // Receiver checks this 
-    int ix;
+	const char *tag; // Receiver checks this 
+	int ix;
 } DragDropData;
 
 typedef struct GuiScissor { int pos[2], size[2]; } GuiScissor;
 typedef struct GuiContext_Turtle {
-    int pos[2]; // Output "cursor
-    int start_pos[2];
-    int bounding_max[2];
-    int last_bounding_max[2]; // Most recently added gui element
-    char label[MAX_GUI_LABEL_SIZE]; // Label of the gui_begin
-    int frame_ix;
-    int window_ix;
-    int layer; // Graphical layer
-    GUI_BOOL detached; // If true, moving of this turtle doesn't affect parent bounding boxes etc.
-    DragDropData inactive_dragdropdata; // This is copied to gui context when actual dragging and dropping within this turtle starts
+	int pos[2]; // Output "cursor
+	int start_pos[2];
+	int bounding_max[2];
+	int last_bounding_max[2]; // Most recently added gui element
+	char label[MAX_GUI_LABEL_SIZE]; // Label of the gui_begin
+	int frame_ix;
+	int window_ix;
+	int layer; // Graphical layer
+	GUI_BOOL detached; // If true, moving of this turtle doesn't affect parent bounding boxes etc.
+	DragDropData inactive_dragdropdata; // This is copied to gui context when actual dragging and dropping within this turtle starts
 
-    GuiScissor scissor; // Depends on window/panel/whatever pos and sizes. Given to draw commands. Zero == unused.
+	GuiScissor scissor; // Depends on window/panel/whatever pos and sizes. Given to draw commands. Zero == unused.
 } GuiContext_Turtle;
 
 // Stored data for frame elements
 typedef struct GuiContext_Frame {
-    GuiId id;
-    int last_bounding_size[2];
-    int scroll[2]; // Translation in pt. Cannot be relative, because adding content shouldn't cause translation to change.
+	GuiId id;
+	int last_bounding_size[2];
+	int scroll[2]; // Translation in pt. Cannot be relative, because adding content shouldn't cause translation to change.
 } GuiContext_Frame;
 
 // Stored data for window elements
 typedef struct GuiContext_Window {
-    GuiId id;
-    GUI_BOOL used;
-    GUI_BOOL used_in_last_frame;
+	GuiId id;
+	GUI_BOOL used;
+	GUI_BOOL used_in_last_frame;
 
-    int frame_ix; // Corresponding GuiContext_Frame
+	int frame_ix; // Corresponding GuiContext_Frame
 
-    int pos[2]; // Top-left position
-    int client_size[2]; // Size, not taking account title bar or borders
+	int pos[2]; // Top-left position
+	int client_size[2]; // Size, not taking account title bar or borders
 
-    int total_size[2]; // Value depends on client_size
+	int total_size[2]; // Value depends on client_size
 } GuiContext_Window;
 
 #define GUI_KEYSTATE_DOWN_BIT 0x1
@@ -117,6 +117,7 @@ typedef struct GuiContext_Window {
 #define GUI_KEY_8 '8'
 #define GUI_KEY_9 '9'
 
+// @todo float x, y -> float pos[2]. float w, h -> float size[2]
 typedef void (*DrawButtonFunc)(void *user_data, float x, float y, float w, float h, GUI_BOOL down, GUI_BOOL hover, int layer, GuiScissor *s);
 typedef void (*DrawCheckBoxFunc)(void *user_data, float x, float y, float w, GUI_BOOL checked, GUI_BOOL down, GUI_BOOL hover, int layer, GuiScissor *s);
 typedef void (*DrawRadioButtonFunc)(void *user_data, float x, float y, float w, GUI_BOOL checked, GUI_BOOL down, GUI_BOOL hover, int layer, GuiScissor *s);
@@ -128,67 +129,67 @@ typedef void (*DrawWindowFunc)(void *user_data, float x, float y, float w, float
 // User-supplied callbacks
 // TODO: Not sure if callbacks are better than providing an array containing all drawing commands of a frame.
 typedef struct GuiCallbacks {
-    void *user_data;
-    DrawButtonFunc draw_button;
-    DrawCheckBoxFunc draw_checkbox;
-    DrawRadioButtonFunc draw_radiobutton;
-    DrawTextBoxFunc draw_textbox;
-    DrawTextFunc draw_text;
-    CalcTextSizeFunc calc_text_size;
-    DrawWindowFunc draw_window;
+	void *user_data;
+	DrawButtonFunc draw_button;
+	DrawCheckBoxFunc draw_checkbox;
+	DrawRadioButtonFunc draw_radiobutton;
+	DrawTextBoxFunc draw_textbox;
+	DrawTextFunc draw_text;
+	CalcTextSizeFunc calc_text_size;
+	DrawWindowFunc draw_window;
 } GuiCallbacks;
 
 typedef struct GuiContext_MemBucket {
-    void *data;
-    int size;
-    int used;
+	void *data;
+	int size;
+	int used;
 } GuiContext_MemBucket;
 
 // Handles the gui state
 typedef struct GuiContext {
-    // Write to these to make gui work
-    int host_win_size[2];
-    int cursor_pos[2]; // Screen position, pixel coordinates
-    int mouse_scroll; // Typically +1 or -1
-    uint8_t key_state[GUI_KEY_COUNT];
+	// Write to these to make gui work
+	int host_win_size[2];
+	int cursor_pos[2]; // Screen position, pixel coordinates
+	int mouse_scroll; // Typically +1 or -1
+	uint8_t key_state[GUI_KEY_COUNT];
 
-    // Internals
+	// Internals
 
-    int next_window_pos[2];
+	int next_window_pos[2];
 
-    int drag_start_pos[2]; // Pixel coordinates
-    GUI_BOOL dragging;
-    float drag_start_value[2]; // Knob value, or xy position, or ...
-    DragDropData dragdropdata; // Data from gui component which is currently dragged
+	int drag_start_pos[2]; // Pixel coordinates
+	GUI_BOOL dragging;
+	float drag_start_value[2]; // Knob value, or xy position, or ...
+	DragDropData dragdropdata; // Data from gui component which is currently dragged
 
-    char written_text_buf[GUI_WRITTEN_TEXT_BUF_SIZE]; // Modified by gui_write_char
-    int written_char_count;
+	char written_text_buf[GUI_WRITTEN_TEXT_BUF_SIZE]; // Modified by gui_write_char
+	int written_char_count;
 
-    GuiContext_Turtle turtles[MAX_GUI_STACK_SIZE];
-    int turtle_ix;
+	GuiContext_Turtle turtles[MAX_GUI_STACK_SIZE];
+	int turtle_ix;
 
-    GuiContext_Frame frames[MAX_GUI_FRAME_COUNT];
-    int frame_count;
+	GuiContext_Frame frames[MAX_GUI_FRAME_COUNT];
+	int frame_count;
 
-    GuiContext_Window windows[MAX_GUI_WINDOW_COUNT];
-    int window_order[MAX_GUI_WINDOW_COUNT];
-    int focused_win_ix; // Not necessarily window_order[window_count - 1] because nothing is focused when clicking background
-    int window_count;
+	GuiContext_Window windows[MAX_GUI_WINDOW_COUNT];
+	int window_order[MAX_GUI_WINDOW_COUNT];
+	int focused_win_ix; // Not necessarily window_order[window_count - 1] because nothing is focused when clicking background
+	int window_count;
 
-    // This is used at mouse input and render dimensions. All gui calculations are done in pt.
-    float dpi_scale; // 1.0: pixels == points, 2.0: pixels == 2.0*points (gui size is doubled). 
+	// This is used at mouse input and render dimensions. All gui calculations are done in pt.
+	float dpi_scale; // 1.0: pixels == points, 2.0: pixels == 2.0*points (gui size is doubled). 
 
-    GuiId hot_id, last_hot_id;
-    int hot_layer;
-    GuiId active_id, last_active_id;
-    int active_win_ix;
+	GuiId hot_id, last_hot_id;
+	int hot_layer;
+	GuiId active_id, last_active_id;
+	int active_win_ix;
 
-    GuiCallbacks callbacks;
+	GuiCallbacks callbacks;
 
-#   define GUI_DEFAULT_MAX_FRAME_MEMORY (1024)
-    // List of buffers which are invalidated every frame. Used for temp strings.
-    GuiContext_MemBucket *framemem_buckets;
-    int framemem_bucket_count; // It's best to have just one bucket, but sometimes memory usage can peak and more memory is allocated.
+#	define GUI_DEFAULT_MAX_FRAME_MEMORY (1024)
+	// List of buffers which are invalidated every frame. Used for temp strings.
+	GuiContext_MemBucket *framemem_buckets;
+	int framemem_bucket_count; // It's best to have just one bucket, but sometimes memory usage can peak and more memory is allocated.
 } GuiContext;
 
 GUI_API const char *gui_label_text(const char *label);
@@ -237,6 +238,16 @@ GUI_API GUI_BOOL gui_textfield(GuiContext *ctx, const char *label, char *buf, in
 GUI_API void gui_begin_listbox(GuiContext *ctx, const char *label);
 GUI_API void gui_end_listbox(GuiContext *ctx);
 
+/* Usage:
+if (gui_begin_combo(ctx, "label")) {
+	gui_combo_item(ctx, "foo");
+	gui_combo_item(ctx, "bar");
+	gui_end_combo(ctx);
+} */
+GUI_API bool gui_begin_combo(GuiContext *ctx, const char *label);
+GUI_API bool gui_combo_item(GuiContext *ctx, const char *label);
+GUI_API void gui_end_combo(GuiContext *ctx);
+
 GUI_API void gui_begin(GuiContext *ctx, const char *label);
 GUI_API void gui_end(GuiContext *ctx);
 GUI_API void gui_end_droppable(GuiContext *ctx, DragDropData *dropped);
@@ -245,8 +256,8 @@ GUI_API void gui_end_ex(GuiContext *ctx, GUI_BOOL make_zero_size, DragDropData *
 GUI_API void gui_set_next_window_pos(GuiContext *ctx, int x, int y);
 GUI_API void gui_set_turtle_pos(GuiContext *ctx, int x, int y);
 GUI_API void gui_turtle_pos(GuiContext *ctx, int *x, int *y);
-GUI_API void gui_next_row(GuiContext *ctx);
-GUI_API void gui_next_col(GuiContext *ctx);
+GUI_API void gui_next_row(GuiContext *ctx); // @todo Remove
+GUI_API void gui_next_col(GuiContext *ctx); // @todo Remove
 GUI_API void gui_enlarge_bounding(GuiContext *ctx, int x, int y);
 
 GUI_API void gui_ver_space(GuiContext *ctx);

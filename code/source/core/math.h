@@ -190,6 +190,10 @@ V2f rot_v2f(F64 f, V2f v)
 { return (V2f) {v.x*cos(f) - v.y*sin(f), v.x*sin(f) + v.y*cos(f)}; }
 
 static
+V2i v2f_to_v2i(V2f v)
+{ return (V2i) {(int)v.x, (int)v.y, }; }
+
+static
 V2i round_v2f_to_v2i(V2f v)
 { return (V2i) {floor(v.x + 0.5), floor(v.y + 0.5), }; }
 

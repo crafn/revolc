@@ -203,15 +203,15 @@ void do_armature_editor(	ArmatureEditor *state,
 													ResType_Clip);
 
 			// Listbox containing all animation clips
-			if (ogui_begin_listbox(frame_str("Clip: %s", state->clip_name))) {
+			if (ogui_begin_combobox(frame_str("Clip: %s", state->clip_name))) {
 				for (U32 i = 0; i < clip_count + 1; ++i) {
 					const char *name = "bind_pose";
 					if (i < clip_count)
 						name = clips[i]->res.name;
-					if (ogui_listbox_item(name))
+					if (ogui_combobox_item(name))
 						fmt_str(state->clip_name, RES_NAME_SIZE, "%s", name);
 				}
-				ogui_end();
+				ogui_end_combobox();
 			}
 
 			state->clip_is_bind_pose =
@@ -271,7 +271,7 @@ void do_armature_editor(	ArmatureEditor *state,
 			px_pos.y += 27;
 			px_size.x -= 20;
 			px_size.y -= 27;
-			drawcmd_px_quad(px_pos, px_size, darken_color(ogui_dev_panel_color()), ogui_next_draw_layer());
+			drawcmd_px_quad(px_pos, px_size, ogui_darken_color(ogui_dev_panel_color()), ogui_next_draw_layer());
 			const char *clip_timeline_label = "clip_timeline";
 			EditorBoxState bstate =
 				ogui_editorbox(clip_timeline_label, px_pos, px_size, true);
@@ -334,9 +334,9 @@ void do_armature_editor(	ArmatureEditor *state,
 
 						Color color = (Color [4]) {
 							{}, // none
-							{1.0, 0.2, 0.0, 1.0}, // scale
-							{0.2, 1.0, 0.5, 1.0}, // rot
-							{0.0, 0.6, 1.0, 1.0}, // pos
+							{1.0, 0.0, 0.0, 1.0}, // scale
+							{0.0, 1.0, 0.0, 1.0}, // rot
+							{0.0, 0.0, 1.0, 1.0}, // pos
 						}[key.type];
 						if (key.time == state->clip_time && a->joints[key.joint_id].selected) {
 							color = (Color) {1.0, 1.0, 1.0, 1.0};
@@ -383,9 +383,9 @@ void do_armature_editor(	ArmatureEditor *state,
 		if (!is_edit_mode)
 			line_color = selected_color;
 		if (!active) {
-			default_color = inactive_color();
-			selected_color = inactive_color();
-			line_color = inactive_color();
+			default_color = ogui_inactive_color();
+			selected_color = ogui_inactive_color();
+			line_color = ogui_inactive_color();
 		}
 
 		F64 rad = editor_vertex_size()*3;

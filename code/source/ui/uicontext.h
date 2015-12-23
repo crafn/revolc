@@ -2,6 +2,7 @@
 #define REVOLC_UI_UICONTEXT_H
 
 #include "build.h"
+#include "gui.h"
 
 typedef struct ButtonState {
 	bool pressed, down, released;
@@ -15,6 +16,8 @@ typedef struct UiContext_Turtle {
 	V2i dir; // Direction which `turtle` will move
 	U32 draw_i;
 } UiContext_Turtle;
+
+// @todo Remove old gui (ogui) and use gui.h
 
 // Immediate gui context
 // (see Casey Muratori's video for more info: http://mollyrocket.com/861)
@@ -42,10 +45,12 @@ typedef struct UiContext {
 	// Stack of turtles
 	UiContext_Turtle turtles[MAX_GUI_STACK_SIZE];
 	U32 turtle_i;
-	bool listbox_released;
+	bool combobox_released;
 
 	GuiId hot_id, last_hot_id;
 	GuiId active_id;
+
+	GuiContext *gui;
 } UiContext;
 
 // Sets g_env.uicontext

@@ -6,6 +6,7 @@
 #include "editor_util.h"
 #include "global/env.h"
 #include "mesh_editor.h"
+#include "ui/gui.h"
 #include "ui/uicontext.h"
 #include "visual/renderer.h"
 
@@ -96,6 +97,9 @@ void upd_editor()
 		e->state = EditorState_mesh;
 	if (g_env.device->key_pressed[KEY_F2])
 		e->state = EditorState_armature;
+	if (g_env.device->key_pressed[KEY_F3])
+		e->state = EditorState_gui_test;
+
 	if (g_env.device->key_pressed[KEY_ESC])
 		e->state = EditorState_invisible;
 
@@ -119,4 +123,29 @@ void upd_editor()
 						e->is_edit_mode,
 						armature_editor_active);
 
+	if (e->state == EditorState_gui_test) {
+		GuiContext *ctx = g_env.uicontext->gui;
+
+		gui_begin(ctx, "bg");
+			gui_begin_window(ctx, "win", 100, 100);
+				gui_button(ctx, "foo");
+				gui_button(ctx, "bar");
+				gui_button(ctx, "bazzzzzzzz");
+			gui_end_window(ctx);
+
+			gui_begin_window(ctx, "Gui components", 200, 200);
+				local_persist bool checkbox = 0;
+				local_persist int btn = 0;
+				local_persist F32 slider = 0;
+				local_persist char buf[128];
+
+				gui_checkbox(ctx, "Checkbox", &checkbox);
+				if (gui_radiobutton(ctx, "Radio 1", btn == 0)) btn = 0;
+				if (gui_radiobutton(ctx, "Radio 2", btn == 1)) btn = 1;
+				if (gui_radiobutton(ctx, "Radio 3", btn == 2)) btn = 2;
+				gui_slider(ctx, "Slider", &slider, 0.0f, 1.0f);
+				gui_textfield(ctx, "Textfield", buf, sizeof(buf));
+			gui_end_window(ctx);
+		gui_end(ctx);
+	}
 }

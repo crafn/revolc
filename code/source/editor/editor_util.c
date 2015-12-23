@@ -24,16 +24,16 @@ void ogui_wrap(V2i *p, V2i *s)
 }
 
 Color ogui_dev_panel_color()
-{ return (Color) {0.25, 0.25, 0.3, 0.9}; }
+{ return (Color) {0.1, 0.1, 0.15, 0.9}; }
 
-Color inactive_color()
-{ return (Color) {0.5, 0.5, 0.5, 0.5}; }
+Color ogui_inactive_color()
+{ return (Color) {0.2, 0.2, 0.2, 0.5}; }
 
-Color darken_color(Color c)
+Color ogui_darken_color(Color c)
 { return (Color) {c.r*0.6, c.g*0.6, c.b*0.6, c.a}; }
 
 internal
-Color highlight_color(Color c)
+Color ogui_highlight_color(Color c)
 { return (Color) {c.r + 0.2, c.g + 0.2, c.b + 0.1, c.a}; }
 
 void ogui_text(const char *text)
@@ -104,11 +104,11 @@ bool ogui_button(const char *label, bool *is_down, bool *is_hovered)
 		ogui_set_hot(label);
 	}
 
-	Color bg_color = darken_color(ogui_dev_panel_color());
+	Color bg_color = ogui_darken_color(ogui_dev_panel_color());
 	if (down)
-		bg_color = darken_color(bg_color);
+		bg_color = ogui_darken_color(bg_color);
 	else if (hover)
-		bg_color = highlight_color(bg_color);
+		bg_color = ogui_highlight_color(bg_color);
 
 	{ // Leave margin
 		V2i p = add_v2i(px_pos, (V2i) {1, 1});
@@ -130,18 +130,18 @@ bool ogui_button(const char *label, bool *is_down, bool *is_hovered)
 	return pressed;
 }
 
-bool ogui_begin_listbox(const char *label)
+bool ogui_begin_combobox(const char *label)
 {
 	UiContext *ctx = g_env.uicontext;
 
 	bool btn_down;
-	V2i listbox_pos = ogui_turtle_pos();
-	ctx->listbox_released =
+	V2i combobox_pos = ogui_turtle_pos();
+	ctx->combobox_released =
 		ogui_button(	label, &btn_down, NULL);
 	V2i list_start_pos = {
-		listbox_pos.x, listbox_pos.y - ogui_last_adv_size().y
+		combobox_pos.x, combobox_pos.y - ogui_last_adv_size().y
 	};
-	const bool open = btn_down || ctx->listbox_released;
+	const bool open = btn_down || ctx->combobox_released;
 
 	if (open) {
 		ogui_begin((V2i) {0, -1}); // User calls ogui_end()
@@ -151,14 +151,19 @@ bool ogui_begin_listbox(const char *label)
 	return open;
 }
 
-bool ogui_listbox_item(const char *label)
+bool ogui_combobox_item(const char *label)
 {
 	UiContext *ctx = g_env.uicontext;
 
 	bool hovered;
 	ogui_button(label, NULL, &hovered);
 
-	return ctx->listbox_released && hovered;
+	return ctx->combobox_released && hovered;
+}
+
+void ogui_end_combobox()
+{
+	ogui_end();
 }
 
 F64 editor_vertex_size()

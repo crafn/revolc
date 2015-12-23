@@ -110,7 +110,10 @@ void plat_quit(Device *d)
 }
 
 void plat_update(Device *d)
-{ plat_update_impl(d); }
+{
+	d->written_text_size = 0;
+	plat_update_impl(d);
+}
 
 #define PATH_MAX_TABLE_SIZE 1024
 char ** plat_find_paths_with_end(const char *path_to_dir, const char *end)
