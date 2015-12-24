@@ -299,6 +299,7 @@ int main(int argc, const char **argv)
 		end_ui_frame();
 
 		render_frame();
+		plat_swap_buffers(d);
 
 		gl_check_errors("loop");
 		plat_sleep(1);

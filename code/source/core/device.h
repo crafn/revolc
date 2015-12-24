@@ -83,6 +83,7 @@ REVOLC_API Device * plat_init(const char* title, V2i reso);
 REVOLC_API void plat_quit(Device *d);
 
 REVOLC_API void plat_update(Device *d);
+REVOLC_API void plat_swap_buffers(Device *d);
 REVOLC_API void plat_sleep(int ms);
 REVOLC_API void plat_flush_denormals(bool enable);
 REVOLC_API U32 plat_malloc_size(void *ptr);

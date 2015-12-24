@@ -129,8 +129,6 @@ void plat_quit_impl(Device *d)
 
 void plat_update_impl(Device *d)
 {
-	SwapBuffers(d->impl->hDC);
-
 	d->mwheel_delta = 0.0;
 
 	MSG msg;
@@ -250,6 +248,11 @@ void plat_update_impl(Device *d)
 
 	d->dt = (new_ticks - old_ticks)*1.0/d->impl->timer_reso;
 	d->impl->ticks = new_ticks;
+}
+
+void plat_swap_buffers(Device *d)
+{
+	SwapBuffers(d->impl->hDC);
 }
 
 void plat_sleep(int ms)
