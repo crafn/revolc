@@ -24,90 +24,28 @@ internal const Font *gui_font()
 								"dev");
 }
 
-// Callbacks to gui lib
-
-internal void limit_by_scissor(float *x, float *y, float *w, float *h, GuiScissor *s)
+internal void limit_by_scissor(int pos[2], int size[2], int s_pos[2], int s_size[2])
 {
-	if (!s)
-		return;
-	if (s->pos[0] >= *x &&
-		s->pos[1] >= *y &&
-		s->pos[0] + s->size[0] <= *x + *w &&
-		s->pos[1] + s->size[1] <= *y + *h)
+	if (s_pos[0] >= pos[0] &&
+		s_pos[1] >= pos[1] &&
+		s_pos[0] + s_size[0] <= pos[0] + size[0] &&
+		s_pos[1] + s_size[1] <= pos[1] + size[1])
 		return;
 	
-	float p1[2] = {*x, *y};
-	float p2[2] = {*x + *w, *y + *h};
-	p1[0] = MAX(p1[0], s->pos[0]);
-	p1[1] = MAX(p1[1], s->pos[1]);
-	p2[0] = MIN(p2[0], s->pos[0] + s->size[0]);
-	p2[1] = MIN(p2[1], s->pos[1] + s->size[1]);
+	float p1[2] = {pos[0], pos[1]};
+	float p2[2] = {pos[0] + size[0], pos[1] + size[1]};
+	p1[0] = MAX(p1[0], s_pos[0]);
+	p1[1] = MAX(p1[1], s_pos[1]);
+	p2[0] = MIN(p2[0], s_pos[0] + s_size[0]);
+	p2[1] = MIN(p2[1], s_pos[1] + s_size[1]);
 
-	*x = p1[0];
-	*y = p1[1];
-	*w = MAX(p2[0] - p1[0], 0);
-	*h = MAX(p2[1] - p1[1], 0);
+	pos[0] = p1[0];
+	pos[1] = p1[1];
+	size[0] = MAX(p2[0] - p1[0], 0);
+	size[1] = MAX(p2[1] - p1[1], 0);
 }
 
-void draw_button(void *user_data, float x, float y, float w, float h, bool down, bool hover, int layer, GuiScissor *scissor)
-{
-	limit_by_scissor(&x, &y, &w, &h, scissor);
-
-	Color bg_color = darken_color(panel_color());
-	if (down)
-		bg_color = darken_color(bg_color);
-	else if (hover)
-		bg_color = highlight_color(bg_color);
-
-	V2f p = {x, y};
-	V2f s = {w, h};
-	drawcmd_px_quad(v2f_to_v2i(p), v2f_to_v2i(s), 0.0, bg_color, outline_color(bg_color), layer);
-}
-
-void draw_checkbox(void *user_data, float x, float y, float w, bool checked, bool down, bool hover, int layer, GuiScissor *scissor)
-{
-	float h = w;
-	limit_by_scissor(&x, &y, &w, &h, scissor);
-
-	Color bg_color = darken_color(panel_color());
-	if (checked)
-		bg_color = (Color) {0.2, 1, 0.2, 1};
-
-	if (down)
-		bg_color = darken_color(bg_color);
-	else if (hover)
-		bg_color = highlight_color(bg_color);
-
-	V2f p = {x, y};
-	V2f s = {w, h};
-	drawcmd_px_quad(v2f_to_v2i(p), v2f_to_v2i(s), 0.0, bg_color, outline_color(bg_color), layer);
-}
-
-void draw_radiobutton(void *user_data, float x, float y, float w, bool checked, bool down, bool hover, int layer, GuiScissor *scissor)
-{
-	float h = w;
-	limit_by_scissor(&x, &y, &w, &h, scissor);
-
-	Color bg_color = darken_color(panel_color());
-	if (checked)
-		bg_color = (Color) {1, 0.2, 0.2, 1};
-
-	if (down)
-		bg_color = darken_color(bg_color);
-	else if (hover)
-		bg_color = highlight_color(bg_color);
-
-	V2f p = {x + 2, y + 1};
-	V2f s = {w*0.8, h*0.8};
-	drawcmd_px_quad(v2f_to_v2i(p), v2f_to_v2i(s), TAU/8, bg_color, outline_color(bg_color), layer);
-}
-
-void draw_textbox(void *user_data, float x, float y, float w, float h, bool active, bool hover, int layer, GuiScissor *scissor)
-{
-	draw_button(user_data, x, y, w, h, false, active || hover, layer, scissor);
-}
-
-void draw_text(void *user_data, float x, float y, const char *text, int layer, GuiScissor *s)
+internal void draw_text(int x, int y, const char *text, int layer)
 {
 	const U32 max_quad_count = strlen(text);
 	const U32 max_vert_count = 4*max_quad_count;
@@ -122,56 +60,25 @@ void draw_text(void *user_data, float x, float y, const char *text, int layer, G
 	drawcmd(px_tf((V2i) {x, y}, (V2i) {1, 1}),
 			verts, v_count,
 			inds, i_count,
-			ogui_font()->atlas_uv,
+			gui_font()->atlas_uv,
 			white_color(), white_color(),
 			layer,
 			0.0,
 			NULL_PATTERN);
 }
 
-void calc_text_size(float ret[2], void *user_data, const char *text, int layer)
+// Callback for gui
+void calc_text_size(int ret[2], void *user_data, const char *text)
 {
-	V2i px_size = calc_text_mesh_size(ogui_font(), text);
+	V2i px_size = calc_text_mesh_size(gui_font(), text);
 	ret[0] = px_size.x;
 	ret[1] = px_size.y;
 }
 
-void draw_window(void *user_data, float x, float y, float w, float h, float title_bar_height, const char *title, bool focus, int layer)
-{
-	Color bg_color = panel_color();
-
-	{ // Content bg
-		V2f p = {x, y + title_bar_height};
-		V2f s = {w, h - title_bar_height};
-		drawcmd_px_quad(v2f_to_v2i(p), v2f_to_v2i(s), 0.0, bg_color, outline_color(bg_color), layer);
-	}
-
-	bg_color = darken_color(bg_color);
-
-	// Title
-	if (title_bar_height > 0) {
-		V2f p = {x, y};
-		V2f s = {w, title_bar_height};
-
-		drawcmd_px_quad(v2f_to_v2i(p), v2f_to_v2i(s), 0.0, bg_color, outline_color(bg_color), layer);
-
-		draw_text(NULL, p.x + 5, p.y + 2, title, layer + 1, NULL);
-	}
-}
-
 void create_uicontext()
 {
-	GuiCallbacks cb = {};
-	cb.draw_button = draw_button;
-	cb.draw_checkbox = draw_checkbox;
-	cb.draw_radiobutton = draw_radiobutton;
-	cb.draw_textbox = draw_textbox;
-	cb.draw_text = draw_text;
-	cb.calc_text_size = calc_text_size;
-	cb.draw_window = draw_window;
-
 	UiContext *ctx = ZERO_ALLOC(gen_ator(), sizeof(*ctx), "uicontext");
-	ctx->gui = create_gui(cb);
+	ctx->gui = create_gui(calc_text_size, NULL);
 	g_env.uicontext = ctx;
 }
 
@@ -197,7 +104,7 @@ U8 gui_key_state(int engine_code)
 	return state;
 }
 
-void upd_uicontext()
+void begin_ui_frame()
 {
 	UiContext *ui = g_env.uicontext;
 
@@ -212,6 +119,8 @@ void upd_uicontext()
 
 		for (U32 i = 0; i < g_env.device->written_text_size; ++i)
 			gui_write_char(ctx, g_env.device->written_text_buf[i]);
+
+		gui_begin(ctx, "main");
 	}
 
 	ui->dev.prev_cursor_pos = ui->dev.cursor_pos;
@@ -243,6 +152,87 @@ void upd_uicontext()
 
 	ui->last_hot_id = ui->hot_id;
 	ui->hot_id = 0;
+}
+
+void end_ui_frame()
+{
+	UiContext *ui = g_env.uicontext;
+	GuiContext *ctx = ui->gui;
+	
+	gui_end(ctx);
+
+	GuiDrawInfo *draw_infos;
+	int count;
+	gui_draw_info(ctx, &draw_infos, &count);
+	for (int i = 0; i < count; ++i) {
+		GuiDrawInfo d = draw_infos[i];
+		if (d.has_scissor && d.type != GuiDrawInfo_text)
+			limit_by_scissor(d.pos, d.size, d.scissor_pos, d.scissor_size);
+		V2i p = {d.pos[0], d.pos[1]};
+		V2i s = {d.size[0], d.size[1]};
+
+		switch (d.type) {
+		case GuiDrawInfo_button:
+		case GuiDrawInfo_panel:
+		case GuiDrawInfo_resize_handle:
+		case GuiDrawInfo_slider:
+		case GuiDrawInfo_slider_handle:
+		case GuiDrawInfo_textbox: {
+			Color bg_color = panel_color();
+			if (d.type != GuiDrawInfo_panel) {
+				darken_color(bg_color);
+				if (d.held)
+					bg_color = darken_color(bg_color);
+				else if (d.hovered || d.selected)
+					bg_color = highlight_color(bg_color);
+			}
+
+			drawcmd_px_quad(p, s, 0.0, bg_color, outline_color(bg_color), d.layer);
+		} break;
+
+		case GuiDrawInfo_checkbox: {
+			Color bg_color = darken_color(panel_color());
+			if (d.selected)
+				bg_color = (Color) {0.2, 1, 0.2, 1};
+
+			if (d.held)
+				bg_color = darken_color(bg_color);
+			else if (d.hovered)
+				bg_color = highlight_color(bg_color);
+
+			drawcmd_px_quad(p, s, 0.0, bg_color, outline_color(bg_color), d.layer);
+		} break;
+
+		case GuiDrawInfo_radiobutton: {
+			Color bg_color = darken_color(panel_color());
+			if (d.selected) // Checked
+				bg_color = (Color) {1, 0.2, 0.2, 1};
+
+			if (d.held)
+				bg_color = darken_color(bg_color);
+			else if (d.hovered)
+				bg_color = highlight_color(bg_color);
+
+			p.x += 2;
+			p.y += 1;
+			s.x *= 0.8;
+			s.y *= 0.8;
+			drawcmd_px_quad(p, s, TAU/8, bg_color, outline_color(bg_color), d.layer);
+		} break;
+
+		case GuiDrawInfo_text: {
+			draw_text(d.pos[0], d.pos[1], d.text, d.layer);
+		} break;
+
+		case GuiDrawInfo_title_bar: {
+			Color bg_color = darken_color(panel_color());
+			drawcmd_px_quad(p, s, 0.0, bg_color, outline_color(bg_color), d.layer);
+			draw_text(p.x + 5, p.y + 2, d.text, d.layer + 1);
+		} break;
+
+		default: fail("Unknown GuiDrawInfo: %i", d.type);
+		}
+	}
 }
 
 void ogui_set_turtle_pos(V2i pos)

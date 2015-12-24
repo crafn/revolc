@@ -125,7 +125,7 @@ int main(int argc, const char **argv)
 			time_accum = 0;
 		}
 
-		upd_uicontext();
+		begin_ui_frame();
 
 		{ // User input
 			V2d cursor_on_world = screen_to_world_point(g_env.device->cursor_pos);
@@ -296,6 +296,7 @@ int main(int argc, const char **argv)
 		upd_world(world, game_dt);
 		post_upd_physworld();
 		upd_phys_rendering();
+		end_ui_frame();
 
 		render_frame();
 

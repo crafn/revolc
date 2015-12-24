@@ -58,7 +58,8 @@ REVOLC_API void create_uicontext();
 REVOLC_API void destroy_uicontext();
 
 // Update cursor position etc.
-REVOLC_API void upd_uicontext();
+REVOLC_API void begin_ui_frame();
+REVOLC_API void end_ui_frame();
 
 // Next gui element will be put in this position
 REVOLC_API void ogui_set_turtle_pos(V2i pos);

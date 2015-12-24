@@ -58,7 +58,6 @@ typedef struct DragDropData {
 	int ix;
 } DragDropData;
 
-typedef struct GuiScissor { int pos[2], size[2]; } GuiScissor;
 typedef struct GuiContext_Turtle {
 	int pos[2]; // Output "cursor
 	int start_pos[2];
@@ -71,7 +70,7 @@ typedef struct GuiContext_Turtle {
 	GUI_BOOL detached; // If true, moving of this turtle doesn't affect parent bounding boxes etc.
 	DragDropData inactive_dragdropdata; // This is copied to gui context when actual dragging and dropping within this turtle starts
 
-	GuiScissor scissor; // Depends on window/panel/whatever pos and sizes. Given to draw commands. Zero == unused.
+	int scissor[4]; // Depends on window/panel/whatever pos and sizes. Given to draw commands. Zero == unused.
 } GuiContext_Turtle;
 
 // Stored data for frame elements
@@ -118,33 +117,40 @@ typedef struct GuiContext_Window {
 #define GUI_KEY_8 '8'
 #define GUI_KEY_9 '9'
 
-// @todo float x, y -> float pos[2]. float w, h -> float size[2]
-typedef void (*DrawButtonFunc)(void *user_data, float x, float y, float w, float h, GUI_BOOL down, GUI_BOOL hover, int layer, GuiScissor *s);
-typedef void (*DrawCheckBoxFunc)(void *user_data, float x, float y, float w, GUI_BOOL checked, GUI_BOOL down, GUI_BOOL hover, int layer, GuiScissor *s);
-typedef void (*DrawRadioButtonFunc)(void *user_data, float x, float y, float w, GUI_BOOL checked, GUI_BOOL down, GUI_BOOL hover, int layer, GuiScissor *s);
-typedef void (*DrawTextBoxFunc)(void *user_data, float x, float y, float w, float h, GUI_BOOL active, GUI_BOOL hover, int layer, GuiScissor *s);
-typedef void (*DrawTextFunc)(void *user_data, float x, float y, const char *text, int layer, GuiScissor *s);
-typedef void (*CalcTextSizeFunc)(float ret[2], void *user_data, const char *text, int layer);
-typedef void (*DrawWindowFunc)(void *user_data, float x, float y, float w, float h, float title_bar_height, const char *title, GUI_BOOL focus, int layer);
+typedef enum GuiDrawInfo_Type {
+	GuiDrawInfo_button,
+	GuiDrawInfo_checkbox,
+	GuiDrawInfo_radiobutton,
+	GuiDrawInfo_textbox,
+	GuiDrawInfo_text,
+	GuiDrawInfo_panel,
+	GuiDrawInfo_title_bar,
+	GuiDrawInfo_resize_handle,
+	GuiDrawInfo_slider,
+	GuiDrawInfo_slider_handle
+} GuiDrawInfo_Type;
 
-// User-supplied callbacks
-// @todo Change from draw callbacks to returning of an array of draw info.
-typedef struct GuiCallbacks {
-	void *user_data;
-	DrawButtonFunc draw_button;
-	DrawCheckBoxFunc draw_checkbox;
-	DrawRadioButtonFunc draw_radiobutton;
-	DrawTextBoxFunc draw_textbox;
-	DrawTextFunc draw_text;
-	CalcTextSizeFunc calc_text_size;
-	DrawWindowFunc draw_window;
-} GuiCallbacks;
+typedef struct GuiDrawInfo {
+	GuiDrawInfo_Type type;
+	int pos[2];
+	int size[2];
+	bool hovered;
+	bool held;
+	bool selected; // Synonym to checked, focused and active
+	const char *text;
+	int layer;
+	bool has_scissor;
+	int scissor_pos[2];
+	int scissor_size[2];
+} GuiDrawInfo;
 
 typedef struct GuiContext_MemBucket {
 	void *data;
 	int size;
 	int used;
 } GuiContext_MemBucket;
+
+typedef void (*CalcTextSizeFunc)(int ret[2], void *user_data, const char *text);
 
 // Handles the gui state
 typedef struct GuiContext {
@@ -185,9 +191,14 @@ typedef struct GuiContext {
 	GuiId active_id, last_active_id;
 	int active_win_ix;
 
-	GuiCallbacks callbacks;
+	CalcTextSizeFunc calc_text_size;
+	void *calc_text_size_user_data;
 
-#	define GUI_DEFAULT_MAX_FRAME_MEMORY (1024)
+	GuiDrawInfo *draw_infos;
+	int draw_info_capacity;
+	int draw_info_count;
+
+#	define GUI_DEFAULT_MAX_FRAME_MEMORY (1024*10)
 	// List of buffers which are invalidated every frame. Used for temp strings.
 	GuiContext_MemBucket *framemem_buckets;
 	int framemem_bucket_count; // It's best to have just one bucket, but sometimes memory usage can peak and more memory is allocated.
@@ -199,12 +210,15 @@ GUI_API const char *gui_str(GuiContext *ctx, const char *fmt, ...); // Temporary
 // Startup and shutdown of GUI
 // @todo Size should be defined in gui_begin_window()
 // @note skin_source_file contents is not copied
-GUI_API GuiContext *create_gui(GuiCallbacks callbacks);
+GUI_API GuiContext *create_gui(CalcTextSizeFunc calc_text, void *user_data_for_calc_text);
 GUI_API void destroy_gui(GuiContext *ctx);
 
 // Supply characters that should be written to e.g. text field.
 // Use '\b' for erasing.
 GUI_API void gui_write_char(GuiContext *ctx, char ch);
+
+// Retrieves draw info for gui components used in the current frame
+GUI_API void gui_draw_info(GuiContext *ctx, GuiDrawInfo **draw, int *draw_count);
 
 GUI_API int gui_layer(GuiContext *ctx);
 
@@ -264,6 +278,7 @@ GUI_API void gui_next_row(GuiContext *ctx); // @todo Remove
 GUI_API void gui_next_col(GuiContext *ctx); // @todo Remove
 GUI_API void gui_enlarge_bounding(GuiContext *ctx, int x, int y);
 
+// @todo Remove
 GUI_API void gui_ver_space(GuiContext *ctx);
 GUI_API void gui_hor_space(GuiContext *ctx);
 
