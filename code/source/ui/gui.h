@@ -80,6 +80,7 @@ typedef struct DragDropData {
 	int ix;
 } DragDropData;
 
+// @todo Rename to GuiLayer or something
 typedef struct GuiContext_Turtle {
 	int pos[2]; // Output "cursor
 	int size[2];
@@ -96,27 +97,21 @@ typedef struct GuiContext_Turtle {
 	int scissor[4]; // Depends on window/panel/whatever pos and sizes. Given to draw commands. Zero == unused.
 } GuiContext_Turtle;
 
-// @todo Merge with window (maybe rename to Panel)
-// Stored data for frame elements
-typedef struct GuiContext_Frame {
-	GuiId id;
-	int last_bounding_size[2];
-	int scroll[2]; // Translation in pt. Cannot be relative, because adding content shouldn't cause translation to change.
-} GuiContext_Frame;
-
 // Stored data for window elements
+// @todo Rename to GuiPanel
 typedef struct GuiContext_Window {
 	GuiId id;
 	char label[MAX_GUI_LABEL_SIZE];
 	GUI_BOOL used;
 	GUI_BOOL used_in_last_frame;
 
-	int frame_ix; // Corresponding GuiContext_Frame
-
 	int bar_height;
 	// Size, not taking account title bar or borders
 	// Depends on window size in layout
 	int client_size[2];
+
+	int last_bounding_size[2];
+	int scroll[2]; // Translation in pt. Cannot be relative, because adding content shouldn't cause translation to change.
 } GuiContext_Window;
 
 #define GUI_KEYSTATE_DOWN_BIT 0x1
@@ -214,9 +209,6 @@ typedef struct GuiContext {
 	GuiContext_Turtle turtles[MAX_GUI_STACK_SIZE];
 	int turtle_ix;
 
-	GuiContext_Frame frames[MAX_GUI_FRAME_COUNT];
-	int frame_count;
-
 	GuiContext_Window windows[MAX_GUI_WINDOW_COUNT];
 	int window_order[MAX_GUI_WINDOW_COUNT];
 	int focused_win_ix; // Not necessarily window_order[window_count - 1] because nothing is focused when clicking background
@@ -269,11 +261,8 @@ GUI_API void gui_draw_info(GuiContext *ctx, GuiDrawInfo **draw, int *draw_count)
 
 GUI_API int gui_layer(GuiContext *ctx);
 
-// Scrolling area
-GUI_API void gui_begin_frame(GuiContext *ctx, const char *label, int x, int y, int w, int h);
-GUI_API void gui_end_frame(GuiContext *ctx);
-GUI_API void gui_set_frame_scroll(GuiContext *ctx, int scroll_x, int scroll_y); // Move frame contents
-GUI_API void gui_frame_scroll(GuiContext *ctx, int *x, int *y);
+GUI_API void gui_set_scroll(GuiContext *ctx, int scroll_x, int scroll_y); // Move window contents
+GUI_API void gui_scroll(GuiContext *ctx, int *x, int *y);
 
 // @todo Remove default size when layout is ready
 GUI_API void gui_begin_window(GuiContext *ctx, const char *label, int default_size_x, int default_size_y);

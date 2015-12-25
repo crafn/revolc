@@ -287,12 +287,6 @@ void gui_set_turtle_pos(GuiContext *ctx, int x, int y)
 	gui_enlarge_bounding(ctx, x, y);
 }
 
-GuiContext_Frame *gui_frame(GuiContext *ctx)
-{
-	assert(gui_turtle(ctx)->frame_ix < ctx->frame_count);
-	return gui_turtle(ctx)->frame_ix >= 0 ? &ctx->frames[gui_turtle(ctx)->frame_ix] : NULL;
-}
-
 GuiContext_Window *gui_window(GuiContext *ctx)
 {
 	assert(gui_turtle(ctx)->window_ix < ctx->window_count);
@@ -614,7 +608,7 @@ void gui_begin(GuiContext *ctx, const char *label)
 				new_turtle.size[0] = prev->size[0];
 			} else {
 				// Move
-				new_turtle.pos[0] = prev->size[0] - new_turtle.size[0];
+				new_turtle.pos[0] = prev->pos[0] + prev->size[0] - new_turtle.size[0];
 			}
 		}
 
@@ -626,14 +620,13 @@ void gui_begin(GuiContext *ctx, const char *label)
 				new_turtle.size[1] = prev->size[1];
 			} else {
 				// Move
-				new_turtle.pos[1] = prev->size[1] - new_turtle.size[1];
+				new_turtle.pos[1] = prev->pos[1] + prev->size[1] - new_turtle.size[1];
 			}
 		}
 	}
 	GUI_ASSIGN_V2(new_turtle.start_pos, new_turtle.pos);
 	GUI_V2(new_turtle.bounding_max[c] = new_turtle.start_pos[c] + new_turtle.size[c]);
 	GUI_ASSIGN_V2(new_turtle.last_bounding_max, new_turtle.bounding_max);
-	new_turtle.frame_ix = prev->frame_ix;
 	new_turtle.window_ix = prev->window_ix;
 	new_turtle.layer = prev->layer + 1;
 	new_turtle.detached = GUI_FALSE;
@@ -690,8 +683,8 @@ void gui_end_ex(GuiContext *ctx, GUI_BOOL make_zero_size, DragDropData *dropdata
 		GuiContext_Turtle *parent = &ctx->turtles[ctx->turtle_ix];
 		GuiContext_Turtle *child = &ctx->turtles[ctx->turtle_ix + 1];
 
-		parent->bounding_max[0] = GUI_MAX(parent->bounding_max[0], child->bounding_max[0]);
-		parent->bounding_max[1] = GUI_MAX(parent->bounding_max[1], child->bounding_max[1]);
+		GUI_V2(parent->bounding_max[c] =
+			GUI_MAX(parent->bounding_max[c], child->bounding_max[c]));
 		GUI_ASSIGN_V2(parent->last_bounding_max, child->bounding_max);
 	}
 }
@@ -755,124 +748,19 @@ void gui_slider_ex(GuiContext *ctx, const char *label, float *value, float min, 
 
 void gui_begin_frame(GuiContext *ctx, const char *label, int x, int y, int w, int height)
 {
-	int frame_handle = -1;
-	{ // Find/create frame
-		int free_handle = -1;
-		for (int i = 0; i < MAX_GUI_WINDOW_COUNT; ++i) {
-			if (ctx->frames[i].id == 0 && free_handle == -1)
-				free_handle = i;
-			if (ctx->frames[i].id == gui_id(label)) {
-				frame_handle = i;
-				break;
-			}
-		}
-		if (frame_handle < 0) {
-			// Create new frame
-			assert(free_handle >= 0);
-			assert(ctx->frame_count < MAX_GUI_FRAME_COUNT);
 
-			ctx->frames[free_handle].id = gui_id(label);
-			++ctx->frame_count;
-			frame_handle = free_handle;
-		}
-	}
-	assert(frame_handle >= 0);
-	GuiContext_Frame *frame = &ctx->frames[frame_handle];
-	gui_begin(ctx, label);
-	int *pos = gui_turtle(ctx)->pos;
-	int *size = gui_turtle(ctx)->size;
-	gui_turtle(ctx)->detached = GUI_TRUE;
-	pos[0] = x;
-	pos[1] = y;
-	size[0] = w;
-	size[1] = height;
-	GUI_ASSIGN_V2(gui_turtle(ctx)->start_pos, pos);
-	gui_turtle(ctx)->frame_ix = frame_handle;
-
-	int scissor[4];
-	scissor[0] = pos[0];
-	scissor[1] = pos[1];
-	scissor[2] = size[0];
-	scissor[3] = size[1];
-	memcpy(gui_turtle(ctx)->scissor, scissor, sizeof(scissor));
-
-	// Make clicking frame backgound change last active element, so that scrolling works
-	gui_button_logic(ctx, label, pos, size, NULL, NULL, NULL, NULL);
-
-	{ // Scrolling
-		int max_scroll[2];
-		GUI_V2(max_scroll[c] = frame->last_bounding_size[c] - size[c]);
-		GUI_V2(max_scroll[c] = GUI_MAX(max_scroll[c], 0));
-
-		char scroll_panel_label[MAX_GUI_LABEL_SIZE];
-		GUI_FMT_STR(scroll_panel_label, sizeof(scroll_panel_label), "framescrollpanel_%s", label);
-		gui_begin(ctx, scroll_panel_label);
-		gui_turtle(ctx)->detached = GUI_TRUE; // Detach so that the scroll doesn't take part in window contents size
-		gui_turtle(ctx)->layer += GUI_LAYERS_PER_WINDOW/2; // Make topmost in window @todo Then should move this to end_window
-		for (int d = 0; d < 2; ++d) {
-			if (size[d] < frame->last_bounding_size[d]) {
-				char scroll_label[MAX_GUI_LABEL_SIZE];
-				GUI_FMT_STR(scroll_label, sizeof(scroll_label), "framescroll_%i_%s", d, label);
-				GUI_ASSIGN_V2(gui_turtle(ctx)->pos, pos);
-				gui_turtle(ctx)->pos[!d] += size[!d] - GUI_SCROLL_BAR_WIDTH;
-
-				if (	d == 1 && // Vertical
-						gui_focused(ctx) &&
-						ctx->mouse_scroll != 0 && // Scrolling mouse wheel
-						!(ctx->key_state[GUI_KEY_LCTRL] & GUI_KEYSTATE_DOWN_BIT)) // Not holding ctrl
-					frame->scroll[d] -= ctx->mouse_scroll*64;
-
-				// Scroll by dragging
-				if (	gui_turtle(ctx)->window_ix == ctx->active_win_ix &&
-						(ctx->key_state[GUI_KEY_LCTRL] & GUI_KEYSTATE_DOWN_BIT) &&
-						(ctx->key_state[GUI_KEY_LMB] & GUI_KEYSTATE_DOWN_BIT)) {
-					if (!ctx->dragging) {
-						float v[2];
-						GUI_V2(v[c] = (float)frame->scroll[c]);
-						gui_start_dragging(ctx, v);
-					} else {
-						int v[2];
-						GUI_V2(v[c] = (int)ctx->drag_start_value[c]);
-						frame->scroll[d] = v[d] + ctx->drag_start_pos[d] - ctx->cursor_pos[d];
-					}
-				}
-
-				float scroll = 1.f*frame->scroll[d];
-				float rel_shown_area = 1.f*size[d]/frame->last_bounding_size[d];
-				float max_comp_scroll = 1.f*max_scroll[d];
-				gui_slider_ex(ctx, scroll_label, &scroll, 0, max_comp_scroll, rel_shown_area, !!d, size[d] - GUI_SCROLL_BAR_WIDTH);
-				frame->scroll[d] = (int)scroll;
-			}
-		}
-		gui_end(ctx);
-
-		frame->scroll[0] = GUI_CLAMP(frame->scroll[0], 0, max_scroll[0]);
-		frame->scroll[1] = GUI_CLAMP(frame->scroll[1], 0, max_scroll[1]);
-
-		// Scroll client area
-		int client_start_pos[2];
-		GUI_V2(client_start_pos[c] = gui_turtle(ctx)->pos[c] - frame->scroll[c]);
-		GUI_ASSIGN_V2(gui_turtle(ctx)->start_pos, client_start_pos);
-		GUI_ASSIGN_V2(gui_turtle(ctx)->pos, client_start_pos);
-	}
 }
 
-void gui_end_frame(GuiContext *ctx)
+void gui_set_scroll(GuiContext *ctx, int scroll_x, int scroll_y)
 {
-	GUI_V2(gui_frame(ctx)->last_bounding_size[c] = gui_turtle(ctx)->bounding_max[c] - gui_turtle(ctx)->start_pos[c]);
-	gui_end(ctx);
+	gui_window(ctx)->scroll[0] = scroll_x;
+	gui_window(ctx)->scroll[1] = scroll_y;
 }
 
-void gui_set_frame_scroll(GuiContext *ctx, int scroll_x, int scroll_y)
+void gui_scroll(GuiContext *ctx, int *x, int *y)
 {
-	gui_frame(ctx)->scroll[0] = scroll_x;
-	gui_frame(ctx)->scroll[1] = scroll_y;
-}
-
-void gui_frame_scroll(GuiContext *ctx, int *x, int *y)
-{
-	*x = gui_frame(ctx)->scroll[0];
-	*y = gui_frame(ctx)->scroll[1];
+	*x = gui_window(ctx)->scroll[0];
+	*y = gui_window(ctx)->scroll[1];
 }
 
 void gui_begin_window_ex(GuiContext *ctx, const char *label, int default_size_x, int default_size_y, GUI_BOOL panel)
@@ -1015,15 +903,87 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, int default_size_x,
 	GUI_ASSIGN_V2(layout.size, size);
 	update_element_layout(ctx, layout);
 
-	int content_pos[2];
-	GUI_V2(content_pos[c] = pos[c] + c*win->bar_height);
-	gui_begin_frame(ctx, label, content_pos[0], content_pos[1], win->client_size[0], win->client_size[1]);
+	//
+	// Client-area content
+	//
 
+	GUI_V2(pos[c] += c*win->bar_height);
+	GUI_V2(size[c] -= c*win->bar_height);
+
+	gui_turtle(ctx)->detached = GUI_TRUE;
+	GUI_ASSIGN_V2(gui_turtle(ctx)->start_pos, pos);
+
+	int scissor[4];
+	scissor[0] = pos[0];
+	scissor[1] = pos[1];
+	scissor[2] = size[0];
+	scissor[3] = size[1];
+	memcpy(gui_turtle(ctx)->scissor, scissor, sizeof(scissor));
+
+	// Make clicking frame backgound change last active element, so that scrolling works
+	gui_button_logic(ctx, label, pos, size, NULL, NULL, NULL, NULL);
+
+	{ // Scrolling
+		int max_scroll[2];
+		GUI_V2(max_scroll[c] = win->last_bounding_size[c] - size[c]);
+		GUI_V2(max_scroll[c] = GUI_MAX(max_scroll[c], 0));
+
+		char scroll_panel_label[MAX_GUI_LABEL_SIZE];
+		GUI_FMT_STR(scroll_panel_label, sizeof(scroll_panel_label), "framescrollpanel_%s", label);
+		gui_begin(ctx, scroll_panel_label);
+		gui_turtle(ctx)->detached = GUI_TRUE; // Detach so that the scroll doesn't take part in window contents size
+		gui_turtle(ctx)->layer += GUI_LAYERS_PER_WINDOW/2; // Make topmost in window @todo Then should move this to end_window
+		for (int d = 0; d < 2; ++d) {
+			if (size[d] < win->last_bounding_size[d]) {
+				char scroll_label[MAX_GUI_LABEL_SIZE];
+				GUI_FMT_STR(scroll_label, sizeof(scroll_label), "framescroll_%i_%s", d, label);
+				GUI_ASSIGN_V2(gui_turtle(ctx)->pos, pos);
+				gui_turtle(ctx)->pos[!d] += size[!d] - GUI_SCROLL_BAR_WIDTH;
+
+				if (	d == 1 && // Vertical
+						gui_focused(ctx) &&
+						ctx->mouse_scroll != 0 && // Scrolling mouse wheel
+						!(ctx->key_state[GUI_KEY_LCTRL] & GUI_KEYSTATE_DOWN_BIT)) // Not holding ctrl
+					win->scroll[d] -= ctx->mouse_scroll*64;
+
+				// Scroll by dragging
+				if (	gui_turtle(ctx)->window_ix == ctx->active_win_ix &&
+						(ctx->key_state[GUI_KEY_LCTRL] & GUI_KEYSTATE_DOWN_BIT) &&
+						(ctx->key_state[GUI_KEY_LMB] & GUI_KEYSTATE_DOWN_BIT)) {
+					if (!ctx->dragging) {
+						float v[2];
+						GUI_V2(v[c] = (float)win->scroll[c]);
+						gui_start_dragging(ctx, v);
+					} else {
+						int v[2];
+						GUI_V2(v[c] = (int)ctx->drag_start_value[c]);
+						win->scroll[d] = v[d] + ctx->drag_start_pos[d] - ctx->cursor_pos[d];
+					}
+				}
+
+				float scroll = 1.f*win->scroll[d];
+				float rel_shown_area = 1.f*size[d]/win->last_bounding_size[d];
+				float max_comp_scroll = 1.f*max_scroll[d];
+				gui_slider_ex(ctx, scroll_label, &scroll, 0, max_comp_scroll, rel_shown_area, !!d, size[d] - GUI_SCROLL_BAR_WIDTH);
+				win->scroll[d] = (int)scroll;
+			}
+		}
+		gui_end(ctx);
+
+		win->scroll[0] = GUI_CLAMP(win->scroll[0], 0, max_scroll[0]);
+		win->scroll[1] = GUI_CLAMP(win->scroll[1], 0, max_scroll[1]);
+
+		// Scroll client area
+		int client_start_pos[2];
+		GUI_V2(client_start_pos[c] = gui_turtle(ctx)->pos[c] - win->scroll[c]);
+		GUI_ASSIGN_V2(gui_turtle(ctx)->start_pos, client_start_pos);
+		GUI_ASSIGN_V2(gui_turtle(ctx)->pos, client_start_pos);
+	}
 }
 
 void gui_end_window_ex(GuiContext *ctx)
 {
-	gui_end_frame(ctx);
+	GUI_V2(gui_window(ctx)->last_bounding_size[c] = gui_turtle(ctx)->bounding_max[c] - gui_turtle(ctx)->start_pos[c]);
 	gui_end(ctx);
 }
 
@@ -1164,7 +1124,6 @@ GUI_BOOL gui_checkbox_ex(GuiContext *ctx, const char *label, GUI_BOOL *value, GU
 						NULL, gui_layer(ctx), gui_scissor(ctx));
 		
 		px_pos[0] += px_box_width + 2*px_margin[0];
-		px_pos[1] += px_margin[1];
 		gui_draw(	ctx, GuiDrawInfo_text, px_pos, px_size, GUI_FALSE, GUI_FALSE, GUI_FALSE,
 					gui_label_text(label), gui_layer(ctx) + 1, gui_scissor(ctx));
 	}
