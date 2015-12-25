@@ -96,6 +96,7 @@ typedef struct GuiContext_Turtle {
 	int scissor[4]; // Depends on window/panel/whatever pos and sizes. Given to draw commands. Zero == unused.
 } GuiContext_Turtle;
 
+// @todo Merge with window (maybe rename to Panel)
 // Stored data for frame elements
 typedef struct GuiContext_Frame {
 	GuiId id;
@@ -106,16 +107,16 @@ typedef struct GuiContext_Frame {
 // Stored data for window elements
 typedef struct GuiContext_Window {
 	GuiId id;
+	char label[MAX_GUI_LABEL_SIZE];
 	GUI_BOOL used;
 	GUI_BOOL used_in_last_frame;
 
 	int frame_ix; // Corresponding GuiContext_Frame
 
 	int bar_height;
-	int pos[2]; // Top-left position
-	int client_size[2]; // Size, not taking account title bar or borders
-
-	int total_size[2]; // Value depends on client_size
+	// Size, not taking account title bar or borders
+	// Depends on window size in layout
+	int client_size[2];
 } GuiContext_Window;
 
 #define GUI_KEYSTATE_DOWN_BIT 0x1
@@ -159,7 +160,7 @@ typedef struct GuiDrawInfo {
 	int size[2];
 	GUI_BOOL hovered;
 	GUI_BOOL held;
-	GUI_BOOL selected; // Synonym to checked, focused and active
+	GUI_BOOL selected; // Synonym for checked, focused and active
 	const char *text;
 	int layer;
 	GUI_BOOL has_scissor;
@@ -177,10 +178,15 @@ typedef struct GuiElementLayout {
 	LayoutId id;
 	char str[MAX_GUI_LABEL_SIZE]; // For debugging only
 
-	GUI_BOOL align_left, align_right;
+	// Settings order is so that below can override above
 
-	GUI_BOOL has_default_size;
-	int default_size[2];
+	GUI_BOOL has_offset;
+	int offset[2];
+
+	GUI_BOOL has_size;
+	int size[2];
+
+	GUI_BOOL align_left, align_right, align_top, align_bottom;
 } GuiElementLayout;
 
 typedef void (*CalcTextSizeFunc)(int ret[2], void *user_data, const char *text);
@@ -251,6 +257,8 @@ GUI_API const char *gui_str(GuiContext *ctx, const char *fmt, ...); // Temporary
 // @note skin_source_file contents is not copied
 GUI_API GuiContext *create_gui(CalcTextSizeFunc calc_text, void *user_data_for_calc_text);
 GUI_API void destroy_gui(GuiContext *ctx);
+GUI_API void gui_pre_frame(GuiContext *ctx);
+GUI_API void gui_post_frame(GuiContext *ctx);
 
 // Supply characters that should be written to e.g. text field.
 // Use '\b' for erasing.

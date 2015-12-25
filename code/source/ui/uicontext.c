@@ -125,7 +125,7 @@ void begin_ui_frame()
 		for (U32 i = 0; i < g_env.device->written_text_size; ++i)
 			gui_write_char(ctx, g_env.device->written_text_buf[i]);
 
-		gui_begin(ctx, "main");
+		gui_pre_frame(ctx);
 	}
 
 	ui->dev.prev_cursor_pos = ui->dev.cursor_pos;
@@ -164,7 +164,7 @@ void end_ui_frame()
 	UiContext *ui = g_env.uicontext;
 	GuiContext *ctx = ui->gui;
 	
-	gui_end(ctx);
+	gui_post_frame(ctx);
 
 	GuiDrawInfo *draw_infos;
 	int count;
