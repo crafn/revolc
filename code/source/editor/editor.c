@@ -126,13 +126,13 @@ void upd_editor()
 	if (e->state == EditorState_gui_test) {
 		GuiContext *ctx = g_env.uicontext->gui;
 
-		gui_begin_window(ctx, "win", 200, 500);
+		gui_begin_window(ctx, "win");
 			for (U32 i = 0; i < 30; ++i) {
 				gui_button(ctx, gui_str(ctx, "btn_in_list+%i|button_%i", i, i));
 			}
 		gui_end_window(ctx);
 
-		gui_begin_window(ctx, "Gui components", 200, 200);
+		gui_begin_window(ctx, "Gui components");
 			local_persist bool checkbox = 0;
 			local_persist int btn = 0;
 			local_persist F32 slider = 0;

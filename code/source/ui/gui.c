@@ -36,12 +36,10 @@ void sprintf_impl(char *buf, size_t count, const char *fmt, ...)
 #	define GUI_V_FMT_STR vsnprintf
 #endif
 
-#define GUI_SCROLL_BAR_WIDTH 15
 #define GUI_MAX(a, b) ((a > b) ? (a) : (b))
 #define GUI_MIN(a, b) ((a < b) ? (a) : (b))
 #define GUI_CLAMP(v, a, b) (GUI_MIN(GUI_MAX((v), (a)), (b)))
 #define GUI_ABS(x) ((x) < 0 ? (-x) : x)
-#define GUI_WINDOW_TITLE_BAR_HEIGHT 25
 #define GUI_LAYERS_PER_WINDOW 10000 // Maybe 10k layers inside a window is enough
 #define GUI_UNUSED(x) (void)(x) // For unused params. C doesn't allow omitting param name.
 #define GUI_TRUE 1
@@ -103,8 +101,10 @@ static int layout_cmp(const void *void_a, const void *void_b)
 
 static GuiElementLayout element_layout(GuiContext *ctx, const char *label)
 {
-	if (ctx->layouts_need_sorting)
+	if (ctx->layouts_need_sorting) {
 		qsort(ctx->layouts, ctx->layout_count, sizeof(*ctx->layouts), layout_cmp);
+		ctx->layouts_need_sorting = false;
+	}
 
 	// @todo Consider using hashmap
 	GuiElementLayout key;
@@ -467,6 +467,24 @@ GuiContext *create_gui(CalcTextSizeFunc calc_text, void *user_data_for_calc_text
 	ctx->framemem_buckets[0].size = GUI_DEFAULT_FRAME_MEMORY;
 	ctx->framemem_buckets[0].used = 0;
 
+	{ // Default layout
+		{
+			GuiElementLayout layout = element_layout(ctx, "gui_slider");
+			layout.has_size = true;
+			layout.size[0] = 15;
+			layout.size[1] = 15;
+			update_element_layout(ctx, layout);
+		}
+
+		{
+			GuiElementLayout layout = element_layout(ctx, "gui_bar");
+			layout.has_size = true;
+			layout.size[0] = 0;
+			layout.size[1] = 25;
+			update_element_layout(ctx, layout);
+		}
+	}
+
 	return ctx;
 }
 
@@ -746,11 +764,6 @@ void gui_slider_ex(GuiContext *ctx, const char *label, float *value, float min, 
 	gui_end(ctx);
 }
 
-void gui_begin_frame(GuiContext *ctx, const char *label, int x, int y, int w, int height)
-{
-
-}
-
 void gui_set_scroll(GuiContext *ctx, int scroll_x, int scroll_y)
 {
 	gui_window(ctx)->scroll[0] = scroll_x;
@@ -763,9 +776,11 @@ void gui_scroll(GuiContext *ctx, int *x, int *y)
 	*y = gui_window(ctx)->scroll[1];
 }
 
-void gui_begin_window_ex(GuiContext *ctx, const char *label, int default_size_x, int default_size_y, GUI_BOOL panel)
+void gui_begin_window_ex(GuiContext *ctx, const char *label, GUI_BOOL panel)
 {
 	GuiElementLayout layout = element_layout(ctx, label);
+	GuiElementLayout slider_layout = element_layout(ctx, "gui_slider");
+	GuiElementLayout bar_layout = element_layout(ctx, "gui_bar");
 
 	gui_begin(ctx, label);
 	gui_turtle(ctx)->detached = GUI_TRUE;
@@ -792,7 +807,7 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, int default_size_x,
 			win->id = gui_id(label);
 			GUI_FMT_STR(win->label, sizeof(win->label), "%s", label);
 			GUI_ASSIGN_V2(pos, ctx->next_window_pos);
-			win->bar_height = panel ? 0 : GUI_WINDOW_TITLE_BAR_HEIGHT;
+			win->has_bar = !panel;
 			ctx->window_order[ctx->window_count++] = free_handle;
 
 			win_handle = free_handle;
@@ -810,18 +825,14 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, int default_size_x,
 
 	gui_turtle(ctx)->window_ix = win_handle;
 	gui_turtle(ctx)->layer = 1337 + gui_window_order(ctx, win_handle)*GUI_LAYERS_PER_WINDOW;
+	win->bar_height = win->has_bar ? bar_layout.size[1] : 0;
 
 	{ // Ordinary gui element logic
 		GUI_V2(win->client_size[c] = size[c] - c*win->bar_height);
 
-		// Dummy window background element. Makes clicking through window impossible.
-		char bg_label[MAX_GUI_LABEL_SIZE];
-		GUI_FMT_STR(bg_label, sizeof(bg_label), "winbg_%s", label);
-		gui_button_logic(ctx, bg_label, pos, size, NULL, NULL, NULL, NULL);
-
 		// Title bar logic
 		char bar_label[MAX_GUI_LABEL_SIZE];
-		GUI_FMT_STR(bar_label, sizeof(bar_label), "winbar_%s", label);
+		GUI_FMT_STR(bar_label, sizeof(bar_label), "gui_bar+win_%s", label);
 		GUI_BOOL went_down, down, hover;
 		GUI_DECL_V2(int, btn_size, size[0], win->bar_height);
 		gui_button_logic(ctx, bar_label, pos, btn_size, NULL, &went_down, &down, &hover);
@@ -867,12 +878,12 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, int default_size_x,
 
 	{ // Corner resize handle
 		char resize_label[MAX_GUI_LABEL_SIZE];
-		GUI_FMT_STR(resize_label, sizeof(resize_label), "winresize_%s", label);
+		GUI_FMT_STR(resize_label, sizeof(resize_label), "gui_slider+resize_%s", label);
 		gui_begin(ctx, resize_label);
 		gui_turtle(ctx)->detached = GUI_TRUE; // Detach so that the handle doesn't take part in window contents size
 		gui_turtle(ctx)->layer += GUI_LAYERS_PER_WINDOW/2; // Make topmost in window @todo Then should move this to end_window
 
-		int handle_size[2] = {GUI_SCROLL_BAR_WIDTH, GUI_SCROLL_BAR_WIDTH};
+		int handle_size[2] = {slider_layout.size[0], slider_layout.size[1]};
 		int handle_pos[2];
 		GUI_V2(handle_pos[c] = pos[c] + size[c] - handle_size[c]);
 		GUI_BOOL went_down, down, hover;
@@ -894,7 +905,8 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, int default_size_x,
 		gui_draw(	ctx, GuiDrawInfo_resize_handle, px_pos, px_size, hover, down, GUI_FALSE,
 					NULL, gui_layer(ctx), gui_scissor(ctx));
 		gui_end(ctx);
-	}
+	}	
+
 
 	// Save window pos and size to layout
 	layout.has_offset = true;
@@ -907,38 +919,33 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, int default_size_x,
 	// Client-area content
 	//
 
-	GUI_V2(pos[c] += c*win->bar_height);
-	GUI_V2(size[c] -= c*win->bar_height);
+	gui_begin(ctx, gui_str(ctx, "winclient_%s", label));
 
-	gui_turtle(ctx)->detached = GUI_TRUE;
-	GUI_ASSIGN_V2(gui_turtle(ctx)->start_pos, pos);
-
-	int scissor[4];
-	scissor[0] = pos[0];
-	scissor[1] = pos[1];
-	scissor[2] = size[0];
-	scissor[3] = size[1];
-	memcpy(gui_turtle(ctx)->scissor, scissor, sizeof(scissor));
+	int *c_pos = gui_turtle(ctx)->pos;
+	int *c_size = gui_turtle(ctx)->size;
+	GUI_V2(c_pos[c] = pos[c] + c*win->bar_height);
+	GUI_V2(c_size[c] = size[c] - c*win->bar_height);
+	GUI_V2(gui_turtle(ctx)->start_pos[c] = c_pos[c]);
 
 	// Make clicking frame backgound change last active element, so that scrolling works
-	gui_button_logic(ctx, label, pos, size, NULL, NULL, NULL, NULL);
+	gui_button_logic(ctx, label, c_pos, c_size, NULL, NULL, NULL, NULL);
 
 	{ // Scrolling
 		int max_scroll[2];
-		GUI_V2(max_scroll[c] = win->last_bounding_size[c] - size[c]);
+		GUI_V2(max_scroll[c] = win->last_bounding_size[c] - c_size[c]);
 		GUI_V2(max_scroll[c] = GUI_MAX(max_scroll[c], 0));
 
 		char scroll_panel_label[MAX_GUI_LABEL_SIZE];
-		GUI_FMT_STR(scroll_panel_label, sizeof(scroll_panel_label), "framescrollpanel_%s", label);
+		GUI_FMT_STR(scroll_panel_label, sizeof(scroll_panel_label), "winscrollpanel_%s", label);
 		gui_begin(ctx, scroll_panel_label);
 		gui_turtle(ctx)->detached = GUI_TRUE; // Detach so that the scroll doesn't take part in window contents size
 		gui_turtle(ctx)->layer += GUI_LAYERS_PER_WINDOW/2; // Make topmost in window @todo Then should move this to end_window
 		for (int d = 0; d < 2; ++d) {
-			if (size[d] < win->last_bounding_size[d]) {
+			if (c_size[d] < win->last_bounding_size[d]) {
 				char scroll_label[MAX_GUI_LABEL_SIZE];
-				GUI_FMT_STR(scroll_label, sizeof(scroll_label), "framescroll_%i_%s", d, label);
-				GUI_ASSIGN_V2(gui_turtle(ctx)->pos, pos);
-				gui_turtle(ctx)->pos[!d] += size[!d] - GUI_SCROLL_BAR_WIDTH;
+				GUI_FMT_STR(scroll_label, sizeof(scroll_label), "gui_slider+win_%i_%s", d, label);
+				GUI_ASSIGN_V2(gui_turtle(ctx)->pos, c_pos);
+				gui_turtle(ctx)->pos[!d] += c_size[!d] - slider_layout.size[!d];
 
 				if (	d == 1 && // Vertical
 						gui_focused(ctx) &&
@@ -962,20 +969,28 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, int default_size_x,
 				}
 
 				float scroll = 1.f*win->scroll[d];
-				float rel_shown_area = 1.f*size[d]/win->last_bounding_size[d];
+				float rel_shown_area = 1.f*c_size[d]/win->last_bounding_size[d];
 				float max_comp_scroll = 1.f*max_scroll[d];
-				gui_slider_ex(ctx, scroll_label, &scroll, 0, max_comp_scroll, rel_shown_area, !!d, size[d] - GUI_SCROLL_BAR_WIDTH);
+				gui_slider_ex(ctx, scroll_label, &scroll, 0, max_comp_scroll, rel_shown_area, !!d, c_size[d] - slider_layout.size[d]);
 				win->scroll[d] = (int)scroll;
 			}
 		}
 		gui_end(ctx);
 
-		win->scroll[0] = GUI_CLAMP(win->scroll[0], 0, max_scroll[0]);
-		win->scroll[1] = GUI_CLAMP(win->scroll[1], 0, max_scroll[1]);
+		GUI_V2(win->scroll[c] = GUI_CLAMP(win->scroll[c], 0, max_scroll[c]));
+	}
 
+	int scissor[4];
+	scissor[0] = c_pos[0];
+	scissor[1] = c_pos[1];
+	scissor[2] = c_size[0];
+	scissor[3] = c_size[1];
+	memcpy(gui_turtle(ctx)->scissor, scissor, sizeof(scissor));
+
+	{
 		// Scroll client area
 		int client_start_pos[2];
-		GUI_V2(client_start_pos[c] = gui_turtle(ctx)->pos[c] - win->scroll[c]);
+		GUI_V2(client_start_pos[c] = c_pos[c] - win->scroll[c]);
 		GUI_ASSIGN_V2(gui_turtle(ctx)->start_pos, client_start_pos);
 		GUI_ASSIGN_V2(gui_turtle(ctx)->pos, client_start_pos);
 	}
@@ -985,11 +1000,12 @@ void gui_end_window_ex(GuiContext *ctx)
 {
 	GUI_V2(gui_window(ctx)->last_bounding_size[c] = gui_turtle(ctx)->bounding_max[c] - gui_turtle(ctx)->start_pos[c]);
 	gui_end(ctx);
+	gui_end(ctx);
 }
 
-void gui_begin_window(GuiContext *ctx, const char *label, int default_size_x, int default_size_y)
+void gui_begin_window(GuiContext *ctx, const char *label)
 {
-	gui_begin_window_ex(ctx, label, default_size_x, default_size_y, GUI_FALSE);
+	gui_begin_window_ex(ctx, label, GUI_FALSE);
 }
 
 void gui_end_window(GuiContext *ctx)
@@ -999,7 +1015,7 @@ void gui_end_window(GuiContext *ctx)
 
 void gui_begin_panel(GuiContext *ctx, const char *label)
 {
-	gui_begin_window_ex(ctx, label, 200, 200, GUI_TRUE);
+	gui_begin_window_ex(ctx, label, GUI_TRUE);
 }
 
 void gui_end_panel(GuiContext *ctx)
@@ -1015,7 +1031,7 @@ void gui_window_client_size(GuiContext *ctx, int *w, int *h)
 
 void gui_begin_contextmenu(GuiContext *ctx, const char *label)
 {
-	gui_begin_window_ex(ctx, label, 10, 10, GUI_FALSE);
+	gui_begin_window_ex(ctx, label, GUI_FALSE);
 }
 
 void gui_end_contextmenu(GuiContext *ctx)
@@ -1055,8 +1071,7 @@ GUI_BOOL gui_button_ex(GuiContext *ctx, const char *label, GUI_BOOL force_down)
 	GUI_V2(size[c] = GUI_MAX((int)text_size[c] + margin[c] * 2, size[c]));
 
 	GUI_BOOL went_up = GUI_FALSE, hover = GUI_FALSE, down = GUI_FALSE;
-	if (gui_is_inside_window(ctx, size))
-	{
+	if (gui_is_inside_window(ctx, size)) {
 		gui_button_logic(ctx, label, pos, size, &went_up, NULL, &down, &hover);
 
 		int px_pos[2], px_size[2];
@@ -1253,17 +1268,20 @@ GUI_BOOL gui_intfield(GuiContext *ctx, const char *label, int *value)
 void gui_label(GuiContext *ctx, const char *label)
 {
 	gui_begin(ctx, label);
-	int pos[2], size[2];
-	GUI_ASSIGN_V2(pos, gui_turtle(ctx)->pos);
+	int *pos = gui_turtle(ctx)->pos;
+	int *size = gui_turtle(ctx)->size;
 	ctx->calc_text_size(size, ctx->calc_text_size_user_data, gui_label_text(label));
 
-	gui_button_logic(ctx, label, pos, size, NULL, NULL, NULL, NULL);
+	if (gui_is_inside_window(ctx, size)) {
+		gui_button_logic(ctx, label, pos, size, NULL, NULL, NULL, NULL);
 
-	int px_pos[2], px_size[2];
-	pt_to_px(px_pos, pos, ctx->dpi_scale);
-	pt_to_px(px_size, size, ctx->dpi_scale);
-	gui_draw(	ctx, GuiDrawInfo_text, px_pos, px_size, GUI_FALSE, GUI_FALSE, GUI_FALSE,
-				gui_label_text(label), gui_layer(ctx) + 1, gui_scissor(ctx));
+		int px_pos[2], px_size[2];
+		pt_to_px(px_pos, pos, ctx->dpi_scale);
+		pt_to_px(px_size, size, ctx->dpi_scale);
+		gui_draw(	ctx, GuiDrawInfo_text, px_pos, px_size, GUI_FALSE, GUI_FALSE, GUI_FALSE,
+					gui_label_text(label), gui_layer(ctx) + 1, gui_scissor(ctx));
+	}
+
 	gui_enlarge_bounding(ctx, pos[0] + size[0], pos[1] + size[1]);
 	gui_end(ctx);
 
@@ -1355,12 +1373,11 @@ void gui_layout_settings(GuiContext *ctx)
 					"%s", ctx->active_label);
 	}
 
-	gui_begin_window(ctx, "layoutwin|Layout settings", 300, 300);
-		LayoutId id = layout_id(ctx->layout_element_label);
+	gui_begin_window(ctx, "layoutwin|Layout settings");
 		GuiElementLayout layout = element_layout(ctx, ctx->layout_element_label);
 
 		gui_label(ctx, "layout|Selected element:");
-		gui_label(ctx, gui_str(ctx, "layout+id|  id: %u", id));
+		gui_label(ctx, gui_str(ctx, "layout+id|  id: %u", layout.id));
 		gui_label(ctx, gui_str(ctx, "layout+name|  name: %s", layout.str));
 
 		GUI_BOOL changed = GUI_FALSE;

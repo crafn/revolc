@@ -105,6 +105,7 @@ typedef struct GuiContext_Window {
 	GUI_BOOL used;
 	GUI_BOOL used_in_last_frame;
 
+	bool has_bar;
 	int bar_height;
 	// Size, not taking account title bar or borders
 	// Depends on window size in layout
@@ -265,7 +266,7 @@ GUI_API void gui_set_scroll(GuiContext *ctx, int scroll_x, int scroll_y); // Mov
 GUI_API void gui_scroll(GuiContext *ctx, int *x, int *y);
 
 // @todo Remove default size when layout is ready
-GUI_API void gui_begin_window(GuiContext *ctx, const char *label, int default_size_x, int default_size_y);
+GUI_API void gui_begin_window(GuiContext *ctx, const char *label);
 GUI_API void gui_end_window(GuiContext *ctx);
 GUI_API void gui_window_client_size(GuiContext *ctx, int *w, int *h);
 
