@@ -116,6 +116,11 @@ void begin_ui_frame()
 		ctx->cursor_pos[1] = g_env.device->cursor_pos.y;
 
 		ctx->key_state[GUI_KEY_LMB] = gui_key_state(KEY_LMB);
+		F64 delta = g_env.device->mwheel_delta;
+		if (delta > 0.0)
+			ctx->mouse_scroll = 1;
+		else if (delta < 0.0)
+			ctx->mouse_scroll = -1;
 
 		for (U32 i = 0; i < g_env.device->written_text_size; ++i)
 			gui_write_char(ctx, g_env.device->written_text_buf[i]);

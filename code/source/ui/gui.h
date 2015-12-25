@@ -10,11 +10,19 @@ Common voluntary options to be defined before including this file, or in this fi
 
 #define GUI_BOOL <type>
 #define GUI_API <declspec>
+#define GUI_MALLOC <func>
+#define GUI_REALLOC <func>
+#define GUI_FREE <func>
 
+The library is designed to make zero memory allocations during normal runtime. It will allocate more memory in the following cases:
+ - The number of gui elements increase -- this can be prevented by increasing
+   GUI_DEFAULT_FRAME_MEMORY.
+ - New layout rules are added. This usually is not a problem,
+   because gui layout is meant to be adjusted by developers only.
 
 Todo list
- - C99 -> C89
  - layouting
+ - C99 -> C89 (while keeping C++ compat)
  - header-only
  - simple example
  - advanced example
@@ -22,9 +30,10 @@ Todo list
 
 */
 
-#define MAX_GUI_LABEL_SIZE 256
-#define MAX_GUI_STACK_SIZE 32
-#define MAX_GUI_ELEMENT_COUNT 256 // @todo Remove limit
+#define GUI_DEFAULT_FRAME_MEMORY (1024*10)
+
+#define MAX_GUI_LABEL_SIZE 256 // @todo Change to MAX_GUI_ID_SIZE which can be like 64
+#define MAX_GUI_STACK_SIZE 32 // @todo Remove limit
 #define MAX_GUI_WINDOW_COUNT 64 // @todo Remove limit
 #define MAX_GUI_FRAME_COUNT 64 // @todo Remove limit
 #define GUI_FILENAME_SIZE MAX_PATH_SIZE // @todo Remove limit
@@ -41,6 +50,18 @@ Todo list
 #	endif
 #endif
 
+#ifndef GUI_MALLOC
+#	define GUI_MALLOC malloc
+#endif 
+
+#ifndef GUI_REALLOC
+#	define GUI_REALLOC realloc
+#endif
+
+#ifndef GUI_FREE
+#	define GUI_FREE free
+#endif
+
 #include <stdint.h>
 #include <stddef.h>
 #if _MSC_VER
@@ -52,6 +73,7 @@ extern "C" {
 #endif
 
 typedef uint32_t GuiId;
+typedef uint32_t LayoutId;
 
 typedef struct DragDropData {
 	const char *tag; // Receiver checks this 
@@ -60,6 +82,7 @@ typedef struct DragDropData {
 
 typedef struct GuiContext_Turtle {
 	int pos[2]; // Output "cursor
+	int size[2];
 	int start_pos[2];
 	int bounding_max[2];
 	int last_bounding_max[2]; // Most recently added gui element
@@ -134,12 +157,12 @@ typedef struct GuiDrawInfo {
 	GuiDrawInfo_Type type;
 	int pos[2];
 	int size[2];
-	bool hovered;
-	bool held;
-	bool selected; // Synonym to checked, focused and active
+	GUI_BOOL hovered;
+	GUI_BOOL held;
+	GUI_BOOL selected; // Synonym to checked, focused and active
 	const char *text;
 	int layer;
-	bool has_scissor;
+	GUI_BOOL has_scissor;
 	int scissor_pos[2];
 	int scissor_size[2];
 } GuiDrawInfo;
@@ -149,6 +172,16 @@ typedef struct GuiContext_MemBucket {
 	int size;
 	int used;
 } GuiContext_MemBucket;
+
+typedef struct GuiElementLayout {
+	LayoutId id;
+	char str[MAX_GUI_LABEL_SIZE]; // For debugging only
+
+	GUI_BOOL align_left, align_right;
+
+	GUI_BOOL has_default_size;
+	int default_size[2];
+} GuiElementLayout;
 
 typedef void (*CalcTextSizeFunc)(int ret[2], void *user_data, const char *text);
 
@@ -189,6 +222,7 @@ typedef struct GuiContext {
 	GuiId hot_id, last_hot_id;
 	int hot_layer;
 	GuiId active_id, last_active_id;
+	char active_label[MAX_GUI_LABEL_SIZE];
 	int active_win_ix;
 
 	CalcTextSizeFunc calc_text_size;
@@ -198,7 +232,12 @@ typedef struct GuiContext {
 	int draw_info_capacity;
 	int draw_info_count;
 
-#	define GUI_DEFAULT_MAX_FRAME_MEMORY (1024*10)
+	GuiElementLayout *layouts;
+	int layout_capacity;
+	int layout_count;
+	GUI_BOOL layouts_need_sorting;
+	char layout_element_label[MAX_GUI_LABEL_SIZE];
+
 	// List of buffers which are invalidated every frame. Used for temp strings.
 	GuiContext_MemBucket *framemem_buckets;
 	int framemem_bucket_count; // It's best to have just one bucket, but sometimes memory usage can peak and more memory is allocated.
@@ -228,6 +267,7 @@ GUI_API void gui_end_frame(GuiContext *ctx);
 GUI_API void gui_set_frame_scroll(GuiContext *ctx, int scroll_x, int scroll_y); // Move frame contents
 GUI_API void gui_frame_scroll(GuiContext *ctx, int *x, int *y);
 
+// @todo Remove default size when layout is ready
 GUI_API void gui_begin_window(GuiContext *ctx, const char *label, int default_size_x, int default_size_y);
 GUI_API void gui_end_window(GuiContext *ctx);
 GUI_API void gui_window_client_size(GuiContext *ctx, int *w, int *h);
@@ -242,16 +282,14 @@ GUI_API GUI_BOOL gui_contextmenu_item(GuiContext *ctx, const char *label);
 GUI_API void gui_begin_dragdrop_src(GuiContext *ctx, DragDropData data);
 GUI_API void gui_end_dragdrop_src(GuiContext *ctx);
 
-// Gui controls
-GUI_API GUI_BOOL gui_knob(GuiContext *ctx, const char *label, float min, float max, float *value, const char *value_str);
-GUI_API void gui_label(GuiContext *ctx, const char *label);
-
 GUI_API GUI_BOOL gui_button(GuiContext *ctx, const char *label);
 GUI_API GUI_BOOL gui_selectable(GuiContext *ctx, const char *label, GUI_BOOL selected);
 GUI_API GUI_BOOL gui_checkbox(GuiContext *ctx, const char *label, GUI_BOOL *value);
 GUI_API GUI_BOOL gui_radiobutton(GuiContext *ctx, const char *label, GUI_BOOL value);
 GUI_API void gui_slider(GuiContext *ctx, const char *label, float *value, float min, float max);
 GUI_API GUI_BOOL gui_textfield(GuiContext *ctx, const char *label, char *buf, int buf_size);
+GUI_API GUI_BOOL gui_intfield(GuiContext *ctx, const char *label, int *value);
+GUI_API void gui_label(GuiContext *ctx, const char *label);
 
 GUI_API void gui_begin_listbox(GuiContext *ctx, const char *label);
 GUI_API void gui_end_listbox(GuiContext *ctx);
@@ -262,8 +300,8 @@ if (gui_begin_combo(ctx, "label")) {
 	gui_combo_item(ctx, "bar");
 	gui_end_combo(ctx);
 } */
-GUI_API bool gui_begin_combo(GuiContext *ctx, const char *label);
-GUI_API bool gui_combo_item(GuiContext *ctx, const char *label);
+GUI_API GUI_BOOL gui_begin_combo(GuiContext *ctx, const char *label);
+GUI_API GUI_BOOL gui_combo_item(GuiContext *ctx, const char *label);
 GUI_API void gui_end_combo(GuiContext *ctx);
 
 GUI_API void gui_begin(GuiContext *ctx, const char *label);
@@ -281,6 +319,9 @@ GUI_API void gui_enlarge_bounding(GuiContext *ctx, int x, int y);
 // @todo Remove
 GUI_API void gui_ver_space(GuiContext *ctx);
 GUI_API void gui_hor_space(GuiContext *ctx);
+
+// Shows a window which allows manipulating gui layout at runtime
+GUI_API void gui_layout_settings(GuiContext *ctx);
 
 #if __cplusplus
 }

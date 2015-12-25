@@ -126,10 +126,10 @@ void upd_editor()
 	if (e->state == EditorState_gui_test) {
 		GuiContext *ctx = g_env.uicontext->gui;
 
-		gui_begin_window(ctx, "win", 100, 100);
-			gui_button(ctx, "foo");
-			gui_button(ctx, "bar");
-			gui_button(ctx, "nappi");
+		gui_begin_window(ctx, "win", 200, 500);
+			for (U32 i = 0; i < 30; ++i) {
+				gui_button(ctx, gui_str(ctx, "btn_in_list+%i|button_%i", i, i));
+			}
 		gui_end_window(ctx);
 
 		gui_begin_window(ctx, "Gui components", 200, 200);
@@ -150,5 +150,7 @@ void upd_editor()
 		gui_begin_panel(ctx, "panel");
 			gui_button(ctx, "button");
 		gui_end_panel(ctx);
+
+		gui_layout_settings(ctx);
 	}
 }
