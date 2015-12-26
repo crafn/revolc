@@ -82,13 +82,12 @@ typedef struct DragDropData {
 
 // @todo Rename to GuiLayer or something
 typedef struct GuiContext_Turtle {
-	int pos[2]; // Output "cursor
-	int size[2];
-	int start_pos[2];
-	int bounding_max[2];
+	int pos[2]; // Output "cursor"
+	int size[2]; // Forecasted size from layout (can be modified by the element)
+	int start_pos[2]; // @todo Could maybe be removed
+	int bounding_max[2]; // @todo Could maybe be removed (use size)
 	int last_bounding_max[2]; // Most recently added gui element
 	char label[MAX_GUI_LABEL_SIZE]; // Label of the gui_begin
-	int frame_ix;
 	int window_ix;
 	int layer; // Graphical layer
 	GUI_BOOL detached; // If true, moving of this turtle doesn't affect parent bounding boxes etc.
@@ -107,12 +106,12 @@ typedef struct GuiContext_Window {
 
 	bool has_bar;
 	int bar_height;
-	// Size, not taking account title bar or borders
+	// Size on screen, not taking account title bar or borders
 	// Depends on window size in layout
 	int client_size[2];
 
 	GUI_BOOL needs_scroll[2];
-	int last_bounding_size[2];
+	int last_bounding_size[2]; // @todo Rename to content size
 	int scroll[2]; // Translation in pt. Cannot be relative, because adding content shouldn't cause translation to change.
 } GuiContext_Window;
 

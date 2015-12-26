@@ -289,6 +289,9 @@ void gui_set_turtle_pos(GuiContext *ctx, int x, int y)
 
 GuiContext_Window *gui_window(GuiContext *ctx)
 {
+	if (gui_turtle(ctx)->window_ix == GUI_NONE_WINDOW_IX ||
+		gui_turtle(ctx)->window_ix == GUI_BG_WINDOW_IX)
+		return NULL;
 	assert(gui_turtle(ctx)->window_ix < ctx->window_count);
 	return gui_turtle(ctx)->window_ix >= 0 ? &ctx->windows[gui_turtle(ctx)->window_ix] : NULL;
 }
@@ -454,7 +457,6 @@ GuiContext *create_gui(CalcTextSizeFunc calc_text, void *user_data_for_calc_text
 
 	// "Null" turtle
 	gui_turtle(ctx)->window_ix = GUI_BG_WINDOW_IX;
-	gui_turtle(ctx)->frame_ix = -1;
 
 	ctx->draw_info_capacity = 64;
 
@@ -604,6 +606,7 @@ void gui_begin(GuiContext *ctx, const char *label)
 		ctx->turtle_ix = 0; // Failsafe
 
 	GuiElementLayout layout = element_layout(ctx, label);
+	//GuiContext_Window *win = gui_window(ctx);
 
 	GuiContext_Turtle *prev = &ctx->turtles[ctx->turtle_ix];
 	GuiContext_Turtle *cur = &ctx->turtles[++ctx->turtle_ix];
@@ -612,6 +615,14 @@ void gui_begin(GuiContext *ctx, const char *label)
 	GUI_ZERO(new_turtle);
 	{ // Init pos and size using layout
 		GUI_ASSIGN_V2(new_turtle.pos, prev->pos);
+		int prev_size[2];
+		GUI_ASSIGN_V2(prev_size, prev->size);
+		// @todo Make work
+		//if (win) {
+			// Make right-aligned go to right side of content, not right side of win
+		//	GUI_V2(prev_size[c] = MAX(prev_size[c], win->last_bounding_size[c]));
+		//}
+
 		if (layout.has_offset)
 			GUI_V2(new_turtle.pos[c] += layout.offset[c]);
 
@@ -623,10 +634,10 @@ void gui_begin(GuiContext *ctx, const char *label)
 		if (layout.align_right) {
 			if (layout.align_left) {
 				// Stretch
-				new_turtle.size[0] = prev->size[0];
+				new_turtle.size[0] = prev_size[0];
 			} else {
 				// Move
-				new_turtle.pos[0] = prev->pos[0] + prev->size[0] - new_turtle.size[0];
+				new_turtle.pos[0] = prev->pos[0] + prev_size[0] - new_turtle.size[0];
 			}
 		}
 
@@ -635,15 +646,16 @@ void gui_begin(GuiContext *ctx, const char *label)
 		if (layout.align_bottom) {
 			if (layout.align_top) {
 				// Stretch
-				new_turtle.size[1] = prev->size[1];
+				new_turtle.size[1] = prev_size[1];
 			} else {
 				// Move
-				new_turtle.pos[1] = prev->pos[1] + prev->size[1] - new_turtle.size[1];
+				new_turtle.pos[1] = prev->pos[1] + prev_size[1] - new_turtle.size[1];
 			}
 		}
 	}
 	GUI_ASSIGN_V2(new_turtle.start_pos, new_turtle.pos);
-	GUI_V2(new_turtle.bounding_max[c] = new_turtle.start_pos[c] + new_turtle.size[c]);
+	// Element will report how much space it took, regardless of turtle.size
+	GUI_V2(new_turtle.bounding_max[c] = new_turtle.start_pos[c]);
 	GUI_ASSIGN_V2(new_turtle.last_bounding_max, new_turtle.bounding_max);
 	new_turtle.window_ix = prev->window_ix;
 	new_turtle.layer = prev->layer + 1;
@@ -1397,6 +1409,18 @@ void gui_layout_settings(GuiContext *ctx)
 		changed |= gui_checkbox(ctx, "layout+right|align_right", &layout.align_right);
 		changed |= gui_checkbox(ctx, "layout+top|align_top", &layout.align_top);
 		changed |= gui_checkbox(ctx, "layout+bottom|align_bottom", &layout.align_bottom);
+
+		gui_begin_listbox(ctx, "layout+list");
+		for (int i = 0; i < ctx->layout_count; ++i) {
+			GuiElementLayout l = ctx->layouts[i];
+			const char *label = gui_str(ctx, "layout+%i|%s", i, l.str);
+			if (gui_selectable(ctx, label, l.id == layout.id)) {
+				GUI_FMT_STR(ctx->layout_element_label,
+							sizeof(ctx->layout_element_label),
+							"%s", l.str);
+			}
+		}
+		gui_end_listbox(ctx);
 
 		if (changed) {
 			update_element_layout(ctx, layout);
