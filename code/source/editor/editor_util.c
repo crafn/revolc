@@ -2,134 +2,6 @@
 #include "visual/font.h"
 #include "ui/gui.h"
 
-
-void ogui_text(const char *text)
-{
-	V2i px_pos = ogui_turtle_pos();
-	ogui_begin((V2i) {1, 0});
-
-	const U32 max_quad_count = strlen(text);
-	const U32 max_vert_count = 4*max_quad_count;
-	const U32 max_ind_count = 6*max_quad_count;
-	TriMeshVertex *verts = frame_alloc(sizeof(*verts)*max_vert_count);
-	MeshIndexType *inds = frame_alloc(sizeof(*inds)*max_ind_count);
-	V2i size;
-	U32 quad_count = text_mesh(&size, verts, inds, gui_font(), text);
-	const U32 v_count = 4*quad_count;
-	const U32 i_count = 6*quad_count;
-
-	drawcmd(px_tf(px_pos, (V2i) {1, 1}),
-			verts, v_count,
-			inds, i_count,
-			gui_font()->atlas_uv,
-			white_color(), white_color(),
-			ogui_next_draw_layer(),
-			0.0,
-			NULL_PATTERN);
-
-	ogui_end();
-	ogui_advance_turtle(size);
-}
-
-bool ogui_button(const char *label, bool *is_down, bool *is_hovered)
-{
-	V2i px_pos = ogui_turtle_pos();
-	V2i px_size = calc_text_mesh_size(gui_font(), label);
-	px_size.x += 12;
-	px_size.y += 5;
-
-	ogui_begin((V2i) {1, 0});
-	UiContext *ctx = g_env.uicontext;
-	const V2i c_p = ctx->dev.cursor_pos;
-
-	bool pressed = false;
-	bool down = false;
-	bool hover = false;
-
-	if (ogui_is_active(label)) {
-		if (ctx->dev.lmb.down) {
-			down = true;
-		} else {
-			pressed = true;
-			ogui_set_inactive(label);
-		}
-	} else if (ogui_is_hot(label)) {
-		if (ctx->dev.lmb.pressed) {
-			down = true;
-			ogui_set_active(label);
-		}
-	}
-
-	if (	c_p.x >= px_pos.x &&
-			c_p.y >= px_pos.y &&
-			c_p.x < px_pos.x + px_size.x &&
-			c_p.y < px_pos.y + px_size.y) {
-		hover = true;
-		ogui_set_hot(label);
-	}
-
-	Color bg_color = darken_color(panel_color());
-	if (down)
-		bg_color = darken_color(bg_color);
-	else if (hover)
-		bg_color = highlight_color(bg_color);
-
-	{ // Leave margin
-		V2i p = add_v2i(px_pos, (V2i) {1, 1});
-		V2i s = sub_v2i(px_size, (V2i) {2, 2});
-		drawcmd_px_quad(p, s, 0.0, bg_color, bg_color, ogui_next_draw_layer());
-	}
-
-	ogui_set_turtle_pos(add_v2i(px_pos, (V2i) {5, 1}));
-	ogui_text(frame_str("%s", label));
-
-	ogui_end();
-
-	ogui_advance_turtle(px_size);
-
-	if (is_down)
-		*is_down = down;
-	if (is_hovered)
-		*is_hovered = hover;
-	return pressed;
-}
-
-bool ogui_begin_combobox(const char *label)
-{
-	UiContext *ctx = g_env.uicontext;
-
-	bool btn_down;
-	V2i combobox_pos = ogui_turtle_pos();
-	ctx->combobox_released =
-		ogui_button(	label, &btn_down, NULL);
-	V2i list_start_pos = {
-		combobox_pos.x, combobox_pos.y - ogui_last_adv_size().y
-	};
-	const bool open = btn_down || ctx->combobox_released;
-
-	if (open) {
-		ogui_begin((V2i) {0, -1}); // User calls ogui_end()
-		ogui_set_turtle_pos(list_start_pos);
-	}
-
-	return open;
-}
-
-bool ogui_combobox_item(const char *label)
-{
-	UiContext *ctx = g_env.uicontext;
-
-	bool hovered;
-	ogui_button(label, NULL, &hovered);
-
-	return ctx->combobox_released && hovered;
-}
-
-void ogui_end_combobox()
-{
-	ogui_end();
-}
-
 F64 editor_vertex_size()
 { return screen_to_world_size((V2i) {5, 0}).x; }
 
@@ -181,11 +53,11 @@ V3f cursor_scale_delta_in_tf_coords(T3d tf)
 CursorDeltaMode cursor_delta_mode(const char *label)
 {
 	UiContext *ctx = g_env.uicontext;
-	if (ctx->dev.grabbing == ogui_id(label))
+	if (ctx->dev.grabbing == gui_id(label))
 		return CursorDeltaMode_translate;
-	if (ctx->dev.rotating == ogui_id(label))
+	if (ctx->dev.rotating == gui_id(label))
 		return CursorDeltaMode_rotate;
-	if (ctx->dev.scaling == ogui_id(label))
+	if (ctx->dev.scaling == gui_id(label))
 		return CursorDeltaMode_scale;
 	return CursorDeltaMode_none;
 }
@@ -197,17 +69,17 @@ CursorDeltaMode cursor_transform_delta_world(	T3f *out,
 	UiContext *ctx = g_env.uicontext;
 	*out = identity_t3f();
 
-	if (ctx->dev.grabbing == ogui_id(label)) {
+	if (ctx->dev.grabbing == gui_id(label)) {
 		out->pos = cursor_delta_in_tf_coords(coords);
 		return CursorDeltaMode_translate;
 	}
 
-	if (ctx->dev.rotating == ogui_id(label)) {
+	if (ctx->dev.rotating == gui_id(label)) {
 		out->rot = cursor_rot_delta_in_tf_coords(coords);
 		return CursorDeltaMode_rotate;
 	}
 
-	if (ctx->dev.scaling == ogui_id(label)) {
+	if (ctx->dev.scaling == gui_id(label)) {
 		out->scale = cursor_scale_delta_in_tf_coords(coords);
 		return CursorDeltaMode_scale;
 	}
@@ -226,7 +98,7 @@ CursorDeltaMode cursor_transform_delta_pixels(	T3f *out,
 	V3d prev_p = {ctx->dev.prev_cursor_pos.x, ctx->dev.prev_cursor_pos.y, 0};
 	V3d center = coords.pos;
 
-	if (ctx->dev.grabbing == ogui_id(label)) {
+	if (ctx->dev.grabbing == gui_id(label)) {
 		V3d cur = mul_t3d(	inv_t3d(coords),
 							(T3d) {	{1, 1, 1},
 									identity_qd(),
@@ -239,14 +111,14 @@ CursorDeltaMode cursor_transform_delta_pixels(	T3f *out,
 		return CursorDeltaMode_translate;
 	} 
 
-	if (ctx->dev.rotating == ogui_id(label)) {
+	if (ctx->dev.rotating == gui_id(label)) {
 		V3f v1 = v3d_to_v3f(sub_v3d(prev_p, center));
 		V3f v2 = v3d_to_v3f(sub_v3d(cur_p, center));
 		out->rot = qf_by_from_to(v1, v2);
 		return CursorDeltaMode_rotate;
 	}
 
-	if (ctx->dev.scaling == ogui_id(label)) {
+	if (ctx->dev.scaling == gui_id(label)) {
 		V3f w1 = v3d_to_v3f(sub_v3d(prev_p, center));
 		V3f w2 = v3d_to_v3f(sub_v3d(cur_p, center));
 

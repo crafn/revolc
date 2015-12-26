@@ -17,22 +17,10 @@ typedef struct EditorBoxState {
 	bool ldown;
 } EditorBoxState;
 
-// @todo Move to ui
-REVOLC_API void ogui_text(const char *text);
-REVOLC_API bool ogui_button(const char *label, bool *is_down, bool *hovered);
-
-//	if (ogui_begin_listbox("foo")) {
-//		ogui_listbox_item("bar");
-//		ogui_end(); // Inside if!
-//	}
-REVOLC_API bool ogui_begin_combobox(const char *label);
-REVOLC_API bool ogui_combobox_item(const char *label);
-REVOLC_API void ogui_end_combobox();
-
 REVOLC_API F64 editor_vertex_size();
 
 // @todo Not sure if this is a good idea. Could probably just have
-//   if (ctx.dev.grabbing == ogui_id(label))
+//   if (ctx.dev.grabbing == gui_id(label))
 // instead of
 //   if (cursor_delta_mode(label) == CursorDeltaMode_translate)
 typedef enum {
