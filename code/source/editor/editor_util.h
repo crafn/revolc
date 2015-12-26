@@ -3,6 +3,7 @@
 
 #include "build.h"
 #include "core/color.h"
+#include "ui/gui.h"
 
 /// @todo Remove unused fields
 typedef struct EditorBoxState {
@@ -53,12 +54,12 @@ REVOLC_API CursorDeltaMode cursor_transform_delta_pixels(	T3f *out,
 															T3d coords);
 
 // Top-left box
-REVOLC_API void ogui_res_info(ResType t, const Resource *res);
+REVOLC_API void gui_res_info(ResType t, const Resource *res);
 
 // Some common functionality, like scale/grab/rotate
-REVOLC_API EditorBoxState ogui_editorbox(	const char *label,
-											V2i px_pos,
-											V2i px_size,
+REVOLC_API EditorBoxState gui_editorbox(	GuiContext *ctx,
+											V2i *p, V2i *s,
+											const char *label,
 											bool invisible);
 
 #endif // REVOLC_EDITOR_EDITOR_UTIL_H

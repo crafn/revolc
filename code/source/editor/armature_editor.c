@@ -26,7 +26,7 @@ bool ogui_armature_overlay(ArmatureEditor *state, bool is_edit_mode)
 
 	const char *box_label = "armature_overlay_box";
 	EditorBoxState bstate =
-		ogui_editorbox(box_label, (V2i) {0, 0}, g_env.device->win_size, true);
+		gui_editorbox(g_env.uicontext->gui, NULL, NULL, box_label, true);
 
 	if (!is_edit_mode) {
 		if (bstate.down)
@@ -173,6 +173,8 @@ void do_armature_editor(	ArmatureEditor *state,
 							bool active)
 {
 	UiContext *ctx = g_env.uicontext;
+	GuiContext *gui = ctx->gui;
+
 	if (active) {
 		bool editing_happening = ogui_armature_overlay(state, is_edit_mode);
 
@@ -183,14 +185,16 @@ void do_armature_editor(	ArmatureEditor *state,
 			a = entity->armature;	
 		}
 
-		ogui_res_info(ResType_Armature, a ? &a->res : NULL);
+		gui_res_info(ResType_Armature, a ? &a->res : NULL);
 
 		{ // Timeline box
-			V2i px_pos = {0, -150};
-			V2i px_size = {g_env.device->win_size.x, 150};
+			gui_begin(gui, "timeline");
+			V2i px_pos, px_size;
+			gui_turtle_pos(gui, &px_pos.x, &px_pos.y);
+			gui_turtle_size(gui, &px_size.x, &px_size.y);
+
 			drawcmd_px_quad(px_pos, px_size, 0.0, ogui_dev_panel_color(), ogui_dev_panel_color(), ogui_next_draw_layer());
 
-			ogui_begin((V2i) {1, 0});
 			ogui_set_turtle_pos(px_pos);
 
 			if (strlen(state->clip_name) == 0)
@@ -275,7 +279,7 @@ void do_armature_editor(	ArmatureEditor *state,
 			drawcmd_px_quad(px_pos, px_size, 0.0, c, c, ogui_next_draw_layer());
 			const char *clip_timeline_label = "clip_timeline";
 			EditorBoxState bstate =
-				ogui_editorbox(clip_timeline_label, px_pos, px_size, true);
+				gui_editorbox(g_env.uicontext->gui, NULL, NULL, clip_timeline_label, true);
 			if (entity && a) {
 				if (state->clip_is_bind_pose) {
 					entity->pose = identity_pose();
@@ -367,7 +371,7 @@ void do_armature_editor(	ArmatureEditor *state,
 				}
 			}
 
-			ogui_end();
+			gui_end(gui);
 		}
 	}
 

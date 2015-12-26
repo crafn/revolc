@@ -133,24 +133,35 @@ void upd_editor()
 		gui_end_window(ctx);
 
 		gui_begin_window(ctx, "Gui components");
-			local_persist bool checkbox = 0;
 			local_persist int btn = 0;
 			local_persist F32 slider = 0;
 			local_persist char buf[128];
+			local_persist const char *combo = "none";
 
-			gui_checkbox(ctx, "Checkbox", &checkbox);
+			const char *combos[3] = {"combo1", "combo2", "combo3"};
+
+			gui_checkbox(ctx, "Show layout editor", &e->edit_layout);
 			if (gui_radiobutton(ctx, "Radio 1", btn == 0)) btn = 0;
 			if (gui_radiobutton(ctx, "Radio 2", btn == 1)) btn = 1;
 			if (gui_radiobutton(ctx, "Radio 3", btn == 2)) btn = 2;
 			gui_slider(ctx, "Slider", &slider, 0.0f, 1.0f);
 			gui_textfield(ctx, "Textfield", buf, sizeof(buf));
 
+			if (gui_begin_combo(ctx, combo)) {
+				for (U32 i = 0; i < sizeof(combos)/sizeof(*combos); ++i) {
+					if (gui_combo_item(ctx, combos[i]))
+						combo = combos[i];
+				}
+				gui_end_combo(ctx);
+			}
+
 		gui_end_window(ctx);
 
 		gui_begin_panel(ctx, "panel");
 			gui_button(ctx, "button");
 		gui_end_panel(ctx);
-
-		gui_layout_settings(ctx, "../../code/source/ui/gen_layout.c");
 	}
+
+	if (e->edit_layout)
+		gui_layout_settings(g_env.uicontext->gui, "../../code/source/ui/gen_layout.c");
 }

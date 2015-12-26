@@ -22,6 +22,7 @@ typedef struct Editor {
 	bool is_edit_mode; // Edit or object mode
 
 	EditorState state;
+	bool edit_layout;
 } Editor;
 
 // Sets g_env.editor

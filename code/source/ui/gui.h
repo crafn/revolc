@@ -19,16 +19,18 @@ The library is designed to make zero memory allocations during normal runtime. I
  - The number of gui elements increase -- this can be prevented by increasing
    GUI_DEFAULT_FRAME_MEMORY.
  - New layout rules are added. This usually is not a problem,
-   because gui layout is meant to be adjusted by developers only.
+   because gui layout is meant to be adjusted & saved before shipping.
 
 Todo list
- - layouting
  - C99 -> C89 (while keeping C++ compat)
  - header-only
  - simple example
  - advanced example
+ - custom element example
  - name for the library
-
+ - check/rename functions (prefix gui_)
+ - check/rename datatypes (prefix Gui)
+ - format comments of api to end of lines
 */
 
 #define GUI_DEFAULT_FRAME_MEMORY (1024*10)
@@ -199,6 +201,8 @@ typedef struct GuiElementLayout {
 	GUI_BOOL has_size;
 	int size[2];
 
+	GUI_BOOL prevent_resizing;
+
 	GUI_BOOL align_left, align_right, align_top, align_bottom;
 } GuiElementLayout;
 
@@ -213,8 +217,6 @@ typedef struct GuiContext {
 	uint8_t key_state[GUI_KEY_COUNT];
 
 	// Internals
-
-	int next_window_pos[2];
 
 	int drag_start_pos[2]; // Pixel coordinates
 	GUI_BOOL dragging;
@@ -319,14 +321,30 @@ GUI_API GUI_BOOL gui_begin_combo(GuiContext *ctx, const char *label);
 GUI_API GUI_BOOL gui_combo_item(GuiContext *ctx, const char *label);
 GUI_API void gui_end_combo(GuiContext *ctx);
 
+// Shows a window which allows editing gui layout at runtime
+GUI_API void gui_layout_settings(GuiContext *ctx, const char *save_path);
+
+
+//
+// Tools for creating custom gui elements
+//
+
 GUI_API void gui_begin(GuiContext *ctx, const char *label);
 GUI_API void gui_end(GuiContext *ctx);
 GUI_API void gui_end_droppable(GuiContext *ctx, DragDropData *dropped);
 GUI_API void gui_end_ex(GuiContext *ctx, GUI_BOOL make_zero_size, DragDropData *dropped);
 
-GUI_API void gui_set_next_window_pos(GuiContext *ctx, int x, int y); // @todo Remove
+GuiId gui_id(const char *label);
+
+void gui_set_hot(GuiContext *ctx, const char *label);
+GUI_BOOL gui_is_hot(GuiContext *ctx, const char *label);
+GUI_API void gui_set_active(GuiContext *ctx, const char *label);
+GUI_API void gui_set_inactive(GuiContext *ctx, GuiId id);
+GUI_API GUI_BOOL gui_is_active(GuiContext *ctx, const char *label);
+
 GUI_API void gui_set_turtle_pos(GuiContext *ctx, int x, int y);
 GUI_API void gui_turtle_pos(GuiContext *ctx, int *x, int *y);
+GUI_API void gui_turtle_size(GuiContext *ctx, int *x, int *y);
 GUI_API void gui_next_row(GuiContext *ctx); // @todo Remove
 GUI_API void gui_next_col(GuiContext *ctx); // @todo Remove
 GUI_API void gui_enlarge_bounding(GuiContext *ctx, int x, int y);
@@ -335,10 +353,10 @@ GUI_API void gui_enlarge_bounding(GuiContext *ctx, int x, int y);
 GUI_API void gui_ver_space(GuiContext *ctx);
 GUI_API void gui_hor_space(GuiContext *ctx);
 
-// Shows a window which allows manipulating gui layout at runtime
-GUI_API void gui_layout_settings(GuiContext *ctx, const char *save_path);
-
+//
 // Internal
+//
+
 void append_element_layout(GuiContext *ctx, GuiElementLayout layout);
 
 #if __cplusplus

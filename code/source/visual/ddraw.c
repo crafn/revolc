@@ -25,7 +25,9 @@ void ddraw_poly(Color c, V3d *poly, U32 count)
 		TriMeshVertex v = {
 			.pos = v3d_to_v3f(poly[i]),
 			.uv = atlas_uv,
+			.outline_uv = (V2f) {0.5, 0.5},
 			.color = c,
+			.outline_color = c,
 		};
 		r->ddraw_v[r->ddraw_v_count++] = v;
 	}

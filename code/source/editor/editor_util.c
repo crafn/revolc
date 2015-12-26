@@ -1,5 +1,6 @@
 #include "editor_util.h"
 #include "visual/font.h"
+#include "ui/gui.h"
 
 internal
 const Font *ogui_font()
@@ -294,81 +295,91 @@ CursorDeltaMode cursor_transform_delta_pixels(	T3f *out,
 	return CursorDeltaMode_translate;
 }
 
-void ogui_res_info(ResType t, const Resource *res)
+void gui_res_info(ResType t, const Resource *res)
 {
-	ogui_set_turtle_pos((V2i) {0, 0});
-	char *str = frame_str(	"%s: %s",
-							restype_to_str(t),
-							res ? res->name : "<none>");
-	V2i size = calc_text_mesh_size(ogui_font(), str);
-	size.y += 3;
-	drawcmd_px_quad((V2i) {0, 0}, size, 0.0, ogui_dev_panel_color(), ogui_dev_panel_color(), ogui_next_draw_layer());
-	ogui_text(str);
+	GuiContext *ctx = g_env.uicontext->gui;
+
+	gui_begin_panel(ctx, "res_info");
+	const char *str = gui_str(	ctx, "%s: %s",
+								restype_to_str(t),
+								res ? res->name : "<none>");
+	gui_label(ctx, str);
+	gui_end_panel(ctx);
 }
 
-EditorBoxState ogui_editorbox(	const char *label,
-								V2i px_pos,
-								V2i px_size,
+EditorBoxState gui_editorbox(	GuiContext *ctx,
+								V2i *p, V2i *s,
+								const char *label,
 								bool invisible)
 {
-	ogui_wrap(&px_pos, &px_size);
-	UiContext *ctx = g_env.uicontext;
-	const V2i c_p = ctx->dev.cursor_pos;
+	UiContext *ui = g_env.uicontext;
+	const V2i c_p = ui->dev.cursor_pos;
 	const Color c = ogui_dev_panel_color();
+
+	gui_begin(ctx, label);
+
+	V2i px_pos, px_size;
+	gui_turtle_pos(ctx, &px_pos.x, &px_pos.y);
+	gui_turtle_size(ctx, &px_size.x, &px_size.y);
+
+	if (p)
+		*p = px_pos;
+	if (s)
+		*s = px_size;
 
 	EditorBoxState state = {};
 
-	if (ogui_is_active(label)) {
+	if (gui_is_active(ctx, label)) {
 		state.pressed = false;
-		if (	!ctx->dev.lmb.down &&
-				!ctx->dev.rmb.down &&
-				!ctx->dev.grabbing && !ctx->dev.rotating && !ctx->dev.scaling) {
+		if (	!ui->dev.lmb.down &&
+				!ui->dev.rmb.down &&
+				!ui->dev.grabbing && !ui->dev.rotating && !ui->dev.scaling) {
 			state.released = true;
-			ogui_set_inactive(label);
-		} else if (	ctx->dev.lmb.down &&
-					!ctx->dev.grabbing && !ctx->dev.rotating && !ctx->dev.scaling) {
+			gui_set_inactive(ctx, gui_id(label));
+		} else if (	ui->dev.lmb.down &&
+					!ui->dev.grabbing && !ui->dev.rotating && !ui->dev.scaling) {
 			// ldown == true if nothing else is going on
 			state.ldown = true;
-		} else if (ctx->dev.rmb.down) {
+		} else if (ui->dev.rmb.down) {
 			state.down = true;
 		}
 
-		if (	ctx->dev.rmb.pressed &&
-				(ctx->dev.grabbing || ctx->dev.rotating || ctx->dev.scaling)) {
+		if (	ui->dev.rmb.pressed &&
+				(ui->dev.grabbing || ui->dev.rotating || ui->dev.scaling)) {
 			// Cancel
 			editor_revert_res_state();
-			ctx->dev.grabbing = 0;
-			ctx->dev.rotating = 0;
-			ctx->dev.scaling = 0;
-			ogui_set_inactive(label);
+			ui->dev.grabbing = 0;
+			ui->dev.rotating = 0;
+			ui->dev.scaling = 0;
+			gui_set_inactive(ctx, gui_id(label));
 		}
 
-		if (ctx->dev.lmb.pressed) {
-			ctx->dev.grabbing = 0;
-			ctx->dev.rotating = 0;
-			ctx->dev.scaling = 0;
-			ogui_set_inactive(label);
+		if (ui->dev.lmb.pressed) {
+			ui->dev.grabbing = 0;
+			ui->dev.rotating = 0;
+			ui->dev.scaling = 0;
+			gui_set_inactive(ctx, gui_id(label));
 		}
-	} else if (ogui_is_hot(label)) {
-		if (ctx->dev.lmb.pressed) {
+	} else if (gui_is_hot(ctx, label)) {
+		if (ui->dev.lmb.pressed) {
 			state.ldown = true;
-			ogui_set_active(label);
-		} else if (ctx->dev.rmb.pressed) {
+			gui_set_active(ctx, label);
+		} else if (ui->dev.rmb.pressed) {
 			state.pressed = true;
 			state.down = true;
-			ogui_set_active(label);
-		} else if (ctx->dev.g_pressed) {
-			ctx->dev.grabbing = ogui_id(label);
-			ogui_set_active(label);
-		} else if (ctx->dev.r_pressed) {
-			ctx->dev.rotating = ogui_id(label);
-			ogui_set_active(label);
-		} else if (ctx->dev.s_pressed) {
-			ctx->dev.scaling = ogui_id(label);
-			ogui_set_active(label);
+			gui_set_active(ctx, label);
+		} else if (ui->dev.g_pressed) {
+			ui->dev.grabbing = gui_id(label);
+			gui_set_active(ctx, label);
+		} else if (ui->dev.r_pressed) {
+			ui->dev.rotating = gui_id(label);
+			gui_set_active(ctx, label);
+		} else if (ui->dev.s_pressed) {
+			ui->dev.scaling = gui_id(label);
+			gui_set_active(ctx, label);
 		}
 
-		if (ogui_is_active(label))
+		if (gui_is_active(ctx, label))
 			editor_store_res_state();
 	}
 
@@ -377,11 +388,13 @@ EditorBoxState ogui_editorbox(	const char *label,
 			c_p.x < px_pos.x + px_size.x &&
 			c_p.y < px_pos.y + px_size.y) {
 		state.hover = true;
-		ogui_set_hot(label);
+		gui_set_hot(ctx, label);
 	}
 
 	if (!invisible)
-		drawcmd_px_quad(px_pos, px_size, 0.0, c, c, ogui_next_draw_layer());
+		drawcmd_px_quad(px_pos, px_size, 0.0, c, c, gui_layer(ctx));
+
+	gui_end(ctx);
 
 	return state;
 }

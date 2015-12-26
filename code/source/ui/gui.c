@@ -67,7 +67,7 @@ static GuiId gui_hash(const char *buf, int size)
 	return hash;
 }
 
-static GuiId gui_id(const char *label)
+GuiId gui_id(const char *label)
 {
 	int id_size = 0;
 	// gui_id("foo_button|Press this") == gui_id("foo_button|Don't press this")
@@ -175,6 +175,8 @@ static void save_layout(GuiContext *ctx, const char *path)
 		fprintf(file, "\t\tl.size[0] = %i;\n", l.size[0]);
 		fprintf(file, "\t\tl.size[1] = %i;\n", l.size[1]);
 
+		fprintf(file, "\t\tl.prevent_resizing = %i;\n", l.prevent_resizing);
+
 		fprintf(file, "\t\tl.align_left = %i;\n", l.align_left);
 		fprintf(file, "\t\tl.align_right = %i;\n", l.align_right);
 		fprintf(file, "\t\tl.align_top = %i;\n", l.align_top);
@@ -194,7 +196,7 @@ static GuiContext_Turtle *gui_turtle(GuiContext *ctx)
 	return &ctx->turtles[ctx->turtle_ix];
 }
 
-static void gui_set_hot(GuiContext *ctx, const char *label)
+void gui_set_hot(GuiContext *ctx, const char *label)
 {
 	if (ctx->active_id == 0) {
 		GUI_BOOL set_hot = GUI_FALSE;
@@ -212,12 +214,12 @@ static void gui_set_hot(GuiContext *ctx, const char *label)
 	}
 }
 
-static GUI_BOOL gui_is_hot(GuiContext *ctx, const char *label)
+GUI_BOOL gui_is_hot(GuiContext *ctx, const char *label)
 {
 	return ctx->last_hot_id == gui_id(label);
 }
 
-static void gui_set_active(GuiContext *ctx, const char *label)
+void gui_set_active(GuiContext *ctx, const char *label)
 {
 	ctx->active_id = gui_id(label);
 	GUI_FMT_STR(ctx->active_label, sizeof(ctx->active_label), "%s", label);
@@ -227,7 +229,7 @@ static void gui_set_active(GuiContext *ctx, const char *label)
 	ctx->hot_id = 0; // Prevent the case where hot becomes assigned some different (overlapping) element than active
 }
 
-static void gui_set_inactive(GuiContext *ctx, GuiId id)
+void gui_set_inactive(GuiContext *ctx, GuiId id)
 {
 	if (ctx->active_id == id) {
 		ctx->active_id = 0;
@@ -235,7 +237,7 @@ static void gui_set_inactive(GuiContext *ctx, GuiId id)
 	}
 }
 
-static GUI_BOOL gui_is_active(GuiContext *ctx, const char *label)
+GUI_BOOL gui_is_active(GuiContext *ctx, const char *label)
 {
 	return ctx->active_id == gui_id(label);
 }
@@ -313,12 +315,6 @@ const char *gui_str(GuiContext *ctx, const char *fmt, ...)
 	return text;
 }
 
-void gui_set_next_window_pos(GuiContext *ctx, int x, int y)
-{
-	ctx->next_window_pos[0] = x;
-	ctx->next_window_pos[1] = y;
-}
-
 void gui_set_turtle_pos(GuiContext *ctx, int x, int y)
 {
 	ctx->turtles[ctx->turtle_ix].pos[0] = x;
@@ -354,6 +350,12 @@ void gui_turtle_pos(GuiContext *ctx, int *x, int *y)
 {
 	*x = gui_turtle(ctx)->pos[0];
 	*y = gui_turtle(ctx)->pos[1];
+}
+
+void gui_turtle_size(GuiContext *ctx, int *w, int *h)
+{
+	*w = gui_turtle(ctx)->size[0];
+	*h = gui_turtle(ctx)->size[1];
 }
 
 void gui_parent_turtle_start_pos(GuiContext *ctx, int pos[2])
@@ -846,7 +848,9 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, GUI_BOOL panel)
 	int *pos = gui_turtle(ctx)->pos;
 	int *size = gui_turtle(ctx)->size;
 
-	GUI_V2(size[c] = MAX(size[c], 80));
+	int min_size = panel ? 10 : 80;
+
+	GUI_V2(size[c] = MAX(size[c], min_size));
 
 	int win_handle = -1;
 	{ // Find/create window
@@ -998,7 +1002,8 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, GUI_BOOL panel)
 		GUI_V2(win->scroll[c] = GUI_CLAMP(win->scroll[c], 0, max_scroll[c]));
 	}
 
-	{ // Corner resize handle
+	// Corner resize handle
+	if (!layout.prevent_resizing) {
 		char resize_label[MAX_GUI_LABEL_SIZE];
 		GUI_FMT_STR(resize_label, sizeof(resize_label), "gui_slider+resize_%s", label);
 		gui_begin(ctx, resize_label);
@@ -1019,7 +1024,7 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, GUI_BOOL panel)
 
 		if (down)
 			GUI_V2(size[c] = (int)ctx->drag_start_value[c] + ctx->cursor_pos[c] - ctx->drag_start_pos[c]);
-		GUI_V2(size[c] = GUI_MAX(size[c], 80));
+		GUI_V2(size[c] = GUI_MAX(size[c], min_size));
 
 		int px_pos[2], px_size[2];
 		pt_to_px(px_pos, handle_pos, ctx->dpi_scale);
@@ -1434,11 +1439,12 @@ void gui_layout_settings(GuiContext *ctx, const char *save_path)
 	}
 
 	gui_begin_window(ctx, "gui_layoutwin|Layout settings");
-		GuiElementLayout layout = element_layout(ctx, ctx->layout_element_label);
 
 		gui_label(ctx, "layout|Selected element:");
+		gui_textfield(ctx, "layout+name|  name:", ctx->layout_element_label, sizeof(ctx->layout_element_label));
+
+		GuiElementLayout layout = element_layout(ctx, ctx->layout_element_label);
 		gui_label(ctx, gui_str(ctx, "layout+id|  id: %u", layout.id));
-		gui_label(ctx, gui_str(ctx, "layout+name|  name: %s", layout.str));
 
 		GUI_BOOL changed = GUI_FALSE;
 
@@ -1449,6 +1455,8 @@ void gui_layout_settings(GuiContext *ctx, const char *save_path)
 		changed |= gui_checkbox(ctx, "layout+b_size|has_size", &layout.has_size);
 		changed |= gui_intfield(ctx, "layout+size[0]|width", &layout.size[0]);
 		changed |= gui_intfield(ctx, "layout+size[1]|height", &layout.size[1]);
+
+		changed |= gui_checkbox(ctx, "layout+b_resize|prevent_resizing", &layout.prevent_resizing);
 
 		changed |= gui_checkbox(ctx, "layout+left|align_left", &layout.align_left);
 		changed |= gui_checkbox(ctx, "layout+right|align_right", &layout.align_right);
