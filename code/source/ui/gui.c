@@ -5,14 +5,13 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <math.h>
-#include <stdarg.h>
 
 static void *gui_frame_alloc(GuiContext *ctx, int size);
 
 const int gui_zero_v2i[2] = {0};
 
 #if defined(_MSC_VER) && _MSC_VER <= 1800 // MSVC 2013
-size_t v_sprintf_impl(char *buf, size_t count, const char *fmt, va_list args)
+size_t gui_v_sprintf_impl(char *buf, size_t count, const char *fmt, va_list args)
 {
 	size_t ret = _vsnprintf(buf, count, fmt, args);
 	// Fix unsafeness of msvc _vsnprintf
@@ -21,19 +20,13 @@ size_t v_sprintf_impl(char *buf, size_t count, const char *fmt, va_list args)
 	return ret;
 }
 
-void sprintf_impl(char *buf, size_t count, const char *fmt, ...)
+void gui_sprintf_impl(char *buf, size_t count, const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
 	v_sprintf_impl(buf, count, fmt, args);
 	va_end(args);
 }
-
-#	define GUI_FMT_STR sprintf_impl
-#	define GUI_V_FMT_STR v_sprintf_impl
-#else
-#	define GUI_FMT_STR snprintf
-#	define GUI_V_FMT_STR vsnprintf
 #endif
 
 #define GUI_MAX(a, b) ((a > b) ? (a) : (b))
@@ -83,10 +76,11 @@ static GuiId gui_id(const char *label)
 	return gui_hash(label, id_size);
 }
 
-static GuiId layout_id(const char *label)
+static LayoutId layout_id(const char *label)
 {
 	int layout_size = 0;
-	while (label[layout_size] && label[layout_size] != '+')
+	while (	label[layout_size] &&
+			label[layout_size] != '+' && label[layout_size] != '|')
 		++layout_size;
 	return gui_hash(label, layout_size);
 }
@@ -96,14 +90,14 @@ static int layout_cmp(const void *void_a, const void *void_b)
 {
 	const GuiElementLayout *a = void_a;
 	const GuiElementLayout *b = void_b;
-	return a->id - b->id;
+	return (a->id > b->id) - (a->id < b->id);
 }
 
 static GuiElementLayout element_layout(GuiContext *ctx, const char *label)
 {
 	if (ctx->layouts_need_sorting) {
 		qsort(ctx->layouts, ctx->layout_count, sizeof(*ctx->layouts), layout_cmp);
-		ctx->layouts_need_sorting = false;
+		ctx->layouts_need_sorting = GUI_FALSE;
 	}
 
 	// @todo Consider using hashmap
@@ -114,16 +108,29 @@ static GuiElementLayout element_layout(GuiContext *ctx, const char *label)
 	if (found)
 		return *found;
 
-	// Default layout (zero id and string shouldn't matter)
+	// Default layout
 	GuiElementLayout def;
 	GUI_ZERO(def);
 	def.id = layout_id(label);
 	def.has_size = GUI_TRUE;
-	// @todo Different defaults for different elements
+	// @todo Different defaults for different element types
 	def.size[0] = 100;
 	def.size[1] = 20;
 	GUI_FMT_STR(def.str, sizeof(def.str), "%s", label);
 	return def;
+}
+
+void append_element_layout(GuiContext *ctx, GuiElementLayout layout)
+{
+	if (ctx->layout_count == ctx->layout_capacity) {
+		// Need more space
+		ctx->layout_capacity *= 2;
+		ctx->layouts =
+			GUI_REALLOC(ctx->layouts, sizeof(*ctx->layouts)*ctx->layout_capacity);
+	}
+
+	ctx->layouts[ctx->layout_count++] = layout;
+	ctx->layouts_need_sorting = GUI_TRUE;
 }
 
 static void update_element_layout(GuiContext *ctx, GuiElementLayout layout)
@@ -138,16 +145,48 @@ static void update_element_layout(GuiContext *ctx, GuiElementLayout layout)
 	}
 
 	// New layout, append and mark unsorted
+	append_element_layout(ctx, layout);
+}
 
-	if (ctx->layout_count == ctx->layout_capacity) {
-		// Need more space
-		ctx->layout_capacity *= 2;
-		ctx->layouts =
-			GUI_REALLOC(ctx->layouts, sizeof(*ctx->layouts)*ctx->layout_capacity);
+static void save_layout(GuiContext *ctx, const char *path)
+{
+	FILE *file = fopen(path, "wb");
+	if (!file) {
+		GUI_PRINTF("save_layout: can't open file '%s'\n", path);
+		return;
+	}
+	fprintf(file, "void load_layout(GuiContext *ctx)\n");
+	fprintf(file, "{\n");
+	fprintf(file, "\tctx->layout_count = 0;\n");
+
+	for (int i = 0; i < ctx->layout_count; ++i) {
+		GuiElementLayout l = ctx->layouts[i];
+
+		fprintf(file, "\t{\n");
+		fprintf(file, "\t\tGuiElementLayout l = {0};\n");
+		fprintf(file, "\t\tl.id = %u;\n", l.id);
+		fprintf(file, "\t\tGUI_FMT_STR(l.str, sizeof(l.str), \"%%s\", \"%s\");\n",
+			l.str);
+		fprintf(file, "\t\tl.has_offset = %i;\n", l.has_offset);
+		fprintf(file, "\t\tl.offset[0] = %i;\n", l.offset[0]);
+		fprintf(file, "\t\tl.offset[1] = %i;\n", l.offset[1]);
+
+		fprintf(file, "\t\tl.has_size = %i;\n", l.has_size);
+		fprintf(file, "\t\tl.size[0] = %i;\n", l.size[0]);
+		fprintf(file, "\t\tl.size[1] = %i;\n", l.size[1]);
+
+		fprintf(file, "\t\tl.align_left = %i;\n", l.align_left);
+		fprintf(file, "\t\tl.align_right = %i;\n", l.align_right);
+		fprintf(file, "\t\tl.align_top = %i;\n", l.align_top);
+		fprintf(file, "\t\tl.align_bottom = %i;\n", l.align_bottom);
+
+		fprintf(file, "\t\tappend_element_layout(ctx, l);\n");
+
+		fprintf(file, "\t}\n\n");
 	}
 
-	ctx->layouts[ctx->layout_count++] = layout;
-	ctx->layouts_need_sorting = GUI_TRUE;
+	fprintf(file, "}\n");
+	fclose(file);
 }
 
 static GuiContext_Turtle *gui_turtle(GuiContext *ctx)
@@ -472,7 +511,7 @@ GuiContext *create_gui(CalcTextSizeFunc calc_text, void *user_data_for_calc_text
 	{ // Default layout
 		{
 			GuiElementLayout layout = element_layout(ctx, "gui_slider");
-			layout.has_size = true;
+			layout.has_size = GUI_TRUE;
 			layout.size[0] = 15;
 			layout.size[1] = 15;
 			update_element_layout(ctx, layout);
@@ -480,9 +519,17 @@ GuiContext *create_gui(CalcTextSizeFunc calc_text, void *user_data_for_calc_text
 
 		{
 			GuiElementLayout layout = element_layout(ctx, "gui_bar");
-			layout.has_size = true;
+			layout.has_size = GUI_TRUE;
 			layout.size[0] = 0;
 			layout.size[1] = 25;
+			update_element_layout(ctx, layout);
+		}
+
+		{
+			GuiElementLayout layout = element_layout(ctx, "gui_layoutwin");
+			layout.has_size = GUI_TRUE;
+			layout.size[0] = 200;
+			layout.size[1] = 500;
 			update_element_layout(ctx, layout);
 		}
 	}
@@ -799,6 +846,8 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, GUI_BOOL panel)
 	int *pos = gui_turtle(ctx)->pos;
 	int *size = gui_turtle(ctx)->size;
 
+	GUI_V2(size[c] = MAX(size[c], 80));
+
 	int win_handle = -1;
 	{ // Find/create window
 		int free_handle = -1;
@@ -818,14 +867,10 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, GUI_BOOL panel)
 			GuiContext_Window *win = &ctx->windows[free_handle];
 			win->id = gui_id(label);
 			GUI_FMT_STR(win->label, sizeof(win->label), "%s", label);
-			GUI_ASSIGN_V2(pos, ctx->next_window_pos);
 			win->has_bar = !panel;
 			ctx->window_order[ctx->window_count++] = free_handle;
 
 			win_handle = free_handle;
-
-			// Cascading
-			GUI_V2(ctx->next_window_pos[c] += 30);
 		}
 	}
 	assert(win_handle >= 0);
@@ -1001,8 +1046,8 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, GUI_BOOL panel)
 	}
 
 	// Save window pos and size to layout
-	layout.has_offset = true;
-	layout.has_size = true;
+	layout.has_offset = GUI_TRUE;
+	layout.has_size = GUI_TRUE;
 	GUI_ASSIGN_V2(layout.offset, pos);
 	GUI_ASSIGN_V2(layout.size, size);
 	update_element_layout(ctx, layout);
@@ -1381,14 +1426,14 @@ void gui_hor_space(GuiContext *ctx)
 	gui_next_row(ctx);
 }
 
-void gui_layout_settings(GuiContext *ctx)
+void gui_layout_settings(GuiContext *ctx, const char *save_path)
 {
 	if (ctx->active_id && layout_id(ctx->active_label) != layout_id("layout")) {
 		GUI_FMT_STR(ctx->layout_element_label, sizeof(ctx->layout_element_label),
 					"%s", ctx->active_label);
 	}
 
-	gui_begin_window(ctx, "layoutwin|Layout settings");
+	gui_begin_window(ctx, "gui_layoutwin|Layout settings");
 		GuiElementLayout layout = element_layout(ctx, ctx->layout_element_label);
 
 		gui_label(ctx, "layout|Selected element:");
@@ -1409,6 +1454,12 @@ void gui_layout_settings(GuiContext *ctx)
 		changed |= gui_checkbox(ctx, "layout+right|align_right", &layout.align_right);
 		changed |= gui_checkbox(ctx, "layout+top|align_top", &layout.align_top);
 		changed |= gui_checkbox(ctx, "layout+bottom|align_bottom", &layout.align_bottom);
+
+		if (gui_button(ctx, "layout+save|Save layout")) {
+			save_layout(ctx, save_path);
+		}
+
+		gui_label(ctx, "layout+listlabel|All layouts");
 
 		gui_begin_listbox(ctx, "layout+list");
 		for (int i = 0; i < ctx->layout_count; ++i) {

@@ -2,6 +2,8 @@
 #include "global/env.h"
 #include "uicontext.h"
 
+#include "gen_layout.c" // load_layout
+
 internal Color panel_color()
 { return (Color) {0.1/1.5, 0.1/1.5, 0.15/1.5, 0.9}; }
 
@@ -79,6 +81,7 @@ void create_uicontext()
 {
 	UiContext *ctx = ZERO_ALLOC(gen_ator(), sizeof(*ctx), "uicontext");
 	ctx->gui = create_gui(calc_text_size, NULL);
+	load_layout(ctx->gui);
 	g_env.uicontext = ctx;
 }
 

@@ -13,6 +13,7 @@ Common voluntary options to be defined before including this file, or in this fi
 #define GUI_MALLOC <func>
 #define GUI_REALLOC <func>
 #define GUI_FREE <func>
+#define GUI_PRINTF <func>
 
 The library is designed to make zero memory allocations during normal runtime. It will allocate more memory in the following cases:
  - The number of gui elements increase -- this can be prevented by increasing
@@ -62,14 +63,30 @@ Todo list
 #	define GUI_FREE free
 #endif
 
+#ifndef GUI_PRINTF
+#	define GUI_PRINTF printf
+#endif
+
 #include <stdint.h>
 #include <stddef.h>
+#include <stdarg.h>
+
 #if _MSC_VER
 #	include <stdbool.h>
 #endif
 
 #if __cplusplus
 extern "C" {
+#endif
+
+#if defined(_MSC_VER) && _MSC_VER <= 1800 // MSVC 2013
+size_t gui_v_sprintf_impl(char *buf, size_t count, const char *fmt, va_list args);
+void gui_sprintf_impl(char *buf, size_t count, const char *fmt, ...);
+#	define GUI_FMT_STR gui_sprintf_impl
+#	define GUI_V_FMT_STR gui_v_sprintf_impl
+#else
+#	define GUI_FMT_STR snprintf
+#	define GUI_V_FMT_STR vsnprintf
 #endif
 
 typedef uint32_t GuiId;
@@ -104,7 +121,7 @@ typedef struct GuiContext_Window {
 	GUI_BOOL used;
 	GUI_BOOL used_in_last_frame;
 
-	bool has_bar;
+	GUI_BOOL has_bar;
 	int bar_height;
 	// Size on screen, not taking account title bar or borders
 	// Depends on window size in layout
@@ -307,7 +324,7 @@ GUI_API void gui_end(GuiContext *ctx);
 GUI_API void gui_end_droppable(GuiContext *ctx, DragDropData *dropped);
 GUI_API void gui_end_ex(GuiContext *ctx, GUI_BOOL make_zero_size, DragDropData *dropped);
 
-GUI_API void gui_set_next_window_pos(GuiContext *ctx, int x, int y);
+GUI_API void gui_set_next_window_pos(GuiContext *ctx, int x, int y); // @todo Remove
 GUI_API void gui_set_turtle_pos(GuiContext *ctx, int x, int y);
 GUI_API void gui_turtle_pos(GuiContext *ctx, int *x, int *y);
 GUI_API void gui_next_row(GuiContext *ctx); // @todo Remove
@@ -319,7 +336,10 @@ GUI_API void gui_ver_space(GuiContext *ctx);
 GUI_API void gui_hor_space(GuiContext *ctx);
 
 // Shows a window which allows manipulating gui layout at runtime
-GUI_API void gui_layout_settings(GuiContext *ctx);
+GUI_API void gui_layout_settings(GuiContext *ctx, const char *save_path);
+
+// Internal
+void append_element_layout(GuiContext *ctx, GuiElementLayout layout);
 
 #if __cplusplus
 }

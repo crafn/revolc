@@ -151,6 +151,6 @@ void upd_editor()
 			gui_button(ctx, "button");
 		gui_end_panel(ctx);
 
-		gui_layout_settings(ctx);
+		gui_layout_settings(ctx, "../../code/source/ui/gen_layout.c");
 	}
 }
