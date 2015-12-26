@@ -106,6 +106,7 @@ typedef struct GuiContext_Turtle {
 	int start_pos[2]; // @todo Could maybe be removed
 	int bounding_max[2]; // @todo Could maybe be removed (use size)
 	int last_bounding_max[2]; // Most recently added gui element
+	GUI_BOOL non_empty;
 	char label[MAX_GUI_LABEL_SIZE]; // Label of the gui_begin
 	int window_ix;
 	int layer; // Graphical layer
@@ -195,6 +196,8 @@ typedef struct GuiElementLayout {
 
 	// Settings order is so that below can override above
 
+	GUI_BOOL on_same_row; // Same row as previous element
+
 	GUI_BOOL has_offset;
 	int offset[2];
 
@@ -242,7 +245,9 @@ typedef struct GuiContext {
 	GuiId active_id, last_active_id;
 	char active_label[MAX_GUI_LABEL_SIZE];
 	int active_win_ix;
+
 	GUI_BOOL has_input; // Writing in textfield or something
+	GuiId open_combo_id;
 
 	CalcTextSizeFunc calc_text_size;
 	void *calc_text_size_user_data;
@@ -333,9 +338,10 @@ GUI_API void gui_layout_settings(GuiContext *ctx, const char *save_path);
 //
 
 GUI_API void gui_begin(GuiContext *ctx, const char *label);
+GUI_API void gui_begin_detached(GuiContext *ctx, const char *label);
 GUI_API void gui_end(GuiContext *ctx);
 GUI_API void gui_end_droppable(GuiContext *ctx, DragDropData *dropped);
-GUI_API void gui_end_ex(GuiContext *ctx, GUI_BOOL make_zero_size, DragDropData *dropped);
+GUI_API void gui_end_ex(GuiContext *ctx, DragDropData *dropped);
 
 GuiId gui_id(const char *label);
 
@@ -348,13 +354,7 @@ GUI_API GUI_BOOL gui_is_active(GuiContext *ctx, const char *label);
 GUI_API void gui_set_turtle_pos(GuiContext *ctx, int x, int y);
 GUI_API void gui_turtle_pos(GuiContext *ctx, int *x, int *y);
 GUI_API void gui_turtle_size(GuiContext *ctx, int *x, int *y);
-GUI_API void gui_next_row(GuiContext *ctx); // @todo Remove
-GUI_API void gui_next_col(GuiContext *ctx); // @todo Remove
 GUI_API void gui_enlarge_bounding(GuiContext *ctx, int x, int y);
-
-// @todo Remove
-GUI_API void gui_ver_space(GuiContext *ctx);
-GUI_API void gui_hor_space(GuiContext *ctx);
 
 //
 // Internal

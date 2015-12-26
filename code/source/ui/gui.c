@@ -112,6 +112,7 @@ static GuiElementLayout element_layout(GuiContext *ctx, const char *label)
 	GuiElementLayout def;
 	GUI_ZERO(def);
 	def.id = layout_id(label);
+	def.on_same_row = false;
 	def.has_size = GUI_TRUE;
 	// @todo Different defaults for different element types
 	def.size[0] = 100;
@@ -167,6 +168,9 @@ static void save_layout(GuiContext *ctx, const char *path)
 		fprintf(file, "\t\tl.id = %u;\n", l.id);
 		fprintf(file, "\t\tGUI_FMT_STR(l.str, sizeof(l.str), \"%%s\", \"%s\");\n",
 			l.str);
+
+		fprintf(file, "\t\tl.on_same_row = %i;\n", l.on_same_row);
+
 		fprintf(file, "\t\tl.has_offset = %i;\n", l.has_offset);
 		fprintf(file, "\t\tl.offset[0] = %i;\n", l.offset[0]);
 		fprintf(file, "\t\tl.offset[1] = %i;\n", l.offset[1]);
@@ -381,11 +385,12 @@ GUI_BOOL gui_is_inside_window(GuiContext *ctx, int size[2])
 	int pos[2];
 	gui_turtle_pos(ctx, &pos[0], &pos[1]);
 	GuiContext_Window *win = gui_window(ctx);
+	if (!win)
+		return GUI_TRUE; // @todo Use background size
+
 	int win_pos[2];
 	int win_size[2];
 	gui_win_dimension(ctx, win_pos, win_size, win);
-	if (!win)
-		return GUI_TRUE; // @todo Use background size
 	if (pos[0] + size[0] <= win_pos[0] || pos[1] + size[1] <= win_pos[1] + win->bar_height)
 		return GUI_FALSE;
 	if (pos[0] >= win_pos[0] + win_size[0] || pos[1] >= win_pos[1] + win_size[1])
@@ -497,9 +502,6 @@ GuiContext *create_gui(CalcTextSizeFunc calc_text, void *user_data_for_calc_text
 	ctx->active_win_ix = GUI_NONE_WINDOW_IX;
 	ctx->focused_win_ix = -1;
 
-	// "Null" turtle
-	gui_turtle(ctx)->window_ix = GUI_BG_WINDOW_IX;
-
 	ctx->draw_info_capacity = 64;
 
 	ctx->layout_capacity = 64;
@@ -549,8 +551,7 @@ GuiContext *create_gui(CalcTextSizeFunc calc_text, void *user_data_for_calc_text
 
 void destroy_gui(GuiContext *ctx)
 {
-	if (ctx)
-	{
+	if (ctx) {
 		for (int i = 0; i < ctx->framemem_bucket_count; ++i)
 			GUI_FREE(ctx->framemem_buckets[i].data);
 		GUI_FREE(ctx->framemem_buckets);
@@ -576,6 +577,9 @@ void gui_pre_frame(GuiContext *ctx)
 		gui_frame_alloc(ctx, sizeof(*ctx->draw_infos)*ctx->draw_info_capacity);
 	ctx->draw_info_count = 0;
 
+	// "Null" turtle
+	GUI_ZERO(*gui_turtle(ctx));
+	gui_turtle(ctx)->window_ix = GUI_BG_WINDOW_IX;
 	GUI_ASSIGN_V2(gui_turtle(ctx)->size, ctx->host_win_size);
 }
 
@@ -667,7 +671,7 @@ void gui_button_logic(GuiContext *ctx, const char *label, int pos[2], int size[2
 	}
 }
 
-void gui_begin(GuiContext *ctx, const char *label)
+static void gui_begin_ex(GuiContext *ctx, const char *label, GUI_BOOL detached)
 {
 	assert(ctx->turtle_ix < MAX_GUI_STACK_SIZE);
 	if (ctx->turtle_ix >= MAX_GUI_STACK_SIZE)
@@ -690,6 +694,16 @@ void gui_begin(GuiContext *ctx, const char *label)
 			// Make right-aligned go to right side of content, not right side of win
 		//	GUI_V2(prev_size[c] = MAX(prev_size[c], win->last_bounding_size[c]));
 		//}
+
+		if (prev->non_empty && !detached) {
+			if (layout.on_same_row) {
+				new_turtle.pos[0] = prev->last_bounding_max[0];
+			} else {
+				new_turtle.pos[1] = prev->last_bounding_max[1];
+			}
+		}
+		if (!detached)
+			prev->non_empty = GUI_TRUE;
 
 		if (layout.has_offset)
 			GUI_V2(new_turtle.pos[c] += layout.offset[c]);
@@ -727,24 +741,30 @@ void gui_begin(GuiContext *ctx, const char *label)
 	GUI_ASSIGN_V2(new_turtle.last_bounding_max, new_turtle.bounding_max);
 	new_turtle.window_ix = prev->window_ix;
 	new_turtle.layer = prev->layer + 1;
-	new_turtle.detached = GUI_FALSE;
+	new_turtle.detached = detached;
 	new_turtle.inactive_dragdropdata = prev->inactive_dragdropdata;
 	memcpy(new_turtle.scissor, prev->scissor, sizeof(new_turtle.scissor));
 	GUI_FMT_STR(new_turtle.label, MAX_GUI_LABEL_SIZE, "%s", label);
 	*cur = new_turtle;
 }
 
+void gui_begin(GuiContext *ctx, const char *label)
+{ gui_begin_ex(ctx, label, GUI_FALSE); }
+
+void gui_begin_detached(GuiContext *ctx, const char *label)
+{ gui_begin_ex(ctx, label, GUI_TRUE); }
+
 void gui_end(GuiContext *ctx)
 {
-	gui_end_ex(ctx, GUI_FALSE, NULL);
+	gui_end_ex(ctx, NULL);
 }
 
 void gui_end_droppable(GuiContext *ctx, DragDropData *dropdata)
 {
-	gui_end_ex(ctx, GUI_FALSE, dropdata);
+	gui_end_ex(ctx, dropdata);
 }
 
-void gui_end_ex(GuiContext *ctx, GUI_BOOL make_zero_size, DragDropData *dropdata)
+void gui_end_ex(GuiContext *ctx, DragDropData *dropdata)
 {
 	// Initialize outputs
 	if (dropdata) {
@@ -771,7 +791,7 @@ void gui_end_ex(GuiContext *ctx, GUI_BOOL make_zero_size, DragDropData *dropdata
 		}
 	}
 
-	GUI_BOOL detached = make_zero_size || gui_turtle(ctx)->detached;
+	GUI_BOOL detached = gui_turtle(ctx)->detached;
 
 	assert(ctx->turtle_ix > 0);
 	--ctx->turtle_ix;
@@ -862,8 +882,7 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, GUI_BOOL panel)
 	GuiElementLayout slider_layout = element_layout(ctx, "gui_slider");
 	GuiElementLayout bar_layout = element_layout(ctx, "gui_bar");
 
-	gui_begin(ctx, label);
-	gui_turtle(ctx)->detached = GUI_TRUE;
+	gui_begin_detached(ctx, label);
 	int *pos = gui_turtle(ctx)->pos;
 	int *size = gui_turtle(ctx)->size;
 
@@ -978,10 +997,9 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, GUI_BOOL panel)
 
 		char scroll_panel_label[MAX_GUI_LABEL_SIZE];
 		GUI_FMT_STR(scroll_panel_label, sizeof(scroll_panel_label), "winscrollpanel_%s", label);
-		gui_begin(ctx, scroll_panel_label);
-		gui_turtle(ctx)->detached = GUI_TRUE; // Detach so that the scroll doesn't take part in window contents size
-		gui_turtle(ctx)->layer += GUI_LAYERS_PER_WINDOW/2; // Make topmost in window @todo Then should move this to end_window
 		for (int d = 0; d < 2; ++d) {
+			gui_begin_detached(ctx, scroll_panel_label);
+			gui_turtle(ctx)->layer += GUI_LAYERS_PER_WINDOW/2; // Make topmost in window @todo Then should move this to end_window
 			if (win->needs_scroll[d]) {
 				char scroll_label[MAX_GUI_LABEL_SIZE];
 				GUI_FMT_STR(scroll_label, sizeof(scroll_label), "gui_slider+win_%i_%s", d, label);
@@ -1015,8 +1033,8 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, GUI_BOOL panel)
 				gui_slider_ex(ctx, scroll_label, &scroll, 0, max_comp_scroll, rel_shown_area, !!d, c_size[d] - slider_layout.size[d]);
 				win->scroll[d] = (int)scroll;
 			}
+			gui_end(ctx);
 		}
-		gui_end(ctx);
 
 		GUI_V2(win->scroll[c] = GUI_CLAMP(win->scroll[c], 0, max_scroll[c]));
 	}
@@ -1025,8 +1043,7 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, GUI_BOOL panel)
 	if (!layout.prevent_resizing) {
 		char resize_label[MAX_GUI_LABEL_SIZE];
 		GUI_FMT_STR(resize_label, sizeof(resize_label), "gui_slider+resize_%s", label);
-		gui_begin(ctx, resize_label);
-		gui_turtle(ctx)->detached = GUI_TRUE; // Detach so that the handle doesn't take part in window contents size
+		gui_begin_detached(ctx, resize_label);
 		gui_turtle(ctx)->layer += GUI_LAYERS_PER_WINDOW/2; // Make topmost in window @todo Then should move this to end_window
 
 		int handle_size[2] = {slider_layout.size[0], slider_layout.size[1]};
@@ -1126,7 +1143,6 @@ void gui_end_contextmenu(GuiContext *ctx)
 GUI_BOOL gui_contextmenu_item(GuiContext *ctx, const char *label)
 {
 	GUI_BOOL ret = gui_button(ctx, label);
-	gui_next_row(ctx);
 	return ret;
 }
 
@@ -1172,8 +1188,6 @@ GUI_BOOL gui_button_ex(GuiContext *ctx, const char *label, GUI_BOOL force_down)
 
 	gui_enlarge_bounding(ctx, pos[0] + size[0], pos[1] + size[1]);
 	gui_end(ctx);
-
-	gui_next_row(ctx);
 
 	return went_up && hover;
 }
@@ -1230,8 +1244,6 @@ GUI_BOOL gui_checkbox_ex(GuiContext *ctx, const char *label, GUI_BOOL *value, GU
 	gui_enlarge_bounding(ctx, pos[0] + size[0], pos[1] + size[1]);
 	gui_end(ctx);
 
-	gui_next_row(ctx); // @todo Layouting
-
 	if (value && went_up && hover)
 		*value = !*value;
 	return went_up && hover;
@@ -1249,7 +1261,6 @@ GUI_BOOL gui_radiobutton(GuiContext *ctx, const char *label, GUI_BOOL value)
 void gui_slider(GuiContext *ctx, const char *label, float *value, float min, float max)
 {
 	gui_slider_ex(ctx, label, value, min, max, 0.1f, GUI_FALSE, 0);
-	gui_next_row(ctx); // @todo Layouting
 }
 
 static GUI_BOOL gui_textfield_ex(GuiContext *ctx, const char *label, char *buf, int buf_size, GUI_BOOL int_only)
@@ -1333,8 +1344,6 @@ static GUI_BOOL gui_textfield_ex(GuiContext *ctx, const char *label, char *buf, 
 	gui_enlarge_bounding(ctx, pos[0] + size[0], pos[1] + size[1]);
 	gui_end(ctx);
 
-	gui_next_row(ctx); // @todo Layouting
-
 	return content_changed;
 }
 
@@ -1370,8 +1379,6 @@ void gui_label(GuiContext *ctx, const char *label)
 
 	gui_enlarge_bounding(ctx, pos[0] + size[0], pos[1] + size[1]);
 	gui_end(ctx);
-
-	gui_next_row(ctx); // @todo Layouting
 }
 
 
@@ -1384,46 +1391,37 @@ void gui_begin_listbox(GuiContext *ctx, const char *label)
 void gui_end_listbox(GuiContext *ctx)
 {
 	gui_end(ctx);
-
-	gui_next_row(ctx); // @todo Layouting
 }
 
 GUI_BOOL gui_begin_combo(GuiContext *ctx, const char *label)
 {
 	// @todo Use borderless window for list
-	GUI_BOOL btn_down;
 	int combo_pos[2];
 	gui_turtle_pos(ctx, &combo_pos[0], &combo_pos[1]);
-	btn_down = gui_button(ctx, label);
+	if (gui_button(ctx, label))
+		ctx->open_combo_id = gui_id(label);
 	GUI_DECL_V2(int, list_start_pos, combo_pos[0], combo_pos[1]);
 
-	if (btn_down) {
-		gui_begin(ctx, label); // User calls gui_end_combo()
-		gui_turtle(ctx)->detached = GUI_TRUE;
+	if (ctx->open_combo_id == gui_id(label)) {
+		gui_begin_detached(ctx, label); // User calls gui_end_combo()
 		gui_set_turtle_pos(ctx, list_start_pos[0], list_start_pos[1]);
+		return true;
 	}
 
-	return btn_down;
+	return false;
 }
 
 GUI_BOOL gui_combo_item(GuiContext *ctx, const char *label)
 {
-	return gui_button(ctx, label);
+	GUI_BOOL pressed = gui_button(ctx, label);
+	if (pressed)
+		ctx->open_combo_id = 0;
+	return pressed;
 }
 
 void gui_end_combo(GuiContext *ctx)
 {
 	gui_end(ctx);
-}
-
-void gui_next_row(GuiContext *ctx)
-{
-	gui_set_turtle_pos(ctx, gui_turtle(ctx)->pos[0], gui_turtle(ctx)->last_bounding_max[1]);
-}
-
-void gui_next_col(GuiContext *ctx)
-{
-	gui_set_turtle_pos(ctx, gui_turtle(ctx)->last_bounding_max[0], gui_turtle(ctx)->pos[1]);
 }
 
 void gui_enlarge_bounding(GuiContext *ctx, int x, int y)
@@ -1436,6 +1434,7 @@ void gui_enlarge_bounding(GuiContext *ctx, int x, int y)
 	GUI_ASSIGN_V2(turtle->last_bounding_max, pos);
 }
 
+/*
 void gui_ver_space(GuiContext *ctx)
 {
 	int pos[2];
@@ -1451,6 +1450,7 @@ void gui_hor_space(GuiContext *ctx)
 	gui_enlarge_bounding(ctx, pos[0], pos[1] + 25);
 	gui_next_row(ctx);
 }
+*/
 
 void gui_layout_settings(GuiContext *ctx, const char *save_path)
 {
@@ -1468,6 +1468,8 @@ void gui_layout_settings(GuiContext *ctx, const char *save_path)
 		gui_label(ctx, gui_str(ctx, "gui_layout_list+id|  id: %u", layout.id));
 
 		GUI_BOOL changed = GUI_FALSE;
+
+		changed |= gui_checkbox(ctx, "gui_layout_list+on_same_row|on_same_row", &layout.on_same_row);
 
 		changed |= gui_checkbox(ctx, "gui_layout_list+has_offset|has_offset", &layout.has_offset);
 		changed |= gui_intfield(ctx, "gui_layout_list+offset[0]|x", &layout.offset[0]); 
