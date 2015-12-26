@@ -876,45 +876,6 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, GUI_BOOL panel)
 		}
 	}
 
-	{ // Corner resize handle
-		char resize_label[MAX_GUI_LABEL_SIZE];
-		GUI_FMT_STR(resize_label, sizeof(resize_label), "gui_slider+resize_%s", label);
-		gui_begin(ctx, resize_label);
-		gui_turtle(ctx)->detached = GUI_TRUE; // Detach so that the handle doesn't take part in window contents size
-		gui_turtle(ctx)->layer += GUI_LAYERS_PER_WINDOW/2; // Make topmost in window @todo Then should move this to end_window
-
-		int handle_size[2] = {slider_layout.size[0], slider_layout.size[1]};
-		int handle_pos[2];
-		GUI_V2(handle_pos[c] = pos[c] + size[c] - handle_size[c]);
-		GUI_BOOL went_down, down, hover;
-		gui_button_logic(ctx, resize_label, handle_pos, handle_size, NULL, &went_down, &down, &hover);
-
-		if (went_down) {
-			float v[2];
-			GUI_V2(v[c] = (float)size[c]);
-			gui_start_dragging(ctx, v);
-		}
-
-		if (down)
-			GUI_V2(size[c] = (int)ctx->drag_start_value[c] + ctx->cursor_pos[c] - ctx->drag_start_pos[c]);
-		GUI_V2(size[c] = GUI_MAX(size[c], 80));
-
-		int px_pos[2], px_size[2];
-		pt_to_px(px_pos, handle_pos, ctx->dpi_scale);
-		pt_to_px(px_size, handle_size, ctx->dpi_scale);
-		gui_draw(	ctx, GuiDrawInfo_resize_handle, px_pos, px_size, hover, down, GUI_FALSE,
-					NULL, gui_layer(ctx), gui_scissor(ctx));
-		gui_end(ctx);
-	}	
-
-
-	// Save window pos and size to layout
-	layout.has_offset = true;
-	layout.has_size = true;
-	GUI_ASSIGN_V2(layout.offset, pos);
-	GUI_ASSIGN_V2(layout.size, size);
-	update_element_layout(ctx, layout);
-
 	//
 	// Client-area content
 	//
@@ -941,7 +902,7 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, GUI_BOOL panel)
 		gui_turtle(ctx)->detached = GUI_TRUE; // Detach so that the scroll doesn't take part in window contents size
 		gui_turtle(ctx)->layer += GUI_LAYERS_PER_WINDOW/2; // Make topmost in window @todo Then should move this to end_window
 		for (int d = 0; d < 2; ++d) {
-			if (c_size[d] < win->last_bounding_size[d]) {
+			if (win->needs_scroll[d]) {
 				char scroll_label[MAX_GUI_LABEL_SIZE];
 				GUI_FMT_STR(scroll_label, sizeof(scroll_label), "gui_slider+win_%i_%s", d, label);
 				GUI_ASSIGN_V2(gui_turtle(ctx)->pos, c_pos);
@@ -980,6 +941,38 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, GUI_BOOL panel)
 		GUI_V2(win->scroll[c] = GUI_CLAMP(win->scroll[c], 0, max_scroll[c]));
 	}
 
+	{ // Corner resize handle
+		char resize_label[MAX_GUI_LABEL_SIZE];
+		GUI_FMT_STR(resize_label, sizeof(resize_label), "gui_slider+resize_%s", label);
+		gui_begin(ctx, resize_label);
+		gui_turtle(ctx)->detached = GUI_TRUE; // Detach so that the handle doesn't take part in window contents size
+		gui_turtle(ctx)->layer += GUI_LAYERS_PER_WINDOW/2; // Make topmost in window @todo Then should move this to end_window
+
+		int handle_size[2] = {slider_layout.size[0], slider_layout.size[1]};
+		int handle_pos[2];
+		GUI_V2(handle_pos[c] = c_pos[c] + c_size[c] - handle_size[c]);
+		GUI_BOOL went_down, down, hover;
+		gui_button_logic(ctx, resize_label, handle_pos, handle_size, NULL, &went_down, &down, &hover);
+
+		if (went_down) {
+			float v[2];
+			GUI_V2(v[c] = (float)size[c]);
+			gui_start_dragging(ctx, v);
+		}
+
+		if (down)
+			GUI_V2(size[c] = (int)ctx->drag_start_value[c] + ctx->cursor_pos[c] - ctx->drag_start_pos[c]);
+		GUI_V2(size[c] = GUI_MAX(size[c], 80));
+
+		int px_pos[2], px_size[2];
+		pt_to_px(px_pos, handle_pos, ctx->dpi_scale);
+		pt_to_px(px_size, handle_size, ctx->dpi_scale);
+		gui_draw(	ctx, GuiDrawInfo_resize_handle, px_pos, px_size, hover, down, GUI_FALSE,
+					NULL, gui_layer(ctx), gui_scissor(ctx));
+		gui_end(ctx);
+	}	
+
+
 	int scissor[4];
 	scissor[0] = c_pos[0];
 	scissor[1] = c_pos[1];
@@ -994,11 +987,21 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, GUI_BOOL panel)
 		GUI_ASSIGN_V2(gui_turtle(ctx)->start_pos, client_start_pos);
 		GUI_ASSIGN_V2(gui_turtle(ctx)->pos, client_start_pos);
 	}
+
+	// Save window pos and size to layout
+	layout.has_offset = true;
+	layout.has_size = true;
+	GUI_ASSIGN_V2(layout.offset, pos);
+	GUI_ASSIGN_V2(layout.size, size);
+	update_element_layout(ctx, layout);
 }
 
 void gui_end_window_ex(GuiContext *ctx)
 {
-	GUI_V2(gui_window(ctx)->last_bounding_size[c] = gui_turtle(ctx)->bounding_max[c] - gui_turtle(ctx)->start_pos[c]);
+	GuiContext_Turtle *turtle = gui_turtle(ctx);
+	GuiContext_Window *win = gui_window(ctx);
+	GUI_V2(win->last_bounding_size[c] = turtle->bounding_max[c] - turtle->start_pos[c]);
+	GUI_V2(win->needs_scroll[c] = turtle->size[c] < win->last_bounding_size[c]);
 	gui_end(ctx);
 	gui_end(ctx);
 }

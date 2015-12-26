@@ -111,6 +111,7 @@ typedef struct GuiContext_Window {
 	// Depends on window size in layout
 	int client_size[2];
 
+	GUI_BOOL needs_scroll[2];
 	int last_bounding_size[2];
 	int scroll[2]; // Translation in pt. Cannot be relative, because adding content shouldn't cause translation to change.
 } GuiContext_Window;
