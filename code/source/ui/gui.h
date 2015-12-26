@@ -242,6 +242,7 @@ typedef struct GuiContext {
 	GuiId active_id, last_active_id;
 	char active_label[MAX_GUI_LABEL_SIZE];
 	int active_win_ix;
+	GUI_BOOL has_input; // Writing in textfield or something
 
 	CalcTextSizeFunc calc_text_size;
 	void *calc_text_size_user_data;
@@ -271,6 +272,8 @@ GUI_API GuiContext *create_gui(CalcTextSizeFunc calc_text, void *user_data_for_c
 GUI_API void destroy_gui(GuiContext *ctx);
 GUI_API void gui_pre_frame(GuiContext *ctx);
 GUI_API void gui_post_frame(GuiContext *ctx);
+
+GUI_API GUI_BOOL gui_has_input(GuiContext *ctx);
 
 // Supply characters that should be written to e.g. text field.
 // Use '\b' for erasing.

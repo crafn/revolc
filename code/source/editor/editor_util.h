@@ -18,10 +18,6 @@ typedef struct EditorBoxState {
 } EditorBoxState;
 
 // @todo Move to ui
-REVOLC_API void ogui_wrap(V2i *p, V2i *s);
-REVOLC_API Color ogui_dev_panel_color();
-REVOLC_API Color ogui_inactive_color();
-REVOLC_API Color ogui_darken_color(Color c);
 REVOLC_API void ogui_text(const char *text);
 REVOLC_API bool ogui_button(const char *label, bool *is_down, bool *hovered);
 

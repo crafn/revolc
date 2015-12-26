@@ -257,7 +257,7 @@ void do_mesh_editor(U32 *model_h, bool *is_edit_mode, bool active)
 
 		Color poly_color = fill_color;
 		if (!active)
-			poly_color = ogui_inactive_color();
+			poly_color = inactive_color();
 
 		if (active)
 			ddraw_circle((Color) {1, 1, 1, 1}, m->tf.pos, editor_vertex_size()*0.5);

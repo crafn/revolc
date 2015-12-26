@@ -234,6 +234,7 @@ void gui_set_inactive(GuiContext *ctx, GuiId id)
 	if (ctx->active_id == id) {
 		ctx->active_id = 0;
 		ctx->active_win_ix = GUI_NONE_WINDOW_IX;
+		ctx->has_input = GUI_FALSE;
 	}
 }
 
@@ -534,6 +535,13 @@ GuiContext *create_gui(CalcTextSizeFunc calc_text, void *user_data_for_calc_text
 			layout.size[1] = 500;
 			update_element_layout(ctx, layout);
 		}
+
+		{
+			GuiElementLayout layout = element_layout(ctx, "gui_layout_list");
+			layout.align_left = GUI_TRUE;
+			layout.align_right = GUI_TRUE;
+			update_element_layout(ctx, layout);
+		}
 	}
 
 	return ctx;
@@ -598,6 +606,9 @@ void gui_post_frame(GuiContext *ctx)
 	ctx->written_char_count = 0;
 }
 
+GUI_BOOL gui_has_input(GuiContext *ctx)
+{ return ctx->has_input; }
+
 void gui_write_char(GuiContext *ctx, char ch)
 {
 	if (ctx->written_char_count >= (int)sizeof(ctx->written_text_buf))
@@ -629,12 +640,20 @@ void gui_button_logic(GuiContext *ctx, const char *label, int pos[2], int size[2
 			gui_set_inactive(ctx, gui_id(label));
 			was_released = GUI_TRUE;
 		}
+
+		// For layout editor
+		if (ctx->key_state[GUI_KEY_MMB] & GUI_KEYSTATE_RELEASED_BIT)
+			gui_set_inactive(ctx, gui_id(label));
 	} else if (gui_is_hot(ctx, label)) {
 		if (ctx->key_state[GUI_KEY_LMB] & GUI_KEYSTATE_PRESSED_BIT) {
 			if (down) *down = GUI_TRUE;
 			if (went_down) *went_down = GUI_TRUE;
 			gui_set_active(ctx, label);
 		}
+
+		// For layout editor
+		if (ctx->key_state[GUI_KEY_MMB] & GUI_KEYSTATE_PRESSED_BIT)
+			gui_set_active(ctx, label);
 	}
 
 	int c_p[2];
@@ -1281,6 +1300,8 @@ static GUI_BOOL gui_textfield_ex(GuiContext *ctx, const char *label, char *buf, 
 			}
 			char_count = GUI_MIN(char_count, buf_size - 1);
 			buf[char_count] = '\0';
+
+			ctx->has_input = GUI_TRUE;
 		}
 
 		int px_margin[2];
@@ -1433,46 +1454,46 @@ void gui_hor_space(GuiContext *ctx)
 
 void gui_layout_settings(GuiContext *ctx, const char *save_path)
 {
-	if (ctx->active_id && layout_id(ctx->active_label) != layout_id("layout")) {
+	if (ctx->active_id && (ctx->key_state[KEY_MMB] & GUI_KEYSTATE_DOWN_BIT)) {
 		GUI_FMT_STR(ctx->layout_element_label, sizeof(ctx->layout_element_label),
 					"%s", ctx->active_label);
 	}
 
 	gui_begin_window(ctx, "gui_layoutwin|Layout settings");
 
-		gui_label(ctx, "layout|Selected element:");
-		gui_textfield(ctx, "layout+name|  name:", ctx->layout_element_label, sizeof(ctx->layout_element_label));
+		gui_label(ctx, "gui_layout_list|Selected element (mmb):");
+		gui_textfield(ctx, "gui_layout_list+name|  name:", ctx->layout_element_label, sizeof(ctx->layout_element_label));
 
 		GuiElementLayout layout = element_layout(ctx, ctx->layout_element_label);
-		gui_label(ctx, gui_str(ctx, "layout+id|  id: %u", layout.id));
+		gui_label(ctx, gui_str(ctx, "gui_layout_list+id|  id: %u", layout.id));
 
 		GUI_BOOL changed = GUI_FALSE;
 
-		changed |= gui_checkbox(ctx, "layout+has_offset|has_offset", &layout.has_offset);
-		changed |= gui_intfield(ctx, "layout+offset[0]|x", &layout.offset[0]); 
-		changed |= gui_intfield(ctx, "layout+offset[1]|y", &layout.offset[1]); 
+		changed |= gui_checkbox(ctx, "gui_layout_list+has_offset|has_offset", &layout.has_offset);
+		changed |= gui_intfield(ctx, "gui_layout_list+offset[0]|x", &layout.offset[0]); 
+		changed |= gui_intfield(ctx, "gui_layout_list+offset[1]|y", &layout.offset[1]); 
 
-		changed |= gui_checkbox(ctx, "layout+b_size|has_size", &layout.has_size);
-		changed |= gui_intfield(ctx, "layout+size[0]|width", &layout.size[0]);
-		changed |= gui_intfield(ctx, "layout+size[1]|height", &layout.size[1]);
+		changed |= gui_checkbox(ctx, "gui_layout_list+b_size|has_size", &layout.has_size);
+		changed |= gui_intfield(ctx, "gui_layout_list+size[0]|width", &layout.size[0]);
+		changed |= gui_intfield(ctx, "gui_layout_list+size[1]|height", &layout.size[1]);
 
-		changed |= gui_checkbox(ctx, "layout+b_resize|prevent_resizing", &layout.prevent_resizing);
+		changed |= gui_checkbox(ctx, "gui_layout_list+b_resize|prevent_resizing", &layout.prevent_resizing);
 
-		changed |= gui_checkbox(ctx, "layout+left|align_left", &layout.align_left);
-		changed |= gui_checkbox(ctx, "layout+right|align_right", &layout.align_right);
-		changed |= gui_checkbox(ctx, "layout+top|align_top", &layout.align_top);
-		changed |= gui_checkbox(ctx, "layout+bottom|align_bottom", &layout.align_bottom);
+		changed |= gui_checkbox(ctx, "gui_layout_list+left|align_left", &layout.align_left);
+		changed |= gui_checkbox(ctx, "gui_layout_list+right|align_right", &layout.align_right);
+		changed |= gui_checkbox(ctx, "gui_layout_list+top|align_top", &layout.align_top);
+		changed |= gui_checkbox(ctx, "gui_layout_list+bottom|align_bottom", &layout.align_bottom);
 
-		if (gui_button(ctx, "layout+save|Save layout")) {
+		if (gui_button(ctx, "gui_layout_list+save|Save layout")) {
 			save_layout(ctx, save_path);
 		}
 
-		gui_label(ctx, "layout+listlabel|All layouts");
+		gui_label(ctx, "gui_layout_list+listlabel|All layouts");
 
-		gui_begin_listbox(ctx, "layout+list");
+		gui_begin_listbox(ctx, "gui_layout_list+list");
 		for (int i = 0; i < ctx->layout_count; ++i) {
 			GuiElementLayout l = ctx->layouts[i];
-			const char *label = gui_str(ctx, "layout+%i|%s", i, l.str);
+			const char *label = gui_str(ctx, "gui_layout_list+%i|%s", i, l.str);
 			if (gui_selectable(ctx, label, l.id == layout.id)) {
 				GUI_FMT_STR(ctx->layout_element_label,
 							sizeof(ctx->layout_element_label),

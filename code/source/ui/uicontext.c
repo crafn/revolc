@@ -4,22 +4,22 @@
 
 #include "gen_layout.c" // load_layout
 
-internal Color panel_color()
+Color panel_color()
 { return (Color) {0.1/1.5, 0.1/1.5, 0.15/1.5, 0.9}; }
 
-internal Color inactive_color()
+Color inactive_color()
 { return (Color) {0.2, 0.2, 0.2, 0.5}; }
 
-internal Color darken_color(Color c)
+Color darken_color(Color c)
 { return (Color) {c.r*0.8, c.g*0.8, c.b*0.8, c.a}; }
 
-internal Color highlight_color(Color c)
+Color highlight_color(Color c)
 { return (Color) {c.r + 0.2, c.g + 0.2, c.b + 0.1, c.a}; }
 
-internal Color outline_color(Color c)
+Color outline_color(Color c)
 { return (Color) {c.r*0.3, c.g*0.3, c.b*0.3, c.a}; }
 
-internal const Font *gui_font()
+const Font *gui_font()
 {
 	return (Font*)res_by_name(	g_env.resblob,
 								ResType_Font,
@@ -119,6 +119,9 @@ void begin_ui_frame()
 		ctx->cursor_pos[1] = g_env.device->cursor_pos.y;
 
 		ctx->key_state[GUI_KEY_LMB] = gui_key_state(KEY_LMB);
+		ctx->key_state[GUI_KEY_MMB] = gui_key_state(KEY_MMB);
+		ctx->key_state[GUI_KEY_RMB] = gui_key_state(KEY_RMB);
+		ctx->key_state[GUI_KEY_LCTRL] = gui_key_state(KEY_LCTRL);
 		F64 delta = g_env.device->mwheel_delta;
 		if (delta > 0.0)
 			ctx->mouse_scroll = 1;

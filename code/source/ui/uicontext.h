@@ -17,6 +17,15 @@ typedef struct UiContext_Turtle {
 	U32 draw_i;
 } UiContext_Turtle;
 
+struct Font;
+
+Color panel_color();
+Color inactive_color();
+Color darken_color(Color c);
+Color highlight_color(Color c);
+Color outline_color(Color c);
+const struct Font *gui_font();
+
 // @todo Remove old gui (ogui) and use gui.h
 
 // Immediate gui context

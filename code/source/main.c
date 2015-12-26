@@ -127,7 +127,8 @@ int main(int argc, const char **argv)
 
 		begin_ui_frame();
 
-		{ // User input
+		// User input
+		if (!gui_has_input(g_env.uicontext->gui)) {
 			V2d cursor_on_world = screen_to_world_point(g_env.device->cursor_pos);
 			V2d prev_cursor_on_world = screen_to_world_point(g_env.uicontext->dev.prev_cursor_pos);
 			V2d cursor_delta_on_world = sub_v2d(cursor_on_world, prev_cursor_on_world);

@@ -2,45 +2,10 @@
 #include "visual/font.h"
 #include "ui/gui.h"
 
-internal
-const Font *ogui_font()
-{
-	return (Font*)res_by_name(	g_env.resblob,
-								ResType_Font,
-								"dev");
-}
-
-void ogui_wrap(V2i *p, V2i *s)
-{
-	const V2i win_size = g_env.device->win_size;
-	// Wrap around screen
-	while (p->x < 0)
-		p->x += win_size.x;
-	while (p->x > win_size.x)
-		p->x -= win_size.x;
-	while (p->y < 0)
-		p->y += win_size.y;
-	while (p->y > win_size.y)
-		p->y -= win_size.y;
-}
-
-Color ogui_dev_panel_color()
-{ return (Color) {0.1, 0.1, 0.15, 0.9}; }
-
-Color ogui_inactive_color()
-{ return (Color) {0.2, 0.2, 0.2, 0.5}; }
-
-Color ogui_darken_color(Color c)
-{ return (Color) {c.r*0.6, c.g*0.6, c.b*0.6, c.a}; }
-
-internal
-Color ogui_highlight_color(Color c)
-{ return (Color) {c.r + 0.2, c.g + 0.2, c.b + 0.1, c.a}; }
 
 void ogui_text(const char *text)
 {
 	V2i px_pos = ogui_turtle_pos();
-	ogui_wrap(&px_pos, NULL);
 	ogui_begin((V2i) {1, 0});
 
 	const U32 max_quad_count = strlen(text);
@@ -49,14 +14,14 @@ void ogui_text(const char *text)
 	TriMeshVertex *verts = frame_alloc(sizeof(*verts)*max_vert_count);
 	MeshIndexType *inds = frame_alloc(sizeof(*inds)*max_ind_count);
 	V2i size;
-	U32 quad_count = text_mesh(&size, verts, inds, ogui_font(), text);
+	U32 quad_count = text_mesh(&size, verts, inds, gui_font(), text);
 	const U32 v_count = 4*quad_count;
 	const U32 i_count = 6*quad_count;
 
 	drawcmd(px_tf(px_pos, (V2i) {1, 1}),
 			verts, v_count,
 			inds, i_count,
-			ogui_font()->atlas_uv,
+			gui_font()->atlas_uv,
 			white_color(), white_color(),
 			ogui_next_draw_layer(),
 			0.0,
@@ -69,11 +34,9 @@ void ogui_text(const char *text)
 bool ogui_button(const char *label, bool *is_down, bool *is_hovered)
 {
 	V2i px_pos = ogui_turtle_pos();
-	V2i px_size = calc_text_mesh_size(ogui_font(), label);
+	V2i px_size = calc_text_mesh_size(gui_font(), label);
 	px_size.x += 12;
 	px_size.y += 5;
-
-	ogui_wrap(&px_pos, &px_size);
 
 	ogui_begin((V2i) {1, 0});
 	UiContext *ctx = g_env.uicontext;
@@ -105,11 +68,11 @@ bool ogui_button(const char *label, bool *is_down, bool *is_hovered)
 		ogui_set_hot(label);
 	}
 
-	Color bg_color = ogui_darken_color(ogui_dev_panel_color());
+	Color bg_color = darken_color(panel_color());
 	if (down)
-		bg_color = ogui_darken_color(bg_color);
+		bg_color = darken_color(bg_color);
 	else if (hover)
-		bg_color = ogui_highlight_color(bg_color);
+		bg_color = highlight_color(bg_color);
 
 	{ // Leave margin
 		V2i p = add_v2i(px_pos, (V2i) {1, 1});
@@ -314,7 +277,7 @@ EditorBoxState gui_editorbox(	GuiContext *ctx,
 {
 	UiContext *ui = g_env.uicontext;
 	const V2i c_p = ui->dev.cursor_pos;
-	const Color c = ogui_dev_panel_color();
+	const Color c = panel_color();
 
 	gui_begin(ctx, label);
 
@@ -392,7 +355,7 @@ EditorBoxState gui_editorbox(	GuiContext *ctx,
 	}
 
 	if (!invisible)
-		drawcmd_px_quad(px_pos, px_size, 0.0, c, c, gui_layer(ctx));
+		drawcmd_px_quad(px_pos, px_size, 0.0, c, outline_color(c), gui_layer(ctx));
 
 	gui_end(ctx);
 

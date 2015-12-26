@@ -193,7 +193,7 @@ void do_armature_editor(	ArmatureEditor *state,
 			gui_turtle_pos(gui, &px_pos.x, &px_pos.y);
 			gui_turtle_size(gui, &px_size.x, &px_size.y);
 
-			drawcmd_px_quad(px_pos, px_size, 0.0, ogui_dev_panel_color(), ogui_dev_panel_color(), ogui_next_draw_layer());
+			drawcmd_px_quad(px_pos, px_size, 0.0, panel_color(), outline_color(panel_color()), ogui_next_draw_layer());
 
 			ogui_set_turtle_pos(px_pos);
 
@@ -275,8 +275,8 @@ void do_armature_editor(	ArmatureEditor *state,
 			px_pos.y += 27;
 			px_size.x -= 20;
 			px_size.y -= 27;
-			Color c = ogui_darken_color(ogui_dev_panel_color());
-			drawcmd_px_quad(px_pos, px_size, 0.0, c, c, ogui_next_draw_layer());
+			Color c = darken_color(panel_color());
+			drawcmd_px_quad(px_pos, px_size, 0.0, c, outline_color(c), ogui_next_draw_layer());
 			const char *clip_timeline_label = "clip_timeline";
 			EditorBoxState bstate =
 				gui_editorbox(g_env.uicontext->gui, NULL, NULL, clip_timeline_label, true);
@@ -389,9 +389,9 @@ void do_armature_editor(	ArmatureEditor *state,
 		if (!is_edit_mode)
 			line_color = selected_color;
 		if (!active) {
-			default_color = ogui_inactive_color();
-			selected_color = ogui_inactive_color();
-			line_color = ogui_inactive_color();
+			default_color = inactive_color();
+			selected_color = inactive_color();
+			line_color = inactive_color();
 		}
 
 		F64 rad = editor_vertex_size()*3;
