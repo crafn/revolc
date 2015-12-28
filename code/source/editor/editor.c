@@ -127,7 +127,7 @@ void upd_editor()
 		GuiContext *ctx = g_env.uicontext->gui;
 
 		gui_begin_window(ctx, "win");
-			for (U32 i = 0; i < 30; ++i) {
+			for (U32 i = 0; i < 10; ++i) {
 				gui_button(ctx, gui_str(ctx, "btn_in_list+%i|button_%i", i, i));
 			}
 		gui_end_window(ctx);
@@ -136,9 +136,9 @@ void upd_editor()
 			local_persist int btn = 0;
 			local_persist F32 slider = 0;
 			local_persist char buf[128];
-			local_persist const char *combo = "none";
+			local_persist const char *combo = "combo+0|none";
 
-			const char *combos[3] = {"combo1", "combo2", "combo3"};
+			const char *combos[3] = {"combo+1|combo1", "combo+2|combo2", "combo+3|combo3"};
 
 			gui_checkbox(ctx, "Show layout editor", &e->edit_layout);
 			if (gui_radiobutton(ctx, "Radio 1", btn == 0)) btn = 0;

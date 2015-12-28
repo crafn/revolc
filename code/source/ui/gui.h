@@ -99,6 +99,9 @@ typedef struct DragDropData {
 	int ix;
 } DragDropData;
 
+// Arrays like scissor[4] are indexed as [0] == x, [1] == y, [2] == w, [3] == h
+// or, [0] == left, [1] == top, [2] == right, [3] == bottom
+
 // @todo Rename to GuiLayer or something
 typedef struct GuiContext_Turtle {
 	int pos[2]; // Output "cursor"
@@ -112,8 +115,10 @@ typedef struct GuiContext_Turtle {
 	int layer; // Graphical layer
 	GUI_BOOL detached; // If true, moving of this turtle doesn't affect parent bounding boxes etc.
 	DragDropData inactive_dragdropdata; // This is copied to gui context when actual dragging and dropping within this turtle starts
-
 	int scissor[4]; // Depends on window/panel/whatever pos and sizes. Given to draw commands. Zero == unused.
+
+	int padding[4]; // Copied from layout
+	int gap[2]; // Copied from layout
 } GuiContext_Turtle;
 
 // Stored data for window elements
@@ -206,7 +211,11 @@ typedef struct GuiElementLayout {
 
 	GUI_BOOL prevent_resizing;
 
+	// @todo To array
 	GUI_BOOL align_left, align_right, align_top, align_bottom;
+
+	int padding[4]; // Left, top, right, bottom
+	int gap[2]; // Sub-element gap in horizontal and vertical dir
 } GuiElementLayout;
 
 typedef void (*CalcTextSizeFunc)(int ret[2], void *user_data, const char *text);
