@@ -112,7 +112,7 @@ static GuiElementLayout element_layout(GuiContext *ctx, const char *label)
 	GuiElementLayout def;
 	GUI_ZERO(def);
 	def.id = layout_id(label);
-	def.on_same_row = false;
+	def.on_same_row = GUI_FALSE;
 	def.has_size = GUI_TRUE;
 	// @todo Different defaults for different element types
 	def.size[0] = 100;
@@ -126,8 +126,7 @@ void append_element_layout(GuiContext *ctx, GuiElementLayout layout)
 	if (ctx->layout_count == ctx->layout_capacity) {
 		// Need more space
 		ctx->layout_capacity *= 2;
-		ctx->layouts =
-			GUI_REALLOC(ctx->layouts, sizeof(*ctx->layouts)*ctx->layout_capacity);
+		ctx->layouts = GUI_REALLOC(ctx->layouts, sizeof(*ctx->layouts)*ctx->layout_capacity);
 	}
 
 	ctx->layouts[ctx->layout_count++] = layout;
@@ -147,6 +146,56 @@ static void update_element_layout(GuiContext *ctx, GuiElementLayout layout)
 
 	// New layout, append and mark unsorted
 	append_element_layout(ctx, layout);
+}
+
+// Return index to found, or index where should be inserted
+static int storage_bsearch(GuiContext *ctx, GuiId id)
+{
+	int left = ctx->storage_count;
+	int cursor = 0;
+	while (left > 0) {
+		int jump = left / 2;
+		int mid = cursor + jump;
+		if (ctx->storage[mid].id < id) {
+			cursor = mid + 1;
+			left -= jump + 1;
+		} else {
+			left = jump;
+		}
+	}
+	return cursor;
+}
+
+static GUI_BOOL element_storage_bool(GuiContext *ctx, const char *label, GUI_BOOL default_value)
+{
+	GuiId id = gui_id(label);
+	int ix = storage_bsearch(ctx, id);
+	if (ix == ctx->storage_count || ctx->storage[ix].id != id)
+		return default_value;
+	return ctx->storage[ix].bool_value;
+}
+
+static void set_element_storage_bool(GuiContext *ctx, const char *label, GUI_BOOL value)
+{
+	GuiId id = gui_id(label);
+	int ix = storage_bsearch(ctx, id);
+	if (ix == ctx->storage_count || ctx->storage[ix].id != id) {
+		// New storage value
+		if (ctx->storage_count == ctx->storage_capacity) {
+			// Need more space
+			ctx->storage_capacity *= 2;
+			ctx->storage = GUI_REALLOC(ctx->storage, sizeof(*ctx->storage)*ctx->storage_capacity);
+		}
+
+		// Insert value in the middle
+		memmove(&ctx->storage[ix + 1], &ctx->storage[ix], ctx->storage_count - ix);
+		++ctx->storage_count;
+	}
+
+	ctx->storage[ix].id = id;
+	ctx->storage[ix].bool_value = value;
+
+	assert(element_storage_bool(ctx, label, !value) == value);
 }
 
 static void save_layout(GuiContext *ctx, const char *path)
@@ -513,6 +562,9 @@ GuiContext *create_gui(CalcTextSizeFunc calc_text, void *user_data_for_calc_text
 	ctx->layout_capacity = 64;
 	ctx->layouts = check_ptr(GUI_MALLOC(sizeof(*ctx->layouts)*ctx->layout_capacity));
 
+	ctx->storage_capacity = GUI_DEFAULT_STORAGE_SIZE;
+	ctx->storage = check_ptr(GUI_MALLOC(sizeof(*ctx->storage)*ctx->storage_capacity));
+
 	ctx->framemem_bucket_count = 1;
 	ctx->framemem_buckets = (GuiContext_MemBucket*)check_ptr(GUI_MALLOC(sizeof(*ctx->framemem_buckets)));
 	ctx->framemem_buckets[0].data = check_ptr(GUI_MALLOC(GUI_DEFAULT_FRAME_MEMORY));
@@ -563,6 +615,7 @@ void destroy_gui(GuiContext *ctx)
 		GUI_FREE(ctx->framemem_buckets);
 
 		GUI_FREE(ctx->layouts);
+		GUI_FREE(ctx->storage);
 
 		for (int i = MAX_GUI_WINDOW_COUNT - 1; i >= 0; --i) {
 			if (ctx->windows[i].id)
@@ -1430,10 +1483,10 @@ GUI_BOOL gui_begin_combo(GuiContext *ctx, const char *label)
 	if (ctx->open_combo_id == gui_id(label)) {
 		gui_begin_detached(ctx, label); // User calls gui_end_combo()
 		gui_set_turtle_pos(ctx, list_start_pos[0], list_start_pos[1]);
-		return true;
+		return GUI_TRUE;
 	}
 
-	return false;
+	return GUI_FALSE;
 }
 
 GUI_BOOL gui_combo_item(GuiContext *ctx, const char *label)
@@ -1445,6 +1498,27 @@ GUI_BOOL gui_combo_item(GuiContext *ctx, const char *label)
 }
 
 void gui_end_combo(GuiContext *ctx)
+{
+	gui_end(ctx);
+}
+
+GUI_BOOL gui_begin_tree(GuiContext *ctx, const char *label)
+{
+	GUI_BOOL open = element_storage_bool(ctx, label, GUI_FALSE);
+	if (gui_button(ctx, gui_str(ctx, "%s %c", label, open ? 'v' : '>'))) {
+		set_element_storage_bool(ctx, label, !open);
+	}
+
+	if (open) {
+		gui_begin(ctx, gui_str(ctx, "gui_treenode:%s", label));
+		gui_turtle(ctx)->pos[0] += 10; // @todo Layout
+		return GUI_TRUE;
+	} else {
+		return GUI_FALSE;
+	}
+}
+
+void gui_end_tree(GuiContext *ctx)
 {
 	gui_end(ctx);
 }

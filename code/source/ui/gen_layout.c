@@ -654,7 +654,7 @@ void load_layout(GuiContext *ctx)
 	{
 		GuiElementLayout l = {0};
 		l.id = 3965537002;
-		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "gui_client:panel");
+		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "gui_client:panel");
 		l.on_same_row = 0;
 		l.has_offset = 0;
 		l.offset[0] = 0;

@@ -17,7 +17,8 @@ Common voluntary options to be defined before including this file, or in this fi
 
 The library is designed to make zero memory allocations during normal runtime. It will allocate more memory in the following cases:
  - The number of gui elements increase -- this can be prevented by increasing
-   GUI_DEFAULT_FRAME_MEMORY.
+   GUI_DEFAULT_FRAME_MEMORY (temp memory used for e.g. strings) or
+   GUI_DEFAULT_STORAGE_SIZE (persistent memory used for e.g. tree open/closed state)
  - New layout rules are added. This usually is not a problem,
    because gui layout is meant to be adjusted & saved before shipping.
 
@@ -33,12 +34,12 @@ Todo list
  - format comments of api to end of lines
 */
 
-#define GUI_DEFAULT_FRAME_MEMORY (1024*10)
+#define GUI_DEFAULT_FRAME_MEMORY (1024*5)
+#define GUI_DEFAULT_STORAGE_SIZE (128)
 
 #define MAX_GUI_LABEL_SIZE 256 // @todo Change to MAX_GUI_ID_SIZE which can be like 64
 #define MAX_GUI_STACK_SIZE 32 // @todo Remove limit
 #define MAX_GUI_WINDOW_COUNT 64 // @todo Remove limit
-#define MAX_GUI_FRAME_COUNT 64 // @todo Remove limit
 #define GUI_FILENAME_SIZE MAX_PATH_SIZE // @todo Remove limit
 
 #ifndef GUI_API
@@ -100,7 +101,7 @@ typedef struct DragDropData {
 } DragDropData;
 
 // Arrays like scissor[4] are indexed as [0] == x, [1] == y, [2] == w, [3] == h
-// or, [0] == left, [1] == top, [2] == right, [3] == bottom
+// or like padding[4] as [0] == left, [1] == top, [2] == right, [3] == bottom
 
 // @todo Rename to GuiLayer or something
 typedef struct GuiContext_Turtle {
@@ -271,6 +272,11 @@ typedef struct GuiContext {
 	GUI_BOOL layouts_need_sorting;
 	char layout_element_label[MAX_GUI_LABEL_SIZE];
 
+	// Misc element state storage
+	struct { GuiId id; GUI_BOOL bool_value; } *storage; // Kept in order
+	int storage_capacity;
+	int storage_count;
+
 	// List of buffers which are invalidated every frame. Used for temp strings.
 	GuiContext_MemBucket *framemem_buckets;
 	int framemem_bucket_count; // It's best to have just one bucket, but sometimes memory usage can peak and more memory is allocated.
@@ -337,6 +343,9 @@ if (gui_begin_combo(ctx, "label")) {
 GUI_API GUI_BOOL gui_begin_combo(GuiContext *ctx, const char *label);
 GUI_API GUI_BOOL gui_combo_item(GuiContext *ctx, const char *label);
 GUI_API void gui_end_combo(GuiContext *ctx);
+
+GUI_API GUI_BOOL gui_begin_tree(GuiContext *ctx, const char *label);
+GUI_API void gui_end_tree(GuiContext *ctx);
 
 // Shows a window which allows editing gui layout at runtime
 GUI_API void gui_layout_settings(GuiContext *ctx, const char *save_path);

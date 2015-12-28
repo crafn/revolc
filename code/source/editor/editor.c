@@ -155,6 +155,17 @@ void upd_editor()
 				gui_end_combo(ctx);
 			}
 
+			if (gui_begin_tree(ctx, "Tree component")) {
+				gui_button(ctx, "ASDFG1");
+				gui_button(ctx, "ASDFG2");
+				if (gui_begin_tree(ctx, "ASDFG3")) {
+					gui_button(ctx, "sub menu thing");
+					gui_button(ctx, "sub menu thing 2");
+					gui_end_tree(ctx);
+				}
+				gui_end_tree(ctx);
+			}
+
 		gui_end_window(ctx);
 
 		gui_begin_panel(ctx, "panel");
