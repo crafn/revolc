@@ -53,6 +53,31 @@ void load_layout(GuiContext *ctx)
 
 	{
 		GuiElementLayout l = {0};
+		l.id = 370987631;
+		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "datatree+Editor_editor|Editor editor >");
+		l.on_same_row = 0;
+		l.has_offset = 0;
+		l.offset[0] = 0;
+		l.offset[1] = 0;
+		l.has_size = 1;
+		l.size[0] = 100;
+		l.size[1] = 20;
+		l.prevent_resizing = 0;
+		l.align_left = 0;
+		l.align_right = 0;
+		l.align_top = 0;
+		l.align_bottom = 0;
+		l.padding[0] = 10;
+		l.padding[1] = 0;
+		l.padding[2] = 10;
+		l.padding[3] = 2;
+		l.gap[0] = 0;
+		l.gap[1] = 0;
+		append_element_layout(ctx, l);
+	}
+
+	{
+		GuiElementLayout l = {0};
 		l.id = 536052831;
 		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "none");
 		l.on_same_row = 0;
@@ -228,6 +253,31 @@ void load_layout(GuiContext *ctx)
 
 	{
 		GuiElementLayout l = {0};
+		l.id = 1099133688;
+		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "gui_client:world_tools");
+		l.on_same_row = 0;
+		l.has_offset = 0;
+		l.offset[0] = 0;
+		l.offset[1] = 0;
+		l.has_size = 1;
+		l.size[0] = 100;
+		l.size[1] = 20;
+		l.prevent_resizing = 0;
+		l.align_left = 0;
+		l.align_right = 0;
+		l.align_top = 0;
+		l.align_bottom = 0;
+		l.padding[0] = 5;
+		l.padding[1] = 5;
+		l.padding[2] = 5;
+		l.padding[3] = 5;
+		l.gap[0] = 0;
+		l.gap[1] = 0;
+		append_element_layout(ctx, l);
+	}
+
+	{
+		GuiElementLayout l = {0};
 		l.id = 1228705237;
 		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "gui_layout_list+name|  name:");
 		l.on_same_row = 0;
@@ -303,12 +353,37 @@ void load_layout(GuiContext *ctx)
 
 	{
 		GuiElementLayout l = {0};
+		l.id = 1529018108;
+		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "world_tools|World tools");
+		l.on_same_row = 0;
+		l.has_offset = 1;
+		l.offset[0] = 0;
+		l.offset[1] = 0;
+		l.has_size = 1;
+		l.size[0] = 179;
+		l.size[1] = 573;
+		l.prevent_resizing = 0;
+		l.align_left = 1;
+		l.align_right = 0;
+		l.align_top = 1;
+		l.align_bottom = 1;
+		l.padding[0] = 0;
+		l.padding[1] = 0;
+		l.padding[2] = 0;
+		l.padding[3] = 0;
+		l.gap[0] = 0;
+		l.gap[1] = 0;
+		append_element_layout(ctx, l);
+	}
+
+	{
+		GuiElementLayout l = {0};
 		l.id = 1546540848;
 		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "gui_layoutwin");
 		l.on_same_row = 0;
 		l.has_offset = 1;
-		l.offset[0] = 446;
-		l.offset[1] = 5;
+		l.offset[0] = 395;
+		l.offset[1] = 4;
 		l.has_size = 1;
 		l.size[0] = 329;
 		l.size[1] = 537;
@@ -393,6 +468,31 @@ void load_layout(GuiContext *ctx)
 		l.align_top = 0;
 		l.align_bottom = 0;
 		l.padding[0] = 10;
+		l.padding[1] = 0;
+		l.padding[2] = 0;
+		l.padding[3] = 0;
+		l.gap[0] = 0;
+		l.gap[1] = 0;
+		append_element_layout(ctx, l);
+	}
+
+	{
+		GuiElementLayout l = {0};
+		l.id = 2651403700;
+		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "show_prog_state|Show program state");
+		l.on_same_row = 0;
+		l.has_offset = 0;
+		l.offset[0] = 0;
+		l.offset[1] = 0;
+		l.has_size = 1;
+		l.size[0] = 100;
+		l.size[1] = 20;
+		l.prevent_resizing = 0;
+		l.align_left = 0;
+		l.align_right = 0;
+		l.align_top = 0;
+		l.align_bottom = 0;
+		l.padding[0] = 5;
 		l.padding[1] = 0;
 		l.padding[2] = 0;
 		l.padding[3] = 0;
@@ -653,6 +753,31 @@ void load_layout(GuiContext *ctx)
 
 	{
 		GuiElementLayout l = {0};
+		l.id = 3880832514;
+		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "program_state|Program state");
+		l.on_same_row = 0;
+		l.has_offset = 1;
+		l.offset[0] = 0;
+		l.offset[1] = 0;
+		l.has_size = 1;
+		l.size[0] = 322;
+		l.size[1] = 500;
+		l.prevent_resizing = 0;
+		l.align_left = 0;
+		l.align_right = 0;
+		l.align_top = 0;
+		l.align_bottom = 0;
+		l.padding[0] = 0;
+		l.padding[1] = 0;
+		l.padding[2] = 0;
+		l.padding[3] = 0;
+		l.gap[0] = 0;
+		l.gap[1] = 0;
+		append_element_layout(ctx, l);
+	}
+
+	{
+		GuiElementLayout l = {0};
 		l.id = 3965537002;
 		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "gui_client:panel");
 		l.on_same_row = 0;
@@ -707,8 +832,8 @@ void load_layout(GuiContext *ctx)
 		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "Gui components");
 		l.on_same_row = 0;
 		l.has_offset = 1;
-		l.offset[0] = 167;
-		l.offset[1] = 199;
+		l.offset[0] = 360;
+		l.offset[1] = 162;
 		l.has_size = 1;
 		l.size[0] = 214;
 		l.size[1] = 320;

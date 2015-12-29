@@ -62,7 +62,9 @@ void init_nodetype(NodeType *node)
 			fail("Func not found: %s", node->storage_func_name);
 	}
 
-	node->size = rtti_struct_size(node->res.name);
+	StructRtti *s = rtti_struct(node->res.name);
+	ensure(s);
+	node->size = s->size;
 	if (!node->size)
 		fail("Couldn't find struct %s size. Has codegen run?", node->res.name);
 }

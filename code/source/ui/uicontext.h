@@ -17,28 +17,30 @@ Color highlight_color(Color c);
 Color outline_color(Color c);
 const struct Font *gui_font();
 
+typedef struct UiContext_Dev {
+	// @todo Remove stuff duplicated respect to gui.h
+	V2i cursor_pos;
+	V2i prev_cursor_pos;
+	V2i cursor_delta;
+	ButtonState lmb;
+	ButtonState rmb;
+	bool shift_down;
+	bool snap_to_closest;
+	bool g_pressed;
+	bool r_pressed;
+	bool s_pressed;
+	bool toggle_select_all;
+	bool toggle_play;
+	bool delete;
+
+	GuiId grabbing; // Set by editor elements
+	GuiId rotating; // Set by editor elements
+	GuiId scaling; // Set by editor elements
+} UiContext_Dev;
+
 // @todo Rename to something like UiState -- gui is already *Context
 typedef struct UiContext {
-	// @todo Remove stuff duplicated respect to gui.h
-	struct {
-		V2i cursor_pos;
-		V2i prev_cursor_pos;
-		V2i cursor_delta;
-		ButtonState lmb;
-		ButtonState rmb;
-		bool shift_down;
-		bool snap_to_closest;
-		bool g_pressed;
-		bool r_pressed;
-		bool s_pressed;
-		bool toggle_select_all;
-		bool toggle_play;
-		bool delete;
-
-		GuiId grabbing; // Set by editor elements
-		GuiId rotating; // Set by editor elements
-		GuiId scaling; // Set by editor elements
-	} dev;
+	UiContext_Dev dev;
 
 	GuiContext *gui;
 } UiContext;

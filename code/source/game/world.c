@@ -890,8 +890,11 @@ void create_nodes(	World *w,
 				continue;
 
 			/// @todo Don't do this! Slow. Or make RTTI fast.
-			U32 size = rtti_member_size(node_def->type_name, val->member_name);
-			U32 offset = rtti_member_offset(node_def->type_name, val->member_name);
+			StructRtti *s = rtti_struct(node_def->type_name);
+			ensure(s);
+			U32 member_ix = rtti_member_index(node_def->type_name, val->member_name);
+			U32 size = s->members[member_ix].size;
+			U32 offset = s->members[member_ix].offset;
 			if (val->size > size) {
 				fail("Node init value is larger than member (%s.%s): %i > %i",
 						val->node_name, val->member_name, val->size, size);

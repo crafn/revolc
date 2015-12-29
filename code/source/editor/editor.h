@@ -7,6 +7,7 @@ typedef enum {
 	EditorState_invisible,
 	EditorState_mesh,
 	EditorState_armature,
+	EditorState_world,
 	EditorState_gui_test,
 } EditorState;
 
@@ -23,6 +24,8 @@ typedef struct Editor {
 
 	EditorState state;
 	bool edit_layout;
+
+	bool show_prog_state;
 } Editor;
 
 // Sets g_env.editor

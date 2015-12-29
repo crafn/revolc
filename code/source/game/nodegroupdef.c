@@ -191,9 +191,12 @@ void find_member_storage(U32 *offset, U32 *size, const char *type_name, const To
 	while (tok->type != TokType_eof) {
 		ensure(tok->type == TokType_name);
 
+		StructRtti *s = rtti_struct(type_name);
+		ensure(s);
 		const char *member_name = tok->str;
-		*offset += rtti_member_offset(type_name, member_name);
-		const char *next_type_name = rtti_member_type_name(type_name, member_name);
+		U32 member_ix = rtti_member_index(type_name, member_name);
+		*offset += s->members[member_ix].offset;
+		const char *next_type_name = s->members[member_ix].base_type_name;
 
 		++tok;
 
@@ -201,7 +204,7 @@ void find_member_storage(U32 *offset, U32 *size, const char *type_name, const To
 			++tok;
 		} else {
 			// That was the last name in the chain of "foo.bar.asdfg.hsdg"
-			*size = rtti_member_size(type_name, member_name);
+			*size = s->members[member_ix].size;
 			break;
 		}
 		type_name = next_type_name;
@@ -227,12 +230,15 @@ void parse_cmd(NodeGroupDef_Cmd *cmd, const Token *toks, U32 tok_count, const No
 		const char *cond_member_name = toks[4].str;
 		U32 cond_node_i = node_i_by_name(def, cond_node_name);
 		const char *cond_node_type_name = def->nodes[cond_node_i].type_name;
+		U32 cond_member_ix = rtti_member_index(cond_node_type_name, cond_member_name);
+		StructRtti *s = rtti_struct(cond_node_type_name);
+		ensure(s);
 
 		cmd->has_condition = true;
 		cmd->cond_node_i = cond_node_i;
-		cmd->cond_offset = rtti_member_offset(cond_node_type_name, cond_member_name);
-		cmd->cond_size = rtti_member_size(cond_node_type_name, cond_member_name);
-
+		cmd->cond_offset = s->members[cond_member_ix].offset;
+		cmd->cond_size = s->members[cond_member_ix].size;
+ 
 		// Parse command
 		parse_cmd(cmd, toks + 6, tok_count - 6, def);
 	} else if (toks[1].type == TokType_dot) {
@@ -299,8 +305,9 @@ void init_nodegroupdef(NodeGroupDef *def)
 {
 	for (U32 node_i = 0; node_i < def->node_count; ++node_i) {
 		NodeGroupDef_Node *node = &def->nodes[node_i];
-		node->default_struct_size =
-			rtti_struct_size(node->type_name);
+		StructRtti *s = rtti_struct(node->type_name);
+		ensure(s);
+		node->default_struct_size = s->size;
 		ensure(node->default_struct_size > 0);
 		node->default_struct =
 			ZERO_ALLOC(gen_ator(), node->default_struct_size, "default_struct");
@@ -315,8 +322,11 @@ void init_nodegroupdef(NodeGroupDef *def)
 			const char *field_str = node->defaults[i].dst;
 			const char *value_str = node->defaults[i].src;
 
-			U32 size = rtti_member_size(node->type_name, field_str);
-			U32 offset = rtti_member_offset(node->type_name, field_str);
+			StructRtti *s = rtti_struct(node->type_name);
+			ensure(s);
+			U32 field_ix = rtti_member_index(node->type_name, field_str);
+			U32 size = s->members[field_ix].size;
+			U32 offset = s->members[field_ix].offset;
 
 			const U32 value_size = strlen(value_str) + 1;
 			ensure(offset + size < node->default_struct_size);

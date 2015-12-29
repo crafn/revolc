@@ -9,6 +9,7 @@
 #include "ui/gui.h"
 #include "ui/uicontext.h"
 #include "visual/renderer.h"
+#include "global/rtti.h"
 
 internal
 void editor_free_res_state()
@@ -89,41 +90,119 @@ void destroy_editor()
 	g_env.editor = NULL;
 }
 
+internal const char *gui_value_str(GuiContext *ctx, const char *type_name, void *deref_ptr, int ptr_depth, void *ptr)
+{
+	if (!strcmp(type_name, "int") && deref_ptr)
+		return gui_str(ctx, "%i", *(int*)deref_ptr);
+	else if (!strcmp(type_name, "F64") && deref_ptr)
+		return gui_str(ctx, "%f", *(F64*)deref_ptr);
+	else if (!strcmp(type_name, "F32") && deref_ptr)
+		return gui_str(ctx, "%f", *(F32*)deref_ptr);
+	else if (!strcmp(type_name, "U32") && deref_ptr)
+		return gui_str(ctx, "%u", *(U32*)deref_ptr);
+	else if (!strcmp(type_name, "bool") && deref_ptr)
+		return gui_str(ctx, "%s", *(bool*)deref_ptr ? "true" : "false");
+	else if (!strcmp(type_name, "V2i") && deref_ptr) {
+		V2i v = *(V2i*)deref_ptr;
+		return gui_str(ctx, "{%i, %i}", v.x, v.y);
+	} else if (!strcmp(type_name, "V2f") && deref_ptr) {
+		V2f v = *(V2f*)deref_ptr;
+		return gui_str(ctx, "{%f, %f}", v.x, v.y);
+	} else if (!strcmp(type_name, "V2d") && deref_ptr) {
+		V2d v = *(V2d*)deref_ptr;
+		return gui_str(ctx, "{%f, %f}", v.x, v.y);
+	} else if (!strcmp(type_name, "V3d") && deref_ptr) {
+		V3d v = *(V3d*)deref_ptr;
+		return gui_str(ctx, "{%f, %f, %f}", v.x, v.y, v.z);
+	} else if (!strcmp(type_name, "Color") && deref_ptr) {
+		Color v = *(Color*)deref_ptr;
+		return gui_str(ctx, "{%f, %f, %f, %f}", v.r, v.g, v.b, v.a);
+	} else if (!strcmp(type_name, "char") && deref_ptr && ptr_depth > 0)
+		return gui_str(ctx, "%s", deref_ptr);
+	else if (ptr)
+		return gui_str(ctx, "%p", ptr);
+
+	return "??";
+}
+
+internal void gui_data_tree(GuiContext *ctx, const char *struct_name, void *struct_ptr)
+{
+	StructRtti *s = rtti_struct(struct_name);
+	if (!s)
+		return;
+	for (U32 i = 0; i < s->member_count; ++i) {
+		MemberRtti m = s->members[i];
+
+		void *member_ptr = NULL;
+		void *deref_ptr = NULL;
+		if (struct_ptr && m.size > 0) {
+			member_ptr = (U8*)struct_ptr + m.offset;
+			deref_ptr = member_ptr;
+
+			// Dereference in case of pointers as members
+			for (U32 k = 0; k < m.ptr_depth; ++k) {
+				if (deref_ptr)
+					deref_ptr = *(U8**)deref_ptr;
+			}
+		}
+
+		const char *value_str = gui_value_str(ctx, m.base_type_name, deref_ptr, m.ptr_depth, member_ptr);
+		const char stars[] = "**********";
+		ensure(sizeof(stars) > m.ptr_depth);
+		const char *label = gui_str(ctx, "datatree+%s.%s|%s %s%s = %s",
+			m.base_type_name, m.name, m.base_type_name, &stars[sizeof(stars) - m.ptr_depth - 1], m.name, value_str);
+
+		if (gui_begin_tree(ctx, label)) {
+			gui_data_tree(ctx, m.base_type_name, deref_ptr);
+			gui_end_tree(ctx);
+		}
+	}
+}
+
 void upd_editor()
 {
 	Editor *e = g_env.editor;
+	GuiContext *ctx = g_env.uicontext->gui;
 
 	if (g_env.device->key_pressed[KEY_F1])
 		e->state = EditorState_mesh;
 	if (g_env.device->key_pressed[KEY_F2])
 		e->state = EditorState_armature;
 	if (g_env.device->key_pressed[KEY_F3])
+		e->state = EditorState_world;
+	if (g_env.device->key_pressed[KEY_F4])
 		e->state = EditorState_gui_test;
 
 	if (g_env.device->key_pressed[KEY_ESC])
 		e->state = EditorState_invisible;
 
-	if (e->state == EditorState_invisible)
-		return;
+	if (e->state != EditorState_invisible) {
+		bool tab_pressed = g_env.device->key_pressed[KEY_TAB];
+		if (tab_pressed)
+			toggle_bool(&e->is_edit_mode);
+		if (e->state == EditorState_mesh && e->cur_model_h == NULL_HANDLE)
+			e->is_edit_mode = false;
+		if (	e->state == EditorState_armature &&
+				e->ae_state.comp_h == NULL_HANDLE)
+			e->is_edit_mode = false;
 
-	bool tab_pressed = g_env.device->key_pressed[KEY_TAB];
-	if (tab_pressed)
-		toggle_bool(&e->is_edit_mode);
-	if (e->state == EditorState_mesh && e->cur_model_h == NULL_HANDLE)
-		e->is_edit_mode = false;
-	if (	e->state == EditorState_armature &&
-			e->ae_state.comp_h == NULL_HANDLE)
-		e->is_edit_mode = false;
+		bool mesh_editor_active = e->state == EditorState_mesh;
+		bool armature_editor_active = e->state == EditorState_armature;
 
-	bool mesh_editor_active = e->state == EditorState_mesh;
-	bool armature_editor_active = e->state == EditorState_armature;
+		do_mesh_editor(&e->cur_model_h, &e->is_edit_mode, mesh_editor_active);
+		do_armature_editor(	&e->ae_state,
+							e->is_edit_mode,
+							armature_editor_active);
+	}
 
-	do_mesh_editor(&e->cur_model_h, &e->is_edit_mode, mesh_editor_active);
-	do_armature_editor(	&e->ae_state,
-						e->is_edit_mode,
-						armature_editor_active);
+	if (e->state == EditorState_world) {
 
-	if (e->state == EditorState_gui_test) {
+		gui_begin_panel(ctx, "world_tools|World tools");
+			gui_checkbox(ctx, "show_prog_state|Show program state", &e->show_prog_state);
+		gui_end_panel(ctx);
+
+
+	} else if (e->state == EditorState_gui_test) {
 		GuiContext *ctx = g_env.uicontext->gui;
 
 		gui_begin_window(ctx, "win");
@@ -171,6 +250,12 @@ void upd_editor()
 		gui_begin_panel(ctx, "panel");
 			gui_button(ctx, "button");
 		gui_end_panel(ctx);
+	}
+
+	if (e->show_prog_state) {
+		gui_begin_window(ctx, "program_state|Program state");
+		gui_data_tree(ctx, "Env", &g_env);
+		gui_end_window(ctx);
 	}
 
 	if (e->edit_layout)

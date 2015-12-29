@@ -187,8 +187,8 @@ static void set_element_storage_bool(GuiContext *ctx, const char *label, GUI_BOO
 			ctx->storage = GUI_REALLOC(ctx->storage, sizeof(*ctx->storage)*ctx->storage_capacity);
 		}
 
-		// Insert value in the middle
-		memmove(&ctx->storage[ix + 1], &ctx->storage[ix], ctx->storage_count - ix);
+		// Make room in the middle
+		memmove(&ctx->storage[ix + 1], &ctx->storage[ix], sizeof(*ctx->storage)*ctx->storage_count - ix);
 		++ctx->storage_count;
 	}
 
@@ -196,6 +196,11 @@ static void set_element_storage_bool(GuiContext *ctx, const char *label, GUI_BOO
 	ctx->storage[ix].bool_value = value;
 
 	assert(element_storage_bool(ctx, label, !value) == value);
+	GuiId test_id = 0;
+	for (int i = 0; i < ctx->storage_count; ++i) {
+		assert(test_id < ctx->storage[i].id);
+		test_id = ctx->storage[i].id;
+	}
 }
 
 static void save_layout(GuiContext *ctx, const char *path)
@@ -1505,13 +1510,13 @@ void gui_end_combo(GuiContext *ctx)
 GUI_BOOL gui_begin_tree(GuiContext *ctx, const char *label)
 {
 	GUI_BOOL open = element_storage_bool(ctx, label, GUI_FALSE);
-	if (gui_button(ctx, gui_str(ctx, "%s %c", label, open ? 'v' : '>'))) {
+	if (gui_button(ctx, gui_str(ctx, "%s", label))) {
 		set_element_storage_bool(ctx, label, !open);
 	}
 
 	if (open) {
 		gui_begin(ctx, gui_str(ctx, "gui_treenode:%s", label));
-		gui_turtle(ctx)->pos[0] += 10; // @todo Layout
+		gui_turtle(ctx)->pos[0] += 20; // @todo Layout
 		return GUI_TRUE;
 	} else {
 		return GUI_FALSE;

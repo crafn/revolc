@@ -23,6 +23,7 @@ The library is designed to make zero memory allocations during normal runtime. I
    because gui layout is meant to be adjusted & saved before shipping.
 
 Todo list
+ - multiple layout support
  - C99 -> C89 (while keeping C++ compat)
  - header-only
  - simple example
@@ -219,6 +220,11 @@ typedef struct GuiElementLayout {
 	int gap[2]; // Sub-element gap in horizontal and vertical dir
 } GuiElementLayout;
 
+typedef struct GuiContext_Storage {
+	GuiId id;
+	GUI_BOOL bool_value;
+} GuiContext_Storage;
+
 typedef void (*CalcTextSizeFunc)(int ret[2], void *user_data, const char *text);
 
 // Handles the gui state
@@ -273,7 +279,7 @@ typedef struct GuiContext {
 	char layout_element_label[MAX_GUI_LABEL_SIZE];
 
 	// Misc element state storage
-	struct { GuiId id; GUI_BOOL bool_value; } *storage; // Kept in order
+	GuiContext_Storage *storage; // Kept in order
 	int storage_capacity;
 	int storage_count;
 
