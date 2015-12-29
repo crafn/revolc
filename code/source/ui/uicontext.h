@@ -53,4 +53,6 @@ REVOLC_API void destroy_uicontext();
 REVOLC_API void begin_ui_frame();
 REVOLC_API void end_ui_frame();
 
+REVOLC_API bool world_has_input();
+
 #endif // REVOLC_UI_UICONTEXT_H

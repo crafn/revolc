@@ -631,6 +631,8 @@ void destroy_gui(GuiContext *ctx)
 	}
 }
 
+void gui_button_logic(GuiContext *ctx, const char *label, int pos[2], int size[2], GUI_BOOL *went_up, GUI_BOOL *went_down, GUI_BOOL *down, GUI_BOOL *hover);
+
 void gui_pre_frame(GuiContext *ctx)
 {
 	assert(ctx->turtle_ix == 0);
@@ -645,6 +647,11 @@ void gui_pre_frame(GuiContext *ctx)
 	GUI_ZERO(*gui_turtle(ctx));
 	gui_turtle(ctx)->window_ix = GUI_BG_WINDOW_IX;
 	GUI_ASSIGN_V2(gui_turtle(ctx)->size, ctx->host_win_size);
+
+	{ // Clickable background
+		int pos[2] = {};
+		gui_button_logic(ctx, "gui_bg_window", pos, ctx->host_win_size, NULL, NULL, NULL, NULL);
+	}
 }
 
 void gui_post_frame(GuiContext *ctx)

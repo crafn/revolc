@@ -237,3 +237,8 @@ void end_ui_frame()
 	}
 }
 
+bool world_has_input()
+{
+	return g_env.uicontext->gui->focused_win_ix < 0;
+}
+

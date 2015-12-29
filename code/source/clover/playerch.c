@@ -1,4 +1,5 @@
 #include "playerch.h"
+#include "ui/uicontext.h"
 
 void init_playerch(PlayerCh *p)
 {
@@ -51,7 +52,7 @@ void upd_playerch(PlayerCh *p, PlayerCh *p_e, RigidBody *body, RigidBody *body_e
 	V2d cursor_p = screen_to_world_point(g_env.device->cursor_pos);
 
 	for (; p != p_e; ++p, ++body) {
-		bool in_control = (g_env.netstate->peer_id == p->peer_id);
+		bool in_control = (g_env.netstate->peer_id == p->peer_id) && world_has_input();
 		bool jump = in_control && g_env.device->key_pressed[KEY_SPACE];
 		bool dig = in_control && g_env.device->key_down[KEY_LMB];
 		bool build_immediately = in_control && g_env.device->key_pressed[KEY_RMB];

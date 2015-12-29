@@ -80,7 +80,7 @@ int main(int argc, const char **argv)
 
 	init_env(argc, argv);
 
-	Device *d = plat_init(frame_str("Revolc engine - %s", game), (V2i) {800, 600});
+	Device *d = plat_init(frame_str("Revolc engine - %s", game), (V2i) {1024, 768});
 
 	if (!file_exists(blob_path(game)))
 		make_main_blob(blob_path(game), game);
@@ -128,7 +128,7 @@ int main(int argc, const char **argv)
 		begin_ui_frame();
 
 		// User input
-		if (!gui_has_input(g_env.uicontext->gui)) {
+		if (world_has_input(g_env.uicontext->gui)) {
 			V2d cursor_on_world = screen_to_world_point(g_env.device->cursor_pos);
 			V2d prev_cursor_on_world = screen_to_world_point(g_env.uicontext->dev.prev_cursor_pos);
 			V2d cursor_delta_on_world = sub_v2d(cursor_on_world, prev_cursor_on_world);
