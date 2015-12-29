@@ -196,11 +196,11 @@ void upd_editor()
 	}
 
 	if (e->state == EditorState_world) {
-
 		gui_begin_panel(ctx, "world_tools|World tools");
 			gui_checkbox(ctx, "show_prog_state|Show program state", &e->show_prog_state);
+			gui_checkbox(ctx, "show_node_list|Show nodes", &e->show_node_list);
+			gui_checkbox(ctx, "show_cmd_list|Show cmds", &e->show_cmd_list);
 		gui_end_panel(ctx);
-
 
 	} else if (e->state == EditorState_gui_test) {
 		GuiContext *ctx = g_env.uicontext->gui;
@@ -255,6 +255,37 @@ void upd_editor()
 	if (e->show_prog_state) {
 		gui_begin_window(ctx, "program_state|Program state");
 		gui_data_tree(ctx, "Env", &g_env);
+		gui_end_window(ctx);
+	}
+
+	if (e->show_node_list) {
+		gui_begin_window(ctx, "node_list|Node list");
+		for (U32 i = 0; i < MAX_NODE_COUNT; ++i) {
+			NodeInfo *info = &g_env.world->nodes[i];
+			if (!info->allocated)
+				continue;
+
+			if (gui_begin_tree(	ctx, gui_str(ctx, "node_list_item+%i|%s id %i group %i",
+								info->node_id, info->type_name, info->node_id, info->group_id))) {
+				gui_data_tree(ctx, info->type_name, node_impl(g_env.world, NULL, info));
+				gui_end_tree(ctx);
+			}
+		}
+		gui_end_window(ctx);
+	}
+
+	if (e->show_cmd_list) {
+		gui_begin_window(ctx, "cmd_list|Node command list");
+		for (U32 i = 0; i < MAX_NODE_CMD_COUNT; ++i) {
+			NodeCmd *cmd = &g_env.world->cmds[i];
+			if (!cmd->allocated)
+				continue;
+
+			if (gui_begin_tree(ctx, gui_str(ctx, "cmd_list_item+%i|%i", cmd->cmd_id, cmd->cmd_id))) {
+				gui_data_tree(ctx, "NodeCmd", cmd);
+				gui_end_tree(ctx);
+			}
+		}
 		gui_end_window(ctx);
 	}
 

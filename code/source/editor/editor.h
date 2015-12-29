@@ -26,6 +26,8 @@ typedef struct Editor {
 	bool edit_layout;
 
 	bool show_prog_state;
+	bool show_node_list;
+	bool show_cmd_list;
 } Editor;
 
 // Sets g_env.editor

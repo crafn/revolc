@@ -28,6 +28,31 @@ void load_layout(GuiContext *ctx)
 
 	{
 		GuiElementLayout l = {0};
+		l.id = 318080033;
+		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "show_cmd_list|Show cmds");
+		l.on_same_row = 0;
+		l.has_offset = 0;
+		l.offset[0] = 0;
+		l.offset[1] = 0;
+		l.has_size = 1;
+		l.size[0] = 100;
+		l.size[1] = 20;
+		l.prevent_resizing = 0;
+		l.align_left = 0;
+		l.align_right = 0;
+		l.align_top = 0;
+		l.align_bottom = 0;
+		l.padding[0] = 5;
+		l.padding[1] = 0;
+		l.padding[2] = 0;
+		l.padding[3] = 0;
+		l.gap[0] = 0;
+		l.gap[1] = 0;
+		append_element_layout(ctx, l);
+	}
+
+	{
+		GuiElementLayout l = {0};
 		l.id = 329413595;
 		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "gui_bar");
 		l.on_same_row = 0;
@@ -193,6 +218,31 @@ void load_layout(GuiContext *ctx)
 		l.align_top = 0;
 		l.align_bottom = 0;
 		l.padding[0] = 10;
+		l.padding[1] = 0;
+		l.padding[2] = 0;
+		l.padding[3] = 0;
+		l.gap[0] = 0;
+		l.gap[1] = 0;
+		append_element_layout(ctx, l);
+	}
+
+	{
+		GuiElementLayout l = {0};
+		l.id = 1071369692;
+		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "show_node_list|Show nodes");
+		l.on_same_row = 0;
+		l.has_offset = 0;
+		l.offset[0] = 0;
+		l.offset[1] = 0;
+		l.has_size = 1;
+		l.size[0] = 100;
+		l.size[1] = 20;
+		l.prevent_resizing = 0;
+		l.align_left = 0;
+		l.align_right = 0;
+		l.align_top = 0;
+		l.align_bottom = 0;
+		l.padding[0] = 5;
 		l.padding[1] = 0;
 		l.padding[2] = 0;
 		l.padding[3] = 0;
@@ -382,11 +432,11 @@ void load_layout(GuiContext *ctx)
 		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "gui_layoutwin");
 		l.on_same_row = 0;
 		l.has_offset = 1;
-		l.offset[0] = 395;
-		l.offset[1] = 4;
+		l.offset[0] = 538;
+		l.offset[1] = 0;
 		l.has_size = 1;
-		l.size[0] = 329;
-		l.size[1] = 537;
+		l.size[0] = 251;
+		l.size[1] = 573;
 		l.prevent_resizing = 0;
 		l.align_left = 0;
 		l.align_right = 0;
@@ -423,6 +473,31 @@ void load_layout(GuiContext *ctx)
 		l.padding[3] = 5;
 		l.gap[0] = 0;
 		l.gap[1] = 4;
+		append_element_layout(ctx, l);
+	}
+
+	{
+		GuiElementLayout l = {0};
+		l.id = 2357176526;
+		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "cmd_list");
+		l.on_same_row = 0;
+		l.has_offset = 1;
+		l.offset[0] = 389;
+		l.offset[1] = 48;
+		l.has_size = 1;
+		l.size[0] = 251;
+		l.size[1] = 479;
+		l.prevent_resizing = 0;
+		l.align_left = 0;
+		l.align_right = 0;
+		l.align_top = 0;
+		l.align_bottom = 0;
+		l.padding[0] = 0;
+		l.padding[1] = 0;
+		l.padding[2] = 0;
+		l.padding[3] = 0;
+		l.gap[0] = 0;
+		l.gap[1] = 0;
 		append_element_layout(ctx, l);
 	}
 
@@ -496,6 +571,31 @@ void load_layout(GuiContext *ctx)
 		l.padding[1] = 0;
 		l.padding[2] = 0;
 		l.padding[3] = 0;
+		l.gap[0] = 0;
+		l.gap[1] = 0;
+		append_element_layout(ctx, l);
+	}
+
+	{
+		GuiElementLayout l = {0};
+		l.id = 2751042306;
+		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "node_list_item+4|ModelEntity id 4");
+		l.on_same_row = 0;
+		l.has_offset = 0;
+		l.offset[0] = 0;
+		l.offset[1] = 0;
+		l.has_size = 1;
+		l.size[0] = 100;
+		l.size[1] = 20;
+		l.prevent_resizing = 0;
+		l.align_left = 0;
+		l.align_right = 0;
+		l.align_top = 0;
+		l.align_bottom = 0;
+		l.padding[0] = 5;
+		l.padding[1] = 0;
+		l.padding[2] = 5;
+		l.padding[3] = 1;
 		l.gap[0] = 0;
 		l.gap[1] = 0;
 		append_element_layout(ctx, l);
@@ -596,6 +696,31 @@ void load_layout(GuiContext *ctx)
 		l.padding[1] = 0;
 		l.padding[2] = 0;
 		l.padding[3] = 5;
+		l.gap[0] = 0;
+		l.gap[1] = 0;
+		append_element_layout(ctx, l);
+	}
+
+	{
+		GuiElementLayout l = {0};
+		l.id = 3309950839;
+		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "node_list");
+		l.on_same_row = 0;
+		l.has_offset = 1;
+		l.offset[0] = 35;
+		l.offset[1] = 44;
+		l.has_size = 1;
+		l.size[0] = 235;
+		l.size[1] = 445;
+		l.prevent_resizing = 0;
+		l.align_left = 0;
+		l.align_right = 0;
+		l.align_top = 0;
+		l.align_bottom = 0;
+		l.padding[0] = 0;
+		l.padding[1] = 0;
+		l.padding[2] = 0;
+		l.padding[3] = 0;
 		l.gap[0] = 0;
 		l.gap[1] = 0;
 		append_element_layout(ctx, l);
@@ -757,8 +882,8 @@ void load_layout(GuiContext *ctx)
 		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "program_state|Program state");
 		l.on_same_row = 0;
 		l.has_offset = 1;
-		l.offset[0] = 0;
-		l.offset[1] = 0;
+		l.offset[0] = 110;
+		l.offset[1] = 36;
 		l.has_size = 1;
 		l.size[0] = 322;
 		l.size[1] = 500;
