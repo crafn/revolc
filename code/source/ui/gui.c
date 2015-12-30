@@ -887,20 +887,29 @@ void gui_end_ex(GuiContext *ctx, DragDropData *dropdata)
 	}
 }
 
-void gui_slider_ex(GuiContext *ctx, const char *label, float *value, float min, float max, float handle_rel_size, GUI_BOOL v, int length)
+void gui_slider_ex(GuiContext *ctx, const char *label, float *value, float min, float max, float handle_rel_size, GUI_BOOL v, int length, GUI_BOOL show_text)
 {
 	gui_begin(ctx, label);
 
 	int *pos = gui_turtle(ctx)->pos;
 	int *size = gui_turtle(ctx)->size;
+	int *padding = gui_turtle(ctx)->padding;
 
 	if (length > 0)
 		size[v] = length;
 
-	const int scroll_handle_height = GUI_MAX((int)(handle_rel_size*size[v]), 10);
+	int text_size[2] = {};
+	if (show_text && strlen(gui_label_text(label)) > 0) {
+		ctx->calc_text_size(text_size, ctx->calc_text_size_user_data, gui_label_text(label));
+		GUI_V2(size[c] = GUI_MAX((int)text_size[c] + padding[c] + padding[c + 2], size[c]));
+	}
+	int bar_size[2];
+	GUI_V2(bar_size[c] = size[c] - (!c)*(text_size[c] + padding[0] + padding[2]));
+
+	const int scroll_handle_height = GUI_MAX((int)(handle_rel_size*bar_size[v]), 10);
 
 	GUI_BOOL went_down, down, hover;
-	gui_button_logic(ctx, label, pos, size, NULL, &went_down, &down, &hover);
+	gui_button_logic(ctx, label, pos, bar_size, NULL, &went_down, &down, &hover);
 
 	if (went_down) {
 		GUI_DECL_V2(float, tmp, *value, 0);
@@ -909,7 +918,7 @@ void gui_slider_ex(GuiContext *ctx, const char *label, float *value, float min, 
 
 	if (down && ctx->dragging) {
 		int px_delta = ctx->cursor_pos[v] - ctx->drag_start_pos[v];
-		*value = ctx->drag_start_value[0] + 1.f*px_delta / (size[v] - scroll_handle_height) *(max - min);
+		*value = ctx->drag_start_value[0] + 1.f*px_delta / (bar_size[v] - scroll_handle_height) *(max - min);
 	}
 	*value = GUI_CLAMP(*value, min, max);
 
@@ -917,7 +926,7 @@ void gui_slider_ex(GuiContext *ctx, const char *label, float *value, float min, 
 		{ // Bg
 			int px_pos[2], px_size[2];
 			pt_to_px(px_pos, pos, ctx->dpi_scale);
-			pt_to_px(px_size, size, ctx->dpi_scale);
+			pt_to_px(px_size, bar_size, ctx->dpi_scale);
 			gui_draw(	ctx, GuiDrawInfo_slider, px_pos, px_size, GUI_FALSE, GUI_FALSE, GUI_FALSE,
 						NULL, gui_layer(ctx), gui_scissor(ctx));
 		}
@@ -926,9 +935,9 @@ void gui_slider_ex(GuiContext *ctx, const char *label, float *value, float min, 
 			float rel_scroll = (*value - min) / (max - min);
 			int handle_pos[2];
 			GUI_ASSIGN_V2(handle_pos, pos);
-			handle_pos[v] += (int)(rel_scroll*(size[v] - scroll_handle_height));
+			handle_pos[v] += (int)(rel_scroll*(bar_size[v] - scroll_handle_height));
 			int handle_size[2];
-			GUI_ASSIGN_V2(handle_size, size);
+			GUI_ASSIGN_V2(handle_size, bar_size);
 			handle_size[v] = scroll_handle_height;
 
 			int px_pos[2], px_size[2];
@@ -936,6 +945,30 @@ void gui_slider_ex(GuiContext *ctx, const char *label, float *value, float min, 
 			pt_to_px(px_size, handle_size, ctx->dpi_scale);
 			gui_draw(	ctx, GuiDrawInfo_slider_handle, px_pos, px_size, hover, down, GUI_FALSE,
 						NULL, gui_layer(ctx) + 1, gui_scissor(ctx));
+		}
+
+		if (show_text) { // Label
+			int text_pos[2];
+			text_pos[0] = pos[0] + bar_size[0] + padding[0];
+			text_pos[1] = pos[1] + padding[1];
+			int px_pos[2];
+			pt_to_px(px_pos, text_pos, ctx->dpi_scale);
+			gui_draw(	ctx, GuiDrawInfo_text, px_pos, px_pos, GUI_FALSE, GUI_FALSE, GUI_FALSE,
+						gui_label_text(label), gui_layer(ctx) + 2, gui_scissor(ctx));
+		}
+
+		if (show_text) { // Value
+			int text_pos[2], text_size[2];
+			const char *value_text = gui_str(ctx, "%.3f", *value);
+			ctx->calc_text_size(text_size, ctx->calc_text_size_user_data, value_text);
+			text_pos[0] = pos[0] + (bar_size[0] - text_size[0])/2;
+			text_pos[1] = pos[1];
+
+			int px_pos[2], px_size[2];
+			pt_to_px(px_pos, text_pos, ctx->dpi_scale);
+			pt_to_px(px_size, text_size, ctx->dpi_scale);
+			gui_draw(	ctx, GuiDrawInfo_text, px_pos, px_size, GUI_FALSE, GUI_FALSE, GUI_FALSE,
+						value_text, gui_layer(ctx) + 2, gui_scissor(ctx));
 		}
 	}
 
@@ -999,7 +1032,7 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, GUI_BOOL panel)
 	GuiContext_Window *win = &ctx->windows[win_handle];
 	assert(!win->used && "Same window used twice in a frame");
 	win->used = GUI_TRUE;
-	if (!win->used_in_last_frame)
+	if (!win->used_in_last_frame && ctx->focused_win_ix != GUI_BG_WINDOW_IX)
 		ctx->focused_win_ix = win_handle; // Appearing window will be focused
 
 	gui_turtle(ctx)->window_ix = win_handle;
@@ -1116,7 +1149,7 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, GUI_BOOL panel)
 				float rel_shown_area = 1.f*c_size[d]/win->last_bounding_size[d];
 				float max_comp_scroll = 1.f*max_scroll[d];
 				gui_slider_ex(	ctx, scroll_label, &scroll, 0, max_comp_scroll, rel_shown_area, !!d,
-								size[d] - slider_layout.size[d] - d*win->bar_height);
+								size[d] - slider_layout.size[d] - d*win->bar_height, GUI_FALSE);
 				win->scroll[d] = (int)scroll;
 			}
 			gui_end(ctx);
@@ -1309,8 +1342,6 @@ GUI_BOOL gui_checkbox_ex(GuiContext *ctx, const char *label, GUI_BOOL *value, GU
 		int px_box_size[2];
 		pt_to_px(px_box_size, box_size, ctx->dpi_scale);
 
-		size[0] += box_size[0];
-
 		gui_button_logic(ctx, label, pos, size, &went_up, NULL, &down, &hover);
 
 		int px_pos[2];
@@ -1348,7 +1379,7 @@ GUI_BOOL gui_radiobutton(GuiContext *ctx, const char *label, GUI_BOOL value)
 
 void gui_slider(GuiContext *ctx, const char *label, float *value, float min, float max)
 {
-	gui_slider_ex(ctx, label, value, min, max, 0.1f, GUI_FALSE, 0);
+	gui_slider_ex(ctx, label, value, min, max, 0.1f, GUI_FALSE, 0, GUI_TRUE);
 }
 
 static GUI_BOOL gui_textfield_ex(GuiContext *ctx, const char *label, char *buf, int buf_size, GUI_BOOL int_only)

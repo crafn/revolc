@@ -774,6 +774,16 @@ void render_frame()
 {
 	Renderer *r = g_env.renderer;
 
+	{ // Fov which cuts stuff away with non-square window
+		V2i win_size = g_env.device->win_size;
+		F64 fov_scale = MAX(win_size.x, win_size.y);
+		r->cam_fov = (V2d) {
+			2*atan(g_env.device->win_size.x/fov_scale),
+			2*atan(g_env.device->win_size.y/fov_scale)
+		};
+	}
+
+
 	// Update CompEntities
 	for (U32 e_i = 0; e_i < MAX_COMPENTITY_COUNT; ++e_i) {
 		CompEntity *e = &r->c_entities[e_i];

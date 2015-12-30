@@ -31,6 +31,7 @@ typedef struct Env {
 
 	U32 argc;
 	const char **argv;
+	const char *game;
 
 	F64 time_from_start;
 	F64 dt;

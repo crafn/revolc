@@ -4,12 +4,16 @@
 #include "core/memory.h"
 #include "editor.h"
 #include "editor_util.h"
+#include "game/game.h"
+#include "game/net.h"
 #include "global/env.h"
+#include "global/module.h"
+#include "global/rtti.h"
 #include "mesh_editor.h"
+#include "physics/physworld.h"
 #include "ui/gui.h"
 #include "ui/uicontext.h"
 #include "visual/renderer.h"
-#include "global/rtti.h"
 
 internal
 void editor_free_res_state()
@@ -159,24 +163,178 @@ internal void gui_data_tree(GuiContext *ctx, const char *struct_name, void *stru
 	}
 }
 
-void upd_editor()
+internal void spawn_entity(World *world, ResBlob *blob, V2d pos)
+{
+	if (g_env.netstate && !g_env.netstate->authority)
+		return;
+
+	local_persist U64 group_i = 0;
+	group_i = (group_i + 1) % 3;
+
+	const char* prop_name =
+		(char*[]) {"wbarrel", "wbox", "rollbot"}[group_i];
+
+	T3d tf = {{1, 1, 1}, identity_qd(), {pos.x, pos.y, 0}};
+	SlotVal init_vals[] = { // Override default values from json
+		{"body",	"tf",			WITH_DEREF_SIZEOF(&tf)},
+		{"body",	"def_name",		WITH_STR_SIZE(prop_name)},
+		{"visual",	"model_name",	WITH_STR_SIZE(prop_name)},
+	};
+	NodeGroupDef *def =
+		(NodeGroupDef*)res_by_name(blob, ResType_NodeGroupDef, "phys_prop");
+	create_nodes(world, def, WITH_ARRAY_COUNT(init_vals), group_i, AUTHORITY_PEER);
+}
+
+void upd_editor(F64 *world_dt)
 {
 	Editor *e = g_env.editor;
 	GuiContext *ctx = g_env.uicontext->gui;
 
-	if (g_env.device->key_pressed[KEY_F1])
-		e->state = EditorState_mesh;
-	if (g_env.device->key_pressed[KEY_F2])
-		e->state = EditorState_armature;
-	if (g_env.device->key_pressed[KEY_F3])
-		e->state = EditorState_world;
-	if (g_env.device->key_pressed[KEY_F4])
-		e->state = EditorState_gui_test;
+	{ // F-keys
+		if (g_env.device->key_pressed[KEY_F1])
+			e->state = EditorState_mesh;
+		if (g_env.device->key_pressed[KEY_F2])
+			e->state = EditorState_armature;
+		if (g_env.device->key_pressed[KEY_F3])
+			e->state = EditorState_world;
+		if (g_env.device->key_pressed[KEY_F4])
+			e->state = EditorState_gui_test;
+
+		if (g_env.device->key_pressed[KEY_F5]) {
+			U32 count = mirror_blob_modifications(g_env.resblob);
+			if (count > 0)
+				delete_file(blob_path(g_env.game)); // Force make_blob at restart
+		}
+
+		if (g_env.device->key_pressed[KEY_F9]) {
+			system("cd ../../code && clbs debug mod");
+			make_main_blob(blob_path(g_env.game), g_env.game);
+
+			if (!g_env.device->key_down[KEY_LSHIFT] && blob_has_modifications(g_env.resblob))
+				critical_print("Current resblob has unsaved modifications -- not reloading");
+			else
+				reload_blob(&g_env.resblob, g_env.resblob, blob_path(g_env.game));
+		}
+
+		if (g_env.device->key_pressed[KEY_F12]) {
+			U32 count;
+			Module **modules = (Module**)all_res_by_type(&count,
+														g_env.resblob,
+														ResType_Module);
+			for (U32 i = 0; i < count; ++i)
+				system(frame_str("cd ../../code && clbs debug %s", count[modules]->res.name));
+
+			if (!file_exists(blob_path(g_env.game)))
+				make_main_blob(blob_path(g_env.game), g_env.game);
+
+			/// @todo Reload only modules
+			if (!g_env.device->key_down[KEY_LSHIFT] && blob_has_modifications(g_env.resblob))
+				critical_print("Current resblob has unsaved modifications -- not reloading");
+			else
+				reload_blob(&g_env.resblob, g_env.resblob, blob_path(g_env.game));
+		}
+
+		/*if (g_env.device->key_pressed['p'])
+			save_world(world, SAVEFILE_PATH);
+		if (g_env.device->key_pressed['o']) {
+			destroy_world(world);
+			world = g_env.world = create_world();
+			load_world(world, SAVEFILE_PATH);
+		}*/
+	}
 
 	if (g_env.device->key_pressed[KEY_ESC])
 		e->state = EditorState_invisible;
 
 	if (e->state != EditorState_invisible) {
+		// In editor
+
+		*world_dt *= e->world_time_mul;
+
+		if (world_has_input(g_env.uicontext->gui)) {
+			V2d cursor_on_world = screen_to_world_point(g_env.device->cursor_pos);
+			V2d prev_cursor_on_world = screen_to_world_point(g_env.uicontext->dev.prev_cursor_pos);
+			V2d cursor_delta_on_world = sub_v2d(cursor_on_world, prev_cursor_on_world);
+
+			F32 dt = g_env.device->dt;
+			F32 spd = 25.0;
+			if (g_env.device->key_down[KEY_UP])
+				g_env.renderer->cam_pos.y += spd*dt;
+			if (g_env.device->key_down[KEY_LEFT])
+				g_env.renderer->cam_pos.x -= spd*dt;
+			if (g_env.device->key_down[KEY_DOWN])
+				g_env.renderer->cam_pos.y -= spd*dt;
+			if (g_env.device->key_down[KEY_RIGHT])
+				g_env.renderer->cam_pos.x += spd*dt;
+
+			if (g_env.device->key_down[KEY_MMB]) {
+				g_env.renderer->cam_pos.x -= cursor_delta_on_world.x;
+				g_env.renderer->cam_pos.y -= cursor_delta_on_world.y;
+			}
+
+			if (g_env.device->key_down['y'])
+				g_env.renderer->cam_pos.z -= spd*dt;
+			if (g_env.device->key_down['h'])
+				g_env.renderer->cam_pos.z += spd*dt;
+
+			g_env.renderer->cam_pos.z -= g_env.device->mwheel_delta;
+			g_env.renderer->cam_pos.z = MIN(g_env.renderer->cam_pos.z, 30);
+
+			if (g_env.device->key_down['e'])
+				spawn_entity(g_env.world, g_env.resblob, cursor_on_world);
+
+			if (g_env.device->key_pressed['k'])
+				play_sound("dev_beep0", 1.0, -1.0);
+			if (g_env.device->key_pressed['l'])
+				play_sound("dev_beep1", 0.5, 1.0);
+
+			local_persist cpBody *body = NULL;
+			if (g_env.device->key_down['f']) {
+				cpVect p = {cursor_on_world.x, cursor_on_world.y};
+				cpShape *shape =
+					cpSpacePointQueryNearest(
+							g_env.physworld->cp_space,
+							p, 0.1,
+							CP_SHAPE_FILTER_ALL, NULL);
+
+				if (!body && shape && body != g_env.physworld->cp_ground_body) {
+					body = cpShapeGetBody(shape);
+				}
+
+				if (body) {
+					cpBodySetPosition(body, p);
+					cpBodySetVelocity(body, cpv(0, 0));
+				}
+			} else if (body) {
+				body = NULL;
+			}
+
+#			ifdef USE_FLUID
+			if (g_env.device->key_down['r']) {
+				GridCell *grid = g_env.physworld->grid;
+				U32 i = GRID_INDEX_W(cursor_on_world.x, cursor_on_world.y);
+				U32 width = 20;
+				if (g_env.device->key_down[KEY_LSHIFT])
+					width = 1;
+				if (!g_env.device->key_down[KEY_LCTRL]) {
+					for (U32 x = 0; x < width; ++x) {
+					for (U32 y = 0; y < width; ++y) {
+						grid[i + x + y*GRID_WIDTH_IN_CELLS].water = 1;
+					}
+					}
+				} else {
+					width = 50;
+					for (U32 x = 0; x < width; ++x) {
+					for (U32 y = 0; y < width; ++y) {
+						if (rand() % 300 == 0)
+							grid[i + x + y*GRID_WIDTH_IN_CELLS].water = 1;
+					}
+					}
+				}
+			}
+#			endif
+		}
+
 		bool tab_pressed = g_env.device->key_pressed[KEY_TAB];
 		if (tab_pressed)
 			toggle_bool(&e->is_edit_mode);
@@ -193,102 +351,105 @@ void upd_editor()
 		do_armature_editor(	&e->ae_state,
 							e->is_edit_mode,
 							armature_editor_active);
-	}
 
-	if (e->state == EditorState_world) {
-		gui_begin_panel(ctx, "world_tools|World tools");
-			gui_checkbox(ctx, "show_prog_state|Show program state", &e->show_prog_state);
-			gui_checkbox(ctx, "show_node_list|Show nodes", &e->show_node_list);
-			gui_checkbox(ctx, "show_cmd_list|Show cmds", &e->show_cmd_list);
-		gui_end_panel(ctx);
+		if (e->state == EditorState_world) {
+			gui_begin_panel(ctx, "world_tools|World tools");
+				gui_checkbox(ctx, "world_tool_elem+prog|Show program state", &e->show_prog_state);
+				gui_checkbox(ctx, "world_tool_elem+nodes|Show nodes", &e->show_node_list);
+				gui_checkbox(ctx, "world_tool_elem+cmds|Show cmds", &e->show_cmd_list);
+				gui_slider(ctx, "world_tool_elem+dt_mul|Time mul", &e->world_time_mul, 0.0f, 10.0f);
+				gui_slider(ctx, "world_tool_elem+exp|Exposure", &g_env.renderer->exposure, -5.0f, 5.0f);
+				gui_checkbox(ctx, "world_tool_elem+physdraw|Physics debug draw", &g_env.physworld->debug_draw);
+			gui_end_panel(ctx);
 
-	} else if (e->state == EditorState_gui_test) {
-		GuiContext *ctx = g_env.uicontext->gui;
-
-		gui_begin_window(ctx, "win");
-			for (U32 i = 0; i < 10; ++i) {
-				gui_button(ctx, gui_str(ctx, "btn_in_list+%i|button_%i", i, i));
+			if (e->show_prog_state) {
+				gui_begin_window(ctx, "program_state|Program state");
+				gui_data_tree(ctx, "Env", &g_env);
+				gui_end_window(ctx);
 			}
-		gui_end_window(ctx);
 
-		gui_begin_window(ctx, "Gui components");
-			local_persist int btn = 0;
-			local_persist F32 slider = 0;
-			local_persist char buf[128];
-			local_persist const char *combo = "combo+0|none";
+			if (e->show_node_list) {
+				gui_begin_window(ctx, "node_list|Node list");
+				for (U32 i = 0; i < MAX_NODE_COUNT; ++i) {
+					NodeInfo *info = &g_env.world->nodes[i];
+					if (!info->allocated)
+						continue;
 
-			const char *combos[3] = {"combo+1|combo1", "combo+2|combo2", "combo+3|combo3"};
-
-			gui_checkbox(ctx, "Show layout editor", &e->edit_layout);
-			if (gui_radiobutton(ctx, "Radio 1", btn == 0)) btn = 0;
-			if (gui_radiobutton(ctx, "Radio 2", btn == 1)) btn = 1;
-			if (gui_radiobutton(ctx, "Radio 3", btn == 2)) btn = 2;
-			gui_slider(ctx, "Slider", &slider, 0.0f, 1.0f);
-			gui_textfield(ctx, "Textfield", buf, sizeof(buf));
-
-			if (gui_begin_combo(ctx, combo)) {
-				for (U32 i = 0; i < sizeof(combos)/sizeof(*combos); ++i) {
-					if (gui_combo_item(ctx, combos[i]))
-						combo = combos[i];
+					if (gui_begin_tree(	ctx, gui_str(ctx, "node_list_item+%i|%s id %i group %i",
+										info->node_id, info->type_name, info->node_id, info->group_id))) {
+						gui_data_tree(ctx, info->type_name, node_impl(g_env.world, NULL, info));
+						gui_end_tree(ctx);
+					}
 				}
-				gui_end_combo(ctx);
+				gui_end_window(ctx);
 			}
 
-			if (gui_begin_tree(ctx, "Tree component")) {
-				gui_button(ctx, "ASDFG1");
-				gui_button(ctx, "ASDFG2");
-				if (gui_begin_tree(ctx, "ASDFG3")) {
-					gui_button(ctx, "sub menu thing");
-					gui_button(ctx, "sub menu thing 2");
+			if (e->show_cmd_list) {
+				gui_begin_window(ctx, "cmd_list|Node command list");
+				for (U32 i = 0; i < MAX_NODE_CMD_COUNT; ++i) {
+					NodeCmd *cmd = &g_env.world->cmds[i];
+					if (!cmd->allocated)
+						continue;
+
+					if (gui_begin_tree(ctx, gui_str(ctx, "cmd_list_item+%i|%i", cmd->cmd_id, cmd->cmd_id))) {
+						gui_data_tree(ctx, "NodeCmd", cmd);
+						gui_end_tree(ctx);
+					}
+				}
+				gui_end_window(ctx);
+			}
+
+		} else if (e->state == EditorState_gui_test) {
+			GuiContext *ctx = g_env.uicontext->gui;
+
+			gui_begin_window(ctx, "win");
+				for (U32 i = 0; i < 10; ++i) {
+					gui_button(ctx, gui_str(ctx, "btn_in_list+%i|button_%i", i, i));
+				}
+			gui_end_window(ctx);
+
+			gui_begin_window(ctx, "Gui components");
+				local_persist int btn = 0;
+				local_persist F32 slider = 0;
+				local_persist char buf[128];
+				local_persist const char *combo = "combo+0|none";
+
+				const char *combos[3] = {"combo+1|combo1", "combo+2|combo2", "combo+3|combo3"};
+
+				gui_checkbox(ctx, "Show layout editor", &e->edit_layout);
+				if (gui_radiobutton(ctx, "Radio 1", btn == 0)) btn = 0;
+				if (gui_radiobutton(ctx, "Radio 2", btn == 1)) btn = 1;
+				if (gui_radiobutton(ctx, "Radio 3", btn == 2)) btn = 2;
+				gui_slider(ctx, "Slider", &slider, 0.0f, 1.0f);
+				gui_textfield(ctx, "Textfield", buf, sizeof(buf));
+
+				if (gui_begin_combo(ctx, combo)) {
+					for (U32 i = 0; i < sizeof(combos)/sizeof(*combos); ++i) {
+						if (gui_combo_item(ctx, combos[i]))
+							combo = combos[i];
+					}
+					gui_end_combo(ctx);
+				}
+
+				if (gui_begin_tree(ctx, "Tree component")) {
+					gui_button(ctx, "ASDFG1");
+					gui_button(ctx, "ASDFG2");
+					if (gui_begin_tree(ctx, "ASDFG3")) {
+						gui_button(ctx, "sub menu thing");
+						gui_button(ctx, "sub menu thing 2");
+						gui_end_tree(ctx);
+					}
 					gui_end_tree(ctx);
 				}
-				gui_end_tree(ctx);
-			}
 
-		gui_end_window(ctx);
+			gui_end_window(ctx);
 
-		gui_begin_panel(ctx, "panel");
-			gui_button(ctx, "button");
-		gui_end_panel(ctx);
-	}
-
-	if (e->show_prog_state) {
-		gui_begin_window(ctx, "program_state|Program state");
-		gui_data_tree(ctx, "Env", &g_env);
-		gui_end_window(ctx);
-	}
-
-	if (e->show_node_list) {
-		gui_begin_window(ctx, "node_list|Node list");
-		for (U32 i = 0; i < MAX_NODE_COUNT; ++i) {
-			NodeInfo *info = &g_env.world->nodes[i];
-			if (!info->allocated)
-				continue;
-
-			if (gui_begin_tree(	ctx, gui_str(ctx, "node_list_item+%i|%s id %i group %i",
-								info->node_id, info->type_name, info->node_id, info->group_id))) {
-				gui_data_tree(ctx, info->type_name, node_impl(g_env.world, NULL, info));
-				gui_end_tree(ctx);
-			}
+			gui_begin_panel(ctx, "panel");
+				gui_button(ctx, "button");
+			gui_end_panel(ctx);
 		}
-		gui_end_window(ctx);
 	}
 
-	if (e->show_cmd_list) {
-		gui_begin_window(ctx, "cmd_list|Node command list");
-		for (U32 i = 0; i < MAX_NODE_CMD_COUNT; ++i) {
-			NodeCmd *cmd = &g_env.world->cmds[i];
-			if (!cmd->allocated)
-				continue;
-
-			if (gui_begin_tree(ctx, gui_str(ctx, "cmd_list_item+%i|%i", cmd->cmd_id, cmd->cmd_id))) {
-				gui_data_tree(ctx, "NodeCmd", cmd);
-				gui_end_tree(ctx);
-			}
-		}
-		gui_end_window(ctx);
-	}
-
-	if (e->edit_layout)
+	if (e->edit_layout && e->state != EditorState_invisible)
 		gui_layout_settings(g_env.uicontext->gui, "../../code/source/ui/gen_layout.c");
 }

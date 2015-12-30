@@ -26,6 +26,7 @@
 #include "game/net.c"
 #include "game/nodegroupdef.c"
 #include "game/nodetype.c"
+#include "game/game.c"
 #include "game/world.c"
 #include "game/worldgen.c"
 #include "global/env.c"

@@ -28,12 +28,13 @@ typedef struct Editor {
 	bool show_prog_state;
 	bool show_node_list;
 	bool show_cmd_list;
+	F32 world_time_mul;
 } Editor;
 
 // Sets g_env.editor
 REVOLC_API void create_editor();
 REVOLC_API void destroy_editor();
 
-REVOLC_API void upd_editor();
+REVOLC_API void upd_editor(F64 *world_dt);
 
 #endif // REVOLC_EDITOR_H
