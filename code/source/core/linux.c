@@ -231,8 +231,6 @@ void plat_quit_impl(Device *d)
 
 void plat_update_impl(Device *d)
 {
-	glXSwapBuffers(d->impl->dpy, d->impl->win);
-
 	d->mwheel_delta = 0.0;
 	for (int i = 0; i < KEY_COUNT; ++i)
 		d->key_pressed[i] = d->key_released[i] = false;
@@ -350,6 +348,11 @@ void plat_update_impl(Device *d)
 	clock_gettime(CLOCK_MONOTONIC, &d->impl->ts);
 	long new_us = d->impl->ts.tv_nsec/1000 + d->impl->ts.tv_sec*1000000;
 	d->dt = (new_us - old_us)/1000000.0;
+}
+
+void plat_swap_buffers(Device *d)
+{
+	glXSwapBuffers(d->impl->dpy, d->impl->win);
 }
 
 void plat_sleep(int ms)
