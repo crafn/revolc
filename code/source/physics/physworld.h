@@ -39,6 +39,13 @@ REVOLC_API void upd_physworld(F64 dt);
 REVOLC_API void post_upd_physworld();
 REVOLC_API void upd_phys_rendering();
 
+typedef struct QueryInfo {
+	RigidBody *body;
+	F64 distance;
+} QueryInfo;
+
+REVOLC_API QueryInfo *query_bodies(U32 *count, V2d pos, F64 max_dist);
+
 // 0 = empty, 1 = partial, 2 = full
 REVOLC_API U32 grid_material_fullness_in_circle(V2d center, F64 rad, U8 material);
 // Returns number of changed cells

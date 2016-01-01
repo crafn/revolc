@@ -1,10 +1,15 @@
 #include "memory.h"
 
-internal
-void *commit_uninit_mem(void *data, U32 size)
+internal void *commit_uninit_mem(void *data, U32 size)
 { return memset(data, 0x95, size); }
 
-void * alloc_impl(Ator *ator, U32 size, void *realloc_ptr, const char *tag, bool zero)
+internal void *check_ptr(void *ptr)
+{
+	ensure(ptr);
+	return ptr;
+}
+
+void * alloc_impl(Ator *ator, U32 size, void *realloc_ptr, const char *tag)
 {
 	if (size == 0)
 		return NULL;
@@ -13,61 +18,51 @@ void * alloc_impl(Ator *ator, U32 size, void *realloc_ptr, const char *tag, bool
 	// - accessing uninitialized memory bugs will happen consistently
 	// - memory is committed so that costly page faults during game are avoided
 	switch (ator->type) {
-		case AtorType_none:
+		case AtorType_none: {
 			fail("None allocator used");
-		case AtorType_gen:
+		} break;
+		case AtorType_gen: {
 			if (g_env.os_allocs_forbidden)
 				fail("Illegal alloc");
 			++g_env.prod_heap_alloc_count;
-			if (!zero) {
-				if (realloc_ptr) {
-					// @todo Commit
-					return realloc(realloc_ptr, size);
-				} else {
-					return commit_uninit_mem(malloc(size), size);
-				}
+			if (realloc_ptr) {
+				// @todo Commit
+				return check_ptr(realloc(realloc_ptr, size));
 			} else {
-				if (realloc_ptr) {
-					U32 old_size = plat_malloc_size(realloc_ptr);
-					void *ptr = realloc(realloc_ptr, size);
-					if (old_size < size)
-						memset(ptr + old_size, 0, size - old_size);
-					return ptr;
-				} else {
-					return memset(malloc(size), 0, size);
-				}
+				return commit_uninit_mem(check_ptr(malloc(size)), size);
 			}
+		} break;
 		case AtorType_linear: {
-			if (realloc_ptr)
-				fail("@todo Realloc if possible (realloc ptr is the last alloc)");
-			void *next_mem = ator->buf + ator->offset;
-			ensure(MAX_ALIGNMENT == 16);
-			U8 *block = (void*)((U64)(next_mem + 15) & ~0x0F); // 16-aligned
-			ator->offset = block + size - ator->buf;
-			if (ator->offset > ator->capacity)
-				fail("Linear allocator '%s' out of space", ator->tag);
-			if (zero)
-				memset(block, 0, size);
-			return block;
-		} case AtorType_dev:
-			if (!zero) {
-				if (realloc_ptr) {
-					// @todo Commit
-					return dev_realloc(realloc_ptr, size);
-				} else {
-					return commit_uninit_mem(dev_malloc(size), size);
-				}
+			if (realloc_ptr && realloc_ptr == ator->last_allocd_ptr) {
+				// Resize last allocation
+				ator->offset -= ator->last_allocd_size;
+				ator->offset += size;
+				if (ator->offset > ator->capacity)
+					fail("Linear allocator '%s' out of space", ator->tag);
+
+				ator->last_allocd_size = size;
+				return realloc_ptr;
 			} else {
-				if (realloc_ptr) {
-					U32 old_size = plat_malloc_size(realloc_ptr);
-					void *ptr = dev_realloc(realloc_ptr, size);
-					if (old_size < size)
-						memset(ptr + old_size, 0, size - old_size);
-					return ptr;
-				} else {
-					return memset(dev_malloc(size), 0, size);
-				}
+				void *next_mem = ator->buf + ator->offset;
+				ensure(MAX_ALIGNMENT == 16);
+				U8 *block = (void*)((U64)(next_mem + 15) & ~0x0F); // 16-aligned
+				ator->offset = block + size - ator->buf;
+				if (ator->offset > ator->capacity)
+					fail("Linear allocator '%s' out of space", ator->tag);
+
+				ator->last_allocd_size = size;
+				ator->last_allocd_ptr = block;
+				return block;
 			}
+		} break;
+		case AtorType_dev:
+			if (realloc_ptr) {
+				// @todo Commit
+				return dev_realloc(realloc_ptr, size);
+			} else {
+				return commit_uninit_mem(dev_malloc(size), size);
+			}
+		break;
 		default: fail("Unknown allocator type");
 	}
 }
@@ -129,10 +124,10 @@ Ator *frame_ator()
 
 
 void * dev_malloc(U32 size)
-{ return malloc(size); }
+{ return check_ptr(malloc(size)); }
 
 void * dev_realloc(void *ptr, U32 size)
-{ return realloc(ptr, size); }
+{ return check_ptr(realloc(ptr, size)); }
 
 void dev_free(void *mem)
 { free(mem); }

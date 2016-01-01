@@ -60,7 +60,7 @@ void load_blob(ResBlob **blob, const char *path)
 	*blob = NULL;
 	{ // Load from file
 		U32 blob_size;
-		*blob = (ResBlob*)malloc_file(path, &blob_size);
+		*blob = (ResBlob*)read_file(gen_ator(), path, &blob_size);
 		(*blob)->size = blob_size;
 		debug_print("load_blob: %s, %iM", path, (int)blob_size/(1024*1024));
 

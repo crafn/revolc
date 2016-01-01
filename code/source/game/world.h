@@ -104,6 +104,9 @@ REVOLC_API void upd_world(World *w, F64 dt);
 REVOLC_API void save_world(WArchive *ar, World *w);
 REVOLC_API void load_world(RArchive *ar, World *w);
 
+REVOLC_API void save_world_to_file(World *w, const char *path);
+REVOLC_API void load_world_from_file(World *w, const char *path);
+
 REVOLC_API void save_world_delta(WArchive *ar, World *w, RArchive *base_ar);
 REVOLC_API void load_world_delta(RArchive *ar, World *w, RArchive *base_ar, U8 ignore_peer_id);
 

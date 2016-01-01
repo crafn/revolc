@@ -1277,6 +1277,30 @@ U32 set_grid_material_in_circle(V2d center, F64 rad, U8 material)
 	return changed_count;
 }
 
+DECLARE_ARRAY(QueryInfo)
+DEFINE_ARRAY(QueryInfo)
+
+void cp_query_callback(cpShape *shape, cpVect p, cpFloat dist, cpVect gradient, void *data)
+{
+	RigidBodyCpData *cp_data = cpBodyGetUserData(cpShapeGetBody(shape));
+	ensure(cp_data->body);
+
+	QueryInfo info = {};
+	info.body = cp_data->body;
+	info.distance = dist;
+	// @todo Prevent duplicates
+	Array(QueryInfo) *arr = data;
+	push_array(QueryInfo)(arr, info);
+}
+
+QueryInfo *query_bodies(U32 *count, V2d pos, F64 max_dist)
+{
+	Array(QueryInfo) arr = create_array(QueryInfo)(frame_ator(), 1);
+	cpSpacePointQuery(g_env.physworld->cp_space, to_cpv(pos), max_dist, CP_SHAPE_FILTER_ALL, cp_query_callback, &arr);
+	*count = arr.size;
+	return release_array(QueryInfo)(&arr);
+}
+
 U32 grid_material_fullness_in_circle(V2d center, F64 rad, U8 material)
 {
 	bool empty = true;

@@ -413,6 +413,32 @@ void load_world(RArchive *ar, World *w)
 	ensure(cmd_count == w->cmd_count);
 }
 
+void save_world_to_file(World *w, const char *path)
+{
+	WArchive measure = create_warchive(ArchiveType_measure, NULL, 0);
+	save_world(&measure, w);
+
+	WArchive ar = create_warchive(ArchiveType_binary, frame_ator(), measure.data_size);
+	save_world(&ar, w);
+
+	FILE *file = fopen(path, "wb");
+	file_write(file, ar.data, ar.data_size);
+	fclose(file);
+
+	destroy_warchive(&ar);
+	destroy_warchive(&measure);
+}
+
+void load_world_from_file(World *w, const char *path)
+{
+	U32 size;
+	void *data = read_file(frame_ator(), path, &size);
+
+	RArchive ar = create_rarchive(ArchiveType_binary, data, size);
+	load_world(&ar, w);
+	destroy_rarchive(&ar);
+}
+
 void save_world_delta(WArchive *ar, World *w, RArchive *base_ar)
 {
 	SaveHeader base_header;

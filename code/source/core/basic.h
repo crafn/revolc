@@ -143,8 +143,11 @@ static void * rel_ptr(const RelPtr *rel_ptr)
 
 // File stuff
 
+struct Ator;
+
 REVOLC_API bool file_exists(const char *path);
-REVOLC_API void * malloc_file(const char *path, U32 *file_size);
+// @todo Return value should be first parameter, not last
+REVOLC_API void *read_file(struct Ator *ator, const char *path, U32 *file_size);
 
 REVOLC_API void file_write(FILE *f, const void *data, U32 size);
 REVOLC_API void file_printf(FILE *f, const char *fmt, ...);

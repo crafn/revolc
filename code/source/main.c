@@ -48,7 +48,7 @@ int main(int argc, const char **argv)
 
 	// Init/load world
 	if (file_exists(SAVEFILE_PATH)) {
-		//load_world(world, SAVEFILE_PATH);
+		load_world_from_file(world, SAVEFILE_PATH);
 	} else {
 		worldgen_for_modules(world);
 	}

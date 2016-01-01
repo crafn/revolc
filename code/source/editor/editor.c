@@ -11,6 +11,7 @@
 #include "global/rtti.h"
 #include "mesh_editor.h"
 #include "physics/physworld.h"
+#include "physics/chipmunk_util.h"
 #include "ui/gui.h"
 #include "ui/uicontext.h"
 #include "visual/renderer.h"
@@ -118,6 +119,9 @@ internal const char *gui_value_str(GuiContext *ctx, const char *type_name, void 
 	} else if (!strcmp(type_name, "V3d") && deref_ptr) {
 		V3d v = *(V3d*)deref_ptr;
 		return gui_str(ctx, "{%f, %f, %f}", v.x, v.y, v.z);
+	} else if (!strcmp(type_name, "T3d") && deref_ptr) {
+		T3d v = *(T3d*)deref_ptr;
+		return gui_str(ctx, "{ {%f, %f, %f}, {todo}, {%f, %f, %f}}", v.scale.x, v.scale.y, v.scale.z, v.pos.x, v.pos.y, v.pos.z);
 	} else if (!strcmp(type_name, "Color") && deref_ptr) {
 		Color v = *(Color*)deref_ptr;
 		return gui_str(ctx, "{%f, %f, %f, %f}", v.r, v.g, v.b, v.a);
@@ -232,14 +236,6 @@ void upd_editor(F64 *world_dt)
 			else
 				reload_blob(&g_env.resblob, g_env.resblob, blob_path(g_env.game));
 		}
-
-		/*if (g_env.device->key_pressed['p'])
-			save_world(world, SAVEFILE_PATH);
-		if (g_env.device->key_pressed['o']) {
-			destroy_world(world);
-			world = g_env.world = create_world();
-			load_world(world, SAVEFILE_PATH);
-		}*/
 	}
 
 	if (g_env.device->key_pressed[KEY_ESC])
@@ -290,22 +286,25 @@ void upd_editor(F64 *world_dt)
 			if (g_env.device->key_pressed['l'])
 				play_sound("dev_beep1", 0.5, 1.0);
 
-			local_persist cpBody *body = NULL;
+			local_persist RigidBody *body = NULL;
 			if (g_env.device->key_down['f']) {
-				cpVect p = {cursor_on_world.x, cursor_on_world.y};
-				cpShape *shape =
-					cpSpacePointQueryNearest(
-							g_env.physworld->cp_space,
-							p, 0.1,
-							CP_SHAPE_FILTER_ALL, NULL);
-
-				if (!body && shape && body != g_env.physworld->cp_ground_body) {
-					body = cpShapeGetBody(shape);
+				if (!body) {
+					U32 count;
+					QueryInfo *infos = query_bodies(&count, cursor_on_world, 0.1);
+					debug_print("Found %i", count);
+					for (U32 i = 0; i < count; ++i) {
+						// @todo Closest one
+						if (infos[i].body->cp_body != g_env.physworld->cp_ground_body) {
+							body = infos[i].body;
+							debug_print("Selected: %s", body->def_name);
+							break;
+						}
+					}
 				}
 
 				if (body) {
-					cpBodySetPosition(body, p);
-					cpBodySetVelocity(body, cpv(0, 0));
+					cpBodySetPosition(body->cp_body, to_cpv(cursor_on_world));
+					cpBodySetVelocity(body->cp_body, cpv(0, 0));
 				}
 			} else if (body) {
 				body = NULL;
@@ -363,6 +362,15 @@ void upd_editor(F64 *world_dt)
 				gui_slider(ctx, "world_tool_elem+dt_mul|Time mul", &e->world_time_mul, 0.0f, 10.0f);
 				gui_slider(ctx, "world_tool_elem+exp|Exposure", &g_env.renderer->exposure, -5.0f, 5.0f);
 				gui_checkbox(ctx, "world_tool_elem+physdraw|Physics debug draw", &g_env.physworld->debug_draw);
+
+
+				if (gui_button(ctx, "world_tool_elem+save|Save world")) {
+					save_world_to_file(g_env.world, SAVEFILE_PATH);
+				}
+				if (gui_button(ctx, "world_tool_elem+load|Load world")) {
+					load_world_from_file(g_env.world, SAVEFILE_PATH);
+				}
+
 			gui_end_panel(ctx);
 
 			if (e->show_prog_state) {

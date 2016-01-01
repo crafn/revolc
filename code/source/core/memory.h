@@ -24,6 +24,8 @@ typedef struct Ator {
 	U8 *buf;
 	U32 offset;
 	U32 capacity;
+	U32 last_allocd_size;
+	void *last_allocd_ptr;
 
 	const char *tag;
 } Ator;
@@ -32,19 +34,15 @@ typedef struct Ator {
 #define ALLOC(ator, size, tag) \
 	( ator->type == AtorType_stack ? \
 			STACK_ALLOC(size) : \
-			alloc_impl(ator, size, NULL, tag, false) )
+			alloc_impl(ator, size, NULL, tag) )
 #define REALLOC(ator, ptr, size, tag) \
 	( ator->type == AtorType_stack ? \
 			STACK_ALLOC(size) : \
-			alloc_impl(ator, size, ptr, tag, false) )
+			alloc_impl(ator, size, ptr, tag) )
 #define ZERO_ALLOC(ator, size, tag) \
 	( ator->type == AtorType_stack ? \
 			ZERO_STACK_ALLOC(size) : \
-			alloc_impl(ator, size, NULL, tag, true) )
-#define ZERO_REALLOC(ator, ptr, size, tag) \
-	( ator->type == AtorType_stack ? \
-			ZERO_STACK_ALLOC(size) : \
-			alloc_impl(ator, size, ptr, tag, true) )
+			memset(alloc_impl(ator, size, NULL, tag), 0, size) )
 #define FREE(ator, ptr) (free_impl(ator, ptr))
 
 // Specific allocators to be used with general allocation functions
@@ -56,7 +54,7 @@ REVOLC_API WARN_UNUSED Ator *leakable_dev_ator();
 REVOLC_API WARN_UNUSED Ator *frame_ator(); // No need to free (valid for this frame)
 
 REVOLC_API WARN_UNUSED
-void * alloc_impl(Ator *ator, U32 size, void *realloc_ptr, const char *tag, bool zero);
+void * alloc_impl(Ator *ator, U32 size, void *realloc_ptr, const char *tag);
 REVOLC_API void free_impl(Ator *ator, void *ptr);
 
 

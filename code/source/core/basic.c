@@ -86,7 +86,7 @@ bool file_exists(const char *path)
 	return false;
 }
 
-void * malloc_file(const char *path, U32 *file_size)
+void *read_file(Ator *ator, const char *path, U32 *file_size)
 {
 	FILE *file = fopen(path, "rb");
 	if (!file)
@@ -96,7 +96,7 @@ void * malloc_file(const char *path, U32 *file_size)
 	U32 size = ftell(file);
 	fseek(file, 0, SEEK_SET);
 
-	U8 *buf = malloc(size);
+	U8 *buf = ALLOC(ator, size, "read_file");
 	U64 len = fread(buf, size, 1, file);
 	if (len != 1)
 		fail("Couldn't fully read file: %s", path);

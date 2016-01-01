@@ -13,7 +13,7 @@ int json_font_to_blob(struct BlobBuf *buf, JsonTok j)
 	char total_path[MAX_PATH_SIZE];
 	joined_path(total_path, j.json_path, json_str(j_file));
 
-	ttf_data = malloc_file(total_path, NULL);
+	ttf_data = read_file(gen_ator(), total_path, NULL);
 
 	// @todo No guarantee this is enough!
 	const int reso = 512;

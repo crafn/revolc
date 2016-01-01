@@ -6,8 +6,8 @@ ParsedJsonFile malloc_parsed_json_file(const char *file)
 	ParsedJsonFile ret = {};
 	U32 file_size;
 	ret.json_path = file;
-	ret.json = (char*)malloc_file(file, &file_size);
-	ret.null_json = (char*)malloc_file(file, &file_size);
+	ret.json = (char*)read_file(gen_ator(), file, &file_size);
+	ret.null_json = (char*)read_file(gen_ator(), file, &file_size);
 	ret.root.json_size = file_size;
 
 	{ // Parse json

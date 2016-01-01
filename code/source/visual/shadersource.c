@@ -122,11 +122,11 @@ int json_shadersource_to_blob(struct BlobBuf *buf, JsonTok j)
 	U32 vs_src_len = 0;
 	U32 gs_src_len = 0;
 	U32 fs_src_len = 0;
-	vs_src = malloc_file(vs_total_path, &vs_src_len);
+	vs_src = read_file(gen_ator(), vs_total_path, &vs_src_len);
 	if (!json_is_null(j_gs_file))
-		gs_src = malloc_file(gs_total_path, &gs_src_len);
+		gs_src = read_file(gen_ator(), gs_total_path, &gs_src_len);
 	if (!json_is_null(j_fs_file))
-		fs_src = malloc_file(fs_total_path, &fs_src_len);
+		fs_src = read_file(gen_ator(), fs_total_path, &fs_src_len);
 
 	U64 vs_src_offset = buf->offset + offsetof(ShaderSource, vs_src_offset);
 	U64 gs_src_offset = buf->offset + offsetof(ShaderSource, gs_src_offset);

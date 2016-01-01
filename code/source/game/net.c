@@ -16,7 +16,7 @@ NetState *create_netstate(	bool authority, F64 delta_interval,
 	net->peer = create_udp_peer(local_port, remote_addr);
 	net->delta_interval = delta_interval;
 	net->world_upd_time = -10000.0;
-	net->bases = create_array(WorldBaseState)(state_history_count);
+	net->bases = create_array(WorldBaseState)(gen_ator(), state_history_count);
 	for (U32 i = 0; i < state_history_count; ++i) {
 		WorldBaseState base = {0};
 		base.data = ZERO_ALLOC(gen_ator(), state_max_size, "WorldBaseState data");

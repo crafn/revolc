@@ -300,7 +300,7 @@ int json_sound_to_blob(struct BlobBuf *buf, JsonTok j)
 	joined_path(total_path, j.json_path, json_str(j_file));
 
 	U32 file_size;
-	file_contents = malloc_file(total_path, &file_size);
+	file_contents = read_file(gen_ator(), total_path, &file_size);
 
 	U32 ch_count;
 	U32 frame_count;

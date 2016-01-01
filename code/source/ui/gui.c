@@ -39,7 +39,7 @@ void gui_sprintf_impl(char *buf, size_t count, const char *fmt, ...)
 #define GUI_NONE_WINDOW_IX (-2)
 #define GUI_BG_WINDOW_IX (-1)
 
-static void *check_ptr(void *ptr)
+static void *gui_check_ptr(void *ptr)
 {
 	if (!ptr) {
 		abort();
@@ -466,11 +466,11 @@ static void *gui_frame_alloc(GuiContext *ctx, int size)
 	if (bucket->used + size > bucket->size) {
 		// Need a new bucket :(
 		int new_bucket_count = ctx->framemem_bucket_count + 1;
-		ctx->framemem_buckets = (GuiContext_MemBucket*)check_ptr(realloc(ctx->framemem_buckets, sizeof(*ctx->framemem_buckets)*new_bucket_count));
+		ctx->framemem_buckets = (GuiContext_MemBucket*)gui_check_ptr(realloc(ctx->framemem_buckets, sizeof(*ctx->framemem_buckets)*new_bucket_count));
 
 		int bucket_size = GUI_MAX(size, bucket->size * 2);
 		bucket = &ctx->framemem_buckets[ctx->framemem_bucket_count++];
-		bucket->data = check_ptr(malloc(bucket_size));
+		bucket->data = gui_check_ptr(malloc(bucket_size));
 		bucket->size = bucket_size;
 		bucket->used = 0;
 	}
@@ -491,8 +491,8 @@ static void refresh_framemem(GuiContext *ctx)
 			GUI_FREE(ctx->framemem_buckets[i].data);
 		}
 
-		ctx->framemem_buckets = (GuiContext_MemBucket*)check_ptr(realloc(ctx->framemem_buckets, sizeof(*ctx->framemem_buckets)));
-		ctx->framemem_buckets[0].data = check_ptr(realloc(ctx->framemem_buckets[0].data, memory_size));
+		ctx->framemem_buckets = (GuiContext_MemBucket*)gui_check_ptr(realloc(ctx->framemem_buckets, sizeof(*ctx->framemem_buckets)));
+		ctx->framemem_buckets[0].data = gui_check_ptr(realloc(ctx->framemem_buckets[0].data, memory_size));
 		ctx->framemem_buckets[0].size = memory_size;
 
 		ctx->framemem_bucket_count = 1;
@@ -544,7 +544,7 @@ static void gui_draw(	GuiContext *ctx, GuiDrawInfo_Type type, int pos[2], int si
 
 GuiContext *create_gui(CalcTextSizeFunc calc_text, void *user_data_for_calc_text)
 {
-	GuiContext *ctx = (GuiContext*)check_ptr(GUI_MALLOC(sizeof(*ctx)));
+	GuiContext *ctx = (GuiContext*)gui_check_ptr(GUI_MALLOC(sizeof(*ctx)));
 	GUI_ZERO(*ctx);
 	ctx->dpi_scale = 1.0f;
 	ctx->calc_text_size = calc_text;
@@ -556,14 +556,14 @@ GuiContext *create_gui(CalcTextSizeFunc calc_text, void *user_data_for_calc_text
 	ctx->draw_info_capacity = 64;
 
 	ctx->layout_capacity = 64;
-	ctx->layouts = (GuiElementLayout*)check_ptr(GUI_MALLOC(sizeof(*ctx->layouts)*ctx->layout_capacity));
+	ctx->layouts = (GuiElementLayout*)gui_check_ptr(GUI_MALLOC(sizeof(*ctx->layouts)*ctx->layout_capacity));
 
 	ctx->storage_capacity = GUI_DEFAULT_STORAGE_SIZE;
-	ctx->storage = (GuiContext_Storage*)check_ptr(GUI_MALLOC(sizeof(*ctx->storage)*ctx->storage_capacity));
+	ctx->storage = (GuiContext_Storage*)gui_check_ptr(GUI_MALLOC(sizeof(*ctx->storage)*ctx->storage_capacity));
 
 	ctx->framemem_bucket_count = 1;
-	ctx->framemem_buckets = (GuiContext_MemBucket*)check_ptr(GUI_MALLOC(sizeof(*ctx->framemem_buckets)));
-	ctx->framemem_buckets[0].data = check_ptr(GUI_MALLOC(GUI_DEFAULT_FRAME_MEMORY));
+	ctx->framemem_buckets = (GuiContext_MemBucket*)gui_check_ptr(GUI_MALLOC(sizeof(*ctx->framemem_buckets)));
+	ctx->framemem_buckets[0].data = gui_check_ptr(GUI_MALLOC(GUI_DEFAULT_FRAME_MEMORY));
 	ctx->framemem_buckets[0].size = GUI_DEFAULT_FRAME_MEMORY;
 	ctx->framemem_buckets[0].used = 0;
 
