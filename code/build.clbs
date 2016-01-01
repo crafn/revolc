@@ -214,12 +214,14 @@ def buildInfo(env, tags):
 	target_flags= [ "std=gnu99", "pipe", "fvisibility=hidden" ]
 
 	if env.os != "windows":
-		target_flags += [ "ffast-math" ] # Caused at problems at least in Chipmunk (High EPA warning)
+		# Caused problems at least in Chipmunk 7.0.0 (High EPA warning)
+		# That function has been now updated to 7.0.1, so could try enabling this again
+		target_flags += [ "ffast-math" ]
 
 	if "debug" in tags:
 		cfg= "debug"
 		target_defines += [ "DEBUG" ]
-		target_flags += [ "g", "O0", "mtune=native", "march=native" ]
+		target_flags += [ "g", "O0" ]
 	elif "dev" in tags:
 		cfg= "dev"
 		target_flags += [ "g", "O2", "mtune=native", "march=native" ]
@@ -263,7 +265,7 @@ def buildInfo(env, tags):
 		deps_proj.includeDirs= dep_include_paths + [ common_dep_dir + "./chipmunk/src", common_dep_dir + "/vorbis/lib" ]
 		deps_proj.headers= findCplFiles(common_dep_dir, ["*.h", "*.c"])
 		deps_proj.src= [ common_dep_dir + "/unity.c" ]
-		deps_proj.flags= target_flags + [ "O3" ]
+		deps_proj.flags= target_flags + [ "O2" ] # O3 causes chipmunk queries to fail occasionally on windows
 		deps_proj.defines= target_defines
 		deps_proj.compiler= c_compiler
 		deps_proj.linker= linker

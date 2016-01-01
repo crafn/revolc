@@ -17,6 +17,7 @@
 #include <chipmunk/src/cpPolyline.c>
 #include <chipmunk/src/cpPolyShape.c>
 #include <chipmunk/src/cpRatchetJoint.c>
+#include <chipmunk/src/cpRobust.c>
 #include <chipmunk/src/cpRotaryLimitJoint.c>
 #include <chipmunk/src/cpShape.c>
 #include <chipmunk/src/cpSimpleMotor.c>

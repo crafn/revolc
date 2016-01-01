@@ -23,6 +23,8 @@
 #include <string.h>
 
 #include "chipmunk/chipmunk_private.h"
+#include "chipmunk/cpRobust.h"
+// CLOVER EDIT Added that ^ from 7.0.1
 
 #if DEBUG && 0
 #include "ChipmunkDemo.h"
@@ -305,7 +307,11 @@ EPARecurse(const struct SupportContext *ctx, const int count, const struct Minko
 	ChipmunkDebugDrawDot(5, p.ab, LAColor(1, 1));
 #endif
 	
-	if(CheckArea(cpvsub(v1.ab, v0.ab), cpvadd(cpvsub(p.ab, v0.ab), cpvsub(p.ab, v1.ab))) && iteration < MAX_EPA_ITERATIONS){
+	// The usual exit condition is a duplicated vertex.
+	// Much faster to check the ids than to check the signed area.
+	cpBool duplicate = (p.id == v0.id || p.id == v1.id);
+	
+	if(!duplicate && cpCheckSignedArea(v0.ab, v1.ab, p.ab) && iteration < MAX_EPA_ITERATIONS){
 		// Rebuild the convex hull by inserting p.
 		struct MinkowskiPoint *hull2 = (struct MinkowskiPoint *)alloca((count + 1)*sizeof(struct MinkowskiPoint));
 		int count2 = 1;
@@ -318,7 +324,7 @@ EPARecurse(const struct SupportContext *ctx, const int count, const struct Minko
 			cpVect h1 = hull[index].ab;
 			cpVect h2 = (i + 1 < count ? hull[(index + 1)%count] : p).ab;
 			
-			if(CheckArea(cpvsub(h2, h0), cpvadd(cpvsub(h1, h0), cpvsub(h1, h2)))){
+			if(cpCheckSignedArea(h0, h2, h1)){
 				hull2[count2] = hull[index];
 				count2++;
 			}
@@ -327,7 +333,8 @@ EPARecurse(const struct SupportContext *ctx, const int count, const struct Minko
 		return EPARecurse(ctx, count2, hull2, iteration + 1);
 	} else {
 		// Could not find a new point to insert, so we have found the closest edge of the minkowski difference.
-		// REVOLC EDIT: warning fires with ffast-math on windows
+		// CLOVER EDIT
+		// Copied this function from newer version (7.0.1) for bugfixes
 		cpAssertWarn(iteration < WARN_EPA_ITERATIONS, "High EPA iterations: %d", iteration);
 		return ClosestPointsNew(v0, v1);
 	}
