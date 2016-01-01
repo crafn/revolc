@@ -329,7 +329,7 @@ void load_layout(GuiContext *ctx)
 	{
 		GuiElementLayout l = {0};
 		l.id = 1228705237;
-		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "gui_layout_list+name|  name:");
+		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "gui_layout_list");
 		l.on_same_row = 0;
 		l.has_offset = 0;
 		l.offset[0] = 0;
@@ -432,11 +432,11 @@ void load_layout(GuiContext *ctx)
 		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "gui_layoutwin");
 		l.on_same_row = 0;
 		l.has_offset = 1;
-		l.offset[0] = 639;
-		l.offset[1] = 46;
+		l.offset[0] = 580;
+		l.offset[1] = 17;
 		l.has_size = 1;
-		l.size[0] = 289;
-		l.size[1] = 630;
+		l.size[0] = 400;
+		l.size[1] = 700;
 		l.prevent_resizing = 0;
 		l.align_left = 0;
 		l.align_right = 0;
@@ -603,6 +603,31 @@ void load_layout(GuiContext *ctx)
 
 	{
 		GuiElementLayout l = {0};
+		l.id = 2949743699;
+		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "nodegroupdef_list|NodeGroupDef list");
+		l.on_same_row = 0;
+		l.has_offset = 1;
+		l.offset[0] = 631;
+		l.offset[1] = 55;
+		l.has_size = 1;
+		l.size[0] = 148;
+		l.size[1] = 591;
+		l.prevent_resizing = 0;
+		l.align_left = 0;
+		l.align_right = 0;
+		l.align_top = 0;
+		l.align_bottom = 0;
+		l.padding[0] = 0;
+		l.padding[1] = 0;
+		l.padding[2] = 0;
+		l.padding[3] = 0;
+		l.gap[0] = 0;
+		l.gap[1] = 0;
+		append_element_layout(ctx, l);
+	}
+
+	{
+		GuiElementLayout l = {0};
 		l.id = 3124663356;
 		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "panel");
 		l.on_same_row = 0;
@@ -707,11 +732,11 @@ void load_layout(GuiContext *ctx)
 		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "node_list");
 		l.on_same_row = 0;
 		l.has_offset = 1;
-		l.offset[0] = 584;
-		l.offset[1] = 0;
+		l.offset[0] = 346;
+		l.offset[1] = 78;
 		l.has_size = 1;
-		l.size[0] = 432;
-		l.size[1] = 741;
+		l.size[0] = 441;
+		l.size[1] = 621;
 		l.prevent_resizing = 0;
 		l.align_left = 0;
 		l.align_right = 0;
@@ -786,7 +811,7 @@ void load_layout(GuiContext *ctx)
 		l.offset[1] = 0;
 		l.has_size = 1;
 		l.size[0] = 100;
-		l.size[1] = 20;
+		l.size[1] = 25;
 		l.prevent_resizing = 0;
 		l.align_left = 1;
 		l.align_right = 1;
@@ -907,8 +932,8 @@ void load_layout(GuiContext *ctx)
 		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "program_state|Program state");
 		l.on_same_row = 0;
 		l.has_offset = 1;
-		l.offset[0] = 63;
-		l.offset[1] = 85;
+		l.offset[0] = 624;
+		l.offset[1] = 21;
 		l.has_size = 1;
 		l.size[0] = 379;
 		l.size[1] = 632;
@@ -983,7 +1008,7 @@ void load_layout(GuiContext *ctx)
 		l.on_same_row = 0;
 		l.has_offset = 1;
 		l.offset[0] = 361;
-		l.offset[1] = 162;
+		l.offset[1] = 185;
 		l.has_size = 1;
 		l.size[0] = 214;
 		l.size[1] = 320;

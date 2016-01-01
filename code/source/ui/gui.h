@@ -131,7 +131,7 @@ typedef struct GuiContext_Window {
 	GUI_BOOL used;
 	GUI_BOOL used_in_last_frame;
 
-	GUI_BOOL has_bar;
+	GUI_BOOL has_bar; // GUI_FALSE is equivalent to panel-type window
 	int bar_height;
 	// Size on screen, not taking account title bar or borders
 	// Depends on window size in layout
@@ -142,6 +142,7 @@ typedef struct GuiContext_Window {
 	int scroll[2]; // Translation in pt. Cannot be relative, because adding content shouldn't cause translation to change.
 } GuiContext_Window;
 
+// @todo Maybe we should require only up/down status of buttons from the client?
 #define GUI_KEYSTATE_DOWN_BIT 0x1
 #define GUI_KEYSTATE_PRESSED_BIT 0x2
 #define GUI_KEYSTATE_RELEASED_BIT 0x4
@@ -153,16 +154,6 @@ typedef struct GuiContext_Window {
 #define GUI_KEY_MMB 1
 #define GUI_KEY_RMB 2
 #define GUI_KEY_LCTRL 3
-#define GUI_KEY_0 '0'
-#define GUI_KEY_1 '1'
-#define GUI_KEY_2 '2'
-#define GUI_KEY_3 '3'
-#define GUI_KEY_4 '4'
-#define GUI_KEY_5 '5'
-#define GUI_KEY_6 '6'
-#define GUI_KEY_7 '7'
-#define GUI_KEY_8 '8'
-#define GUI_KEY_9 '9'
 
 typedef enum GuiDrawInfo_Type {
 	GuiDrawInfo_button,
@@ -354,7 +345,7 @@ GUI_API GUI_BOOL gui_begin_tree(GuiContext *ctx, const char *label);
 GUI_API void gui_end_tree(GuiContext *ctx);
 
 // Shows a window which allows editing gui layout at runtime
-GUI_API void gui_layout_settings(GuiContext *ctx, const char *save_path);
+GUI_API void gui_layout_editor(GuiContext *ctx, const char *save_path);
 
 
 //

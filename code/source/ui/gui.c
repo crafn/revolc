@@ -8,8 +8,6 @@
 
 static void *gui_frame_alloc(GuiContext *ctx, int size);
 
-const int gui_zero_v2i[2] = {0};
-
 #if defined(_MSC_VER) && _MSC_VER <= 1800 // MSVC 2013
 size_t gui_v_sprintf_impl(char *buf, size_t count, const char *fmt, va_list args)
 {
@@ -24,7 +22,7 @@ void gui_sprintf_impl(char *buf, size_t count, const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
-	v_sprintf_impl(buf, count, fmt, args);
+	gui_v_sprintf_impl(buf, count, fmt, args);
 	va_end(args);
 }
 #endif
@@ -88,8 +86,8 @@ static LayoutId layout_id(const char *label)
 
 static int layout_cmp(const void *void_a, const void *void_b)
 {
-	const GuiElementLayout *a = void_a;
-	const GuiElementLayout *b = void_b;
+	const GuiElementLayout *a = (const GuiElementLayout*)void_a;
+	const GuiElementLayout *b = (const GuiElementLayout*)void_b;
 	return (a->id > b->id) - (a->id < b->id);
 }
 
@@ -104,7 +102,7 @@ static GuiElementLayout element_layout(GuiContext *ctx, const char *label)
 	GuiElementLayout key;
 	key.id = layout_id(label);
 	GuiElementLayout *found =
-		bsearch(&key, ctx->layouts, ctx->layout_count, sizeof(*ctx->layouts), layout_cmp);
+		(GuiElementLayout*)bsearch(&key, ctx->layouts, ctx->layout_count, sizeof(*ctx->layouts), layout_cmp);
 	if (found)
 		return *found;
 
@@ -126,7 +124,7 @@ void append_element_layout(GuiContext *ctx, GuiElementLayout layout)
 	if (ctx->layout_count == ctx->layout_capacity) {
 		// Need more space
 		ctx->layout_capacity *= 2;
-		ctx->layouts = GUI_REALLOC(ctx->layouts, sizeof(*ctx->layouts)*ctx->layout_capacity);
+		ctx->layouts = (GuiElementLayout*)GUI_REALLOC(ctx->layouts, sizeof(*ctx->layouts)*ctx->layout_capacity);
 	}
 
 	ctx->layouts[ctx->layout_count++] = layout;
@@ -184,7 +182,7 @@ static void set_element_storage_bool(GuiContext *ctx, const char *label, GUI_BOO
 		if (ctx->storage_count == ctx->storage_capacity) {
 			// Need more space
 			ctx->storage_capacity *= 2;
-			ctx->storage = GUI_REALLOC(ctx->storage, sizeof(*ctx->storage)*ctx->storage_capacity);
+			ctx->storage = (GuiContext_Storage*)GUI_REALLOC(ctx->storage, sizeof(*ctx->storage)*ctx->storage_capacity);
 		}
 
 		// Make room in the middle
@@ -194,13 +192,6 @@ static void set_element_storage_bool(GuiContext *ctx, const char *label, GUI_BOO
 
 	ctx->storage[ix].id = id;
 	ctx->storage[ix].bool_value = value;
-
-	assert(element_storage_bool(ctx, label, !value) == value);
-	GuiId test_id = 0;
-	for (int i = 0; i < ctx->storage_count; ++i) {
-		assert(test_id < ctx->storage[i].id);
-		test_id = ctx->storage[i].id;
-	}
 }
 
 static void save_layout(GuiContext *ctx, const char *path)
@@ -526,8 +517,8 @@ static void gui_draw(	GuiContext *ctx, GuiDrawInfo_Type type, int pos[2], int si
 	info.selected = selected;
 	if (text) {
 		// Copy text -- don't take pointers to host data
-		int text_size = strlen(text) + 1;
-		char *text_copy = gui_frame_alloc(ctx, text_size);
+		int text_size = (int)strlen(text) + 1;
+		char *text_copy = (char*)gui_frame_alloc(ctx, text_size);
 		GUI_FMT_STR(text_copy, text_size, "%s", text);
 		info.text = text_copy;
 	}
@@ -543,7 +534,7 @@ static void gui_draw(	GuiContext *ctx, GuiDrawInfo_Type type, int pos[2], int si
 	if (ctx->draw_info_count == ctx->draw_info_capacity) {
 		// Need more space
 		ctx->draw_info_capacity *= 2;
-		GuiDrawInfo *new_infos = gui_frame_alloc(ctx, sizeof(*new_infos)*ctx->draw_info_capacity);
+		GuiDrawInfo *new_infos = (GuiDrawInfo*)gui_frame_alloc(ctx, sizeof(*new_infos)*ctx->draw_info_capacity);
 		memcpy(new_infos, ctx->draw_infos, sizeof(*new_infos)*ctx->draw_info_count);
 		ctx->draw_infos = new_infos;
 	}
@@ -565,10 +556,10 @@ GuiContext *create_gui(CalcTextSizeFunc calc_text, void *user_data_for_calc_text
 	ctx->draw_info_capacity = 64;
 
 	ctx->layout_capacity = 64;
-	ctx->layouts = check_ptr(GUI_MALLOC(sizeof(*ctx->layouts)*ctx->layout_capacity));
+	ctx->layouts = (GuiElementLayout*)check_ptr(GUI_MALLOC(sizeof(*ctx->layouts)*ctx->layout_capacity));
 
 	ctx->storage_capacity = GUI_DEFAULT_STORAGE_SIZE;
-	ctx->storage = check_ptr(GUI_MALLOC(sizeof(*ctx->storage)*ctx->storage_capacity));
+	ctx->storage = (GuiContext_Storage*)check_ptr(GUI_MALLOC(sizeof(*ctx->storage)*ctx->storage_capacity));
 
 	ctx->framemem_bucket_count = 1;
 	ctx->framemem_buckets = (GuiContext_MemBucket*)check_ptr(GUI_MALLOC(sizeof(*ctx->framemem_buckets)));
@@ -578,27 +569,27 @@ GuiContext *create_gui(CalcTextSizeFunc calc_text, void *user_data_for_calc_text
 
 	{ // Default layout
 		{
-			GuiElementLayout layout = element_layout(ctx, "gui_slider");
-			layout.has_size = GUI_TRUE;
-			layout.size[0] = 15;
-			layout.size[1] = 15;
-			update_element_layout(ctx, layout);
+			GuiElementLayout l = element_layout(ctx, "gui_slider");
+			l.has_size = GUI_TRUE;
+			l.size[0] = 15;
+			l.size[1] = 15;
+			update_element_layout(ctx, l);
 		}
 
 		{
-			GuiElementLayout layout = element_layout(ctx, "gui_bar");
-			layout.has_size = GUI_TRUE;
-			layout.size[0] = 0;
-			layout.size[1] = 25;
-			update_element_layout(ctx, layout);
+			GuiElementLayout l = element_layout(ctx, "gui_bar");
+			l.has_size = GUI_TRUE;
+			l.size[0] = 0;
+			l.size[1] = 25;
+			update_element_layout(ctx, l);
 		}
 
 		{
-			GuiElementLayout layout = element_layout(ctx, "gui_layoutwin");
-			layout.has_size = GUI_TRUE;
-			layout.size[0] = 200;
-			layout.size[1] = 500;
-			update_element_layout(ctx, layout);
+			GuiElementLayout l = element_layout(ctx, "gui_layoutwin");
+			l.has_size = GUI_TRUE;
+			l.size[0] = 200;
+			l.size[1] = 500;
+			update_element_layout(ctx, l);
 		}
 
 		{
@@ -606,6 +597,40 @@ GuiContext *create_gui(CalcTextSizeFunc calc_text, void *user_data_for_calc_text
 			layout.align_left = GUI_TRUE;
 			layout.align_right = GUI_TRUE;
 			update_element_layout(ctx, layout);
+		}
+
+		{
+			GuiElementLayout l = element_layout(ctx, "gui_client:gui_layoutwin");
+			l.padding[0] = 10;
+			l.padding[1] = 5;
+			l.padding[2] = 10;
+			l.padding[3] = 5;
+			l.gap[0] = 0;
+			l.gap[1] = 4;
+			update_element_layout(ctx, l);
+		}
+
+		{
+			GuiElementLayout l = element_layout(ctx, "gui_layoutwin");
+			l.has_size = 1;
+			l.size[0] = 400;
+			l.size[1] = 700;
+			update_element_layout(ctx, l);
+		}
+
+		{
+			GuiElementLayout l = element_layout(ctx, "gui_layout_list");
+			l.align_left = GUI_TRUE;
+			l.align_right = GUI_TRUE;
+			l.align_top = GUI_FALSE;
+			l.align_bottom = GUI_FALSE;
+			l.padding[0] = 5;
+			l.padding[1] = 0;
+			l.padding[2] = 5;
+			l.padding[3] = 1;
+			l.gap[0] = 0;
+			l.gap[1] = 0;
+			update_element_layout(ctx, l);
 		}
 	}
 
@@ -640,7 +665,7 @@ void gui_pre_frame(GuiContext *ctx)
 	refresh_framemem(ctx);
 
 	ctx->draw_infos =
-		gui_frame_alloc(ctx, sizeof(*ctx->draw_infos)*ctx->draw_info_capacity);
+		(GuiDrawInfo*)gui_frame_alloc(ctx, sizeof(*ctx->draw_infos)*ctx->draw_info_capacity);
 	ctx->draw_info_count = 0;
 
 	// "Null" turtle
@@ -763,7 +788,7 @@ static void gui_begin_ex(GuiContext *ctx, const char *label, GUI_BOOL detached)
 		// @todo Make work
 		//if (win) {
 			// Make right-aligned go to right side of content, not right side of win
-		//	GUI_V2(prev_size[c] = MAX(prev_size[c], win->last_bounding_size[c]));
+		//	GUI_V2(prev_size[c] = GUI_MAX(prev_size[c], win->last_bounding_size[c]));
 		//}
 
 		if (prev->non_empty && !detached) {
@@ -810,8 +835,8 @@ static void gui_begin_ex(GuiContext *ctx, const char *label, GUI_BOOL detached)
 
 		// Padding (= minimum distance from parent edges)
 
-		GUI_V2(new_turtle.pos[c] = MAX(new_turtle.pos[c], prev->pos[c] + prev->padding[c]));
-		GUI_V2(new_turtle.size[c] = MIN(new_turtle.size[c], prev->pos[c] + prev_size[c] - new_turtle.pos[c] - prev->padding[c + 2]));
+		GUI_V2(new_turtle.pos[c] = GUI_MAX(new_turtle.pos[c], prev->pos[c] + prev->padding[c]));
+		GUI_V2(new_turtle.size[c] = GUI_MIN(new_turtle.size[c], prev->pos[c] + prev_size[c] - new_turtle.pos[c] - prev->padding[c + 2]));
 	}
 	GUI_ASSIGN_V2(new_turtle.start_pos, new_turtle.pos);
 	// Element will report how much space it took, regardless of turtle.size
@@ -958,15 +983,15 @@ void gui_slider_ex(GuiContext *ctx, const char *label, float *value, float min, 
 		}
 
 		if (show_text) { // Value
-			int text_pos[2], text_size[2];
+			int value_text_pos[2], value_text_size[2];
 			const char *value_text = gui_str(ctx, "%.3f", *value);
-			ctx->calc_text_size(text_size, ctx->calc_text_size_user_data, value_text);
-			text_pos[0] = pos[0] + (bar_size[0] - text_size[0])/2;
-			text_pos[1] = pos[1];
+			ctx->calc_text_size(value_text_size, ctx->calc_text_size_user_data, value_text);
+			value_text_pos[0] = pos[0] + (bar_size[0] - value_text_size[0])/2;
+			value_text_pos[1] = pos[1];
 
 			int px_pos[2], px_size[2];
-			pt_to_px(px_pos, text_pos, ctx->dpi_scale);
-			pt_to_px(px_size, text_size, ctx->dpi_scale);
+			pt_to_px(px_pos, value_text_pos, ctx->dpi_scale);
+			pt_to_px(px_size, value_text_size, ctx->dpi_scale);
 			gui_draw(	ctx, GuiDrawInfo_text, px_pos, px_size, GUI_FALSE, GUI_FALSE, GUI_FALSE,
 						value_text, gui_layer(ctx) + 2, gui_scissor(ctx));
 		}
@@ -1001,7 +1026,7 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, GUI_BOOL panel)
 
 	int min_size = panel ? 10 : 80;
 
-	GUI_V2(size[c] = MAX(size[c], min_size));
+	GUI_V2(size[c] = GUI_MAX(size[c], min_size));
 
 	int win_handle = -1;
 	{ // Find/create window
@@ -1023,7 +1048,14 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, GUI_BOOL panel)
 			win->id = gui_id(label);
 			GUI_FMT_STR(win->label, sizeof(win->label), "%s", label);
 			win->has_bar = !panel;
-			ctx->window_order[ctx->window_count++] = free_handle;
+			if (panel) {
+				// Panel will be behind every window
+				memmove(&ctx->window_order[1], &ctx->window_order[0], sizeof(*ctx->window_order)*ctx->window_count);
+				ctx->window_order[0] = free_handle;
+				++ctx->window_count;
+			} else {
+				ctx->window_order[ctx->window_count++] = free_handle;
+			}
 
 			win_handle = free_handle;
 		}
@@ -1052,7 +1084,7 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, GUI_BOOL panel)
 		gui_button_logic(ctx, bar_label, pos, btn_size, NULL, &went_down, &down, &hover);
 
 
-		if (ctx->active_win_ix == win_handle) {
+		if (ctx->active_win_ix == win_handle && !panel) {
 			// Lift window to top
 			GUI_BOOL found = GUI_FALSE;
 			for (int i = 0; i < ctx->window_count; ++i) {
@@ -1396,7 +1428,7 @@ static GUI_BOOL gui_textfield_ex(GuiContext *ctx, const char *label, char *buf, 
 	if (has_label) {
 		ctx->calc_text_size(label_size, ctx->calc_text_size_user_data, gui_label_text(label));
 
-		GUI_V2(size[c] = MAX(size[c], label_size[c] + padding[c] + padding[c + 2]));
+		GUI_V2(size[c] = GUI_MAX(size[c], label_size[c] + padding[c] + padding[c + 2]));
 		label_pos[0] = pos[0] + size[0] - (label_size[0] + padding[2]);
 		label_pos[1] = pos[1] + padding[1];
 		box_size[0] = size[0] - (label_size[0] + padding[0] + padding[2]);
@@ -1594,9 +1626,9 @@ void gui_hor_space(GuiContext *ctx)
 }
 */
 
-void gui_layout_settings(GuiContext *ctx, const char *save_path)
+void gui_layout_editor(GuiContext *ctx, const char *save_path)
 {
-	if (ctx->active_id && (ctx->key_state[KEY_MMB] & GUI_KEYSTATE_DOWN_BIT)) {
+	if (ctx->active_id && (ctx->key_state[GUI_KEY_MMB] & GUI_KEYSTATE_DOWN_BIT)) {
 		GUI_FMT_STR(ctx->layout_element_label, sizeof(ctx->layout_element_label),
 					"%s", ctx->active_label);
 	}

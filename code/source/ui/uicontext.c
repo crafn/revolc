@@ -5,7 +5,7 @@
 #include "gen_layout.c" // load_layout
 
 Color panel_color()
-{ return (Color) {0.1/1.5, 0.1/1.5, 0.15/1.5, 0.9}; }
+{ return (Color) {0.05, 0.05, 0.07, 0.95}; }
 
 Color inactive_color()
 { return (Color) {0.2, 0.2, 0.2, 0.5}; }
@@ -17,7 +17,7 @@ Color highlight_color(Color c)
 { return (Color) {c.r + 0.2, c.g + 0.2, c.b + 0.1, c.a}; }
 
 Color outline_color(Color c)
-{ return (Color) {c.r*0.3, c.g*0.3, c.b*0.3, c.a}; }
+{ return (Color) {c.r*0.2, c.g*0.2, c.b*0.2, c.a}; }
 
 const Font *gui_font()
 {

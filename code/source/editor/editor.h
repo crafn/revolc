@@ -28,6 +28,9 @@ typedef struct Editor {
 	bool show_prog_state;
 	bool show_node_list;
 	bool show_cmd_list;
+	bool show_nodegroupdef_list;
+	U32 selected_nodegroupdef;
+
 	F32 world_time_mul;
 } Editor;
 

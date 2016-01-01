@@ -71,7 +71,7 @@ typedef struct AutoNodeImplStorage {
 
 typedef struct World {
 	F64 dt;
-	Id next_entity_id;
+	Id next_entity_id; // Increase when calling create_nodes (if you want unique group ids)
 
 	NodeInfo nodes[MAX_NODE_COUNT];
 	Handle next_node;
@@ -91,6 +91,8 @@ typedef struct World {
 	U32 auto_storage_count;
 
 	NodeInfo sort_space[MAX_NODE_COUNT];
+
+	bool editor_disable_memcpy_cmds;
 } World;
 
 REVOLC_API WARN_UNUSED World * create_world();

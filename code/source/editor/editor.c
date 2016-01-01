@@ -168,11 +168,10 @@ internal void spawn_entity(World *world, ResBlob *blob, V2d pos)
 	if (g_env.netstate && !g_env.netstate->authority)
 		return;
 
-	local_persist U64 group_i = 0;
-	group_i = (group_i + 1) % 3;
-
+	local_persist int type = 0;
+	type = (type + 1) % 3;
 	const char* prop_name =
-		(char*[]) {"wbarrel", "wbox", "rollbot"}[group_i];
+		(char*[]) {"wbarrel", "wbox", "rollbot"}[type];
 
 	T3d tf = {{1, 1, 1}, identity_qd(), {pos.x, pos.y, 0}};
 	SlotVal init_vals[] = { // Override default values from json
@@ -182,7 +181,7 @@ internal void spawn_entity(World *world, ResBlob *blob, V2d pos)
 	};
 	NodeGroupDef *def =
 		(NodeGroupDef*)res_by_name(blob, ResType_NodeGroupDef, "phys_prop");
-	create_nodes(world, def, WITH_ARRAY_COUNT(init_vals), group_i, AUTHORITY_PEER);
+	create_nodes(world, def, WITH_ARRAY_COUNT(init_vals), g_env.world->next_entity_id++, AUTHORITY_PEER);
 }
 
 void upd_editor(F64 *world_dt)
@@ -245,6 +244,9 @@ void upd_editor(F64 *world_dt)
 
 	if (g_env.device->key_pressed[KEY_ESC])
 		e->state = EditorState_invisible;
+	
+	// Prevent overwriting animation clip pose by other nodes
+	g_env.world->editor_disable_memcpy_cmds = e->state == EditorState_armature;
 
 	if (e->state != EditorState_invisible) {
 		// In editor
@@ -357,6 +359,7 @@ void upd_editor(F64 *world_dt)
 				gui_checkbox(ctx, "world_tool_elem+prog|Show program state", &e->show_prog_state);
 				gui_checkbox(ctx, "world_tool_elem+nodes|Show nodes", &e->show_node_list);
 				gui_checkbox(ctx, "world_tool_elem+cmds|Show cmds", &e->show_cmd_list);
+				gui_checkbox(ctx, "world_tool_elem+nodegroupdefs|Show NodeGroupDefs", &e->show_nodegroupdef_list);
 				gui_slider(ctx, "world_tool_elem+dt_mul|Time mul", &e->world_time_mul, 0.0f, 10.0f);
 				gui_slider(ctx, "world_tool_elem+exp|Exposure", &g_env.renderer->exposure, -5.0f, 5.0f);
 				gui_checkbox(ctx, "world_tool_elem+physdraw|Physics debug draw", &g_env.physworld->debug_draw);
@@ -397,6 +400,32 @@ void upd_editor(F64 *world_dt)
 					}
 				}
 				gui_end_window(ctx);
+			}
+
+			if (e->show_nodegroupdef_list) {
+				U32 count;
+				Resource **defs = all_res_by_type(	&count,
+													g_env.resblob,
+													ResType_NodeGroupDef);
+				gui_begin_window(ctx, "nodegroupdef_list|NodeGroupDef list");
+				for (U32 i = 0; i < count; ++i) {
+					NodeGroupDef *def = (NodeGroupDef*)defs[i];
+
+					if (gui_selectable(ctx, gui_str(ctx, "nodegroupdef_list_item+%i|%s", i, def->res.name), e->selected_nodegroupdef == i)) {
+						e->selected_nodegroupdef = i;
+					}
+				}
+				gui_end_window(ctx);
+
+				if (world_has_input(ctx) && g_env.device->key_pressed[KEY_LMB] && e->selected_nodegroupdef < count) {
+					V2d cursor_on_world = screen_to_world_point(g_env.device->cursor_pos);
+					T3d tf = {{1, 1, 1}, identity_qd(), {cursor_on_world.x, cursor_on_world.y, 0}};
+					SlotVal init_vals[] = { // Override default values from json
+						{"body",	"tf",			WITH_DEREF_SIZEOF(&tf)}
+					};
+					NodeGroupDef *def = (NodeGroupDef*)defs[e->selected_nodegroupdef];
+					create_nodes(g_env.world, def, WITH_ARRAY_COUNT(init_vals), g_env.world->next_entity_id++, AUTHORITY_PEER);
+				}
 			}
 
 		} else if (e->state == EditorState_gui_test) {
@@ -451,5 +480,5 @@ void upd_editor(F64 *world_dt)
 	}
 
 	if (e->edit_layout && e->state != EditorState_invisible)
-		gui_layout_settings(g_env.uicontext->gui, "../../code/source/ui/gen_layout.c");
+		gui_layout_editor(g_env.uicontext->gui, "../../code/source/ui/gen_layout.c");
 }
