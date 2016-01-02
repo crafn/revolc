@@ -148,6 +148,7 @@ typedef struct GuiContext_Window {
 #define GUI_KEYSTATE_RELEASED_BIT 0x4
 
 #define GUI_WRITTEN_TEXT_BUF_SIZE 32
+#define GUI_TEXTFIELD_BUF_SIZE 64 // For integer and float edit
 
 #define GUI_KEY_COUNT 256
 #define GUI_KEY_LMB 0
@@ -274,6 +275,10 @@ typedef struct GuiContext {
 	int storage_capacity;
 	int storage_count;
 
+	// Used for int and float text fields
+	char textfield_buf[GUI_TEXTFIELD_BUF_SIZE];
+	GuiId textfield_buf_owner;
+
 	// List of buffers which are invalidated every frame. Used for temp strings.
 	GuiContext_MemBucket *framemem_buckets;
 	int framemem_bucket_count; // It's best to have just one bucket, but sometimes memory usage can peak and more memory is allocated.
@@ -326,6 +331,7 @@ GUI_API GUI_BOOL gui_radiobutton(GuiContext *ctx, const char *label, GUI_BOOL va
 GUI_API void gui_slider(GuiContext *ctx, const char *label, float *value, float min, float max);
 GUI_API GUI_BOOL gui_textfield(GuiContext *ctx, const char *label, char *buf, int buf_size);
 GUI_API GUI_BOOL gui_intfield(GuiContext *ctx, const char *label, int *value);
+GUI_API GUI_BOOL gui_doublefield(GuiContext *ctx, const char *label, double *value);
 GUI_API void gui_label(GuiContext *ctx, const char *label);
 
 GUI_API void gui_begin_listbox(GuiContext *ctx, const char *label);

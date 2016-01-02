@@ -160,7 +160,11 @@ internal void gui_data_tree(GuiContext *ctx, const char *struct_name, void *stru
 		const char *label = gui_str(ctx, "datatree+%s.%s|%s %s%s = %s",
 			m.base_type_name, m.name, m.base_type_name, &stars[sizeof(stars) - m.ptr_depth - 1], m.name, value_str);
 
-		if (gui_begin_tree(ctx, label)) {
+		if (!strcmp(m.base_type_name, "bool")) {
+			gui_checkbox(ctx, label, deref_ptr);
+		} else if (!strcmp(m.base_type_name, "F64")) {
+			gui_doublefield(ctx, label, deref_ptr);
+		} else if (gui_begin_tree(ctx, label)) {
 			gui_data_tree(ctx, m.base_type_name, deref_ptr);
 			gui_end_tree(ctx);
 		}
@@ -361,7 +365,6 @@ void upd_editor(F64 *world_dt)
 				gui_slider(ctx, "world_tool_elem+exp|Exposure", &g_env.renderer->exposure, -5.0f, 5.0f);
 				gui_checkbox(ctx, "world_tool_elem+physdraw|Physics debug draw", &g_env.physworld->debug_draw);
 
-
 				if (gui_button(ctx, "world_tool_elem+save|Save world")) {
 					save_world_to_file(g_env.world, SAVEFILE_PATH);
 				}
@@ -370,6 +373,15 @@ void upd_editor(F64 *world_dt)
 				}
 
 			gui_end_panel(ctx);
+
+			if (world_has_input()) {
+				Device *d = g_env.device;
+				V2d cursor_on_world = screen_to_world_point(g_env.device->cursor_pos);
+				if (d->key_down['t'])
+					set_grid_material_in_circle(cursor_on_world, 2, GRIDCELL_MATERIAL_AIR);
+				if (d->key_down['g'])
+					set_grid_material_in_circle(cursor_on_world, 1, GRIDCELL_MATERIAL_GROUND);
+			}
 
 			if (e->show_prog_state) {
 				gui_begin_window(ctx, "program_state|Program state");

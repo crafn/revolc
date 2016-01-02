@@ -30,7 +30,7 @@ V2d rigidbody_velocity_at(const RigidBody *b, V2d world_point)
 				b->cp_body, to_cpv(world_point)));
 }
 
-Constraint * add_simplemotor(RigidBody *b)
+Constraint *add_simplemotor(RigidBody *b)
 {
 	return cpSpaceAddConstraint(
 			g_env.physworld->cp_space,
@@ -50,6 +50,32 @@ void remove_constraint(Constraint *c)
 {
 	cpSpaceRemoveConstraint(g_env.physworld->cp_space, c);
 	cpConstraintFree(c);
+}
+
+void apply_slide_joint(RigidBody *body, V2d body_p, V2d ground_p, F64 min, F64 max)
+{
+	JointInfo info = {
+		.type = JointType_slide,
+		.body_a = body->cp_body,
+		.body_b = g_env.physworld->cp_ground_body,
+		.anchor_a_1 = body_p,
+		.anchor_b = ground_p,
+		.min = min,
+		.max = max,
+	};
+	push_array(JointInfo)(&g_env.physworld->used_joints, info);
+}
+
+void apply_groove_joint(RigidBody *body, V2d ground_p_1, V2d ground_p_2)
+{
+	JointInfo info = {
+		.type = JointType_groove,
+		.body_a = g_env.physworld->cp_ground_body,
+		.body_b = body->cp_body,
+		.anchor_a_1 = ground_p_1,
+		.anchor_a_2 = ground_p_2,
+	};
+	push_array(JointInfo)(&g_env.physworld->used_joints, info);
 }
 
 V2d apply_velocity_target(RigidBody *b, V2d velocity, F64 max_force)

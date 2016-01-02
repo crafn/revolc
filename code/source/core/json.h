@@ -26,7 +26,10 @@ typedef struct JsonTok {
 	jsmntok_t *tok;
 } JsonTok;
 
+struct Ator;
+
 typedef struct ParsedJsonFile {
+	struct Ator *ator;
 	const char *json_path;
 	jsmntok_t *tokens;
 	char *json;
@@ -34,7 +37,7 @@ typedef struct ParsedJsonFile {
 	JsonTok root;
 } ParsedJsonFile;
 
-ParsedJsonFile malloc_parsed_json_file(const char *file);
+ParsedJsonFile parse_json_file(struct Ator *ator, const char *file);
 void free_parsed_json_file(ParsedJsonFile json);
 
 REVOLC_API JsonTok json_value_by_key(JsonTok j, const char *key);

@@ -42,7 +42,7 @@ typedef struct RigidBody {
 
 	RigidBodyCpData cp_data;
 
-	// @todo Could store these in-line for perf (?)
+	// @todo Could store these in separate array for perf
 	// Cached
 	cpShape *cp_shapes[MAX_SHAPES_PER_BODY];
 	cpBody *cp_body;
@@ -62,13 +62,20 @@ REVOLC_API void rigidbody_set_velocity(RigidBody *b, V2d v);
 REVOLC_API F64 rigidbody_mass(const RigidBody *b);
 REVOLC_API V2d rigidbody_velocity_at(const RigidBody *b, V2d world_point);
 
-REVOLC_API Constraint * add_simplemotor(RigidBody *b);
+// @todo Joints to immediate-mode api
+REVOLC_API Constraint *add_simplemotor(RigidBody *b);
 REVOLC_API void set_simplemotor_rate(Constraint *c, F64 rate);
 
 REVOLC_API void set_constraint_max_force(Constraint *c, F64 force);
 
 // Constraints are removed along bodies
 REVOLC_API void remove_constraint(Constraint *c);
+
+
+// Immediate-mode joints
+
+void apply_slide_joint(RigidBody *body, V2d body_p, V2d ground_p, F64 min, F64 max);
+void apply_groove_joint(RigidBody *body, V2d ground_p_1, V2d ground_p_2);
 
 // Returns applied force
 REVOLC_API V2d apply_velocity_target(RigidBody *b, V2d velocity, F64 max_force);

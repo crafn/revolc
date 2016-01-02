@@ -9,6 +9,27 @@
 
 #include <chipmunk/chipmunk.h>
 
+typedef enum JointType {
+	JointType_slide,
+	JointType_groove,
+	JointType_last,
+} JointType;
+
+typedef struct JointInfo {
+	JointType type;
+	cpBody *body_a;
+	cpBody *body_b;
+	V2d anchor_a_1;
+	V2d anchor_a_2;
+	V2d anchor_b;
+	F64 min;
+	F64 max;
+
+	cpConstraint *cp_joint;
+} JointInfo;
+
+DECLARE_ARRAY(JointInfo)
+
 typedef struct PhysWorld {
 	bool debug_draw;
 
@@ -18,8 +39,11 @@ typedef struct PhysWorld {
 	PhysGrid grid;
 
 	cpSpace *cp_space;
-	cpBody *cp_ground_body; // Recreated when 
+	cpBody *cp_ground_body;
 	RigidBody ground_body; // So that every cpShape has a RigidBody
+
+	Array(JointInfo) used_joints; // Joints used this frame
+	Array(JointInfo) existing_joints;
 } PhysWorld;
 
 /// @note Sets g_env.physworld
@@ -31,6 +55,7 @@ REVOLC_API U32 resurrect_rigidbody(const RigidBody *dead);
 REVOLC_API void free_rigidbody(Handle h);
 REVOLC_API void * storage_rigidbody();
 REVOLC_API RigidBody * get_rigidbody(U32 h);
+REVOLC_API Handle rigidbody_handle(RigidBody *b);
 
 REVOLC_API U32 resurrect_physgrid(const PhysGrid *dead);
 REVOLC_API void *storage_physgrid();

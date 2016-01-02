@@ -207,7 +207,7 @@ Resource * res_by_name(ResBlob *blob, ResType type, const char *name)
 
 		blob_write(&buf, &res_header, sizeof(res_header));
 
-		ParsedJsonFile parsed_json = malloc_parsed_json_file(MISSING_RES_FILE);
+		ParsedJsonFile parsed_json = parse_json_file(dev_ator(), MISSING_RES_FILE);
 		if (parsed_json.tokens == NULL)
 			fail("Failed parsing %s", MISSING_RES_FILE);
 		ensure(parsed_json.root.tok);
@@ -380,7 +380,7 @@ void make_blob(const char *dst_file_path, char **res_file_paths)
 	ParsedJsonFile *parsed_jsons =
 		ZERO_ALLOC(dev_ator(), sizeof(*parsed_jsons)*res_file_count, "parsed_jsons");
 	for (U32 i = 0; i < res_file_count; ++i) {
-		parsed_jsons[i] = malloc_parsed_json_file(res_file_paths[i]);
+		parsed_jsons[i] = parse_json_file(dev_ator(), res_file_paths[i]);
 		if (parsed_jsons[i].tokens == NULL)
 			goto error;
 	}
@@ -615,7 +615,7 @@ internal
 void mirror_res(Resource *res)
 {
 	const char *res_file_path = res->blob->res_file_paths[res->res_file_index];
-	ParsedJsonFile file = malloc_parsed_json_file(res_file_path);
+	ParsedJsonFile file = parse_json_file(dev_ator(), res_file_path);
 	WJson *upd_file = wjson_create(JsonType_array);
 	for (U32 i = 0; i < json_member_count(file.root); ++i) {
 		JsonTok j_res = json_member(file.root, i);

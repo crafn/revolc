@@ -5,6 +5,8 @@
 #include "physworld.h"
 #include "visual/renderer.h" // Debug draw
 
+DEFINE_ARRAY(JointInfo)
+
 typedef struct PolyCell {
 	U8 fill;
 } PolyCell;
@@ -278,6 +280,7 @@ void create_physworld()
 	w->cp_space = cpSpaceNew();
 	cpSpaceSetIterations(w->cp_space, 10);
 	cpSpaceSetGravity(w->cp_space, cpv(0, -25));
+	cpSpaceSetDamping(w->cp_space, 0.95);
 
 	{ // Create static "ground" body
 		w->cp_ground_body = cp_create_body(w->cp_space, 0, 0, true);
@@ -289,6 +292,9 @@ void create_physworld()
 
 		cpBodySetUserData(w->cp_ground_body, &w->ground_body.cp_data);
 	}
+
+	w->used_joints = create_array(JointInfo)(gen_ator(), MAX_JOINT_COUNT);
+	w->existing_joints = create_array(JointInfo)(gen_ator(), MAX_JOINT_COUNT);
 
 #ifdef USE_FLUID
 	{ // Fluid proto
@@ -311,6 +317,9 @@ void destroy_physworld()
 	PhysWorld *w = g_env.physworld;
 	ensure(w);
 	g_env.physworld = NULL;
+
+	destroy_array(JointInfo)(&w->used_joints);
+	destroy_array(JointInfo)(&w->existing_joints);
 
 	cp_destroy_body(w->cp_space, w->cp_ground_body);
 
@@ -492,6 +501,11 @@ void * storage_rigidbody()
 RigidBody * get_rigidbody(U32 h)
 { return g_env.physworld->bodies + h; }
 
+REVOLC_API Handle rigidbody_handle(RigidBody *b)
+{
+	return b - g_env.physworld->bodies;
+}
+
 
 U32 resurrect_physgrid(const PhysGrid *dead)
 {
@@ -550,6 +564,41 @@ void phys_draw_poly(
 			count);
 }
 
+int jointinfo_cmp(const void *void_a, const void *void_b)
+{
+	const JointInfo *a = void_a;
+	const JointInfo *b = void_b;
+	if (a->type != b->type)
+		return CMP(a->type, b->type);
+	if (a->body_a != b->body_a)
+		return CMP(a->body_a, b->body_a);
+	if (a->body_b != b->body_b)
+		return CMP(a->body_b, b->body_b);
+
+	// Compare by joint params to propagate changes in them
+	// @todo Update parameters without recreating joints
+	if (a->anchor_a_1.x != b->anchor_a_1.x)
+		return CMP(a->anchor_a_1.x, b->anchor_a_1.x);
+	if (a->anchor_a_1.y != b->anchor_a_1.y)
+		return CMP(a->anchor_a_1.y, b->anchor_a_1.y);
+
+	if (a->anchor_a_2.x != b->anchor_a_2.x)
+		return CMP(a->anchor_a_2.x, b->anchor_a_2.x);
+	if (a->anchor_a_2.y != b->anchor_a_2.y)
+		return CMP(a->anchor_a_2.y, b->anchor_a_2.y);
+
+	if (a->anchor_b.x != b->anchor_b.x)
+		return CMP(a->anchor_b.x, b->anchor_b.x);
+	if (a->anchor_b.y != b->anchor_b.y)
+		return CMP(a->anchor_b.y, b->anchor_b.y);
+
+	if (a->min != b->min)
+		return CMP(a->min, b->min);
+	if (a->max != b->max)
+		return CMP(a->max, b->max);
+	return 0;
+}
+
 void upd_physworld(F64 dt)
 {
 	PhysWorld *w = g_env.physworld;
@@ -574,6 +623,64 @@ void upd_physworld(F64 dt)
 			apply_velocity_target(b, b->target_velocity, b->max_target_force);
 		b->max_target_force = 0.0;
 	}
+
+	{ // Create/destroy joints
+		// @todo Remove joints which were used, but body was destroyed after (or delay rigid body destruction).
+		//       Now just crashes.
+		// @todo Multiple joints of same type on single pair of bodies
+		// ^ that is forbidden because sorted order is degenerate -> comparing two lists with for-loop can fail
+
+		qsort(w->used_joints.data, w->used_joints.size, sizeof(*w->used_joints.data), jointinfo_cmp);
+		for (U32 i = 0, k = 0; i < w->used_joints.size;) {
+			JointInfo used = w->used_joints.data[i];
+			JointInfo existing = k < w->existing_joints.size ?
+									w->existing_joints.data[k] :
+									(JointInfo) { .type = JointType_last };
+
+			int cmp = jointinfo_cmp(&used, &existing);
+			if (cmp == 0) {
+				// Maintain joint
+				++i;
+				++k;
+			} else if (cmp < 0) {
+				// New joint
+				debug_print("New joint");
+
+				switch (used.type) {
+				case JointType_slide: {
+					used.cp_joint =
+						cpSlideJointNew(used.body_a, used.body_b,
+										to_cpv(used.anchor_a_1), to_cpv(used.anchor_b),
+										used.min, used.max);
+				} break;
+				case JointType_groove: {
+					used.cp_joint =
+						cpGrooveJointNew(	used.body_a, used.body_b,
+											to_cpv(used.anchor_a_1), to_cpv(used.anchor_a_2),
+											to_cpv(used.anchor_b));
+				} break;
+				default: fail("Unknown joint type: %i", used.type);
+				}
+				cpSpaceAddConstraint(w->cp_space, used.cp_joint);
+
+				insert_array(JointInfo)(&w->existing_joints, k, &used, 1);
+				++i;
+				++k;
+			} else {
+				ensure(k < w->existing_joints.size);
+
+				debug_print("Destroy joint");
+				// Destroy joint
+				cpSpaceRemoveConstraint(w->cp_space, existing.cp_joint);
+				cpConstraintFree(existing.cp_joint);
+
+				erase_array(JointInfo)(&w->existing_joints, k, 1);
+				++i;
+			}
+		}
+		clear_array(JointInfo)(&w->used_joints);
+	}
+
 	/// @todo Accumulation
 	/// @todo Reset torques etc. only after all timesteps are done
 	cpSpaceStep(w->cp_space, dt*0.5);

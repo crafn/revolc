@@ -84,12 +84,12 @@ void load_layout(GuiContext *ctx)
 		l.has_offset = 0;
 		l.offset[0] = 0;
 		l.offset[1] = 0;
-		l.has_size = 1;
-		l.size[0] = 100;
+		l.has_size = 0;
+		l.size[0] = 200;
 		l.size[1] = 20;
 		l.prevent_resizing = 0;
-		l.align_left = 0;
-		l.align_right = 0;
+		l.align_left = 1;
+		l.align_right = 1;
 		l.align_top = 0;
 		l.align_bottom = 0;
 		l.padding[0] = 10;
@@ -311,7 +311,7 @@ void load_layout(GuiContext *ctx)
 		l.offset[1] = 0;
 		l.has_size = 1;
 		l.size[0] = 100;
-		l.size[1] = 20;
+		l.size[1] = 10;
 		l.prevent_resizing = 0;
 		l.align_left = 0;
 		l.align_right = 0;
@@ -331,12 +331,12 @@ void load_layout(GuiContext *ctx)
 		l.id = 1228705237;
 		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "gui_layout_list");
 		l.on_same_row = 0;
-		l.has_offset = 0;
+		l.has_offset = 1;
 		l.offset[0] = 0;
 		l.offset[1] = 0;
 		l.has_size = 1;
 		l.size[0] = 100;
-		l.size[1] = 20;
+		l.size[1] = 10;
 		l.prevent_resizing = 0;
 		l.align_left = 1;
 		l.align_right = 1;
@@ -432,11 +432,11 @@ void load_layout(GuiContext *ctx)
 		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "gui_layoutwin");
 		l.on_same_row = 0;
 		l.has_offset = 1;
-		l.offset[0] = 580;
-		l.offset[1] = 17;
+		l.offset[0] = 660;
+		l.offset[1] = 16;
 		l.has_size = 1;
-		l.size[0] = 400;
-		l.size[1] = 700;
+		l.size[0] = 416;
+		l.size[1] = 709;
 		l.prevent_resizing = 0;
 		l.align_left = 0;
 		l.align_right = 0;
@@ -584,7 +584,7 @@ void load_layout(GuiContext *ctx)
 		l.has_offset = 0;
 		l.offset[0] = 0;
 		l.offset[1] = 0;
-		l.has_size = 1;
+		l.has_size = 0;
 		l.size[0] = 100;
 		l.size[1] = 20;
 		l.prevent_resizing = 0;
@@ -603,12 +603,37 @@ void load_layout(GuiContext *ctx)
 
 	{
 		GuiElementLayout l = {0};
+		l.id = 2821238409;
+		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "gui_treenode:node_list_item");
+		l.on_same_row = 0;
+		l.has_offset = 0;
+		l.offset[0] = 0;
+		l.offset[1] = 0;
+		l.has_size = 1;
+		l.size[0] = 100;
+		l.size[1] = 20;
+		l.prevent_resizing = 0;
+		l.align_left = 1;
+		l.align_right = 1;
+		l.align_top = 0;
+		l.align_bottom = 0;
+		l.padding[0] = 0;
+		l.padding[1] = 0;
+		l.padding[2] = 30;
+		l.padding[3] = 0;
+		l.gap[0] = 0;
+		l.gap[1] = 0;
+		append_element_layout(ctx, l);
+	}
+
+	{
+		GuiElementLayout l = {0};
 		l.id = 2949743699;
 		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "nodegroupdef_list|NodeGroupDef list");
 		l.on_same_row = 0;
 		l.has_offset = 1;
-		l.offset[0] = 631;
-		l.offset[1] = 55;
+		l.offset[0] = 846;
+		l.offset[1] = 68;
 		l.has_size = 1;
 		l.size[0] = 148;
 		l.size[1] = 591;
@@ -732,11 +757,11 @@ void load_layout(GuiContext *ctx)
 		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "node_list");
 		l.on_same_row = 0;
 		l.has_offset = 1;
-		l.offset[0] = 346;
-		l.offset[1] = 78;
+		l.offset[0] = 227;
+		l.offset[1] = 15;
 		l.has_size = 1;
-		l.size[0] = 441;
-		l.size[1] = 621;
+		l.size[0] = 462;
+		l.size[1] = 665;
 		l.prevent_resizing = 0;
 		l.align_left = 0;
 		l.align_right = 0;
@@ -1013,6 +1038,31 @@ void load_layout(GuiContext *ctx)
 		l.size[0] = 214;
 		l.size[1] = 320;
 		l.prevent_resizing = 1;
+		l.align_left = 0;
+		l.align_right = 0;
+		l.align_top = 0;
+		l.align_bottom = 0;
+		l.padding[0] = 0;
+		l.padding[1] = 0;
+		l.padding[2] = 0;
+		l.padding[3] = 0;
+		l.gap[0] = 0;
+		l.gap[1] = 0;
+		append_element_layout(ctx, l);
+	}
+
+	{
+		GuiElementLayout l = {0};
+		l.id = 4047493188;
+		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "gui_treenode:datatree");
+		l.on_same_row = 0;
+		l.has_offset = 0;
+		l.offset[0] = 0;
+		l.offset[1] = 0;
+		l.has_size = 1;
+		l.size[0] = 500;
+		l.size[1] = 20;
+		l.prevent_resizing = 0;
 		l.align_left = 0;
 		l.align_right = 0;
 		l.align_top = 0;

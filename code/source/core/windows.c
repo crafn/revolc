@@ -46,6 +46,8 @@ LRESULT CALLBACK wndproc(
 	break;
 	case WM_CHAR: {
 		char ch = (char)wParam;
+		if (ch == 13) // Enter (carriage return)
+			ch = '\n';
 		if (d->written_text_size < WRITTEN_TEXT_BUF_SIZE)
 			d->written_text_buf[d->written_text_size++] = ch;
 	} break;

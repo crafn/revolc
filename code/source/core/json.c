@@ -1,18 +1,19 @@
 #include "json.h"
 #include "basic.h"
 
-ParsedJsonFile malloc_parsed_json_file(const char *file)
+ParsedJsonFile parse_json_file(Ator *ator, const char *file)
 {
 	ParsedJsonFile ret = {};
 	U32 file_size;
+	ret.ator = ator;
 	ret.json_path = file;
-	ret.json = (char*)read_file(gen_ator(), file, &file_size);
-	ret.null_json = (char*)read_file(gen_ator(), file, &file_size);
+	ret.json = (char*)read_file(ator, file, &file_size);
+	ret.null_json = (char*)read_file(ator, file, &file_size);
 	ret.root.json_size = file_size;
 
 	{ // Parse json
 		U32 token_count = file_size/4 + 64; // Intuition
-		ret.tokens = malloc(sizeof(jsmntok_t)*token_count);
+		ret.tokens = ALLOC(ator, sizeof(jsmntok_t)*token_count, "json tokens");
 		jsmn_parser parser;
 		jsmn_init(&parser);
 		int r = jsmn_parse(&parser, ret.json, file_size,
@@ -48,7 +49,7 @@ ParsedJsonFile malloc_parsed_json_file(const char *file)
 
 		ret.root.json_path = file;
 
-		char *path = malloc(MAX_PATH_SIZE);
+		char *path = ALLOC(ator, MAX_PATH_SIZE, "path");
 		ret.root.json_dir = path;
 		path_to_dir(path, file);
 
@@ -76,10 +77,10 @@ error:
 
 void free_parsed_json_file(ParsedJsonFile json)
 {
-	free(json.json);
-	free(json.null_json);
-	free(json.tokens);
-	free((char*)json.root.json_dir);
+	FREE(json.ator, json.json);
+	FREE(json.ator, json.null_json);
+	FREE(json.ator, json.tokens);
+	FREE(json.ator, (char*)json.root.json_dir);
 }
 
 JsonTok json_value_by_key(JsonTok obj, const char *key)

@@ -39,7 +39,7 @@ def buildInfo(env, tags):
 			return ch == ' ' or ch == '\t' or ch == '\n' or ch == '\r'
 
 		def isIdentChar(ch):
-			return ch.isalpha() or ch == '_'
+			return ch.isalnum() or ch == '_'
 
 		# "  dfdsk,  "
 		#    ^ ->  ^

@@ -395,15 +395,6 @@ void upd_netstate(NetState *net)
 			default: fail("Unknown message type: %i", header->type);
 		}
 	}
-
-	if (world_has_input()) { // Debug UI
-		Device *d = g_env.device;
-		V2d cursor_on_world = screen_to_world_point(g_env.device->cursor_pos);
-		if (d->key_down['t'])
-			brush_action(&(BrushAction) {cursor_on_world, 2.0, GRIDCELL_MATERIAL_AIR});
-		if (d->key_down['g'])
-			brush_action(&(BrushAction) {cursor_on_world, 1.0, GRIDCELL_MATERIAL_GROUND});
-	}
 }
 
 // Messaging

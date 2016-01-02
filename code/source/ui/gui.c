@@ -1428,7 +1428,8 @@ static GUI_BOOL gui_textfield_ex(GuiContext *ctx, const char *label, char *buf, 
 	if (has_label) {
 		ctx->calc_text_size(label_size, ctx->calc_text_size_user_data, gui_label_text(label));
 
-		GUI_V2(size[c] = GUI_MAX(size[c], label_size[c] + padding[c] + padding[c + 2]));
+		const int min_box_size[2] = {20, 0};
+		GUI_V2(size[c] = GUI_MAX(size[c], min_box_size[c] + label_size[c] + padding[c] + padding[c + 2]));
 		label_pos[0] = pos[0] + size[0] - (label_size[0] + padding[2]);
 		label_pos[1] = pos[1] + padding[1];
 		box_size[0] = size[0] - (label_size[0] + padding[0] + padding[2]);
@@ -1450,6 +1451,8 @@ static GUI_BOOL gui_textfield_ex(GuiContext *ctx, const char *label, char *buf, 
 				if (char_count >= buf_size)
 					break;
 				char ch = ctx->written_text_buf[i];
+				if (ch == '\n')
+					continue;
 
 				if (int_only) {
 					if (ch < '0' || ch > '9')
@@ -1505,11 +1508,45 @@ GUI_BOOL gui_textfield(GuiContext *ctx, const char *label, char *buf, int buf_si
 
 GUI_BOOL gui_intfield(GuiContext *ctx, const char *label, int *value)
 {
-	char buf[64] = {0};
-	GUI_FMT_STR(buf, sizeof(buf), "%i", *value);
-	GUI_BOOL ret = gui_textfield_ex(ctx, label, buf, sizeof(buf), GUI_FALSE);
-	if (sscanf(buf, "%i", value) != 1)
-		*value = 0;
+	char local_buf[GUI_TEXTFIELD_BUF_SIZE] = {0};
+	if (ctx->textfield_buf_owner != gui_id(label))
+		GUI_FMT_STR(local_buf, sizeof(local_buf), "%i", *value);
+	else
+		GUI_FMT_STR(local_buf, sizeof(local_buf), "%s", ctx->textfield_buf);
+
+	GUI_BOOL ret = gui_textfield_ex(ctx, label, local_buf, sizeof(local_buf), GUI_FALSE);
+	if (ret) {
+		// Text changed
+		ctx->textfield_buf_owner = gui_id(label);
+		GUI_FMT_STR(ctx->textfield_buf, sizeof(ctx->textfield_buf), "%s", local_buf);
+
+		// May fail
+		sscanf(local_buf, "%i", value);
+	}
+
+	if (ctx->textfield_buf_owner == gui_id(label) && ctx->active_id != gui_id(label))
+		ctx->textfield_buf_owner = 0;
+
+	return ret;
+}
+
+GUI_BOOL gui_doublefield(GuiContext *ctx, const char *label, double *value)
+{
+	char local_buf[GUI_TEXTFIELD_BUF_SIZE] = {0};
+	if (ctx->textfield_buf_owner != gui_id(label))
+		GUI_FMT_STR(local_buf, sizeof(local_buf), "%f", *value);
+	else
+		GUI_FMT_STR(local_buf, sizeof(local_buf), "%s", ctx->textfield_buf);
+
+	GUI_BOOL ret = gui_textfield_ex(ctx, label, local_buf, sizeof(local_buf), GUI_FALSE);
+	if (ret) {
+		// Text changed
+		ctx->textfield_buf_owner = gui_id(label);
+		GUI_FMT_STR(ctx->textfield_buf, sizeof(ctx->textfield_buf), "%s", local_buf);
+
+		// May fail
+		sscanf(local_buf, "%lf", value);
+	}
 	return ret;
 }
 
@@ -1580,7 +1617,7 @@ void gui_end_combo(GuiContext *ctx)
 GUI_BOOL gui_begin_tree(GuiContext *ctx, const char *label)
 {
 	GUI_BOOL open = element_storage_bool(ctx, label, GUI_FALSE);
-	if (gui_button(ctx, gui_str(ctx, "%s", label))) {
+	if (gui_button(ctx, label)) {
 		set_element_storage_bool(ctx, label, !open);
 	}
 

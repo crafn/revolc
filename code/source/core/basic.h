@@ -78,6 +78,7 @@ typedef void (*VoidFunc)();
 #define SIGN(x) ((x) > 0 ? 1 : -1)
 #define NULL_HANDLE ((U32)-1)
 #define NULL_ID ((U64)-1)
+#define CMP(a, b) (((a) > (b)) - ((b) > (a)))
 
 #define TO_STRING_IND(X) #X
 #define TO_STRING(X) TO_STRING_IND(X)
