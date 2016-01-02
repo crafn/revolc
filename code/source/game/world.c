@@ -9,6 +9,10 @@ typedef struct SaveHeader {
 	U32 node_count;
 	U32 cmd_count;
 	bool delta;
+
+	// For non-delta
+	Id next_node_id;
+	Id next_cmd_id;
 } PACKED SaveHeader;
 
 typedef struct DeadCmd {
@@ -348,6 +352,8 @@ void save_world(WArchive *ar, World *w)
 		.node_count = 0, // Patch afterwards
 		.cmd_count = 0,
 		.delta = false,
+		.next_node_id = w->next_node_id,
+		.next_cmd_id = w->next_cmd_id,
 	};
 
 	U32 header_offset = ar->data_size;
@@ -391,6 +397,8 @@ void load_world(RArchive *ar, World *w)
 
 	SaveHeader header;
 	unpack_buf(ar, &header, sizeof(header));
+	w->next_node_id = header.next_node_id;
+	w->next_cmd_id = header.next_cmd_id;
 
 	U32 node_count = 0;
 	for (U32 node_i = 0; node_i < header.node_count;

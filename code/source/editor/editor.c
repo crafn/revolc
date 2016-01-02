@@ -291,12 +291,10 @@ void upd_editor(F64 *world_dt)
 				if (!body) {
 					U32 count;
 					QueryInfo *infos = query_bodies(&count, cursor_on_world, 0.1);
-					debug_print("Found %i", count);
 					for (U32 i = 0; i < count; ++i) {
 						// @todo Closest one
 						if (infos[i].body->cp_body != g_env.physworld->cp_ground_body) {
 							body = infos[i].body;
-							debug_print("Selected: %s", body->def_name);
 							break;
 						}
 					}
