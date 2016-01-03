@@ -362,6 +362,12 @@ void upd_editor(F64 *world_dt)
 				gui_checkbox(ctx, "world_tool_elem+cmds|Show cmds", &e->show_cmd_list);
 				gui_checkbox(ctx, "world_tool_elem+nodegroupdefs|Show NodeGroupDefs", &e->show_nodegroupdef_list);
 				gui_slider(ctx, "world_tool_elem+dt_mul|Time mul", &e->world_time_mul, 0.0f, 10.0f);
+				if (gui_button(ctx, "world_tool_elem+pause_game|Toggle pause")) {
+					if (e->world_time_mul > 0.0)
+						e->world_time_mul = 0.0;
+					else
+						e->world_time_mul = 1.0;
+				}
 				gui_slider(ctx, "world_tool_elem+exp|Exposure", &g_env.renderer->exposure, -5.0f, 5.0f);
 				gui_checkbox(ctx, "world_tool_elem+physdraw|Physics debug draw", &g_env.physworld->debug_draw);
 
@@ -439,7 +445,8 @@ void upd_editor(F64 *world_dt)
 					V2d cursor_on_world = screen_to_world_point(g_env.device->cursor_pos);
 					T3d tf = {{1, 1, 1}, identity_qd(), {cursor_on_world.x, cursor_on_world.y, 0}};
 					SlotVal init_vals[] = { // Override default values from json
-						{"body",	"tf",			WITH_DEREF_SIZEOF(&tf)}
+						{"body",	"tf",			WITH_DEREF_SIZEOF(&tf)},
+						{"door",	"pos",			WITH_DEREF_SIZEOF(&cursor_on_world)},
 					};
 					NodeGroupDef *def = (NodeGroupDef*)defs[e->selected_nodegroupdef];
 					create_nodes(g_env.world, def, WITH_ARRAY_COUNT(init_vals), g_env.world->next_entity_id++, AUTHORITY_PEER);

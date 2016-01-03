@@ -435,7 +435,7 @@ void load_layout(GuiContext *ctx)
 		l.offset[0] = 660;
 		l.offset[1] = 16;
 		l.has_size = 1;
-		l.size[0] = 416;
+		l.size[0] = 356;
 		l.size[1] = 709;
 		l.prevent_resizing = 0;
 		l.align_left = 0;
@@ -757,10 +757,10 @@ void load_layout(GuiContext *ctx)
 		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "node_list");
 		l.on_same_row = 0;
 		l.has_offset = 1;
-		l.offset[0] = 227;
-		l.offset[1] = 15;
+		l.offset[0] = 644;
+		l.offset[1] = 37;
 		l.has_size = 1;
-		l.size[0] = 462;
+		l.size[0] = 372;
 		l.size[1] = 665;
 		l.prevent_resizing = 0;
 		l.align_left = 0;

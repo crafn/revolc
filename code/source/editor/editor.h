@@ -2,6 +2,7 @@
 #define REVOLC_EDITOR_H
 
 #include "build.h"
+#include "armature_editor.h"
 
 typedef enum {
 	EditorState_invisible,

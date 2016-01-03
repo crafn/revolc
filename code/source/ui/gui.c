@@ -1414,9 +1414,11 @@ void gui_slider(GuiContext *ctx, const char *label, float *value, float min, flo
 	gui_slider_ex(ctx, label, value, min, max, 0.1f, GUI_FALSE, 0, GUI_TRUE);
 }
 
-static GUI_BOOL gui_textfield_ex(GuiContext *ctx, const char *label, char *buf, int buf_size, GUI_BOOL int_only)
+static GUI_BOOL gui_textfield_ex(GuiContext *ctx, const char *label, char *buf, int buf_size, GUI_BOOL int_only, GUI_BOOL *input_completed)
 {
 	GUI_BOOL content_changed = GUI_FALSE;
+	if (input_completed)
+		*input_completed = GUI_FALSE;
 
 	gui_begin(ctx, label);
 	int label_pos[2], box_size[2];
@@ -1451,21 +1453,26 @@ static GUI_BOOL gui_textfield_ex(GuiContext *ctx, const char *label, char *buf, 
 				if (char_count >= buf_size)
 					break;
 				char ch = ctx->written_text_buf[i];
-				if (ch == '\n')
-					continue;
+				content_changed = GUI_TRUE;
 
-				if (int_only) {
-					if (ch < '0' || ch > '9')
-						continue;
+				if (ch == '\n') {
+					gui_set_inactive(ctx, gui_id(label));
+					if (input_completed)
+						*input_completed = GUI_TRUE;
+					break;
 				}
 
 				if (ch == '\b') {
 					if (char_count > 0)
 						buf[--char_count] = '\0';
-				} else {
-					buf[char_count++] = ch;
+				} 
+
+				if (int_only) {
+					if ((ch < '0' || ch > '9') && ch != '.' && ch != '-')
+						continue;
 				}
-				content_changed = GUI_TRUE;
+
+				buf[char_count++] = ch;
 			}
 			char_count = GUI_MIN(char_count, buf_size - 1);
 			buf[char_count] = '\0';
@@ -1504,7 +1511,7 @@ static GUI_BOOL gui_textfield_ex(GuiContext *ctx, const char *label, char *buf, 
 }
 
 GUI_BOOL gui_textfield(GuiContext *ctx, const char *label, char *buf, int buf_size)
-{ return gui_textfield_ex(ctx, label, buf, buf_size, GUI_FALSE); }
+{ return gui_textfield_ex(ctx, label, buf, buf_size, GUI_FALSE, NULL); }
 
 GUI_BOOL gui_intfield(GuiContext *ctx, const char *label, int *value)
 {
@@ -1514,14 +1521,16 @@ GUI_BOOL gui_intfield(GuiContext *ctx, const char *label, int *value)
 	else
 		GUI_FMT_STR(local_buf, sizeof(local_buf), "%s", ctx->textfield_buf);
 
-	GUI_BOOL ret = gui_textfield_ex(ctx, label, local_buf, sizeof(local_buf), GUI_FALSE);
+	GUI_BOOL completed;
+	GUI_BOOL ret = gui_textfield_ex(ctx, label, local_buf, sizeof(local_buf), GUI_TRUE, &completed);
 	if (ret) {
 		// Text changed
 		ctx->textfield_buf_owner = gui_id(label);
 		GUI_FMT_STR(ctx->textfield_buf, sizeof(ctx->textfield_buf), "%s", local_buf);
 
 		// May fail
-		sscanf(local_buf, "%i", value);
+		if (completed)
+			sscanf(local_buf, "%i", value);
 	}
 
 	if (ctx->textfield_buf_owner == gui_id(label) && ctx->active_id != gui_id(label))
@@ -1538,14 +1547,16 @@ GUI_BOOL gui_doublefield(GuiContext *ctx, const char *label, double *value)
 	else
 		GUI_FMT_STR(local_buf, sizeof(local_buf), "%s", ctx->textfield_buf);
 
-	GUI_BOOL ret = gui_textfield_ex(ctx, label, local_buf, sizeof(local_buf), GUI_FALSE);
+	GUI_BOOL completed;
+	GUI_BOOL ret = gui_textfield_ex(ctx, label, local_buf, sizeof(local_buf), GUI_TRUE, &completed);
 	if (ret) {
 		// Text changed
 		ctx->textfield_buf_owner = gui_id(label);
 		GUI_FMT_STR(ctx->textfield_buf, sizeof(ctx->textfield_buf), "%s", local_buf);
 
 		// May fail
-		sscanf(local_buf, "%lf", value);
+		if (completed)
+			sscanf(local_buf, "%lf", value);
 	}
 	return ret;
 }

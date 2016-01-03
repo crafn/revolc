@@ -1,5 +1,6 @@
 #include "playerch.h"
 #include "ui/uicontext.h"
+#include "editor/editor.h"
 
 void init_playerch(PlayerCh *p)
 {
@@ -53,6 +54,7 @@ void upd_playerch(PlayerCh *p, PlayerCh *p_e, RigidBody *body, RigidBody *body_e
 
 	for (; p != p_e; ++p, ++body) {
 		bool in_control = (g_env.netstate->peer_id == p->peer_id) && world_has_input();
+		bool in_control_of_camera = in_control && g_env.editor->state == EditorState_invisible;
 		bool jump = in_control && g_env.device->key_pressed[KEY_SPACE];
 		bool dig = in_control && g_env.device->key_down[KEY_LMB];
 		bool build_immediately = in_control && g_env.device->key_pressed[KEY_RMB];
@@ -174,7 +176,7 @@ void upd_playerch(PlayerCh *p, PlayerCh *p_e, RigidBody *body, RigidBody *body_e
 		p->fake_dif = CLAMP(p->fake_dif, -0.1, 0.1);
 		//p->tf.pos.x += p->fake_dif;
 
-		if (in_control) { // Camera
+		if (in_control && in_control_of_camera) { // Camera
 			V2d target_pos = {
 				p->tf.pos.x, // + cursor_p.x*0.5,
 				p->tf.pos.y, // + cursor_p.y*0.5,

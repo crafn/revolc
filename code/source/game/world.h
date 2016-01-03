@@ -20,6 +20,7 @@ typedef struct SlotVal {
 
 // @todo Simplify:
 // - conditions -> bool enabled;
+// - memcpy -> call
 typedef struct NodeCmd {
 	bool allocated;
 	CmdType type;

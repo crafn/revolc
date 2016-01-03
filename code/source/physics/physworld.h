@@ -10,9 +10,9 @@
 #include <chipmunk/chipmunk.h>
 
 typedef enum JointType {
+	JointType_none,
 	JointType_slide,
 	JointType_groove,
-	JointType_last,
 } JointType;
 
 typedef struct JointInfo {

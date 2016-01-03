@@ -631,20 +631,28 @@ void upd_physworld(F64 dt)
 		// ^ that is forbidden because sorted order is degenerate -> comparing two lists with for-loop can fail
 
 		qsort(w->used_joints.data, w->used_joints.size, sizeof(*w->used_joints.data), jointinfo_cmp);
-		for (U32 i = 0, k = 0; i < w->used_joints.size;) {
-			JointInfo used = w->used_joints.data[i];
+		for (U32 i = 0, k = 0; i < w->used_joints.size || k < w->existing_joints.size;) {
+			JointInfo used = i < w->used_joints.size ?
+								w->used_joints.data[i] :
+								(JointInfo) { .type = JointType_none };
 			JointInfo existing = k < w->existing_joints.size ?
 									w->existing_joints.data[k] :
-									(JointInfo) { .type = JointType_last };
+									(JointInfo) { .type = JointType_none };
+			ensure(!(used.type == JointType_none && existing.type == JointType_none));
 
 			int cmp = jointinfo_cmp(&used, &existing);
+			if (used.type == JointType_none)
+				cmp = 1; // Destroy joint
+			if (existing.type == JointType_none)
+				cmp = -1; // Create joint
+
 			if (cmp == 0) {
 				// Maintain joint
 				++i;
 				++k;
 			} else if (cmp < 0) {
 				// New joint
-				debug_print("New joint");
+				ensure(k <= w->existing_joints.size);
 
 				switch (used.type) {
 				case JointType_slide: {
@@ -669,7 +677,6 @@ void upd_physworld(F64 dt)
 			} else {
 				ensure(k < w->existing_joints.size);
 
-				debug_print("Destroy joint");
 				// Destroy joint
 				cpSpaceRemoveConstraint(w->cp_space, existing.cp_joint);
 				cpConstraintFree(existing.cp_joint);
@@ -679,6 +686,7 @@ void upd_physworld(F64 dt)
 			}
 		}
 		clear_array(JointInfo)(&w->used_joints);
+
 	}
 
 	/// @todo Accumulation
