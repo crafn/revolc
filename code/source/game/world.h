@@ -36,13 +36,13 @@ typedef struct NodeCmd {
 			U16 src_offset;
 			U16 dst_offset;
 			U16 size;
-			U32 src_node;
-			U32 dst_node;
+			Handle src_node;
+			Handle dst_node;
 		};
 		struct { // call
 			void *fptr;
 
-			U32 p_nodes[MAX_CMD_CALL_PARAMS];
+			Handle p_nodes[MAX_CMD_CALL_PARAMS];
 			U16 p_node_count;
 		};
 	};
@@ -59,6 +59,8 @@ typedef struct NodeInfo {
 	U8 peer_id;
 	bool allocated; /// @todo Can be substituted by type ( == NULL)
 	bool remove;
+
+	bool selected; // Editor
 } NodeInfo;
 
 typedef struct AutoNodeImplStorage {

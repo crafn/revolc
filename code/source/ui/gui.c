@@ -1465,14 +1465,13 @@ static GUI_BOOL gui_textfield_ex(GuiContext *ctx, const char *label, char *buf, 
 				if (ch == '\b') {
 					if (char_count > 0)
 						buf[--char_count] = '\0';
-				} 
-
-				if (int_only) {
-					if ((ch < '0' || ch > '9') && ch != '.' && ch != '-')
-						continue;
+				} else {
+					if (int_only) {
+						if ((ch < '0' || ch > '9') && ch != '.' && ch != '-')
+							continue;
+					}
+					buf[char_count++] = ch;
 				}
-
-				buf[char_count++] = ch;
 			}
 			char_count = GUI_MIN(char_count, buf_size - 1);
 			buf[char_count] = '\0';
@@ -1533,7 +1532,7 @@ GUI_BOOL gui_intfield(GuiContext *ctx, const char *label, int *value)
 			sscanf(local_buf, "%i", value);
 	}
 
-	if (ctx->textfield_buf_owner == gui_id(label) && ctx->active_id != gui_id(label))
+	if (ctx->textfield_buf_owner == gui_id(label) && ctx->last_active_id != gui_id(label))
 		ctx->textfield_buf_owner = 0;
 
 	return ret;
@@ -1558,6 +1557,10 @@ GUI_BOOL gui_doublefield(GuiContext *ctx, const char *label, double *value)
 		if (completed)
 			sscanf(local_buf, "%lf", value);
 	}
+
+	if (ctx->textfield_buf_owner == gui_id(label) && ctx->last_active_id != gui_id(label))
+		ctx->textfield_buf_owner = 0;
+
 	return ret;
 }
 

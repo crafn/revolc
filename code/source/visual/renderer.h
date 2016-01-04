@@ -133,6 +133,8 @@ REVOLC_API V2d screen_to_world_point(V2i p);
 // @todo Rename to "delta", as Y is inverted
 REVOLC_API V2d screen_to_world_size(V2i s);
 
+REVOLC_API V2i world_to_screen_point(V2d p);
+
 REVOLC_API U32 find_modelentity_at_pixel(V2i p);
 REVOLC_API U32 find_compentity_at_pixel(V2i p);
 

@@ -97,6 +97,7 @@ void destroy_editor()
 
 internal const char *gui_value_str(GuiContext *ctx, const char *type_name, void *deref_ptr, int ptr_depth, void *ptr)
 {
+	// @todo Rest
 	if (!strcmp(type_name, "int") && deref_ptr)
 		return gui_str(ctx, "%i", *(int*)deref_ptr);
 	else if (!strcmp(type_name, "F64") && deref_ptr)
@@ -133,7 +134,12 @@ internal const char *gui_value_str(GuiContext *ctx, const char *type_name, void 
 	return "??";
 }
 
-internal void gui_data_tree(GuiContext *ctx, const char *struct_name, void *struct_ptr)
+typedef struct DataTreeSelected {
+	void *ptr;
+	U32 size;
+} DataTreeSelected;
+
+internal void gui_data_tree(GuiContext *ctx, const char *struct_name, void *struct_ptr, const char *tag, DataTreeSelected *sel)
 {
 	StructRtti *s = rtti_struct(struct_name);
 	if (!s)
@@ -157,15 +163,33 @@ internal void gui_data_tree(GuiContext *ctx, const char *struct_name, void *stru
 		const char *value_str = gui_value_str(ctx, m.base_type_name, deref_ptr, m.ptr_depth, member_ptr);
 		const char stars[] = "**********";
 		ensure(sizeof(stars) > m.ptr_depth);
-		const char *label = gui_str(ctx, "datatree+%s.%s|%s %s%s = %s",
-			m.base_type_name, m.name, m.base_type_name, &stars[sizeof(stars) - m.ptr_depth - 1], m.name, value_str);
+		const char *label = gui_str(ctx, "datatree+%s_%s_%s|%s %s%s = %s",
+			tag, m.base_type_name, m.name, m.base_type_name, &stars[sizeof(stars) - m.ptr_depth - 1], m.name, value_str);
 
+		// @todo Rest
+		// @todo Unify somehow. Maybe have an array of values describing formatting, gui controls etc.
 		if (!strcmp(m.base_type_name, "bool")) {
-			gui_checkbox(ctx, label, deref_ptr);
+			if (!sel) {
+				gui_checkbox(ctx, label, deref_ptr);
+			} else {
+				if (gui_button(ctx, label)) {
+					ensure(member_ptr == deref_ptr); // Can't refer outside struct
+					sel->ptr = member_ptr; 
+					sel->size = m.size;
+				}
+			}
 		} else if (!strcmp(m.base_type_name, "F64")) {
-			gui_doublefield(ctx, label, deref_ptr);
+			if (!sel) {
+				gui_doublefield(ctx, label, deref_ptr);
+			} else {
+				if (gui_button(ctx, label)) {
+					ensure(member_ptr == deref_ptr); // Can't refer outside struct
+					sel->ptr = member_ptr; 
+					sel->size = m.size;
+				}
+			}
 		} else if (gui_begin_tree(ctx, label)) {
-			gui_data_tree(ctx, m.base_type_name, deref_ptr);
+			gui_data_tree(ctx, m.base_type_name, deref_ptr, tag, sel);
 			gui_end_tree(ctx);
 		}
 	}
@@ -359,7 +383,8 @@ void upd_editor(F64 *world_dt)
 			gui_begin_panel(ctx, "world_tools|World tools");
 				gui_checkbox(ctx, "world_tool_elem+prog|Show program state", &e->show_prog_state);
 				gui_checkbox(ctx, "world_tool_elem+nodes|Show nodes", &e->show_node_list);
-				gui_checkbox(ctx, "world_tool_elem+cmds|Show cmds", &e->show_cmd_list);
+				gui_checkbox(ctx, "world_tool_elem+cmds|Show commands", &e->show_cmd_list);
+				gui_checkbox(ctx, "world_tool_elem+create_cmd|Create command", &e->show_create_cmd);
 				gui_checkbox(ctx, "world_tool_elem+nodegroupdefs|Show NodeGroupDefs", &e->show_nodegroupdef_list);
 				gui_slider(ctx, "world_tool_elem+dt_mul|Time mul", &e->world_time_mul, 0.0f, 10.0f);
 				if (gui_button(ctx, "world_tool_elem+pause_game|Toggle pause")) {
@@ -391,7 +416,7 @@ void upd_editor(F64 *world_dt)
 
 			if (e->show_prog_state) {
 				gui_begin_window(ctx, "program_state|Program state");
-				gui_data_tree(ctx, "Env", &g_env);
+				gui_data_tree(ctx, "Env", &g_env, "prog", NULL);
 				gui_end_window(ctx);
 			}
 
@@ -404,8 +429,11 @@ void upd_editor(F64 *world_dt)
 
 					if (gui_begin_tree(	ctx, gui_str(ctx, "node_list_item+%i|%s id %i group %i",
 										info->node_id, info->type_name, info->node_id, info->group_id))) {
-						gui_data_tree(ctx, info->type_name, node_impl(g_env.world, NULL, info));
+						info->selected = true;
+						gui_data_tree(ctx, info->type_name, node_impl(g_env.world, NULL, info), gui_str(ctx, "node_%i", info->node_id), NULL);
 						gui_end_tree(ctx);
+					} else {
+						info->selected = false;
 					}
 				}
 				gui_end_window(ctx);
@@ -419,7 +447,7 @@ void upd_editor(F64 *world_dt)
 						continue;
 
 					if (gui_begin_tree(ctx, gui_str(ctx, "cmd_list_item+%i|%i", cmd->cmd_id, cmd->cmd_id))) {
-						gui_data_tree(ctx, "NodeCmd", cmd);
+						gui_data_tree(ctx, "NodeCmd", cmd, gui_str(ctx, "cmd_%i", i), NULL);
 						gui_end_tree(ctx);
 					}
 				}
@@ -451,6 +479,73 @@ void upd_editor(F64 *world_dt)
 					NodeGroupDef *def = (NodeGroupDef*)defs[e->selected_nodegroupdef];
 					create_nodes(g_env.world, def, WITH_ARRAY_COUNT(init_vals), g_env.world->next_entity_id++, AUTHORITY_PEER);
 				}
+			}
+
+			if (e->show_create_cmd) {
+				gui_begin_window(ctx, "create_cmd|Create node command");
+
+				gui_begin(ctx, "create_cmd_list_1");
+					if (gui_selectable(ctx, "create_cmd_list_item+sel_src_btn|Select source", e->create_cmd.select_src))
+						e->create_cmd.select_src = true;
+					if (gui_selectable(ctx, "create_cmd_list_item+sel_dst_btn|Select destination", e->create_cmd.select_dst))
+						e->create_cmd.select_dst = true;
+					const char *desc = gui_str(ctx, "src: %ld, %i, %i   dst: %ld, %i, %i%s",
+						(long)e->create_cmd.src_node, e->create_cmd.src_offset, e->create_cmd.src_size,
+						(long)e->create_cmd.dst_node, e->create_cmd.dst_offset, e->create_cmd.dst_size,
+						e->create_cmd.dst_size != e->create_cmd.src_size ? " <- Size mismatch!" : "");
+					gui_label(ctx, gui_str(ctx, "create_cmd_list_item+desc|%s", desc));
+					if (gui_button(ctx, "create_cmd_list_item+create|Create command")) {
+						ensure(e->create_cmd.dst_size == e->create_cmd.src_size);
+						NodeCmd cmd = {};
+						cmd.type = CmdType_memcpy;
+						cmd.cmd_id = g_env.world->next_cmd_id++;
+						cmd.src_offset = e->create_cmd.src_offset;
+						cmd.dst_offset = e->create_cmd.dst_offset;
+						cmd.size = e->create_cmd.src_size;
+						cmd.src_node = node_id_to_handle(g_env.world, e->create_cmd.src_node);
+						cmd.dst_node = node_id_to_handle(g_env.world, e->create_cmd.dst_node);
+						resurrect_cmd(g_env.world, cmd);
+
+						memset(&e->create_cmd, 0, sizeof(e->create_cmd));
+					}
+				gui_end(ctx);
+
+				gui_begin(ctx, "create_cmd_list_2");
+					gui_label(ctx, "create_cmd_list_item+label|Selected nodes");
+
+					for (U32 i = 0; i < MAX_NODE_COUNT; ++i) {
+						NodeInfo *info = &g_env.world->nodes[i];
+						if (!info->selected)
+							continue;
+
+						if (gui_begin_tree(	ctx, gui_str(ctx, "create_cmd_list_item+%i|%s id %i group %i",
+											info->node_id, info->type_name, info->node_id, info->group_id))) {
+							DataTreeSelected selected = {};
+							gui_data_tree(	ctx, info->type_name, node_impl(g_env.world, NULL, info),
+											gui_str(ctx, "create_cmd_node_%i", info->node_id), &selected);
+							if (selected.ptr) {
+								U32 offset = (U8*)selected.ptr - (U8*)node_impl(g_env.world, NULL, info);
+								U32 size = selected.size;
+								if (e->create_cmd.select_src) {
+									e->create_cmd.select_src = false;
+									e->create_cmd.src_node = info->node_id;
+									e->create_cmd.src_offset = offset;
+									e->create_cmd.src_size = size;
+								}
+								if (e->create_cmd.select_dst) {
+									e->create_cmd.select_dst = false;
+									e->create_cmd.dst_node = info->node_id;
+									e->create_cmd.dst_offset = offset;
+									e->create_cmd.dst_size = size;
+								}
+							}
+
+							gui_end_tree(ctx);
+						}
+					}
+
+				gui_end(ctx);
+				gui_end_window(ctx);
 			}
 
 		} else if (e->state == EditorState_gui_test) {

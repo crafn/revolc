@@ -3,9 +3,9 @@
 void init_slidedoor(SlideDoor *d)
 {
 	*d = (SlideDoor) {
+		.delta_open = (V2d) {0, 5},
 		.open_force = 100,
 		.close_force = 100,
-		.delta_open = (V2d) {0, 5},
 	};
 }
 

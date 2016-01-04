@@ -5,10 +5,11 @@
 
 typedef struct SlideDoor {
 	bool open; // Wanted state
+	V2d pos; // Closed position
+	V2d delta_open;
+
 	F64 open_force;
 	F64 close_force;
-	V2d delta_open;
-	V2d pos; // Closed position
 
 	F64 fraction; // 0 when closed, 1 when open
 	bool half_open_state; // Changes midway
