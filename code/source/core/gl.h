@@ -20,6 +20,7 @@
 #define GL_SRGB8_ALPHA8 0x8C43
 #define GL_MAJOR_VERSION 0x821B
 #define GL_MINOR_VERSION 0x821C
+#define GL_MULTISAMPLE  0x809D
 
 #if PLATFORM == PLATFORM_WINDOWS
 #	define GL_CLAMP_TO_EDGE 0x812F
@@ -124,6 +125,9 @@ GlDrawBuffers glDrawBuffers;
 #define GL_RASTERIZER_DISCARD 0x8C89
 #define GL_INTERLEAVED_ATTRIBS 0x8C8C
 #define GL_TRANSFORM_FEEDBACK_BUFFER 0x8C8E
+#define GL_TEXTURE_2D_MULTISAMPLE 0x9100
+#define GL_READ_FRAMEBUFFER 0x8CA8
+#define GL_DRAW_FRAMEBUFFER 0x8CA9
 
 typedef void (*GlGenFramebuffers)(GLsizei, GLuint*);
 GlGenFramebuffers glGenFramebuffers;
@@ -153,7 +157,12 @@ typedef void (*GlBeginTransformFeedback)(GLenum primitiveMode);
 GlBeginTransformFeedback glBeginTransformFeedback;
 typedef void (*GlEndTransformFeedback)();
 GlEndTransformFeedback glEndTransformFeedback;
- 
+typedef void (*GlTexImage2DMultisample)(GLenum, GLsizei, GLenum, GLsizei, GLsizei, GLboolean);
+GlTexImage2DMultisample glTexImage2DMultisample;
+typedef void (*GlBlitFramebuffer)(GLint, GLint, GLint, GLint, GLint, GLint, GLint, GLint, GLbitfield, GLenum);
+GlBlitFramebuffer glBlitFramebuffer;
+
+
 #if PLATFORM == PLATFORM_WINDOWS
 	typedef void (*GlTexSubImage3D)(GLenum, GLint, GLint, GLint, GLint, GLsizei, GLsizei, GLsizei, GLenum, GLenum, const GLvoid *);
 	GlTexSubImage3D glTexSubImage3D;
@@ -164,6 +173,17 @@ GlEndTransformFeedback glEndTransformFeedback;
 #endif
 
 // Useful utilities wrapping multiple OpenGL commands
+
+#if BUILD == BUILD_DEBUG
+// Wrap every gl call with this
+#	define GL(x) do {\
+		gl_check_errors("pre " __FILE__ " line " TO_STRING(__LINE__));\
+		x;\
+		gl_check_errors("post " __FILE__ " line " TO_STRING(__LINE__));\
+		} while(0)
+#else
+#	define GL(x) x
+#endif
 
 REVOLC_API void gl_check_shader_status(GLuint shd, const char *msg);
 REVOLC_API void gl_check_program_status(GLuint prog);

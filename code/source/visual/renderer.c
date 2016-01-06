@@ -49,8 +49,7 @@ void draw_grid_quad()
 	destroy_vao(&grid_vao);
 }
 
-internal
-GLint uniform_loc(U32 shd, const char *name)
+internal GLint uniform_loc(U32 shd, const char *name)
 {
 	GLint loc = glGetUniformLocation(shd, name);
 	if (loc == -1) {
@@ -59,16 +58,15 @@ GLint uniform_loc(U32 shd, const char *name)
 	return loc;
 }
 
-internal
-U32 gen_tex(GLenum mag_filter, GLenum min_filter)
+internal U32 gen_tex(GLenum mag_filter, GLenum min_filter)
 {
 	U32 tex;
-	glGenTextures(1, &tex);
-	glBindTexture(GL_TEXTURE_2D, tex);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, mag_filter);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, min_filter);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+	GL(glGenTextures(1, &tex));
+	GL(glBindTexture(GL_TEXTURE_2D, tex));
+	GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, mag_filter));
+	GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, min_filter));
+	GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP));
+	GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP));
 	return tex;
 }
 
@@ -338,6 +336,11 @@ void destroy_rendering_pipeline(Renderer *r)
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+	glDeleteFramebuffers(1, &r->scene_ms_fbo);
+	glDeleteTextures(1, &r->scene_color_ms_tex);
+	r->scene_ms_fbo = 0;
+	r->scene_color_ms_tex = 0;
+
 	glDeleteFramebuffers(1, &r->scene_fbo);
 	glDeleteTextures(1, &r->scene_color_tex);
 
@@ -354,7 +357,19 @@ void destroy_rendering_pipeline(Renderer *r)
 internal
 bool rendering_pipeline_obsolete(Renderer *r)
 {
-	return !equals_v2i(r->scene_fbo_reso, g_env.device->win_size);
+	if (!equals_v2i(r->scene_fbo_reso, g_env.device->win_size))
+		return true;
+	if (r->multisample != (r->scene_ms_fbo != 0))
+		return true;
+	return false;
+}
+
+internal
+void check_fbo(const char *tag)
+{
+	GLenum ret = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	if (ret != GL_FRAMEBUFFER_COMPLETE)
+		fail("Incomplete framebuffer (%s): %i", tag, ret);
 }
 
 internal
@@ -369,22 +384,30 @@ void recreate_rendering_pipeline(Renderer *r)
 	r->occlusion_fbo_reso = (V2i) {128, 128};
 
 	{ // Setup framebuffers
+		// Fbo & tex to store multisample HDR render of the scene
+		if (r->multisample) {
+			// Multisample rendering:
+			//   - MS texture bound to fbo
+			//   - MS texture resolved to ordinary texture (where scene is drawn directly when not multisampling)
+			GL(glGenFramebuffers(1, &r->scene_ms_fbo));
+			GL(glBindFramebuffer(GL_FRAMEBUFFER, r->scene_ms_fbo));
+			glGenTextures(1, &r->scene_color_ms_tex);
+			glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, r->scene_color_ms_tex);
+			GL(glTexImage2DMultisample(	GL_TEXTURE_2D_MULTISAMPLE, r->msaa_samples, GL_RGB16F,
+										r->scene_fbo_reso.x, r->scene_fbo_reso.y, false));
+			GL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, r->scene_color_ms_tex, 0));
+			check_fbo("multisample");
+		}
 
 		// Fbo & tex to store HDR render of the scene
-		glGenFramebuffers(1, &r->scene_fbo);
-		glBindFramebuffer(GL_FRAMEBUFFER, r->scene_fbo);
-
+		GL(glGenFramebuffers(1, &r->scene_fbo));
+		GL(glBindFramebuffer(GL_FRAMEBUFFER, r->scene_fbo));
 		r->scene_color_tex = gen_tex(GL_LINEAR, GL_LINEAR);
-		glTexImage2D(	GL_TEXTURE_2D, 0, GL_RGB16F,
+		GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F,
 						r->scene_fbo_reso.x, r->scene_fbo_reso.y,
-						0, GL_RGB, GL_FLOAT, NULL);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, r->scene_color_tex, 0);
-		{
-			GLenum ret = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-			if (ret != GL_FRAMEBUFFER_COMPLETE)
-				fail("Incomplete framebuffer (scene): %i", ret);
-		}
-		gl_check_errors("recreate_rendering_pipeline: scene fbo");
+						0, GL_RGB, GL_FLOAT, NULL));
+		GL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, r->scene_color_tex, 0));
+		check_fbo("scene");
 
 		// Fbo & tex to store highlights of the scene
 		r->hl_tex = gen_tex(GL_LINEAR, GL_LINEAR);
@@ -394,11 +417,7 @@ void recreate_rendering_pipeline(Renderer *r)
 		glGenFramebuffers(1, &r->hl_fbo);
 		glBindFramebuffer(GL_FRAMEBUFFER, r->hl_fbo);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, r->hl_tex, 0);
-		{
-			GLenum ret = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-			if (ret != GL_FRAMEBUFFER_COMPLETE)
-				fail("Incomplete framebuffer (hl): %i", ret);
-		}
+		check_fbo("hl");
 
 		// Fbo & tex to store halfway blurred highlight
 		r->blur_tmp_tex = gen_tex(GL_LINEAR, GL_LINEAR);
@@ -408,11 +427,7 @@ void recreate_rendering_pipeline(Renderer *r)
 		glGenFramebuffers(1, &r->blur_tmp_fbo);
 		glBindFramebuffer(GL_FRAMEBUFFER, r->blur_tmp_fbo);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, r->blur_tmp_tex, 0);
-		{
-			GLenum ret = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-			if (ret != GL_FRAMEBUFFER_COMPLETE)
-				fail("Incomplete framebuffer (blur): %i", ret);
-		}
+		check_fbo("blur");
 
 		// Fbo & tex to store occlusion map (shadow)
 		r->occlusion_tex = gen_tex(GL_LINEAR, GL_LINEAR);
@@ -422,11 +437,7 @@ void recreate_rendering_pipeline(Renderer *r)
 		glGenFramebuffers(1, &r->occlusion_fbo);
 		glBindFramebuffer(GL_FRAMEBUFFER, r->occlusion_fbo);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, r->occlusion_tex, 0);
-		{
-			GLenum ret = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-			if (ret != GL_FRAMEBUFFER_COMPLETE)
-				fail("Incomplete framebuffer (occlusion): %i", ret);
-		}
+		check_fbo("occlusion");
 	}
 
 	gl_check_errors("recreate_rendering_pipeline: end");
@@ -442,6 +453,8 @@ void create_renderer()
 	r->prev_cam_pos = r->cam_pos;
 	r->cam_fov = (V2d) {3.141/2.0, 3.0141/2.0};
 	r->env_light_color = (Color) {1, 1, 1, 1};
+	r->multisample = true;
+	r->msaa_samples = 4;
 
 	r->vao = create_vao(MeshType_tri, MAX_DRAW_VERTEX_COUNT, MAX_DRAW_INDEX_COUNT);
 
@@ -945,7 +958,11 @@ void render_frame()
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 			glClearColor(0.0, 0.0, 0.0, 0.0);
 
-			glBindFramebuffer(GL_FRAMEBUFFER, r->scene_fbo);
+			if (r->scene_ms_fbo)
+				glBindFramebuffer(GL_FRAMEBUFFER, r->scene_ms_fbo);
+			else
+				glBindFramebuffer(GL_FRAMEBUFFER, r->scene_fbo);
+
 			glViewport(0, 0, r->scene_fbo_reso.x, r->scene_fbo_reso.y);
 			glClear(GL_COLOR_BUFFER_BIT);
 
@@ -973,7 +990,7 @@ void render_frame()
 			};
 			// Do buffers need to be disabled afterwards?
 			glDrawBuffers(ARRAY_COUNT(buffers), buffers);
-			glBindFragDataLocation(shd->prog_gl_id, 0, "f_color"); // to scene_color_tex
+			glBindFragDataLocation(shd->prog_gl_id, 0, "f_color"); // to scene_color_tex or scene_color_ms_tex
 
 			bind_vao(&r->vao);
 			draw_vao(&r->vao);
@@ -999,6 +1016,15 @@ void render_frame()
 					0, GL_RGBA, GL_UNSIGNED_BYTE,
 					r->fluid_grid);
 				draw_grid_quad();
+			}
+
+			if (r->scene_ms_fbo) {
+				// Resolve multisampling to ordinary texture.
+				// (Could be done in shader but then would need separate shader for multisample rendering)
+				glBindFramebuffer(GL_READ_FRAMEBUFFER, r->scene_ms_fbo);
+				glBindFramebuffer(GL_DRAW_FRAMEBUFFER, r->scene_fbo);
+				V2i s = r->scene_fbo_reso;
+				glBlitFramebuffer(0, 0, s.x, s.y, 0, 0, s.x, s.y, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 			}
 		}
 

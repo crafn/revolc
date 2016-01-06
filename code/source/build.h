@@ -32,6 +32,11 @@
 #	endif
 #endif
 
+// BUILD macro defined in compile command
+#define BUILD_DEBUG 1
+#define BUILD_DEV 2
+#define BUILD_RELEASE 3
+
 #define GUI_API REVOLC_API
 #define GUI_BOOL bool
 

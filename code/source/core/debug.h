@@ -8,8 +8,12 @@ REVOLC_API void critical_print(const char *format, ...);
 
 // @todo release/debug ensure
 // @todo ensure -> ASSERT
-#define ensure(x) \
-	do { if (!(x)) fail("ensure failed (%s: %i): %s", __FILE__, __LINE__, #x); } while(0)
+#if BUILD == BUILD_DEBUG || BUILD == BUILD_DEV
+#	define ensure(x) \
+		do { if (!(x)) fail("ensure failed (%s: %i): %s", __FILE__, __LINE__, #x); } while(0)
+#else
+#	define ensure
+#endif
 
 REVOLC_API NORETURN
 void fail(const char *format, ...);

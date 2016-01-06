@@ -26,10 +26,15 @@ typedef struct DrawCmd {
 } DrawCmd;
 
 typedef struct Renderer {
-	V3d cam_pos; // Directly written
+	// These can be directly written outside rendering system
+	V3d cam_pos;
 	V2d cam_fov;
 	F32 exposure;
 	Color env_light_color;
+	bool multisample; // Multisampled color buffer
+	U32 msaa_samples;
+
+	// Internals
 
 	V3d prev_cam_pos;
 
@@ -67,7 +72,10 @@ typedef struct Renderer {
 	U32 atlas_tex;
 	Vao vao;
 
+
 	// Rendering pipeline
+	U32 scene_ms_fbo; // Used with multisampling
+	U32 scene_color_ms_tex;
 	U32 scene_fbo;
 	U32 scene_color_tex;
 	V2i scene_fbo_reso;

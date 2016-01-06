@@ -193,22 +193,6 @@ def buildInfo(env, tags):
 	build_clover= only_clover or not only_something
 	build_rts= not build_clover and (only_rts or not only_something)
 
-	### Codegen ##
-
-	#codegen_dir= "./tools/codegen"
-	#codegen= Project();
-	#codegen.name= "codegen"
-	#codegen.type= "exe"
-	#codegen.targetDir= "."
-	#codegen.includeDirs= [ codegen_dir ]
-	#codegen.headers= [ codegen_dir + "/main.c" ]
-	#codegen.src= [ codegen_dir + "/unity.c" ]
-	#codegen.flags= [ "std=gnu99", "w", "O3" ]
-	#codegen.defines= [ "GCC_BASE=NULL" ]
-	#codegen.compiler= c_compiler
-	#codegen.linker= linker
-
-
 	cfg= "" # debug or dev
 	target_defines= []
 	target_flags= [ "std=gnu99", "pipe", "fvisibility=hidden" ]
@@ -220,13 +204,12 @@ def buildInfo(env, tags):
 
 	if "debug" in tags:
 		cfg= "debug"
-		target_defines += [ "DEBUG" ]
+		target_defines += [ "BUILD=1" ]
 		target_flags += [ "g", "O0" ]
 	elif "dev" in tags:
 		cfg= "dev"
 		target_flags += [ "g", "O2", "mtune=native", "march=native" ]
-	elif "clover" in tags:
-		pass
+		target_defines += [ "BUILD=2" ]
 	else:
 		fail("Invalid tags: " + str(tags))
 
