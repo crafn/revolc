@@ -275,23 +275,27 @@ void do_mesh_editor(U32 *model_h, bool *is_edit_mode, bool active)
 				gui_label(ctx, "model_setting+l2|Vertex attributes");
 
 				gui_label(ctx, "model_setting+l3|Color");
-				gui_slider(ctx, "model_setting+vr|R", &col.r, 0.0, 1.0);
-				gui_slider(ctx, "model_setting+vg|G", &col.g, 0.0, 1.0);
-				gui_slider(ctx, "model_setting+vb|B", &col.b, 0.0, 1.0);
-				gui_slider(ctx, "model_setting+va|A", &col.a, 0.0, 1.0);
+				bool v_col_changed = false;
+				v_col_changed |= gui_slider(ctx, "model_setting+vr|R", &col.r, 0.0, 1.0);
+				v_col_changed |= gui_slider(ctx, "model_setting+vg|G", &col.g, 0.0, 1.0);
+				v_col_changed |= gui_slider(ctx, "model_setting+vb|B", &col.b, 0.0, 1.0);
+				v_col_changed |= gui_slider(ctx, "model_setting+va|A", &col.a, 0.0, 1.0);
 
 				gui_label(ctx, "model_setting+l4|Outline color");
-				gui_slider(ctx, "model_setting+vor|R", &outline_col.r, 0.0, 1.0);
-				gui_slider(ctx, "model_setting+vog|G", &outline_col.g, 0.0, 1.0);
-				gui_slider(ctx, "model_setting+vob|B", &outline_col.b, 0.0, 1.0);
-				gui_slider(ctx, "model_setting+voa|A", &outline_col.a, 0.0, 1.0);
+				bool v_out_col_changed = false;
+				v_out_col_changed |= gui_slider(ctx, "model_setting+vor|R", &outline_col.r, 0.0, 1.0);
+				v_out_col_changed |= gui_slider(ctx, "model_setting+vog|G", &outline_col.g, 0.0, 1.0);
+				v_out_col_changed |= gui_slider(ctx, "model_setting+vob|B", &outline_col.b, 0.0, 1.0);
+				v_out_col_changed |= gui_slider(ctx, "model_setting+voa|A", &outline_col.a, 0.0, 1.0);
 
 				for (U32 i = 0; i < m->mesh_v_count; ++i) {
 					TriMeshVertex *v = &m->vertices[i];
 					if (!v->selected)
 						continue;
-					v->color = col;
-					v->outline_color = outline_col;
+					if (v_col_changed)
+						v->color = col;
+					if (v_out_col_changed)
+						v->outline_color = outline_col;
 				}
 			}
 

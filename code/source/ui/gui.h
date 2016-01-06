@@ -328,7 +328,7 @@ GUI_API GUI_BOOL gui_button(GuiContext *ctx, const char *label);
 GUI_API GUI_BOOL gui_selectable(GuiContext *ctx, const char *label, GUI_BOOL selected);
 GUI_API GUI_BOOL gui_checkbox(GuiContext *ctx, const char *label, GUI_BOOL *value);
 GUI_API GUI_BOOL gui_radiobutton(GuiContext *ctx, const char *label, GUI_BOOL value);
-GUI_API void gui_slider(GuiContext *ctx, const char *label, float *value, float min, float max);
+GUI_API GUI_BOOL gui_slider(GuiContext *ctx, const char *label, float *value, float min, float max);
 GUI_API GUI_BOOL gui_textfield(GuiContext *ctx, const char *label, char *buf, int buf_size);
 GUI_API GUI_BOOL gui_intfield(GuiContext *ctx, const char *label, int *value);
 GUI_API GUI_BOOL gui_doublefield(GuiContext *ctx, const char *label, double *value);

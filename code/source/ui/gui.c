@@ -912,8 +912,10 @@ void gui_end_ex(GuiContext *ctx, DragDropData *dropdata)
 	}
 }
 
-void gui_slider_ex(GuiContext *ctx, const char *label, float *value, float min, float max, float handle_rel_size, GUI_BOOL v, int length, GUI_BOOL show_text)
+GUI_BOOL gui_slider_ex(GuiContext *ctx, const char *label, float *value, float min, float max, float handle_rel_size, GUI_BOOL v, int length, GUI_BOOL show_text)
 {
+	GUI_BOOL ret = GUI_FALSE;
+
 	gui_begin(ctx, label);
 
 	int *pos = gui_turtle(ctx)->pos;
@@ -944,6 +946,7 @@ void gui_slider_ex(GuiContext *ctx, const char *label, float *value, float min, 
 	if (down && ctx->dragging) {
 		int px_delta = ctx->cursor_pos[v] - ctx->drag_start_pos[v];
 		*value = ctx->drag_start_value[0] + 1.f*px_delta / (bar_size[v] - scroll_handle_height) *(max - min);
+		ret = GUI_TRUE;
 	}
 	*value = GUI_CLAMP(*value, min, max);
 
@@ -1000,6 +1003,8 @@ void gui_slider_ex(GuiContext *ctx, const char *label, float *value, float min, 
 	gui_enlarge_bounding(ctx, pos[0] + size[0], pos[1] + size[1]);
 
 	gui_end(ctx);
+
+	return ret;
 }
 
 void gui_set_scroll(GuiContext *ctx, int scroll_x, int scroll_y)
@@ -1409,9 +1414,9 @@ GUI_BOOL gui_radiobutton(GuiContext *ctx, const char *label, GUI_BOOL value)
 	return gui_checkbox_ex(ctx, label, &v, GUI_TRUE);
 }
 
-void gui_slider(GuiContext *ctx, const char *label, float *value, float min, float max)
+GUI_BOOL gui_slider(GuiContext *ctx, const char *label, float *value, float min, float max)
 {
-	gui_slider_ex(ctx, label, value, min, max, 0.1f, GUI_FALSE, 0, GUI_TRUE);
+	return gui_slider_ex(ctx, label, value, min, max, 0.1f, GUI_FALSE, 0, GUI_TRUE);
 }
 
 static GUI_BOOL gui_textfield_ex(GuiContext *ctx, const char *label, char *buf, int buf_size, GUI_BOOL int_only, GUI_BOOL *input_completed)
