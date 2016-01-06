@@ -34,10 +34,14 @@ typedef struct TriMeshVertex {
 	// @todo Colors could be U8[4], or at least U16[4]
 	Color color;
 	Color outline_color;
+	F32 outline_width; // In pixels
+	F32 outline_exp; // Controls gradient over the area of outline width. 1.0 == linear
 	F32 emission;
 	bool selected; // Editor
-	bool pad[59];
+	bool pad[51];
 } TriMeshVertex ALIGNED(128);
+
+REVOLC_API TriMeshVertex default_vertex();
 
 typedef struct Mesh {
 	Resource res;

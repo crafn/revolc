@@ -234,6 +234,8 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 void do_mesh_editor(U32 *model_h, bool *is_edit_mode, bool active)
 {
 	GuiContext *ctx = g_env.uicontext->gui;
+	bool hide_poly_overlay = false;
+
 	if (active) {
 		gui_mesh_overlay(model_h, is_edit_mode);
 
@@ -252,23 +254,28 @@ void do_mesh_editor(U32 *model_h, bool *is_edit_mode, bool active)
 		if (m) {
 			Model *model = (Model*)substitute_res(res_by_name(g_env.resblob, ResType_Model, m->model_name));
 
+			bool col_changed = false;
 			{ // Model settings
 				gui_label(ctx, "model_setting+l1|Model settings");
-				gui_slider(ctx, "model_setting+r|R", &model->color.r, 0.0, 1.0);
-				gui_slider(ctx, "model_setting+g|G", &model->color.g, 0.0, 1.0);
-				gui_slider(ctx, "model_setting+b|B", &model->color.b, 0.0, 1.0);
-				gui_slider(ctx, "model_setting+a|A", &model->color.a, 0.0, 1.0);
+				col_changed |= gui_slider(ctx, "model_setting+r|R", &model->color.r, 0.0, 1.0);
+				col_changed |= gui_slider(ctx, "model_setting+g|G", &model->color.g, 0.0, 1.0);
+				col_changed |= gui_slider(ctx, "model_setting+b|B", &model->color.b, 0.0, 1.0);
+				col_changed |= gui_slider(ctx, "model_setting+a|A", &model->color.a, 0.0, 1.0);
 			}
 
 			{ // Vertex attributes
 				Color col = white_color();
 				Color outline_col = white_color();
+				F32 outline_width = 1.0;
+				F32 outline_exp = 1.0;
 				for (U32 i = 0; i < m->mesh_v_count; ++i) {
 					TriMeshVertex *v = &m->vertices[i];
 					if (!v->selected)
 						continue;
 					col = v->color;
 					outline_col = v->outline_color;
+					outline_width = v->outline_width;
+					outline_exp = v->outline_exp;
 					break;
 				}
 
@@ -288,6 +295,11 @@ void do_mesh_editor(U32 *model_h, bool *is_edit_mode, bool active)
 				v_out_col_changed |= gui_slider(ctx, "model_setting+vob|B", &outline_col.b, 0.0, 1.0);
 				v_out_col_changed |= gui_slider(ctx, "model_setting+voa|A", &outline_col.a, 0.0, 1.0);
 
+				bool outline_width_changed = gui_slider(ctx, "model_setting+vow|Outline width", &outline_width, 0.0, 50.0);
+				bool outline_exp_changed = gui_slider(ctx, "model_setting+voe|Outline exp", &outline_exp, 0.0, 5.0);
+
+				hide_poly_overlay = col_changed || v_col_changed || v_out_col_changed || outline_width_changed || outline_exp_changed;
+
 				for (U32 i = 0; i < m->mesh_v_count; ++i) {
 					TriMeshVertex *v = &m->vertices[i];
 					if (!v->selected)
@@ -296,6 +308,10 @@ void do_mesh_editor(U32 *model_h, bool *is_edit_mode, bool active)
 						v->color = col;
 					if (v_out_col_changed)
 						v->outline_color = outline_col;
+					if (outline_width_changed)
+						v->outline_width = outline_width;
+					if (outline_exp_changed)
+						v->outline_exp = outline_exp;
 				}
 			}
 
@@ -325,7 +341,7 @@ void do_mesh_editor(U32 *model_h, bool *is_edit_mode, bool active)
 			V3d p = vertex_world_pos(m, v_i);
 			poly[i%3] = p;
 
-			if (i % 3 == 2)
+			if (i % 3 == 2 && !hide_poly_overlay)
 				ddraw_poly(poly_color, poly, 3);
 		}
 	}

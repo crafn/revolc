@@ -11,6 +11,8 @@ void vertex_attributes(MeshType type, const VertexAttrib **attribs, U32 *count)
 			{ "a_outline_uv", 2, GL_FLOAT, true, false, offsetof(TriMeshVertex, outline_uv) },
 			{ "a_color", 4, GL_FLOAT, true, false, offsetof(TriMeshVertex, color) },
 			{ "a_outline_color", 4, GL_FLOAT, true, false, offsetof(TriMeshVertex, outline_color) },
+			{ "a_outline_width", 1, GL_FLOAT, true, false, offsetof(TriMeshVertex, outline_width) },
+			{ "a_outline_exp", 1, GL_FLOAT, true, false, offsetof(TriMeshVertex, outline_exp) },
 			{ "a_emission", 1, GL_FLOAT, true, false, offsetof(TriMeshVertex, emission) },
 		};
 		if (attribs)
@@ -35,6 +37,16 @@ U32 vertex_size(MeshType type)
 		case MeshType_tri: return sizeof(TriMeshVertex);
 		default: fail("Unhandled mesh type");
 	}
+}
+
+TriMeshVertex default_vertex()
+{
+	return (TriMeshVertex) {
+		.color = white_color(),
+		.outline_color = white_color(),
+		.outline_width = 1,
+		.outline_exp = 1,
+	};
 }
 
 TriMeshVertex * mesh_vertices(const Mesh *m)
@@ -81,9 +93,8 @@ int json_mesh_to_blob(struct BlobBuf *buf, JsonTok j)
 			V3f p = {};
 			for (U32 c = 0; c < json_member_count(j_p); ++c)
 				(&p.x)[c] = json_real(json_member(j_p, c));
+			vertices[i] = default_vertex();
 			vertices[i].pos = p;
-			vertices[i].color = white_color();
-			vertices[i].outline_color = white_color();
 
 			if (!json_is_null(j_uv)) {
 				JsonTok j_u = json_member(j_uv, i);
