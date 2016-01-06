@@ -586,7 +586,6 @@ T3d px_tf(V2i px_pos, V2i px_size)
 	return tf;
 }
 
-internal
 void recache_modelentity(ModelEntity *e)
 {
 	if (e->model_name[0] == '\0')
@@ -873,8 +872,8 @@ void render_frame()
 				v.uv.y += cmd->atlas_uv.y;
 				v.uv.z += cmd->atlas_uv.z;
 
-				v.color = cmd->color;
-				v.outline_color = cmd->outline_color;
+				v.color = mul_color(v.color, cmd->color);
+				v.outline_color = mul_color(v.outline_color, cmd->outline_color);
 				v.emission = cmd->emission;
 
 				total_verts[cur_v] = v;

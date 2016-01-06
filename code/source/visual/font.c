@@ -106,6 +106,9 @@ U32 text_mesh(	V2i *size,
 			verts[v_i + 2].uv = (V3f) {q.s1, q.t0};
 			verts[v_i + 3].uv = (V3f) {q.s0, q.t0};
 
+			for (U32 k = 0; k < 4; ++k)
+				verts[v_i + k].color = verts[v_i + k].outline_color = white_color();
+
 			*(inds++) = v_i;
 			*(inds++) = v_i + 1;
 			*(inds++) = v_i + 2;

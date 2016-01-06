@@ -142,4 +142,6 @@ REVOLC_API void renderer_on_res_reload();
 REVOLC_API void recache_ptrs_to_meshes();
 REVOLC_API void recache_ptrs_to_armatures();
 
+REVOLC_API void recache_modelentity(ModelEntity *e);
+
 #endif // REVOLC_VISUAL_RENDERER_H

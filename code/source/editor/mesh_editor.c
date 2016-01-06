@@ -233,6 +233,7 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 
 void do_mesh_editor(U32 *model_h, bool *is_edit_mode, bool active)
 {
+	GuiContext *ctx = g_env.uicontext->gui;
 	if (active) {
 		gui_mesh_overlay(model_h, is_edit_mode);
 
@@ -246,6 +247,58 @@ void do_mesh_editor(U32 *model_h, bool *is_edit_mode, bool active)
 										m->model_name) : NULL);
 
 		gui_uvbox(g_env.uicontext->gui, m);
+
+		gui_begin_panel(ctx, "model_settings");
+		if (m) {
+			Model *model = (Model*)substitute_res(res_by_name(g_env.resblob, ResType_Model, m->model_name));
+
+			{ // Model settings
+				gui_label(ctx, "model_setting+l1|Model settings");
+				gui_slider(ctx, "model_setting+r|R", &model->color.r, 0.0, 1.0);
+				gui_slider(ctx, "model_setting+g|G", &model->color.g, 0.0, 1.0);
+				gui_slider(ctx, "model_setting+b|B", &model->color.b, 0.0, 1.0);
+				gui_slider(ctx, "model_setting+a|A", &model->color.a, 0.0, 1.0);
+			}
+
+			{ // Vertex attributes
+				Color col = white_color();
+				Color outline_col = white_color();
+				for (U32 i = 0; i < m->mesh_v_count; ++i) {
+					TriMeshVertex *v = &m->vertices[i];
+					if (!v->selected)
+						continue;
+					col = v->color;
+					outline_col = v->outline_color;
+					break;
+				}
+
+				gui_label(ctx, "model_setting+l2|Vertex attributes");
+
+				gui_label(ctx, "model_setting+l3|Color");
+				gui_slider(ctx, "model_setting+vr|R", &col.r, 0.0, 1.0);
+				gui_slider(ctx, "model_setting+vg|G", &col.g, 0.0, 1.0);
+				gui_slider(ctx, "model_setting+vb|B", &col.b, 0.0, 1.0);
+				gui_slider(ctx, "model_setting+va|A", &col.a, 0.0, 1.0);
+
+				gui_label(ctx, "model_setting+l4|Outline color");
+				gui_slider(ctx, "model_setting+vor|R", &outline_col.r, 0.0, 1.0);
+				gui_slider(ctx, "model_setting+vog|G", &outline_col.g, 0.0, 1.0);
+				gui_slider(ctx, "model_setting+vob|B", &outline_col.b, 0.0, 1.0);
+				gui_slider(ctx, "model_setting+voa|A", &outline_col.a, 0.0, 1.0);
+
+				for (U32 i = 0; i < m->mesh_v_count; ++i) {
+					TriMeshVertex *v = &m->vertices[i];
+					if (!v->selected)
+						continue;
+					v->color = col;
+					v->outline_color = outline_col;
+				}
+			}
+
+			// Update colors etc. to entity
+			recache_modelentity(m);
+		}
+		gui_end_panel(ctx);
 	}
 
 	// Draw mesh

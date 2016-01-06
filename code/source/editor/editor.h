@@ -12,6 +12,17 @@ typedef enum {
 	EditorState_gui_test,
 } EditorState;
 
+typedef struct CreateCmdEditor {
+	bool select_src;
+	bool select_dst;
+	Id src_node;
+	U32 src_offset;
+	U32 src_size;
+	Id dst_node;
+	U32 dst_offset;
+	U32 dst_size;
+} CreateCmdEditor;
+
 typedef struct Editor {
 	U32 cur_model_h;
 	ArmatureEditor ae_state;
@@ -34,17 +45,7 @@ typedef struct Editor {
 	U32 selected_nodegroupdef;
 
 	bool show_create_cmd;
-	struct {
-		bool select_src;
-		bool select_dst;
-		Id src_node;
-		U32 src_offset;
-		U32 src_size;
-		Id dst_node;
-		U32 dst_offset;
-		U32 dst_size;
-	} create_cmd;
-	
+	CreateCmdEditor create_cmd;
 
 	F32 world_time_mul;
 } Editor;

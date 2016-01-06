@@ -178,6 +178,31 @@ void load_layout(GuiContext *ctx)
 
 	{
 		GuiElementLayout l = {0};
+		l.id = 915859504;
+		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "model_settings");
+		l.on_same_row = 0;
+		l.has_offset = 1;
+		l.offset[0] = 765;
+		l.offset[1] = 331;
+		l.has_size = 1;
+		l.size[0] = 251;
+		l.size[1] = 410;
+		l.prevent_resizing = 1;
+		l.align_left = 0;
+		l.align_right = 1;
+		l.align_top = 0;
+		l.align_bottom = 1;
+		l.padding[0] = 0;
+		l.padding[1] = 0;
+		l.padding[2] = 0;
+		l.padding[3] = 0;
+		l.gap[0] = 0;
+		l.gap[1] = 0;
+		append_element_layout(ctx, l);
+	}
+
+	{
+		GuiElementLayout l = {0};
 		l.id = 944829634;
 		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "win");
 		l.on_same_row = 0;
@@ -457,11 +482,11 @@ void load_layout(GuiContext *ctx)
 		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "gui_layoutwin");
 		l.on_same_row = 0;
 		l.has_offset = 1;
-		l.offset[0] = 648;
-		l.offset[1] = 4;
+		l.offset[0] = 668;
+		l.offset[1] = 19;
 		l.has_size = 1;
-		l.size[0] = 356;
-		l.size[1] = 709;
+		l.size[0] = 339;
+		l.size[1] = 699;
 		l.prevent_resizing = 0;
 		l.align_left = 0;
 		l.align_right = 0;
@@ -553,6 +578,31 @@ void load_layout(GuiContext *ctx)
 
 	{
 		GuiElementLayout l = {0};
+		l.id = 2172173380;
+		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "gui_client:model_settings");
+		l.on_same_row = 0;
+		l.has_offset = 0;
+		l.offset[0] = 0;
+		l.offset[1] = 0;
+		l.has_size = 1;
+		l.size[0] = 100;
+		l.size[1] = 20;
+		l.prevent_resizing = 0;
+		l.align_left = 0;
+		l.align_right = 0;
+		l.align_top = 0;
+		l.align_bottom = 0;
+		l.padding[0] = 5;
+		l.padding[1] = 5;
+		l.padding[2] = 5;
+		l.padding[3] = 5;
+		l.gap[0] = 0;
+		l.gap[1] = 3;
+		append_element_layout(ctx, l);
+	}
+
+	{
+		GuiElementLayout l = {0};
 		l.id = 2357176526;
 		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "cmd_list");
 		l.on_same_row = 0;
@@ -596,6 +646,31 @@ void load_layout(GuiContext *ctx)
 		l.padding[1] = 0;
 		l.padding[2] = 5;
 		l.padding[3] = 4;
+		l.gap[0] = 0;
+		l.gap[1] = 0;
+		append_element_layout(ctx, l);
+	}
+
+	{
+		GuiElementLayout l = {0};
+		l.id = 2420476340;
+		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "model_setting+r|R");
+		l.on_same_row = 0;
+		l.has_offset = 0;
+		l.offset[0] = 0;
+		l.offset[1] = 0;
+		l.has_size = 1;
+		l.size[0] = 100;
+		l.size[1] = 20;
+		l.prevent_resizing = 0;
+		l.align_left = 1;
+		l.align_right = 1;
+		l.align_top = 0;
+		l.align_bottom = 0;
+		l.padding[0] = 5;
+		l.padding[1] = 0;
+		l.padding[2] = 0;
+		l.padding[3] = 0;
 		l.gap[0] = 0;
 		l.gap[1] = 0;
 		append_element_layout(ctx, l);
@@ -946,6 +1021,31 @@ void load_layout(GuiContext *ctx)
 		l.padding[1] = 0;
 		l.padding[2] = 5;
 		l.padding[3] = 2;
+		l.gap[0] = 0;
+		l.gap[1] = 0;
+		append_element_layout(ctx, l);
+	}
+
+	{
+		GuiElementLayout l = {0};
+		l.id = 3576810726;
+		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "vertex_attributes");
+		l.on_same_row = 0;
+		l.has_offset = 1;
+		l.offset[0] = 777;
+		l.offset[1] = 372;
+		l.has_size = 1;
+		l.size[0] = 239;
+		l.size[1] = 369;
+		l.prevent_resizing = 0;
+		l.align_left = 0;
+		l.align_right = 1;
+		l.align_top = 0;
+		l.align_bottom = 1;
+		l.padding[0] = 0;
+		l.padding[1] = 0;
+		l.padding[2] = 0;
+		l.padding[3] = 0;
 		l.gap[0] = 0;
 		l.gap[1] = 0;
 		append_element_layout(ctx, l);

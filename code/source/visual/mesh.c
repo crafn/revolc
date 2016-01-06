@@ -82,6 +82,8 @@ int json_mesh_to_blob(struct BlobBuf *buf, JsonTok j)
 			for (U32 c = 0; c < json_member_count(j_p); ++c)
 				(&p.x)[c] = json_real(json_member(j_p, c));
 			vertices[i].pos = p;
+			vertices[i].color = white_color();
+			vertices[i].outline_color = white_color();
 
 			if (!json_is_null(j_uv)) {
 				JsonTok j_u = json_member(j_uv, i);
