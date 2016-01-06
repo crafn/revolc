@@ -595,7 +595,7 @@ void realloc_res_member(Resource *res, RelPtr *member, U32 size, U32 old_size)
 		rt->allocated_sizes[old_ix] = size;
 	} else if (free_ix != NULL_HANDLE) {
 		void *ptr = ALLOC(dev_ator(), size, "alloc_res_member");
-		memcpy(ptr, rel_ptr(member), old_size);
+		memcpy(ptr, rel_ptr(member), MIN(size, old_size));
 		set_rel_ptr(member, ptr);
 		rt->allocated_ptrs[free_ix] = member;
 		rt->allocated_sizes[free_ix] = size;

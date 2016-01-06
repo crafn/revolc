@@ -165,3 +165,59 @@ void mesh_to_json(WJson *j, const Mesh *m)
 	}
 }
 
+void add_rt_mesh_vertex(Mesh *mesh, TriMeshVertex vertex)
+{
+	U32 old_size = sizeof(TriMeshVertex)*mesh->v_count;
+	U32 new_size = sizeof(TriMeshVertex)*(mesh->v_count + 1);
+	realloc_res_member(&mesh->res, &mesh->vertices, new_size, old_size);
+	mesh_vertices(mesh)[mesh->v_count++] = vertex;
+}
+
+void add_rt_mesh_index(Mesh *mesh, MeshIndexType index)
+{
+	U32 old_size = sizeof(MeshIndexType)*mesh->i_count;
+	U32 new_size = sizeof(MeshIndexType)*(mesh->i_count + 1);
+	realloc_res_member(&mesh->res, &mesh->indices, new_size, old_size);
+	mesh_indices(mesh)[mesh->i_count++] = index;
+}
+
+void remove_rt_mesh_vertex(Mesh *mesh, MeshIndexType index)
+{
+	ensure(index < mesh->v_count);
+
+	// Remove faces of which the vertex is part of
+	for (U32 i = 0; i + 2 < mesh->i_count;) {
+		MeshIndexType *inds = mesh_indices(mesh);
+		if (	inds[i + 0] == index ||
+				inds[i + 1] == index ||
+				inds[i + 2] == index) {
+			// Remove face
+			memmove(&inds[i], &inds[i + 3], sizeof(*inds)*(mesh->i_count - i - 3));
+			realloc_res_member(	&mesh->res, &mesh->indices,
+								sizeof(*inds)*(mesh->i_count - 3),
+								sizeof(*inds)*(mesh->i_count));
+			mesh->i_count -= 3;
+			debug_print("removing face");
+		} else {
+			i += 3;
+		}
+	}
+
+	{ // Remove vertex
+			debug_print("removing vertex");
+		TriMeshVertex *verts = mesh_vertices(mesh);
+		memmove(&verts[index], &verts[index + 1], sizeof(*verts)*(mesh->v_count - index - 1));
+		realloc_res_member(	&mesh->res, &mesh->indices,
+							sizeof(*verts)*(mesh->v_count - 1),
+							sizeof(*verts)*(mesh->v_count));
+		--mesh->v_count;
+	}
+
+	// Remap indices
+	MeshIndexType *inds = mesh_indices(mesh);
+	for (U32 i = 0; i < mesh->i_count; ++i) {
+		if (inds[i] > index)
+			--inds[i];
+	}
+}
+

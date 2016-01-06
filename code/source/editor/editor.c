@@ -306,35 +306,10 @@ void upd_editor(F64 *world_dt)
 			g_env.renderer->cam_pos.z -= g_env.device->mwheel_delta;
 			g_env.renderer->cam_pos.z = MIN(g_env.renderer->cam_pos.z, 30);
 
-			if (g_env.device->key_down['e'])
-				spawn_entity(g_env.world, g_env.resblob, cursor_on_world);
-
 			if (g_env.device->key_pressed['k'])
 				play_sound("dev_beep0", 1.0, -1.0);
 			if (g_env.device->key_pressed['l'])
 				play_sound("dev_beep1", 0.5, 1.0);
-
-			local_persist RigidBody *body = NULL;
-			if (g_env.device->key_down['f']) {
-				if (!body) {
-					U32 count;
-					QueryInfo *infos = query_bodies(&count, cursor_on_world, 0.1);
-					for (U32 i = 0; i < count; ++i) {
-						// @todo Closest one
-						if (infos[i].body->cp_body != g_env.physworld->cp_ground_body) {
-							body = infos[i].body;
-							break;
-						}
-					}
-				}
-
-				if (body) {
-					cpBodySetPosition(body->cp_body, to_cpv(cursor_on_world));
-					cpBodySetVelocity(body->cp_body, cpv(0, 0));
-				}
-			} else if (body) {
-				body = NULL;
-			}
 
 #			ifdef USE_FLUID
 			if (g_env.device->key_down['r']) {
@@ -412,6 +387,29 @@ void upd_editor(F64 *world_dt)
 					set_grid_material_in_circle(cursor_on_world, 2, GRIDCELL_MATERIAL_AIR);
 				if (d->key_down['g'])
 					set_grid_material_in_circle(cursor_on_world, 1, GRIDCELL_MATERIAL_GROUND);
+				if (g_env.device->key_down['e'])
+					spawn_entity(g_env.world, g_env.resblob, cursor_on_world);
+				local_persist RigidBody *body = NULL;
+				if (g_env.device->key_down['f']) {
+					if (!body) {
+						U32 count;
+						QueryInfo *infos = query_bodies(&count, cursor_on_world, 0.1);
+						for (U32 i = 0; i < count; ++i) {
+							// @todo Closest one
+							if (infos[i].body->cp_body != g_env.physworld->cp_ground_body) {
+								body = infos[i].body;
+								break;
+							}
+						}
+					}
+
+					if (body) {
+						cpBodySetPosition(body->cp_body, to_cpv(cursor_on_world));
+						cpBodySetVelocity(body->cp_body, cpv(0, 0));
+					}
+				} else if (body) {
+					body = NULL;
+				}
 			}
 
 			if (e->show_prog_state) {

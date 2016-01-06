@@ -24,6 +24,16 @@ V3d pix_to_uv(V2i p, V2i pix_pos, V2i pix_size)
 }
 
 internal
+Mesh *editable_model_mesh(const char *name)
+{
+	Mesh *mesh = model_mesh((Model*)res_by_name(	g_env.resblob,
+													ResType_Model,
+													name));
+	mesh = (Mesh*)substitute_res(&mesh->res);
+	return mesh;
+}
+
+internal
 void transform_mesh(ModelEntity *m, T3f tf, bool uv)
 {
 	if (m->has_own_mesh) {
@@ -31,10 +41,7 @@ void transform_mesh(ModelEntity *m, T3f tf, bool uv)
 		return;
 	}
 
-	Mesh *mesh = model_mesh((Model*)res_by_name(	g_env.resblob,
-													ResType_Model,
-													m->model_name));
-	mesh = (Mesh*)substitute_res(&mesh->res);
+	Mesh *mesh = editable_model_mesh(m->model_name);
 
 	for (U32 i = 0; i < mesh->v_count; ++i) {
 		TriMeshVertex *v = &mesh_vertices(mesh)[i];
@@ -181,6 +188,61 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 		}
 	}
 
+	if (*is_edit_mode && g_env.device->key_pressed['e']) {
+		ctx->dev.grabbing = gui_id(box_label);
+		gui_set_active(ctx->gui, box_label);
+		editor_store_res_state();
+
+		// Extrude selected vertices
+		Mesh *mesh = editable_model_mesh(m->model_name);
+		U32 old_v_count = mesh->v_count;
+		for (U32 i = 0; i < old_v_count; ++i) {
+			TriMeshVertex v = mesh_vertices(mesh)[i];
+			if (!v.selected)
+				continue;
+			add_rt_mesh_vertex(mesh, v); // Duplicate selected vertices for extrude
+			mesh_vertices(mesh)[i].selected = false;
+		}
+
+		// @todo Create indices for extruded faces
+
+		recache_modelentity(m);
+	}
+
+	if (*is_edit_mode && g_env.device->key_pressed['f']) {
+		// Create face between three vertices
+		Mesh *mesh = editable_model_mesh(m->model_name);
+		U32 selected_count = 0;
+		MeshIndexType indices[3];
+		for (U32 i = 0; i < mesh->v_count; ++i) {
+			TriMeshVertex v = mesh_vertices(mesh)[i];
+			if (!v.selected)
+				continue;
+			if (selected_count < ARRAY_COUNT(indices))
+				indices[selected_count++] = i;
+		}
+		if (selected_count == 3) {
+			add_rt_mesh_index(mesh, indices[0]);
+			add_rt_mesh_index(mesh, indices[1]);
+			add_rt_mesh_index(mesh, indices[2]);
+		} else {
+			debug_print("Select 3 vertices to make a face");
+		}
+		recache_modelentity(m);
+	}
+
+	if (*is_edit_mode && g_env.device->key_pressed['x']) {
+		// Delete selected vertices (and corresponding faces)
+		Mesh *mesh = editable_model_mesh(m->model_name);
+		for (U32 i = 0; i < mesh->v_count;) {
+			TriMeshVertex v = mesh_vertices(mesh)[i];
+			if (v.selected)
+				remove_rt_mesh_vertex(mesh, i);
+			else
+				++i;
+		}
+		recache_modelentity(m);
+	}
 
 	T3f delta;
 	if (*is_edit_mode && cursor_transform_delta_world(&delta, box_label, m->tf)) {
@@ -253,6 +315,7 @@ void do_mesh_editor(U32 *model_h, bool *is_edit_mode, bool active)
 		gui_begin_panel(ctx, "model_settings");
 		if (m) {
 			Model *model = (Model*)substitute_res(res_by_name(g_env.resblob, ResType_Model, m->model_name));
+			Mesh *mesh = editable_model_mesh(m->model_name);
 
 			bool col_changed = false;
 			{ // Model settings
@@ -268,8 +331,8 @@ void do_mesh_editor(U32 *model_h, bool *is_edit_mode, bool active)
 				Color outline_col = white_color();
 				F32 outline_width = 1.0;
 				F32 outline_exp = 1.0;
-				for (U32 i = 0; i < m->mesh_v_count; ++i) {
-					TriMeshVertex *v = &m->vertices[i];
+				for (U32 i = 0; i < mesh->v_count; ++i) {
+					TriMeshVertex *v = &mesh_vertices(mesh)[i];
 					if (!v->selected)
 						continue;
 					col = v->color;
@@ -300,8 +363,8 @@ void do_mesh_editor(U32 *model_h, bool *is_edit_mode, bool active)
 
 				hide_poly_overlay = col_changed || v_col_changed || v_out_col_changed || outline_width_changed || outline_exp_changed;
 
-				for (U32 i = 0; i < m->mesh_v_count; ++i) {
-					TriMeshVertex *v = &m->vertices[i];
+				for (U32 i = 0; i < mesh->v_count; ++i) {
+					TriMeshVertex *v = &mesh_vertices(mesh)[i];
 					if (!v->selected)
 						continue;
 					if (v_col_changed)
