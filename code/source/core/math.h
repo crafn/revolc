@@ -378,6 +378,10 @@ V3d v3f_to_v3d(V3f v)
 { return (V3d) {v.x, v.y, v.z, }; }
 
 static
+V2f v3f_to_v2f(V3f v)
+{ return (V2f) {v.x, v.y}; }
+
+static
 V2d v3d_to_v2d(V3d v)
 { return (V2d) {v.x, v.y}; }
 

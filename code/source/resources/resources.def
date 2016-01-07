@@ -20,7 +20,7 @@
 RESOURCE(Module, init_module, deinit_module, json_module_to_blob, NULL, NULL)
 RESOURCE(Texture, NULL, NULL, json_texture_to_blob, NULL, NULL)
 RESOURCE(Mesh, NULL, NULL, json_mesh_to_blob, mesh_to_json, recache_ptrs_to_meshes)
-RESOURCE(Model, NULL, NULL, json_model_to_blob, NULL, NULL)
+RESOURCE(Model, NULL, NULL, json_model_to_blob, model_to_json, NULL)
 RESOURCE(CompDef, NULL, NULL, json_compdef_to_blob, NULL, NULL)
 RESOURCE(ShaderSource, init_shadersource, deinit_shadersource, json_shadersource_to_blob, NULL, NULL)
 RESOURCE(RigidBodyDef, NULL, NULL, json_rigidbodydef_to_blob, NULL, NULL)

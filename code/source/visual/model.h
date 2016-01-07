@@ -14,14 +14,12 @@ typedef struct Model {
 	char mesh[RES_NAME_SIZE];
 	Color color;
 	F64 emission;
-	U8 pattern;
 } PACKED Model;
 
 REVOLC_API Texture* model_texture(const Model *model, U32 index);
 REVOLC_API Mesh* model_mesh(const Model *model);
 
-REVOLC_API
-WARN_UNUSED
-int json_model_to_blob(struct BlobBuf *buf, JsonTok j);
+REVOLC_API WARN_UNUSED int json_model_to_blob(struct BlobBuf *buf, JsonTok j);
+REVOLC_API void model_to_json(WJson *j, const Model *m);
 
 #endif // REVOLC_VISUAL_MODEL_H

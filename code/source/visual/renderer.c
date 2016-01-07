@@ -454,7 +454,7 @@ void create_renderer()
 	r->cam_fov = (V2d) {3.141/2.0, 3.0141/2.0};
 	r->env_light_color = (Color) {1, 1, 1, 1};
 	r->multisample = true;
-	r->msaa_samples = 4;
+	r->msaa_samples = 8;
 
 	r->vao = create_vao(MeshType_tri, MAX_DRAW_VERTEX_COUNT, MAX_DRAW_INDEX_COUNT);
 
@@ -551,7 +551,7 @@ void drawcmd_model(	T3d tf,
 			mul_color(model->color, outline_c),
 			layer,
 			model->emission + emission,
-			model->pattern);
+			NULL_PATTERN);
 }
 
 void drawcmd_px_quad(V2i px_pos, V2i px_size, F32 rot, Color c, Color outline_c, S32 layer)
@@ -599,7 +599,7 @@ T3d px_tf(V2i px_pos, V2i px_size)
 	return tf;
 }
 
-void recache_modelentity(ModelEntity *e)
+internal void recache_modelentity(ModelEntity *e)
 {
 	if (e->model_name[0] == '\0')
 		return;
@@ -612,7 +612,6 @@ void recache_modelentity(ModelEntity *e)
 	Texture *tex = model_texture(model, 0);
 	e->color = model->color;
 	e->emission = model->emission;
-	e->pattern = model->pattern;
 	e->atlas_uv = tex->atlas_uv.uv;
 	e->scale_to_atlas_uv = tex->atlas_uv.scale;
 	e->vertices =
@@ -830,7 +829,7 @@ void render_frame()
 				e->color, e->color,
 				e->layer,
 				e->emission,
-				e->pattern);
+				NULL_PATTERN);
 	}
 
 	// Calculate total vertex and index count for frame

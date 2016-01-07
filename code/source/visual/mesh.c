@@ -62,6 +62,10 @@ int json_mesh_to_blob(struct BlobBuf *buf, JsonTok j)
 	JsonTok j_pos = json_value_by_key(j, "pos");
 	JsonTok j_uv = json_value_by_key(j, "uv");
 	JsonTok j_outline_uv = json_value_by_key(j, "outline_uv");
+	JsonTok j_color = json_value_by_key(j, "color");
+	JsonTok j_outline_color = json_value_by_key(j, "outline_color");
+	JsonTok j_outline_width = json_value_by_key(j, "outline_width");
+	JsonTok j_outline_exp = json_value_by_key(j, "outline_exp");
 	JsonTok j_ind = json_value_by_key(j, "ind");
 
 	if (json_is_null(j_pos))
@@ -106,10 +110,27 @@ int json_mesh_to_blob(struct BlobBuf *buf, JsonTok j)
 
 			if (!json_is_null(j_outline_uv)) {
 				JsonTok j_u = json_member(j_outline_uv, i);
-				V2f u = {};
-				u.x = json_real(json_member(j_u, 0));
-				u.y = json_real(json_member(j_u, 1));
-				vertices[i].outline_uv = u;
+				vertices[i].outline_uv = v2d_to_v2f(json_v2(j_u));
+			}
+
+			if (!json_is_null(j_color)) {
+				JsonTok j = json_member(j_color, i);
+				vertices[i].color = json_color(j);
+			}
+
+			if (!json_is_null(j_outline_color)) {
+				JsonTok j = json_member(j_outline_color, i);
+				vertices[i].outline_color = json_color(j);
+			}
+
+			if (!json_is_null(j_outline_width)) {
+				JsonTok j = json_member(j_outline_width, i);
+				vertices[i].outline_width = json_real(j);
+			}
+
+			if (!json_is_null(j_outline_exp)) {
+				JsonTok j = json_member(j_outline_exp, i);
+				vertices[i].outline_exp = json_real(j);
 			}
 		}
 		for (U32 i = 0; i < i_count; ++i)
@@ -150,18 +171,26 @@ void mesh_to_json(WJson *j, const Mesh *m)
 {
 	WJson *j_pos = wjson_named_member(j, JsonType_array, "pos");
 	WJson *j_uv = wjson_named_member(j, JsonType_array, "uv");
+	WJson *j_outline_uv = wjson_named_member(j, JsonType_array, "outline_uv");
+	WJson *j_color = wjson_named_member(j, JsonType_array, "color");
+	WJson *j_outline_color = wjson_named_member(j, JsonType_array, "outline_color");
+	WJson *j_outline_width = wjson_named_member(j, JsonType_array, "outline_width");
+	WJson *j_outline_exp = wjson_named_member(j, JsonType_array, "outline_exp");
 	WJson *j_ind = wjson_named_member(j, JsonType_array, "ind");
 
 	for (U32 i = 0; i < m->v_count; ++i) {
-		wjson_append(	j_pos,
-						wjson_v3(v3f_to_v3d(mesh_vertices(m)[i].pos)));
-		wjson_append(	j_uv,
-						wjson_v3(v3f_to_v3d(mesh_vertices(m)[i].uv)));
+		TriMeshVertex v = mesh_vertices(m)[i];
+		wjson_append(j_pos, wjson_v3(v3f_to_v3d(v.pos)));
+		wjson_append(j_uv, wjson_v2(v2f_to_v2d(v3f_to_v2f(v.uv))));
+		wjson_append(j_outline_uv, wjson_v2(v2f_to_v2d(v.outline_uv)));
+		wjson_append(j_color, wjson_color(v.color));
+		wjson_append(j_outline_color, wjson_color(v.outline_color));
+		wjson_append(j_outline_width, wjson_number(v.outline_width));
+		wjson_append(j_outline_exp, wjson_number(v.outline_exp));
 	}
 
 	for (U32 i = 0; i < m->i_count; ++i) {
-		wjson_append(	j_ind,
-						wjson_number(mesh_indices(m)[i]));
+		wjson_append(j_ind, wjson_number(mesh_indices(m)[i]));
 	}
 }
 
@@ -171,6 +200,8 @@ void add_rt_mesh_vertex(Mesh *mesh, TriMeshVertex vertex)
 	U32 new_size = sizeof(TriMeshVertex)*(mesh->v_count + 1);
 	realloc_res_member(&mesh->res, &mesh->vertices, new_size, old_size);
 	mesh_vertices(mesh)[mesh->v_count++] = vertex;
+
+	resource_modified(&mesh->res);
 }
 
 void add_rt_mesh_index(Mesh *mesh, MeshIndexType index)
@@ -179,6 +210,8 @@ void add_rt_mesh_index(Mesh *mesh, MeshIndexType index)
 	U32 new_size = sizeof(MeshIndexType)*(mesh->i_count + 1);
 	realloc_res_member(&mesh->res, &mesh->indices, new_size, old_size);
 	mesh_indices(mesh)[mesh->i_count++] = index;
+
+	resource_modified(&mesh->res);
 }
 
 void remove_rt_mesh_vertex(Mesh *mesh, MeshIndexType index)
@@ -197,14 +230,12 @@ void remove_rt_mesh_vertex(Mesh *mesh, MeshIndexType index)
 								sizeof(*inds)*(mesh->i_count - 3),
 								sizeof(*inds)*(mesh->i_count));
 			mesh->i_count -= 3;
-			debug_print("removing face");
 		} else {
 			i += 3;
 		}
 	}
 
 	{ // Remove vertex
-			debug_print("removing vertex");
 		TriMeshVertex *verts = mesh_vertices(mesh);
 		memmove(&verts[index], &verts[index + 1], sizeof(*verts)*(mesh->v_count - index - 1));
 		realloc_res_member(	&mesh->res, &mesh->indices,
@@ -219,5 +250,7 @@ void remove_rt_mesh_vertex(Mesh *mesh, MeshIndexType index)
 		if (inds[i] > index)
 			--inds[i];
 	}
+
+	resource_modified(&mesh->res);
 }
 

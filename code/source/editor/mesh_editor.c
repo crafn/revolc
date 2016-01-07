@@ -13,7 +13,7 @@ V3d vertex_world_pos(ModelEntity *m, U32 i)
 }
 
 internal
-V2i uv_to_pix(V3f uv, V2i pix_pos, V2i pix_size)
+V2i uv_to_pix(V2f uv, V2i pix_pos, V2i pix_size)
 { return (V2i) {uv.x*pix_size.x + pix_pos.x, (1 - uv.y)*pix_size.y + pix_pos.y}; }
 
 internal
@@ -33,8 +33,14 @@ Mesh *editable_model_mesh(const char *name)
 	return mesh;
 }
 
+typedef enum {
+	MeshTransformType_pos,
+	MeshTransformType_uv,
+	MeshTransformType_outline_uv,
+} MeshTransformType;
+
 internal
-void transform_mesh(ModelEntity *m, T3f tf, bool uv)
+void transform_mesh(ModelEntity *m, T3f tf, MeshTransformType ttype)
 {
 	if (m->has_own_mesh) {
 		debug_print("@todo Modify unique mesh");
@@ -47,14 +53,20 @@ void transform_mesh(ModelEntity *m, T3f tf, bool uv)
 		TriMeshVertex *v = &mesh_vertices(mesh)[i];
 		if (!v->selected)
 			continue;
-		if (uv) {
+
+		if (ttype == MeshTransformType_pos) {
+			v->pos = transform_v3f(tf, v->pos);
+		} else if (ttype == MeshTransformType_uv) {
 			F32 uvz = v->uv.z;
 			v->uv = transform_v3f(tf, v->uv);
 			v->uv.x = CLAMP(v->uv.x, 0.0, 1.0);
 			v->uv.y = CLAMP(v->uv.y, 0.0, 1.0);
 			v->uv.z = uvz;
-		} else {
-			v->pos = transform_v3f(tf, v->pos);
+		} else if (ttype == MeshTransformType_outline_uv) {
+			V3f uv = {v->outline_uv.x, v->outline_uv.y, 0.0};
+			v->outline_uv = v3f_to_v2f(transform_v3f(tf, uv));
+			v->outline_uv.x = CLAMP(v->outline_uv.x, 0.0, 1.0);
+			v->outline_uv.y = CLAMP(v->outline_uv.y, 0.0, 1.0);
 		}
 	}
 
@@ -62,9 +74,11 @@ void transform_mesh(ModelEntity *m, T3f tf, bool uv)
 }
 
 internal
-void gui_uvbox(GuiContext *gui, ModelEntity *m)
+void gui_uvbox(GuiContext *gui, ModelEntity *m, bool outline_uv)
 {
 	const char *box_label = "uvbox_box";
+	if (outline_uv)
+		box_label = gui_str(gui, "outline_uvbox_box");
 	UiContext *ctx = g_env.uicontext;
 
 	V2i pix_pos, pix_size;
@@ -79,7 +93,8 @@ void gui_uvbox(GuiContext *gui, ModelEntity *m)
 		U32 closest_i = NULL_HANDLE;
 		for (U32 i = 0; i < m->mesh_v_count; ++i) {
 			TriMeshVertex *v = &m->vertices[i];
-			V2i pos = uv_to_pix(v->uv, pix_pos, pix_size);
+			V2f uv = outline_uv ? v->outline_uv : v3f_to_v2f(v->uv);
+			V2i pos = uv_to_pix(uv, pix_pos, pix_size);
 
 			F64 dist = dist_sqr_v2i(pos, ctx->dev.cursor_pos);
 			if (	closest_i == NULL_HANDLE ||
@@ -109,19 +124,21 @@ void gui_uvbox(GuiContext *gui, ModelEntity *m)
 	};
 	T3f delta;
 	if (cursor_transform_delta_pixels(&delta, box_label, coords)) {
-		transform_mesh(m, delta, true);
+		transform_mesh(m, delta, outline_uv ? MeshTransformType_outline_uv : MeshTransformType_uv);
 	}
 
 	V2i padding = {20, 20};
 	pix_pos = add_v2i(pix_pos, padding);
 	pix_size = sub_v2i(pix_size, scaled_v2i(2, padding));
 
-	drawcmd_px_model_image(pix_pos, pix_size, m, gui_layer(gui) + 2);
+	if (!outline_uv)
+		drawcmd_px_model_image(pix_pos, pix_size, m, gui_layer(gui) + 2);
 
 	for (U32 i = 0; i < m->mesh_v_count; ++i) {
 		TriMeshVertex *v = &m->vertices[i];
+		V2f uv = outline_uv ? v->outline_uv : v3f_to_v2f(v->uv);
 
-		V2i pix_uv = uv_to_pix(v->uv, pix_pos, pix_size);
+		V2i pix_uv = uv_to_pix(uv, pix_pos, pix_size);
 		V2d p = screen_to_world_point(pix_uv);
 		const F64 v_size = editor_vertex_size();
 		V3d poly[4] = {
@@ -141,7 +158,8 @@ void gui_uvbox(GuiContext *gui, ModelEntity *m)
 	for (U32 i = 0; i < m->mesh_i_count; ++i) {
 		U32 v_i = m->indices[i];
 		TriMeshVertex *v = &m->vertices[v_i];
-		V2i pix_uv = uv_to_pix(v->uv, pix_pos, pix_size);
+		V2f uv = outline_uv ? v->outline_uv : v3f_to_v2f(v->uv);
+		V2i pix_uv = uv_to_pix(uv, pix_pos, pix_size);
 		V2d p = screen_to_world_point(pix_uv);
 		poly[i%3] = (V3d) {p.x, p.y, 0};
 
@@ -206,7 +224,7 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 
 		// @todo Create indices for extruded faces
 
-		recache_modelentity(m);
+		recache_ptrs_to_meshes();
 	}
 
 	if (*is_edit_mode && g_env.device->key_pressed['f']) {
@@ -228,7 +246,7 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 		} else {
 			debug_print("Select 3 vertices to make a face");
 		}
-		recache_modelentity(m);
+		recache_ptrs_to_meshes();
 	}
 
 	if (*is_edit_mode && g_env.device->key_pressed['x']) {
@@ -241,12 +259,12 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 			else
 				++i;
 		}
-		recache_modelentity(m);
+		recache_ptrs_to_meshes();
 	}
 
 	T3f delta;
 	if (*is_edit_mode && cursor_transform_delta_world(&delta, box_label, m->tf)) {
-		transform_mesh(m, delta, false);
+		transform_mesh(m, delta, MeshTransformType_pos);
 	}
 
 	if (*is_edit_mode && state.pressed) {
@@ -296,7 +314,7 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 void do_mesh_editor(U32 *model_h, bool *is_edit_mode, bool active)
 {
 	GuiContext *ctx = g_env.uicontext->gui;
-	bool hide_poly_overlay = false;
+	bool changed = false;
 
 	if (active) {
 		gui_mesh_overlay(model_h, is_edit_mode);
@@ -310,7 +328,8 @@ void do_mesh_editor(U32 *model_h, bool *is_edit_mode, bool active)
 										ResType_Model,
 										m->model_name) : NULL);
 
-		gui_uvbox(g_env.uicontext->gui, m);
+		gui_uvbox(g_env.uicontext->gui, m, false);
+		gui_uvbox(g_env.uicontext->gui, m, true);
 
 		gui_begin_panel(ctx, "model_settings");
 		if (m) {
@@ -324,6 +343,9 @@ void do_mesh_editor(U32 *model_h, bool *is_edit_mode, bool active)
 				col_changed |= gui_slider(ctx, "model_setting+g|G", &model->color.g, 0.0, 1.0);
 				col_changed |= gui_slider(ctx, "model_setting+b|B", &model->color.b, 0.0, 1.0);
 				col_changed |= gui_slider(ctx, "model_setting+a|A", &model->color.a, 0.0, 1.0);
+
+				if (col_changed)
+					resource_modified(&model->res);
 			}
 
 			{ // Vertex attributes
@@ -361,7 +383,6 @@ void do_mesh_editor(U32 *model_h, bool *is_edit_mode, bool active)
 				bool outline_width_changed = gui_slider(ctx, "model_setting+vow|Outline width", &outline_width, 0.0, 50.0);
 				bool outline_exp_changed = gui_slider(ctx, "model_setting+voe|Outline exp", &outline_exp, 0.0, 5.0);
 
-				hide_poly_overlay = col_changed || v_col_changed || v_out_col_changed || outline_width_changed || outline_exp_changed;
 
 				for (U32 i = 0; i < mesh->v_count; ++i) {
 					TriMeshVertex *v = &mesh_vertices(mesh)[i];
@@ -376,10 +397,14 @@ void do_mesh_editor(U32 *model_h, bool *is_edit_mode, bool active)
 					if (outline_exp_changed)
 						v->outline_exp = outline_exp;
 				}
+
+				changed |= col_changed || v_col_changed || v_out_col_changed || outline_width_changed || outline_exp_changed;
 			}
 
-			// Update colors etc. to entity
-			recache_modelentity(m);
+			if (changed) {
+				resource_modified(&mesh->res);
+				recache_ptrs_to_meshes();
+			}
 		}
 		gui_end_panel(ctx);
 	}
@@ -404,7 +429,7 @@ void do_mesh_editor(U32 *model_h, bool *is_edit_mode, bool active)
 			V3d p = vertex_world_pos(m, v_i);
 			poly[i%3] = p;
 
-			if (i % 3 == 2 && !hide_poly_overlay)
+			if (i % 3 == 2 && !changed)
 				ddraw_poly(poly_color, poly, 3);
 		}
 	}

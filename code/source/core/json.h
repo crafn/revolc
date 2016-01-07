@@ -91,9 +91,11 @@ REVOLC_API WJson * wjson_add_named_member(WJson *j, const char *name, WJson *mem
 REVOLC_API WJson * wjson_named_member(WJson *j, JsonType t, const char *name);
 REVOLC_API WJson * wjson_str(const char *str);
 REVOLC_API WJson * wjson_number(F64 n);
+REVOLC_API WJson * wjson_v2(V2d vec);
 REVOLC_API WJson * wjson_v3(V3d vec);
 REVOLC_API WJson * wjson_q(Qd q);
 REVOLC_API WJson * wjson_t3(T3d tf);
+REVOLC_API WJson * wjson_color(Color c);
 REVOLC_API void wjson_dump(WJson *j);
 REVOLC_API void wjson_write_updated(const char *path, JsonTok input, WJson *upd);
 

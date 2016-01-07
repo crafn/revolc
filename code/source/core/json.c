@@ -353,6 +353,14 @@ WJson * wjson_number(F64 n)
 	return j_number;
 }
 
+WJson * wjson_v2(V2d vec)
+{
+	WJson *j_v2 = wjson_create(JsonType_array);
+	wjson_append(j_v2, wjson_number(vec.x));
+	wjson_append(j_v2, wjson_number(vec.y));
+	return j_v2;
+}
+
 WJson * wjson_v3(V3d vec)
 {
 	WJson *j_v3 = wjson_create(JsonType_array);
@@ -391,6 +399,16 @@ WJson * wjson_t3(T3d tf)
 	wjson_append(j_t3, j_rot);
 	wjson_append(j_t3, j_pos);
 	return j_t3;
+}
+
+WJson * wjson_color(Color c)
+{
+	WJson *j_col = wjson_create(JsonType_array);
+	wjson_append(j_col, wjson_number(c.r));
+	wjson_append(j_col, wjson_number(c.g));
+	wjson_append(j_col, wjson_number(c.b));
+	wjson_append(j_col, wjson_number(c.a));
+	return j_col;
 }
 
 internal

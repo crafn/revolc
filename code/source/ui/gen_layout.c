@@ -182,14 +182,14 @@ void load_layout(GuiContext *ctx)
 		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "model_settings");
 		l.on_same_row = 0;
 		l.has_offset = 1;
-		l.offset[0] = 765;
-		l.offset[1] = 311;
+		l.offset[0] = 0;
+		l.offset[1] = 284;
 		l.has_size = 1;
-		l.size[0] = 251;
-		l.size[1] = 430;
+		l.size[0] = 247;
+		l.size[1] = 457;
 		l.prevent_resizing = 1;
-		l.align_left = 0;
-		l.align_right = 1;
+		l.align_left = 1;
+		l.align_right = 0;
 		l.align_top = 0;
 		l.align_bottom = 1;
 		l.padding[0] = 0;
@@ -482,11 +482,11 @@ void load_layout(GuiContext *ctx)
 		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "gui_layoutwin");
 		l.on_same_row = 0;
 		l.has_offset = 1;
-		l.offset[0] = 645;
-		l.offset[1] = 24;
+		l.offset[0] = 633;
+		l.offset[1] = 17;
 		l.has_size = 1;
-		l.size[0] = 338;
-		l.size[1] = 699;
+		l.size[0] = 363;
+		l.size[1] = 691;
 		l.prevent_resizing = 0;
 		l.align_left = 0;
 		l.align_right = 0;
@@ -573,6 +573,31 @@ void load_layout(GuiContext *ctx)
 		l.padding[3] = 0;
 		l.gap[0] = 0;
 		l.gap[1] = 3;
+		append_element_layout(ctx, l);
+	}
+
+	{
+		GuiElementLayout l = {0};
+		l.id = 2127132025;
+		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "outline_uvbox_box");
+		l.on_same_row = 0;
+		l.has_offset = 0;
+		l.offset[0] = 0;
+		l.offset[1] = 0;
+		l.has_size = 1;
+		l.size[0] = 100;
+		l.size[1] = 100;
+		l.prevent_resizing = 0;
+		l.align_left = 0;
+		l.align_right = 1;
+		l.align_top = 0;
+		l.align_bottom = 1;
+		l.padding[0] = 0;
+		l.padding[1] = 0;
+		l.padding[2] = 0;
+		l.padding[3] = 0;
+		l.gap[0] = 0;
+		l.gap[1] = 0;
 		append_element_layout(ctx, l);
 	}
 
