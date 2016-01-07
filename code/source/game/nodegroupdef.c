@@ -271,7 +271,7 @@ void parse_cmd(NodeGroupDef_Cmd *cmd, const Token *toks, U32 tok_count, const No
 		U32 src_size;
 		find_member_storage(&cmd->dst_offset, &dst_size, dst_type_name, &toks[0]);
 		find_member_storage(&cmd->src_offset, &src_size, src_type_name, &toks[src_node_tok_i]);
-		ensure(dst_size == src_size);
+		ensure(dst_size >= src_size); // Allow memcpying V2f to V3f
 		cmd->size = src_size;
 	} else if (toks[1].type == TokType_open_paren) {
 		// Call
