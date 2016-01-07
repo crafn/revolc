@@ -349,6 +349,7 @@ void do_mesh_editor(U32 *model_h, bool *is_edit_mode, bool active)
 			}
 
 			{ // Vertex attributes
+				V3f pos = {};
 				Color col = white_color();
 				Color outline_col = white_color();
 				F32 outline_width = 1.0;
@@ -357,6 +358,7 @@ void do_mesh_editor(U32 *model_h, bool *is_edit_mode, bool active)
 					TriMeshVertex *v = &mesh_vertices(mesh)[i];
 					if (!v->selected)
 						continue;
+					pos = v->pos;
 					col = v->color;
 					outline_col = v->outline_color;
 					outline_width = v->outline_width;
@@ -365,6 +367,10 @@ void do_mesh_editor(U32 *model_h, bool *is_edit_mode, bool active)
 				}
 
 				gui_label(ctx, "model_setting+l2|Vertex attributes");
+
+				bool v_x_changed = gui_slider(ctx, "model_setting+vx|X", &pos.x, -1.0, 1.0);
+				bool v_y_changed = gui_slider(ctx, "model_setting+vy|Y", &pos.y, -1.0, 1.0);
+				bool v_z_changed = gui_slider(ctx, "model_setting+vz|Z", &pos.z, -1.0, 1.0);
 
 				gui_label(ctx, "model_setting+l3|Color");
 				bool v_col_changed = false;
@@ -383,11 +389,17 @@ void do_mesh_editor(U32 *model_h, bool *is_edit_mode, bool active)
 				bool outline_width_changed = gui_slider(ctx, "model_setting+vow|Outline width", &outline_width, 0.0, 50.0);
 				bool outline_exp_changed = gui_slider(ctx, "model_setting+voe|Outline exp", &outline_exp, 0.0, 5.0);
 
-
 				for (U32 i = 0; i < mesh->v_count; ++i) {
 					TriMeshVertex *v = &mesh_vertices(mesh)[i];
 					if (!v->selected)
 						continue;
+
+					if (v_x_changed)
+						v->pos.x = pos.x;
+					if (v_y_changed)
+						v->pos.y = pos.y;
+					if (v_z_changed)
+						v->pos.z = pos.z;
 					if (v_col_changed)
 						v->color = col;
 					if (v_out_col_changed)
@@ -398,7 +410,7 @@ void do_mesh_editor(U32 *model_h, bool *is_edit_mode, bool active)
 						v->outline_exp = outline_exp;
 				}
 
-				changed |= col_changed || v_col_changed || v_out_col_changed || outline_width_changed || outline_exp_changed;
+				changed |= col_changed || v_x_changed || v_y_changed || v_z_changed || v_col_changed || v_out_col_changed || outline_width_changed || outline_exp_changed;
 			}
 
 			if (changed) {

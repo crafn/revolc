@@ -954,6 +954,7 @@ void render_frame()
 
 		{ // Render scene to fbo (color + detail + move)
 			glEnable(GL_BLEND);
+			glDisable(GL_POLYGON_SMOOTH);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 			glClearColor(0.0, 0.0, 0.0, 0.0);
 

@@ -62,6 +62,8 @@ U32 rtti_member_index(const char *struct_name, const char *member_name)
 	U32 i = 0;
 	while (i < s->member_count && strcmp(s->members[i].name, member_name))
 		++i;
+	if (i >= s->member_count)
+		fail("Member not found: %s.%s", struct_name, member_name);
 	return i;
 }
 

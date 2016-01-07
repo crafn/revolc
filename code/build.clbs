@@ -80,8 +80,9 @@ def buildInfo(env, tags):
 		typename_ix = 0
 		name_ix = 1
 		ptr_depth_ix = 2
-		is_flexible_array_ix = 3
-		# [ ["type", "name", ptr_depth, is_flexible_array], ... ]
+		array_depth_ix = 3
+		is_flexible_array_ix = 4
+		# [ ["type", "name", ptr_depth, array_depth, is_flexible_array], ... ]
 		def parseMembers(str, b, e):
 			types_and_names= []
 			i= nextTok(str, b)
@@ -96,12 +97,16 @@ def buildInfo(env, tags):
 
 				if not skip:
 					is_flexible_array= "[]" in tok
+					is_array= "[" in tok
+					array_depth = 0
+					if is_array:
+						array_depth = 1 # @todo Handle multi arrays
 					ptr_depth = 0
 					k = 0
 					while tok[k] == '*':
 						ptr_depth += 1
 						k += 1
-					types_and_names.append([ type_candidate, trimMemberName(tok), ptr_depth, is_flexible_array ])
+					types_and_names.append([ type_candidate, trimMemberName(tok), ptr_depth, array_depth, is_flexible_array ])
 					while i < e and (str[i] != ';' and str[i] != ','):
 						i += 1
 					if str[i] == ';':
@@ -154,7 +159,7 @@ def buildInfo(env, tags):
 					member_size = "MEMBER_SIZE(" +struct+ ", " +m[name_ix]+ ")";
 					if m[is_flexible_array_ix] == True:
 						member_size = "0"
-					f.write("\t{ \"" +m[name_ix]+ "\", \"" +m[typename_ix]+ "\", " +str(m[ptr_depth_ix])+ ", " + "MEMBER_OFFSET(" +struct+ ", " +m[name_ix]+ "), " +member_size+ " },\n")
+					f.write("\t{ \"" +m[name_ix]+ "\", \"" +m[typename_ix]+ "\", " +str(m[ptr_depth_ix])+ ", " +str(m[array_depth_ix])+ ", " "MEMBER_OFFSET(" +struct+ ", " +m[name_ix]+ "), " +member_size+ " },\n")
 				f.write("};\n")
 
 				f.write("DLL_EXPORT StructRtti " +struct+ "_rtti = { \"" +struct+ "\", sizeof(" +struct+ "), " +struct+ "_members, " +str(len(members))+ " };\n")

@@ -7,6 +7,7 @@ typedef struct MemberRtti {
 	const char *name;
 	const char *base_type_name;
 	U32 ptr_depth;
+	U32 array_depth;
 
 	U32 offset;
 	U32 size;

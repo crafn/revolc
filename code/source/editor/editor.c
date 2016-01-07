@@ -95,7 +95,7 @@ void destroy_editor()
 	g_env.editor = NULL;
 }
 
-internal const char *gui_value_str(GuiContext *ctx, const char *type_name, void *deref_ptr, int ptr_depth, void *ptr)
+internal const char *gui_value_str(GuiContext *ctx, const char *type_name, void *deref_ptr, int ptr_depth, int array_depth, void *ptr)
 {
 	// @todo Rest
 	if (!strcmp(type_name, "int") && deref_ptr)
@@ -126,7 +126,7 @@ internal const char *gui_value_str(GuiContext *ctx, const char *type_name, void 
 	} else if (!strcmp(type_name, "Color") && deref_ptr) {
 		Color v = *(Color*)deref_ptr;
 		return gui_str(ctx, "{%f, %f, %f, %f}", v.r, v.g, v.b, v.a);
-	} else if (!strcmp(type_name, "char") && deref_ptr && ptr_depth > 0)
+	} else if (!strcmp(type_name, "char") && deref_ptr && (ptr_depth == 1 || array_depth == 1))
 		return gui_str(ctx, "%s", deref_ptr);
 	else if (ptr)
 		return gui_str(ctx, "%p", ptr);
@@ -160,11 +160,16 @@ internal void gui_data_tree(GuiContext *ctx, const char *struct_name, void *stru
 			}
 		}
 
-		const char *value_str = gui_value_str(ctx, m.base_type_name, deref_ptr, m.ptr_depth, member_ptr);
+		const char *value_str = gui_value_str(ctx, m.base_type_name, deref_ptr, m.ptr_depth, m.array_depth, member_ptr);
 		const char stars[] = "**********";
 		ensure(sizeof(stars) > m.ptr_depth);
-		const char *label = gui_str(ctx, "datatree+%s_%s_%s|%s %s%s = %s",
-			tag, m.base_type_name, m.name, m.base_type_name, &stars[sizeof(stars) - m.ptr_depth - 1], m.name, value_str);
+		const char *label = gui_str(ctx, "datatree+%s_%s_%s|%s %s%s%s = %s",
+			tag, m.base_type_name, m.name,
+			m.base_type_name,
+			&stars[sizeof(stars) - m.ptr_depth - 1],
+			m.name,
+			m.array_depth > 0 ? "[]" : "",
+			value_str);
 
 		// @todo Rest
 		// @todo Unify somehow. Maybe have an array of values describing formatting, gui controls etc.
@@ -181,6 +186,16 @@ internal void gui_data_tree(GuiContext *ctx, const char *struct_name, void *stru
 		} else if (!strcmp(m.base_type_name, "F64")) {
 			if (!sel) {
 				gui_doublefield(ctx, label, deref_ptr);
+			} else {
+				if (gui_button(ctx, label)) {
+					ensure(member_ptr == deref_ptr); // Can't refer outside struct
+					sel->ptr = member_ptr; 
+					sel->size = m.size;
+				}
+			}
+		} else if (!strcmp(m.base_type_name, "char") && m.array_depth == 1 && m.ptr_depth == 0) {
+			if (!sel) {
+				gui_textfield(ctx, label, deref_ptr, m.size);
 			} else {
 				if (gui_button(ctx, label)) {
 					ensure(member_ptr == deref_ptr); // Can't refer outside struct
@@ -303,7 +318,10 @@ void upd_editor(F64 *world_dt)
 			if (g_env.device->key_down['h'])
 				g_env.renderer->cam_pos.z += spd*dt;
 
-			g_env.renderer->cam_pos.z -= g_env.device->mwheel_delta;
+			F32 zoom = g_env.device->mwheel_delta;
+			if (g_env.device->key_down[KEY_LSHIFT])
+				zoom *= 0.1;
+			g_env.renderer->cam_pos.z -= zoom;
 			g_env.renderer->cam_pos.z = MIN(g_env.renderer->cam_pos.z, 30);
 
 			if (g_env.device->key_pressed['k'])

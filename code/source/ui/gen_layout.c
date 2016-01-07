@@ -183,10 +183,10 @@ void load_layout(GuiContext *ctx)
 		l.on_same_row = 0;
 		l.has_offset = 1;
 		l.offset[0] = 0;
-		l.offset[1] = 284;
+		l.offset[1] = 209;
 		l.has_size = 1;
-		l.size[0] = 247;
-		l.size[1] = 457;
+		l.size[0] = 259;
+		l.size[1] = 532;
 		l.prevent_resizing = 1;
 		l.align_left = 1;
 		l.align_right = 0;
@@ -482,8 +482,8 @@ void load_layout(GuiContext *ctx)
 		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "gui_layoutwin");
 		l.on_same_row = 0;
 		l.has_offset = 1;
-		l.offset[0] = 633;
-		l.offset[1] = 17;
+		l.offset[0] = 642;
+		l.offset[1] = 18;
 		l.has_size = 1;
 		l.size[0] = 363;
 		l.size[1] = 691;

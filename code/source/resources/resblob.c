@@ -191,12 +191,6 @@ Resource * res_by_name(ResBlob *blob, ResType type, const char *name)
 		RuntimeResource *new_res = ALLOC(dev_ator(), sizeof(*new_res), "new_res");
 		*new_res = (RuntimeResource) {};
 
-		Resource res_header = {};
-		fmt_str(res_header.name, RES_NAME_SIZE, "%s", name);
-		res_header.type = type;
-		res_header.blob = blob;
-		res_header.runtime_owner = new_res;
-
 		const U32 missing_res_max_size = 1024*4;
 		new_res->res = ZERO_ALLOC(dev_ator(), missing_res_max_size, "new_res->res");
 
@@ -205,7 +199,6 @@ Resource * res_by_name(ResBlob *blob, ResType type, const char *name)
 			.max_size = missing_res_max_size,
 		};
 
-		blob_write(&buf, &res_header, sizeof(res_header));
 
 		ParsedJsonFile parsed_json = parse_json_file(dev_ator(), MISSING_RES_FILE);
 		if (parsed_json.tokens == NULL)
@@ -221,6 +214,15 @@ Resource * res_by_name(ResBlob *blob, ResType type, const char *name)
 		int err = json_res_to_blob(&buf, j_res, type);
 		if (err)
 			fail("Creating MissingResource failed (wtf, where's your resources?)");
+
+		// Patch header
+		Resource res_header = {};
+		fmt_str(res_header.name, RES_NAME_SIZE, "%s", name);
+		res_header.type = type;
+		res_header.blob = blob;
+		res_header.runtime_owner = new_res;
+		res_header.size = buf.offset;
+		memcpy(buf.data, &res_header, sizeof(res_header));
 
 		free_parsed_json_file(parsed_json);
 		init_res(new_res->res);
