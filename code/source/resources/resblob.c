@@ -668,6 +668,7 @@ U32 mirror_blob_modifications(ResBlob *blob)
 			// shouldn't be a problem, because typically few resources
 			// are modified at once
 			mirror_res(res);
+			debug_print("mirroring %s %s", restype_to_str(res->type), res->name);
 			rt_res->needs_saving = false;
 			++count;
 		}

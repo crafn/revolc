@@ -127,7 +127,7 @@ CursorDeltaMode cursor_transform_delta_pixels(	T3f *out,
 		return CursorDeltaMode_scale;
 	}
 
-	return CursorDeltaMode_translate;
+	return CursorDeltaMode_none;
 }
 
 void gui_res_info(ResType t, const Resource *res)
