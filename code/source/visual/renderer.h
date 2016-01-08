@@ -76,6 +76,7 @@ typedef struct Renderer {
 	// Rendering pipeline
 	U32 scene_ms_fbo; // Used with multisampling
 	U32 scene_color_ms_tex;
+	U32 scene_depth_tex; // Used with scene_ms_fbo or scene_fbo
 	U32 scene_fbo;
 	U32 scene_color_tex;
 	V2i scene_fbo_reso;

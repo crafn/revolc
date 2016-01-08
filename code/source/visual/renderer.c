@@ -153,8 +153,8 @@ M44f view_matrix(V3d cam_pos)
 internal
 M44f cam_matrix(V3d cam_pos, V2d cam_fov)
 {
-	F32 n = 0.1;
-	F32 f = 1.0;
+	F32 n = 0.01;
+	F32 f = 10000.0;
 	V2d fov = cam_fov;
 	F32 h = tan(fov.y/2)*n;
 	F32 w = tan(fov.x/2)*n;
@@ -343,6 +343,7 @@ void destroy_rendering_pipeline(Renderer *r)
 
 	glDeleteFramebuffers(1, &r->scene_fbo);
 	glDeleteTextures(1, &r->scene_color_tex);
+	glDeleteTextures(1, &r->scene_depth_tex);
 
 	glDeleteFramebuffers(1, &r->hl_fbo);
 	glDeleteTextures(1, &r->hl_tex);
@@ -391,11 +392,18 @@ void recreate_rendering_pipeline(Renderer *r)
 			//   - MS texture resolved to ordinary texture (where scene is drawn directly when not multisampling)
 			GL(glGenFramebuffers(1, &r->scene_ms_fbo));
 			GL(glBindFramebuffer(GL_FRAMEBUFFER, r->scene_ms_fbo));
+
 			glGenTextures(1, &r->scene_color_ms_tex);
 			glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, r->scene_color_ms_tex);
 			GL(glTexImage2DMultisample(	GL_TEXTURE_2D_MULTISAMPLE, r->msaa_samples, GL_RGB16F,
 										r->scene_fbo_reso.x, r->scene_fbo_reso.y, false));
 			GL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, r->scene_color_ms_tex, 0));
+
+			glGenTextures(1, &r->scene_depth_tex);
+			glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, r->scene_depth_tex);
+			GL(glTexImage2DMultisample(	GL_TEXTURE_2D_MULTISAMPLE, r->msaa_samples, GL_DEPTH_COMPONENT,
+										r->scene_fbo_reso.x, r->scene_fbo_reso.y, false));
+			GL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D_MULTISAMPLE, r->scene_depth_tex, 0));
 			check_fbo("multisample");
 		}
 
@@ -407,6 +415,9 @@ void recreate_rendering_pipeline(Renderer *r)
 						r->scene_fbo_reso.x, r->scene_fbo_reso.y,
 						0, GL_RGB, GL_FLOAT, NULL));
 		GL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, r->scene_color_tex, 0));
+		if (!r->multisample) {
+			// @todo Depth buffer
+		}
 		check_fbo("scene");
 
 		// Fbo & tex to store highlights of the scene
@@ -774,9 +785,9 @@ int drawcmd_z_cmp(const void *e1, const void *e2)
 	if (E1->layer != E2->layer)
 		return (E1->layer > E2->layer) - (E1->layer < E2->layer);
 
-	// Smallest Z first (furthest away from camera)
+	// Largest Z first for effective usage of depth buffer (closest to camera)
 	// Uglier but faster than using temp vars with -O0
-	return	(E1->tf.pos.z > E2->tf.pos.z) - (E1->tf.pos.z < E2->tf.pos.z);
+	return -CMP(E1->tf.pos.z, E2->tf.pos.z);
 #undef E1
 #undef E2
 }
@@ -958,13 +969,16 @@ void render_frame()
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 			glClearColor(0.0, 0.0, 0.0, 0.0);
 
+			glEnable(GL_DEPTH_TEST);
+			glDepthFunc(GL_LEQUAL);
+
 			if (r->scene_ms_fbo)
 				glBindFramebuffer(GL_FRAMEBUFFER, r->scene_ms_fbo);
 			else
 				glBindFramebuffer(GL_FRAMEBUFFER, r->scene_fbo);
 
 			glViewport(0, 0, r->scene_fbo_reso.x, r->scene_fbo_reso.y);
-			glClear(GL_COLOR_BUFFER_BIT);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 			ShaderSource* shd =
 				(ShaderSource*)res_by_name(
@@ -1026,6 +1040,8 @@ void render_frame()
 				V2i s = r->scene_fbo_reso;
 				glBlitFramebuffer(0, 0, s.x, s.y, 0, 0, s.x, s.y, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 			}
+
+			glDisable(GL_DEPTH_TEST);
 		}
 
 		{ // Overexposed parts to small "highlight" texture
