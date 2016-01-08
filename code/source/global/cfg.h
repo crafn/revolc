@@ -30,6 +30,7 @@
 #define TEXTURE_ATLAS_LAYER_COUNT 4
 #define MAX_TEXTURE_LOD_COUNT 2
 #define MAX_SHADER_VARYING_COUNT 8
+#define MAX_RENDERPASS_COUNT 4 // World + gui (before 3d gui) needs at least 2
 
 #define MAX_NODE_COUNT (1024*20)
 #define MAX_NODE_CMD_COUNT (MAX_NODE_COUNT*4)

@@ -13,11 +13,11 @@
 // Command for the (immediate-mode) renderer to draw a model this frame
 typedef struct DrawCmd {
 	T3d tf;
-	S32 layer; // Overrides z-sorting. 0 for world stuff
+	S32 layer; // Provides order for entities at same z (e.g. gui). 0 for world stuff
 	Color color, outline_color;
 	V3f atlas_uv;
 	F32 emission;
-	U8 pattern;
+	bool has_alpha;
 	V2f scale_to_atlas_uv;
 	U32 mesh_v_count;
 	U32 mesh_i_count;
@@ -104,7 +104,7 @@ REVOLC_API void drawcmd(	T3d tf,
 							Color outline_c,
 							S32 layer,
 							F32 emission,
-							U8 pattern);
+							bool has_alpha);
 REVOLC_API void drawcmd_model(	T3d tf,
 								const Model *model,
 								Color c,

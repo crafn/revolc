@@ -142,10 +142,23 @@ void reset_vao_mesh(Vao *vao)
 
 void draw_vao(const Vao *vao)
 {
+	if (vao->ibo_id)
+		draw_vao_range(vao, 0, vao->i_count);
+	else
+		draw_vao_range(vao, 0, vao->v_count);
+}
+
+void draw_vao_range(const Vao *vao, U32 begin_i, U32 end_i)
+{
+	ensure(begin_i <= end_i);
+	U32 count = end_i - begin_i;
 	if (vao->ibo_id) {
-		glDrawRangeElements(GL_TRIANGLES,
-				0, vao->i_count, vao->i_count, MESH_INDEX_GL_TYPE, 0);
+		ensure(count <= vao->i_count);
+		glDrawRangeElements(
+			GL_TRIANGLES, 0, vao->i_count,
+			count, MESH_INDEX_GL_TYPE, (void*)(sizeof(MeshIndexType)*begin_i));
 	} else {
-		glDrawArrays(GL_POINTS, 0, vao->v_count);
+		ensure(count <= vao->v_count);
+		glDrawArrays(GL_POINTS, begin_i, count);
 	}
 }

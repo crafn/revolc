@@ -154,7 +154,7 @@ internal
 M44f cam_matrix(V3d cam_pos, V2d cam_fov)
 {
 	F32 n = 0.01;
-	F32 f = 10000.0;
+	F32 f = 1000.0;
 	V2d fov = cam_fov;
 	F32 h = tan(fov.y/2)*n;
 	F32 w = tan(fov.x/2)*n;
@@ -522,7 +522,7 @@ void drawcmd(	T3d tf,
 				Color outline_c,
 				S32 layer,
 				F32 emission,
-				U8 pattern)
+				bool has_alpha)
 {
 	DrawCmd cmd = {
 		.tf = tf,
@@ -530,13 +530,13 @@ void drawcmd(	T3d tf,
 		.color = c,
 		.outline_color = outline_c,
 		.atlas_uv = uv.uv,
+		.emission = emission,
+		.has_alpha = has_alpha,
 		.scale_to_atlas_uv = uv.scale,
 		.mesh_v_count = v_count,
 		.mesh_i_count = i_count,
 		.vertices = v,
 		.indices = i,
-		.emission = emission,
-		.pattern = pattern,
 	};
 	Renderer *r = g_env.renderer;
 	if (r->cmd_count >= MAX_DRAW_CMD_COUNT) {
@@ -562,7 +562,7 @@ void drawcmd_model(	T3d tf,
 			mul_color(model->color, outline_c),
 			layer,
 			model->emission + emission,
-			NULL_PATTERN);
+			model->color.a < 1 || c.a < 1); // @todo Mesh can have transparency also
 }
 
 void drawcmd_px_quad(V2i px_pos, V2i px_size, F32 rot, Color c, Color outline_c, S32 layer)
@@ -570,6 +570,10 @@ void drawcmd_px_quad(V2i px_pos, V2i px_size, F32 rot, Color c, Color outline_c,
 	// Keep center at constant position when rotating
 	px_pos.x += (int)round(px_size.x/2.0 - cos(TAU*3/8 + rot)/cos(TAU*3/8)*px_size.x/2.0);
 	px_pos.y += (int)round(px_size.y/2.0 - sin(TAU*3/8 + rot)/sin(TAU*3/8)*px_size.y/2.0);
+
+	// @todo Take away when depth test is taken away from gui stuff
+	c.a *= 0.9999;
+	outline_c.a *= 0.9999;
 
 	T3d tf = px_tf(px_pos, px_size);
 	tf.rot = qd_by_axis((V3d) {0, 0, 1}, rot);
@@ -598,7 +602,7 @@ void drawcmd_px_model_image(V2i px_pos, V2i px_size, ModelEntity *src_model, S32
 			white_color(), white_color(),
 			layer,
 			0.0,
-			NULL_PATTERN);
+			true);
 }
 
 
@@ -776,21 +780,33 @@ void free_compentity(Handle h)
 void * storage_compentity()
 { return g_env.renderer->c_entities; }
 
-internal
-inline
-int drawcmd_z_cmp(const void *e1, const void *e2)
+internal inline int drawcmd_cmp(const void *e1, const void *e2)
 {
 #define E1 ((DrawCmd*)e1)
 #define E2 ((DrawCmd*)e2)
-	if (E1->layer != E2->layer)
-		return (E1->layer > E2->layer) - (E1->layer < E2->layer);
+	// This sorting order is tighly coupled with renderpass separation
 
-	// Largest Z first for effective usage of depth buffer (closest to camera)
-	// Uglier but faster than using temp vars with -O0
-	return -CMP(E1->tf.pos.z, E2->tf.pos.z);
+	if (E1->layer != E2->layer)
+		return CMP(E1->layer, E2->layer); // Furthest layers first
+
+	if (E1->has_alpha != E2->has_alpha)
+		return CMP(E1->has_alpha, E2->has_alpha); // Opaque geometry first
+
+	// Opaque: Largest Z first for effective usage of depth buffer (closest to camera)
+	// Alpha: Smallest Z first for correct alpha-blending (furthest away from camera)
+	return (E1->has_alpha ? 1 : -1)*CMP(E1->tf.pos.z, E2->tf.pos.z);
 #undef E1
 #undef E2
 }
+
+typedef struct RenderPass {
+	bool has_opaque;
+	bool has_alpha;
+	U32 begin_index;
+	U32 end_index;
+	S32 begin_layer;
+	S32 end_layer;
+} RenderPass;
 
 void render_frame()
 {
@@ -840,16 +856,16 @@ void render_frame()
 				e->color, e->color,
 				e->layer,
 				e->emission,
-				NULL_PATTERN);
+				e->color.a < 1); // @todo Mesh can have transparency also
 	}
 
 	// Calculate total vertex and index count for frame
 	U32 total_v_count = 0;
 	U32 total_i_count = 0;
 	for (U32 i = 0; i < r->cmd_count; ++i) {
-		DrawCmd *cmd = &r->cmds[i];
-		total_v_count += cmd->mesh_v_count;
-		total_i_count += cmd->mesh_i_count;
+		DrawCmd cmd = r->cmds[i];
+		total_v_count += cmd.mesh_v_count;
+		total_i_count += cmd.mesh_i_count;
 	}
 
 	if (total_v_count > MAX_DRAW_VERTEX_COUNT)
@@ -863,16 +879,26 @@ void render_frame()
 	bind_vao(&r->vao);
 	reset_vao_mesh(&r->vao);
 
-	{ // Issue drawing commands ( = meshes to Vao)
+	RenderPass renderpasses[MAX_RENDERPASS_COUNT] = {};
+	U32 renderpass_count = 0;
+
+	{ // Draw commands to vao. Write render passes for later rendering.
 		// Z-sort
-		qsort(r->cmds, r->cmd_count, sizeof(*r->cmds), drawcmd_z_cmp);
+		qsort(r->cmds, r->cmd_count, sizeof(*r->cmds), drawcmd_cmp);
 
 		TriMeshVertex *total_verts = frame_alloc(sizeof(*total_verts)*total_v_count);
 		MeshIndexType *total_inds = frame_alloc(sizeof(*total_inds)*total_i_count);
 		U32 cur_v = 0;
 		U32 cur_i = 0;
+
+		// Renderpasses, almost equivalent to layers in DrawCmd, but multiple layers can sometimes be
+		// rendered in single pass. These are required because depth test screws layered rendering up.
+		RenderPass *cur_pass = &renderpasses[renderpass_count++];
+		cur_pass->begin_layer = S32_MIN;
+
 		for (U32 i = 0; i < r->cmd_count; ++i) {
 			DrawCmd *cmd = &r->cmds[i];
+			U32 begin_index = cur_i;
 
 			for (U32 k = 0; k < cmd->mesh_i_count; ++k) {
 				total_inds[cur_i] = cmd->indices[k] + cur_v;
@@ -902,6 +928,30 @@ void render_frame()
 				total_verts[cur_v] = v;
 				++cur_v;
 			}
+
+			// New pass starts
+			// This is tightly coupled with the sorting order of draw cmds
+			bool depth_clear_needed =
+				(cur_pass->has_opaque && cur_pass->end_layer != cmd->layer + 1) // Opaque stuff followed by new layer
+				|| (cur_pass->has_alpha && !cmd->has_alpha); // Alpha stuff followed by opaque stuff
+			if (cur_pass->begin_layer == S32_MIN || depth_clear_needed) {
+				//debug_print("new pass cmd %i layer %i alpha cmd %i depth clear needed %i prev pass: has_opaque %i, end layer %i", i, cmd->layer, cmd->has_alpha, depth_clear_needed, cur_pass->has_opaque, cur_pass->end_layer);
+				if (cur_pass->begin_layer != S32_MIN) {
+					// End previous pass
+					if (renderpass_count >= MAX_RENDERPASS_COUNT)
+						fail("Too many renderpasses");
+					cur_pass = &renderpasses[renderpass_count++];
+				}
+
+				// Start new pass
+				cur_pass->begin_index = begin_index;
+				cur_pass->begin_layer = cmd->layer;
+			}
+
+			cur_pass->has_alpha |= cmd->has_alpha;
+			cur_pass->has_opaque |= !cmd->has_alpha;
+			cur_pass->end_index = cur_i;
+			cur_pass->end_layer = cmd->layer + 1;
 		}
 		add_vertices_to_vao(&r->vao, total_verts, total_v_count);
 		add_indices_to_vao(&r->vao, total_inds, total_i_count);
@@ -963,7 +1013,7 @@ void render_frame()
 			}
 		}
 
-		{ // Render scene to fbo (color + detail + move)
+		{ // Render scene to fbo
 			glEnable(GL_BLEND);
 			glDisable(GL_POLYGON_SMOOTH);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -978,7 +1028,7 @@ void render_frame()
 				glBindFramebuffer(GL_FRAMEBUFFER, r->scene_fbo);
 
 			glViewport(0, 0, r->scene_fbo_reso.x, r->scene_fbo_reso.y);
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			glClear(GL_COLOR_BUFFER_BIT);
 
 			ShaderSource* shd =
 				(ShaderSource*)res_by_name(
@@ -999,15 +1049,19 @@ void render_frame()
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D_ARRAY, r->atlas_tex);
 
-			GLenum buffers[] = {
-				GL_COLOR_ATTACHMENT0,
-			};
+			GLenum buffers[] = { GL_COLOR_ATTACHMENT0, };
 			// Do buffers need to be disabled afterwards?
 			glDrawBuffers(ARRAY_COUNT(buffers), buffers);
 			glBindFragDataLocation(shd->prog_gl_id, 0, "f_color"); // to scene_color_tex or scene_color_ms_tex
 
 			bind_vao(&r->vao);
-			draw_vao(&r->vao);
+
+			for (U32 i = 0; i < renderpass_count; ++i) {
+				RenderPass pass = renderpasses[i];
+				//debug_print("pass %i, %i->%i", i, pass.begin_index, pass.end_index);
+				glClear(GL_DEPTH_BUFFER_BIT);
+				draw_vao_range(&r->vao, pass.begin_index, pass.end_index);
+			}
 
 			if (r->draw_fluid) {
 				// Proto fluid proto render
@@ -1085,6 +1139,7 @@ void render_frame()
 			glActiveTexture(GL_TEXTURE1);
 			glBindTexture(GL_TEXTURE_2D, r->hl_tex);
 
+			// @todo Move occlusion to scene rendering -- then different layers can disable it
 			glUniform1i(uniform_loc(shd->prog_gl_id, "u_occlusion"), 2);
 			glActiveTexture(GL_TEXTURE2);
 			glBindTexture(GL_TEXTURE_2D, r->occlusion_tex);

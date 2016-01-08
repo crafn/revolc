@@ -66,7 +66,7 @@ internal void draw_text(int x, int y, const char *text, int layer)
 			white_color(), white_color(),
 			layer,
 			0.0,
-			NULL_PATTERN);
+			true);
 }
 
 // Callback for gui

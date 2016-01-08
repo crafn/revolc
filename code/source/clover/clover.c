@@ -242,7 +242,7 @@ MOD_API void upd_worldenv(WorldEnv *w, WorldEnv *e)
 					c, c,
 					0,
 					0.0,
-					2);
+					false);
 			++draw_count;
 		}
 		}
