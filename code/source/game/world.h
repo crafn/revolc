@@ -18,9 +18,26 @@ typedef struct SlotVal {
 	U32 size;
 } SlotVal;
 
+typedef struct NodeCmd_Memcpy {
+	U16 src_offset;
+	U16 dst_offset;
+	U16 size;
+	Handle src_node;
+	Handle dst_node;
+} NodeCmd_Memcpy;
+
+typedef struct NodeCmd_Call {
+	void *fptr;
+
+	Handle p_nodes[MAX_CMD_CALL_PARAMS];
+	U16 p_node_count;
+} NodeCmd_Call;
+
 // @todo Simplify:
 // - conditions -> bool enabled;
 // - memcpy -> call
+// - calls to be non-batched (flexibility)
+// @todo Value params to calls
 typedef struct NodeCmd {
 	bool allocated;
 	CmdType type;
@@ -31,22 +48,10 @@ typedef struct NodeCmd {
 	U16 cond_offset;
 	U16 cond_size;
 
-	union {
-		struct { // memcpy
-			U16 src_offset;
-			U16 dst_offset;
-			U16 size;
-			Handle src_node;
-			Handle dst_node;
-		};
-		struct { // call
-			void *fptr;
+	NodeCmd_Memcpy memcpy;
+	NodeCmd_Call call;
 
-			Handle p_nodes[MAX_CMD_CALL_PARAMS];
-			U16 p_node_count;
-		};
-	};
-
+	bool selected; // Editor
 } NodeCmd;
 
 typedef struct NodeInfo {

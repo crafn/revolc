@@ -280,49 +280,49 @@ void upd_world(World *w, F64 dt)
 		case CmdType_memcpy: {
 			if (w->editor_disable_memcpy_cmds)
 				break; // Allow editing of individual struct members without overwriting
-			ensure(cmd.src_node < MAX_NODE_COUNT);
-			NodeInfo *src_node = &w->nodes[cmd.src_node];
-			NodeInfo *dst_node = &w->nodes[cmd.dst_node];
+			ensure(cmd.memcpy.src_node < MAX_NODE_COUNT);
+			NodeInfo *src_node = &w->nodes[cmd.memcpy.src_node];
+			NodeInfo *dst_node = &w->nodes[cmd.memcpy.dst_node];
 			ensure(dst_node->allocated && src_node->allocated);
 
-			U8 *dst = (U8*)node_impl(w, NULL, dst_node) + cmd.dst_offset;
-			U8 *src = (U8*)node_impl(w, NULL, src_node) + cmd.src_offset;
-			for (U32 i = 0; i < cmd.size; ++i) 
+			U8 *dst = (U8*)node_impl(w, NULL, dst_node) + cmd.memcpy.dst_offset;
+			U8 *src = (U8*)node_impl(w, NULL, src_node) + cmd.memcpy.src_offset;
+			for (U32 i = 0; i < cmd.memcpy.size; ++i) 
 				dst[i] = src[i];
 		} break;
 		case CmdType_call: {
 			// This is ugly. Call function pointer with corresponding node parameters
 			/// @todo Generate this
-			switch (cmd.p_node_count) {
+			switch (cmd.call.p_node_count) {
 			case 0:
-				((void (*)())cmd.fptr)();
+				((void (*)())cmd.call.fptr)();
 			break;
 			case 1: {
-				void * p1_impl = node_impl(w, NULL, &w->nodes[cmd.p_nodes[0]]);
-				U32 p1_size = w->nodes[cmd.p_nodes[0]].type->size;
-				((void (*)(void *, void *))cmd.fptr)(
+				void * p1_impl = node_impl(w, NULL, &w->nodes[cmd.call.p_nodes[0]]);
+				U32 p1_size = w->nodes[cmd.call.p_nodes[0]].type->size;
+				((void (*)(void *, void *))cmd.call.fptr)(
 					p1_impl, p1_impl + p1_size);
 			} break;
 			case 2: {
-				void * p1_impl = node_impl(w, NULL, &w->nodes[cmd.p_nodes[0]]);
-				U32 p1_size = w->nodes[cmd.p_nodes[0]].type->size;
-				void * p2_impl = node_impl(w, NULL, &w->nodes[cmd.p_nodes[1]]);
-				U32 p2_size = w->nodes[cmd.p_nodes[1]].type->size;
+				void * p1_impl = node_impl(w, NULL, &w->nodes[cmd.call.p_nodes[0]]);
+				U32 p1_size = w->nodes[cmd.call.p_nodes[0]].type->size;
+				void * p2_impl = node_impl(w, NULL, &w->nodes[cmd.call.p_nodes[1]]);
+				U32 p2_size = w->nodes[cmd.call.p_nodes[1]].type->size;
 				((void (*)(void *, void *,
-						   void *, void *))cmd.fptr)(
+						   void *, void *))cmd.call.fptr)(
 					p1_impl, p1_impl + p1_size,
 					p2_impl, p2_impl + p2_size);
 			} break;
 			case 3: {
-				void * p1_impl = node_impl(w, NULL, &w->nodes[cmd.p_nodes[0]]);
-				U32 p1_size = w->nodes[cmd.p_nodes[0]].type->size;
-				void * p2_impl = node_impl(w, NULL, &w->nodes[cmd.p_nodes[1]]);
-				U32 p2_size = w->nodes[cmd.p_nodes[1]].type->size;
-				void * p3_impl = node_impl(w, NULL, &w->nodes[cmd.p_nodes[2]]);
-				U32 p3_size = w->nodes[cmd.p_nodes[2]].type->size;
+				void * p1_impl = node_impl(w, NULL, &w->nodes[cmd.call.p_nodes[0]]);
+				U32 p1_size = w->nodes[cmd.call.p_nodes[0]].type->size;
+				void * p2_impl = node_impl(w, NULL, &w->nodes[cmd.call.p_nodes[1]]);
+				U32 p2_size = w->nodes[cmd.call.p_nodes[1]].type->size;
+				void * p3_impl = node_impl(w, NULL, &w->nodes[cmd.call.p_nodes[2]]);
+				U32 p3_size = w->nodes[cmd.call.p_nodes[2]].type->size;
 				((void (*)(void *, void *,
 						   void *, void *,
-						   void *, void *))cmd.fptr)(
+						   void *, void *))cmd.call.fptr)(
 					p1_impl, p1_impl + p1_size,
 					p2_impl, p2_impl + p2_size,
 					p3_impl, p3_impl + p3_size);
@@ -817,18 +817,18 @@ void make_deadcmd(DeadCmd *dead_cmd, World *w, NodeCmd *cmd)
 	}
 
 	if (cmd->type == CmdType_memcpy)  {
-		dead_cmd->src_node_id = node_handle_to_id(w, cmd->src_node);
-		dead_cmd->dst_node_id = node_handle_to_id(w, cmd->dst_node);
-		dead_cmd->src_offset = cmd->src_offset;
-		dead_cmd->dst_offset = cmd->dst_offset;
-		dead_cmd->size = cmd->size;
+		dead_cmd->src_node_id = node_handle_to_id(w, cmd->memcpy.src_node);
+		dead_cmd->dst_node_id = node_handle_to_id(w, cmd->memcpy.dst_node);
+		dead_cmd->src_offset = cmd->memcpy.src_offset;
+		dead_cmd->dst_offset = cmd->memcpy.dst_offset;
+		dead_cmd->size = cmd->memcpy.size;
 	} else if (cmd->type == CmdType_call) {
 		fmt_str(dead_cmd->func_name,
 				sizeof(dead_cmd->func_name),
-				"%s", rtti_sym_name(cmd->fptr));
-		for (U32 k = 0; k < cmd->p_node_count; ++k)
-			dead_cmd->p_node_ids[k] = node_handle_to_id(w, cmd->p_nodes[k]);
-		dead_cmd->p_node_count = cmd->p_node_count;
+				"%s", rtti_sym_name(cmd->call.fptr));
+		for (U32 k = 0; k < cmd->call.p_node_count; ++k)
+			dead_cmd->p_node_ids[k] = node_handle_to_id(w, cmd->call.p_nodes[k]);
+		dead_cmd->p_node_count = cmd->call.p_node_count;
 	}
 }
 
@@ -847,22 +847,22 @@ void resurrect_deadcmd(World *w, const DeadCmd *dead_cmd)
 	}
 
 	if (dead_cmd->type == CmdType_memcpy) {
-		cmd.src_node = node_id_to_handle(w, dead_cmd->src_node_id);
-		cmd.dst_node = node_id_to_handle(w, dead_cmd->dst_node_id);
-		ensure(cmd.src_node != NULL_HANDLE);
-		ensure(cmd.dst_node != NULL_HANDLE);
-		ensure(w->nodes[cmd.src_node].allocated);
-		ensure(w->nodes[cmd.dst_node].allocated);
-		cmd.src_offset = dead_cmd->src_offset;
-		cmd.dst_offset = dead_cmd->dst_offset;
-		cmd.size = dead_cmd->size;
+		cmd.memcpy.src_node = node_id_to_handle(w, dead_cmd->src_node_id);
+		cmd.memcpy.dst_node = node_id_to_handle(w, dead_cmd->dst_node_id);
+		ensure(cmd.memcpy.src_node != NULL_HANDLE);
+		ensure(cmd.memcpy.dst_node != NULL_HANDLE);
+		ensure(w->nodes[cmd.memcpy.src_node].allocated);
+		ensure(w->nodes[cmd.memcpy.dst_node].allocated);
+		cmd.memcpy.src_offset = dead_cmd->src_offset;
+		cmd.memcpy.dst_offset = dead_cmd->dst_offset;
+		cmd.memcpy.size = dead_cmd->size;
 	} else if (dead_cmd->type == CmdType_call) {
-		cmd.fptr = rtti_func_ptr(dead_cmd->func_name);
-		ensure(cmd.fptr != NULL);
-		cmd.p_node_count = dead_cmd->p_node_count;
+		cmd.call.fptr = rtti_func_ptr(dead_cmd->func_name);
+		ensure(cmd.call.fptr != NULL);
+		cmd.call.p_node_count = dead_cmd->p_node_count;
 		for (U32 k = 0; k < dead_cmd->p_node_count; ++k) {
-			cmd.p_nodes[k] = node_id_to_handle(w, dead_cmd->p_node_ids[k]);
-			if (cmd.p_nodes[k] == NULL_HANDLE) {
+			cmd.call.p_nodes[k] = node_id_to_handle(w, dead_cmd->p_node_ids[k]);
+			if (cmd.call.p_nodes[k] == NULL_HANDLE) {
 				fail("Not found: id: %i", dead_cmd->p_node_ids[k]);
 			}
 		}
@@ -952,11 +952,13 @@ void create_nodes(	World *w,
 
 				cmd = (NodeCmd) {
 					.type = CmdType_memcpy,
-					.src_offset = cmd_def->src_offset,
-					.dst_offset = cmd_def->dst_offset,
-					.size = cmd_def->size,
-					.src_node = src_node_h,
-					.dst_node = dst_node_h,
+					.memcpy = (NodeCmd_Memcpy) {
+						.src_offset = cmd_def->src_offset,
+						.dst_offset = cmd_def->dst_offset,
+						.size = cmd_def->size,
+						.src_node = src_node_h,
+						.dst_node = dst_node_h,
+					}
 				};
 			} break;
 			case CmdType_call: {
@@ -964,13 +966,15 @@ void create_nodes(	World *w,
 
 				cmd = (NodeCmd) {
 					.type = CmdType_call,
-					.fptr = cmd_def->fptr,
+					.call = (NodeCmd_Call) {
+						.fptr = cmd_def->fptr,
+					}
 				};
 				for (U32 i = 0; i < cmd_def->p_count; ++i) {
-					cmd.p_nodes[cmd.p_node_count++] =
+					cmd.call.p_nodes[cmd.call.p_node_count++] =
 						handles[cmd_def->p_node_i[i]];
-					ensure(w->nodes[cmd.p_nodes[i]].allocated);
-					node_impl(w, NULL, &w->nodes[cmd.p_nodes[i]]);
+					ensure(w->nodes[cmd.call.p_nodes[i]].allocated);
+					node_impl(w, NULL, &w->nodes[cmd.call.p_nodes[i]]);
 				}
 			} break;
 			default: fail("Invalid CmdType: %i", cmd_def->type);
@@ -1115,13 +1119,13 @@ U32 resurrect_cmd(World *w, NodeCmd cmd)
 		switch (cmd->type) {
 		case CmdType_memcpy:
 			// Might add duplicates
-			add_node_assoc_cmd(w, cmd->src_node, cmd_h);
-			add_node_assoc_cmd(w, cmd->dst_node, cmd_h);
+			add_node_assoc_cmd(w, cmd->memcpy.src_node, cmd_h);
+			add_node_assoc_cmd(w, cmd->memcpy.dst_node, cmd_h);
 		break;
 		case CmdType_call:
 			// Might add duplicates
-			for (U32 k = 0; k < cmd->p_node_count; ++k)
-				add_node_assoc_cmd(w, cmd->p_nodes[k], cmd_h);
+			for (U32 k = 0; k < cmd->call.p_node_count; ++k)
+				add_node_assoc_cmd(w, cmd->call.p_nodes[k], cmd_h);
 		break;
 		default: fail("Unknown cmd type %i", cmd->type);
 		}
@@ -1142,12 +1146,12 @@ void free_cmd(World *w, U32 handle)
 			remove_node_assoc_cmd(w, cmd->cond_node_h, handle);
 		switch (cmd->type) {
 		case CmdType_memcpy:
-			remove_node_assoc_cmd(w, cmd->src_node, handle);
-			remove_node_assoc_cmd(w, cmd->dst_node, handle);
+			remove_node_assoc_cmd(w, cmd->memcpy.src_node, handle);
+			remove_node_assoc_cmd(w, cmd->memcpy.dst_node, handle);
 		break;
 		case CmdType_call:
-			for (U32 k = 0; k < cmd->p_node_count; ++k)
-				remove_node_assoc_cmd(w, cmd->p_nodes[k], handle);
+			for (U32 k = 0; k < cmd->call.p_node_count; ++k)
+				remove_node_assoc_cmd(w, cmd->call.p_nodes[k], handle);
 		break;
 		default: fail("Unknown cmd type %i", cmd->type);
 		}
@@ -1280,7 +1284,7 @@ void world_on_res_reload(ResBlob *old)
 	for (U32 cmd_i = 0; cmd_i < w->cmd_count; ++cmd_i) {
 		NodeCmd *cmd = &w->cmds[cmd_i];
 		if (cmd->type == CmdType_call)
-			cmd->fptr = rtti_relocate_sym(cmd->fptr);
+			cmd->call.fptr = rtti_relocate_sym(cmd->call.fptr);
 	}
 
 	// Nobody should have pointers to resources. Just ResIds.

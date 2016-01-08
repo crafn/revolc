@@ -104,8 +104,10 @@ internal const char *gui_value_str(GuiContext *ctx, const char *type_name, void 
 		return gui_str(ctx, "%f", *(F64*)deref_ptr);
 	else if (!strcmp(type_name, "F32") && deref_ptr)
 		return gui_str(ctx, "%f", *(F32*)deref_ptr);
-	else if (!strcmp(type_name, "U32") && deref_ptr)
+	else if ((!strcmp(type_name, "U32") || !strcmp(type_name, "Handle")) && deref_ptr)
 		return gui_str(ctx, "%u", *(U32*)deref_ptr);
+	else if (!strcmp(type_name, "U16") && deref_ptr)
+		return gui_str(ctx, "%u", *(U16*)deref_ptr);
 	else if (!strcmp(type_name, "bool") && deref_ptr)
 		return gui_str(ctx, "%s", *(bool*)deref_ptr ? "true" : "false");
 	else if (!strcmp(type_name, "V2i") && deref_ptr) {
@@ -378,6 +380,14 @@ void upd_editor(F64 *world_dt)
 				gui_checkbox(ctx, "world_tool_elem+nodes|Show nodes", &e->show_node_list);
 				gui_checkbox(ctx, "world_tool_elem+cmds|Show commands", &e->show_cmd_list);
 				gui_checkbox(ctx, "world_tool_elem+create_cmd|Create command", &e->show_create_cmd);
+				if (gui_button(ctx, "world_tool_elem+delete_cmds|Delete selected commands")) {
+					for (U32 i = 0; i < MAX_NODE_CMD_COUNT; ++i) {
+						NodeCmd *cmd = &g_env.world->cmds[i];
+						if (!cmd->allocated || !cmd->selected)
+							continue;
+						free_cmd(g_env.world, i);
+					}
+				}
 				gui_checkbox(ctx, "world_tool_elem+nodegroupdefs|Show NodeGroupDefs", &e->show_nodegroupdef_list);
 				gui_slider(ctx, "world_tool_elem+dt_mul|Time mul", &e->world_time_mul, 0.0f, 10.0f);
 				if (gui_button(ctx, "world_tool_elem+pause_game|Toggle pause")) {
@@ -463,8 +473,11 @@ void upd_editor(F64 *world_dt)
 						continue;
 
 					if (gui_begin_tree(ctx, gui_str(ctx, "cmd_list_item+%i|%i", cmd->cmd_id, cmd->cmd_id))) {
+						cmd->selected = true;
 						gui_data_tree(ctx, "NodeCmd", cmd, gui_str(ctx, "cmd_%i", i), NULL);
 						gui_end_tree(ctx);
+					} else {
+						cmd->selected = false;
 					}
 				}
 				gui_end_window(ctx);
@@ -515,11 +528,11 @@ void upd_editor(F64 *world_dt)
 						NodeCmd cmd = {};
 						cmd.type = CmdType_memcpy;
 						cmd.cmd_id = g_env.world->next_cmd_id++;
-						cmd.src_offset = e->create_cmd.src_offset;
-						cmd.dst_offset = e->create_cmd.dst_offset;
-						cmd.size = e->create_cmd.src_size;
-						cmd.src_node = node_id_to_handle(g_env.world, e->create_cmd.src_node);
-						cmd.dst_node = node_id_to_handle(g_env.world, e->create_cmd.dst_node);
+						cmd.memcpy.src_offset = e->create_cmd.src_offset;
+						cmd.memcpy.dst_offset = e->create_cmd.dst_offset;
+						cmd.memcpy.size = e->create_cmd.src_size;
+						cmd.memcpy.src_node = node_id_to_handle(g_env.world, e->create_cmd.src_node);
+						cmd.memcpy.dst_node = node_id_to_handle(g_env.world, e->create_cmd.dst_node);
 						resurrect_cmd(g_env.world, cmd);
 
 						memset(&e->create_cmd, 0, sizeof(e->create_cmd));
