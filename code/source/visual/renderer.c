@@ -416,7 +416,12 @@ void recreate_rendering_pipeline(Renderer *r)
 						0, GL_RGB, GL_FLOAT, NULL));
 		GL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, r->scene_color_tex, 0));
 		if (!r->multisample) {
-			// @todo Depth buffer
+			glGenTextures(1, &r->scene_depth_tex);
+			glBindTexture(GL_TEXTURE_2D, r->scene_depth_tex);
+			GL(glTexImage2D(	GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
+								r->scene_fbo_reso.x, r->scene_fbo_reso.y,
+								0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL));
+			GL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, r->scene_depth_tex, 0));
 		}
 		check_fbo("scene");
 
