@@ -22,13 +22,12 @@ void ddraw_poly(Color c, V3d *poly, U32 count)
 
 	U32 start_index = r->ddraw_v_count;
 	for (U32 i = 0; i < count; ++i) {
-		TriMeshVertex v = {
-			.pos = v3d_to_v3f(poly[i]),
-			.uv = atlas_uv,
-			.outline_uv = (V2f) {0.5, 0.5},
-			.color = c,
-			.outline_color = c,
-		};
+		TriMeshVertex v = default_vertex();
+		v.pos = v3d_to_v3f(poly[i]);
+		v.uv = atlas_uv;
+		v.outline_uv = (V2f) {0.5, 0.5};
+		v.color = c;
+		v.outline_color = c;
 		r->ddraw_v[r->ddraw_v_count++] = v;
 	}
 

@@ -332,6 +332,7 @@ GUI_API GUI_BOOL gui_slider(GuiContext *ctx, const char *label, float *value, fl
 GUI_API GUI_BOOL gui_textfield(GuiContext *ctx, const char *label, char *buf, int buf_size);
 GUI_API GUI_BOOL gui_intfield(GuiContext *ctx, const char *label, int *value);
 GUI_API GUI_BOOL gui_doublefield(GuiContext *ctx, const char *label, double *value);
+GUI_API GUI_BOOL gui_floatfield(GuiContext *ctx, const char *label, float *value);
 GUI_API void gui_label(GuiContext *ctx, const char *label);
 
 GUI_API void gui_begin_listbox(GuiContext *ctx, const char *label);

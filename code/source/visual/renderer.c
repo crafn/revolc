@@ -460,9 +460,9 @@ void create_renderer()
 	Renderer *r = ZERO_ALLOC(gen_ator(), sizeof(*r), "renderer");
 
 	r->cam_pos.y = 5.0;
-	r->cam_pos.z = 7.0;
+	r->cam_pos.z = 11.0;
 	r->prev_cam_pos = r->cam_pos;
-	r->cam_fov = (V2d) {3.141/2.0, 3.0141/2.0};
+	r->fov_mul = 0.7;
 	r->env_light_color = (Color) {1, 1, 1, 1};
 	r->multisample = true;
 	r->msaa_samples = 8;
@@ -816,8 +816,8 @@ void render_frame()
 		V2i win_size = g_env.device->win_size;
 		F64 fov_scale = MAX(win_size.x, win_size.y);
 		r->cam_fov = (V2d) {
-			2*atan(g_env.device->win_size.x/fov_scale),
-			2*atan(g_env.device->win_size.y/fov_scale)
+			2*atan(r->fov_mul*g_env.device->win_size.x/fov_scale),
+			2*atan(r->fov_mul*g_env.device->win_size.y/fov_scale)
 		};
 	}
 

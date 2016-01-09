@@ -30,13 +30,13 @@ MOD_API void clover_worldgen(World *w)
 		create_nodes(w, def, WITH_ARRAY_COUNT(init_vals), w->next_entity_id++, AUTHORITY_PEER);
 	}
 
-	spawn_visual_prop(w, (V3d) {-100, -50, -490}, 0, (V3d) {700, 250, 1}, "bg_mountain");
+	spawn_visual_prop(w, (V3d) {-100, -50, -490}, 0, (V3d) {250, 250, 1}, "bg_mountain");
 
-	spawn_visual_prop(w, (V3d) {20, -120, -100}, 0, (V3d) {220, 90, 1}, "bg_meadow");
-	spawn_visual_prop(w, (V3d) {-70, -60, -200}, 0, (V3d) {220, 90, 1}, "bg_meadow");
-	spawn_visual_prop(w, (V3d) {60, -80, -160}, 0, (V3d) {200, 90, 1}, "bg_meadow");
-	spawn_visual_prop(w, (V3d) {150, -50, -300}, 0, (V3d) {200, 90, 1}, "bg_meadow");
-	spawn_visual_prop(w, (V3d) {400, -70, -350}, 0, (V3d) {200, 110, 1}, "bg_meadow");
+	spawn_visual_prop(w, (V3d) {20, -120, -100}, 0, (V3d) {90, 90, 1}, "bg_meadow");
+	spawn_visual_prop(w, (V3d) {-70, -60, -200}, 0, (V3d) {90, 90, 1}, "bg_meadow");
+	spawn_visual_prop(w, (V3d) {60, -80, -160}, 0, (V3d) {90, 90, 1}, "bg_meadow");
+	spawn_visual_prop(w, (V3d) {150, -50, -300}, 0, (V3d) {90, 90, 1}, "bg_meadow");
+	spawn_visual_prop(w, (V3d) {400, -70, -350}, 0, (V3d) {110, 110, 1}, "bg_meadow");
 
 
 	for (int i = 0; i < 1; ++i) {
@@ -52,7 +52,7 @@ MOD_API void clover_worldgen(World *w)
 	}
 	for (int i = -GRID_WIDTH + 1; i < GRID_WIDTH - 1; ++i) {
 		F64 x = i/2.0;
-		V3d p_front = {x, ground_surf_y(x) - 0.1, 0.01 + random_f64(0.0, 0.1, &seed)};
+		V3d p_front = {x, ground_surf_y(x) - 0.1, random_f64(-0.1, 0.1, &seed)};
 		//V3d p_back = {x, ground_surf_y(x) + 0.02, -0.1 + random_f64(-0.1, 0.0, &seed)};
 
 		V2d a = {i - 0.2, ground_surf_y(x - 0.2)};
@@ -62,7 +62,7 @@ MOD_API void clover_worldgen(World *w)
 
 		F64 scale = random_f64(0.85, 1.45, &seed);
 
-		T3d tf = {{scale, scale, scale}, qd_by_axis((V3d){0, 0, 1}, rot), p_front};
+		T3d tf = {{scale, scale, 1.0}, qd_by_axis((V3d){0, 0, 1}, rot), p_front};
 		SlotVal init_vals[] = {
 			{"body",	"tf",			WITH_DEREF_SIZEOF(&tf)},
 		};
@@ -173,11 +173,11 @@ MOD_API void upd_worldenv(WorldEnv *w, WorldEnv *e)
 	{ // Graphics
 		g_env.renderer->env_light_color = lerp_color(cur.color, next.color, t);
 
-		T3d tf = {{600, 1200, 1}, identity_qd(), {0, 0, -500}};
+		T3d tf = {{600, 600, 1}, identity_qd(), {0, 0, -500}};
 		drawcmd_model(	tf,
 						(Model*)res_by_name(g_env.resblob, ResType_Model, cur.model),
 						white_color(), white_color(), 0, 0);
-		tf.pos.z += 0.01;
+		tf.pos.z += 1;
 		drawcmd_model(	tf,
 						(Model*)res_by_name(g_env.resblob, ResType_Model, next.model),
 						(Color) {1, 1, 1, t},
@@ -194,7 +194,6 @@ MOD_API void upd_worldenv(WorldEnv *w, WorldEnv *e)
 	{ // Test ground drawing
 
 		const Model *model = (Model*)res_by_name(g_env.resblob, ResType_Model, "dirt");
-		const Mesh *mesh = model_mesh(model);
 
 		V2i px_ll = {0, g_env.device->win_size.y};
 		V2i px_tr = {g_env.device->win_size.x, 0};
@@ -204,18 +203,18 @@ MOD_API void upd_worldenv(WorldEnv *w, WorldEnv *e)
 		V2i tr = GRID_VEC_W(w_tr.x, w_tr.y);
 
 		int draw_count = 0;
-		for (int y = ll.y - 3; y < tr.y + 1; ++y) {
-		for (int x = ll.x - 3; x < tr.x + 1; ++x) {
+		for (int y = ll.y - 3; y < tr.y + 2; ++y) {
+		for (int x = ll.x - 3; x < tr.x + 3; ++x) {
 			if (x < 0 || y < 0 || x >= GRID_WIDTH_IN_CELLS || y >= GRID_WIDTH_IN_CELLS)
 				continue;
 			if (g_env.physworld->grid.cells[GRID_INDEX(x, y)].material == GRIDCELL_MATERIAL_AIR)
 				continue;
 
 			U64 seed = x + y*10000;
-			float z = random_f32(-0.1, 0.05, &seed);
+			float z = random_f32(-0.05, 0.05, &seed);
 			float scale = 1.3*random_f32(1.5, 1.8, &seed);
 			float rot = random_f32(-0.7, 0.7, &seed);
-			float brightness = random_f32(0.7, 1.0, &seed);
+			float brightness = random_f32(0.5, 1.0, &seed);
 			float x_dif = random_f32(-0.07, 0.07, &seed);
 			float y_dif = random_f32(-0.07, 0.07, &seed);
 			/*
@@ -235,14 +234,11 @@ MOD_API void upd_worldenv(WorldEnv *w, WorldEnv *e)
 			};
 			// @todo Cache mesh so we don't need to recalculate everything every frame
 			Color c = (Color) {brightness, brightness, brightness, 1};
-			drawcmd((T3d) {size, qd_by_axis((V3d) {0, 0, 1}, rot), pos},
-					mesh_vertices(mesh), mesh->v_count,
-					mesh_indices(mesh), mesh->i_count,
-					model_texture(model, 0)->atlas_uv,
+			drawcmd_model((T3d) {size, qd_by_axis((V3d) {0, 0, 1}, rot), pos},
+					model,
 					c, c,
 					0,
-					0.0,
-					false);
+					0.0);
 			++draw_count;
 		}
 		}

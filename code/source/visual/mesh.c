@@ -11,8 +11,9 @@ void vertex_attributes(MeshType type, const VertexAttrib **attribs, U32 *count)
 			{ "a_outline_uv", 2, GL_FLOAT, true, false, offsetof(TriMeshVertex, outline_uv) },
 			{ "a_color", 4, GL_FLOAT, true, false, offsetof(TriMeshVertex, color) },
 			{ "a_outline_color", 4, GL_FLOAT, true, false, offsetof(TriMeshVertex, outline_color) },
-			{ "a_outline_width", 1, GL_FLOAT, true, false, offsetof(TriMeshVertex, outline_width) },
+			{ "a_color_exp", 1, GL_FLOAT, true, false, offsetof(TriMeshVertex, color_exp) },
 			{ "a_outline_exp", 1, GL_FLOAT, true, false, offsetof(TriMeshVertex, outline_exp) },
+			{ "a_outline_width", 1, GL_FLOAT, true, false, offsetof(TriMeshVertex, outline_width) },
 			{ "a_emission", 1, GL_FLOAT, true, false, offsetof(TriMeshVertex, emission) },
 		};
 		if (attribs)
@@ -44,8 +45,9 @@ TriMeshVertex default_vertex()
 	return (TriMeshVertex) {
 		.color = white_color(),
 		.outline_color = white_color(),
-		.outline_width = 1,
+		.color_exp = 1,
 		.outline_exp = 1,
+		.outline_width = 1,
 	};
 }
 
@@ -63,9 +65,10 @@ int json_mesh_to_blob(struct BlobBuf *buf, JsonTok j)
 	JsonTok j_uv = json_value_by_key(j, "uv");
 	JsonTok j_outline_uv = json_value_by_key(j, "outline_uv");
 	JsonTok j_color = json_value_by_key(j, "color");
+	JsonTok j_color_exp = json_value_by_key(j, "color_exp");
 	JsonTok j_outline_color = json_value_by_key(j, "outline_color");
-	JsonTok j_outline_width = json_value_by_key(j, "outline_width");
 	JsonTok j_outline_exp = json_value_by_key(j, "outline_exp");
+	JsonTok j_outline_width = json_value_by_key(j, "outline_width");
 	JsonTok j_ind = json_value_by_key(j, "ind");
 
 	if (json_is_null(j_pos))
@@ -123,15 +126,21 @@ int json_mesh_to_blob(struct BlobBuf *buf, JsonTok j)
 				vertices[i].outline_color = json_color(j);
 			}
 
-			if (!json_is_null(j_outline_width)) {
-				JsonTok j = json_member(j_outline_width, i);
-				vertices[i].outline_width = json_real(j);
+			if (!json_is_null(j_color_exp)) {
+				JsonTok j = json_member(j_color_exp, i);
+				vertices[i].color_exp = json_real(j);
 			}
 
 			if (!json_is_null(j_outline_exp)) {
 				JsonTok j = json_member(j_outline_exp, i);
 				vertices[i].outline_exp = json_real(j);
 			}
+
+			if (!json_is_null(j_outline_width)) {
+				JsonTok j = json_member(j_outline_width, i);
+				vertices[i].outline_width = json_real(j);
+			}
+
 		}
 		for (U32 i = 0; i < i_count; ++i)
 			indices[i] = json_integer(json_member(j_ind, i));
@@ -174,8 +183,9 @@ void mesh_to_json(WJson *j, const Mesh *m)
 	WJson *j_outline_uv = wjson_named_member(j, JsonType_array, "outline_uv");
 	WJson *j_color = wjson_named_member(j, JsonType_array, "color");
 	WJson *j_outline_color = wjson_named_member(j, JsonType_array, "outline_color");
-	WJson *j_outline_width = wjson_named_member(j, JsonType_array, "outline_width");
+	WJson *j_color_exp = wjson_named_member(j, JsonType_array, "color_exp");
 	WJson *j_outline_exp = wjson_named_member(j, JsonType_array, "outline_exp");
+	WJson *j_outline_width = wjson_named_member(j, JsonType_array, "outline_width");
 	WJson *j_ind = wjson_named_member(j, JsonType_array, "ind");
 
 	for (U32 i = 0; i < m->v_count; ++i) {
@@ -185,8 +195,9 @@ void mesh_to_json(WJson *j, const Mesh *m)
 		wjson_append(j_outline_uv, wjson_v2(v2f_to_v2d(v.outline_uv)));
 		wjson_append(j_color, wjson_color(v.color));
 		wjson_append(j_outline_color, wjson_color(v.outline_color));
-		wjson_append(j_outline_width, wjson_number(v.outline_width));
+		wjson_append(j_color_exp, wjson_number(v.color_exp));
 		wjson_append(j_outline_exp, wjson_number(v.outline_exp));
+		wjson_append(j_outline_width, wjson_number(v.outline_width));
 	}
 
 	for (U32 i = 0; i < m->i_count; ++i) {

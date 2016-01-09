@@ -104,6 +104,8 @@ internal const char *gui_value_str(GuiContext *ctx, const char *type_name, void 
 		return gui_str(ctx, "%f", *(F64*)deref_ptr);
 	else if (!strcmp(type_name, "F32") && deref_ptr)
 		return gui_str(ctx, "%f", *(F32*)deref_ptr);
+	else if (!strcmp(type_name, "F32") && deref_ptr)
+		return gui_str(ctx, "%f", *(F32*)deref_ptr);
 	else if ((!strcmp(type_name, "U32") || !strcmp(type_name, "Handle")) && deref_ptr)
 		return gui_str(ctx, "%u", *(U32*)deref_ptr);
 	else if (!strcmp(type_name, "U16") && deref_ptr)
@@ -188,6 +190,16 @@ internal void gui_data_tree(GuiContext *ctx, const char *struct_name, void *stru
 		} else if (!strcmp(m.base_type_name, "F64")) {
 			if (!sel) {
 				gui_doublefield(ctx, label, deref_ptr);
+			} else {
+				if (gui_button(ctx, label)) {
+					ensure(member_ptr == deref_ptr); // Can't refer outside struct
+					sel->ptr = member_ptr; 
+					sel->size = m.size;
+				}
+			}
+		} else if (!strcmp(m.base_type_name, "F32")) {
+			if (!sel) {
+				gui_floatfield(ctx, label, deref_ptr);
 			} else {
 				if (gui_button(ctx, label)) {
 					ensure(member_ptr == deref_ptr); // Can't refer outside struct

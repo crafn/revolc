@@ -28,14 +28,15 @@ typedef struct DrawCmd {
 typedef struct Renderer {
 	// These can be directly written outside rendering system
 	V3d cam_pos;
-	V2d cam_fov;
 	F32 exposure;
+	F32 fov_mul; // 1.0 == 90 degrees
 	Color env_light_color;
 	bool multisample; // Multisampled color buffer
 	U32 msaa_samples;
 
 	// Internals
 
+	V2d cam_fov;
 	V3d prev_cam_pos;
 
 	DrawCmd cmds[MAX_DRAW_CMD_COUNT];

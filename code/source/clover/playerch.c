@@ -308,15 +308,6 @@ void upd_playerch(PlayerCh *p, PlayerCh *p_e, RigidBody *body, RigidBody *body_e
 			}
 		}
 
-		{ // Draw bag
-			F64 scale_x = MIN(sqrt(p->dirt_amount*0.001)*1.1 + 0.3, 1.3);
-			F64 scale_y = MIN(sqrt(p->dirt_amount*0.001) + 0.6, 1.3);
-			T3d tf = {{scale_x, scale_y, 1}, identity_qd(), {p->tf.pos.x, p->tf.pos.y + 1}};
-			drawcmd_model(	tf,
-							(Model*)res_by_name(g_env.resblob, ResType_Model, "dirtbag"),
-							white_color(), white_color(), 0, 0);
-		}
-
 		p->on_ground_timer -= dt;
 		p->time_from_jump += dt;
 	}

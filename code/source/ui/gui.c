@@ -1569,6 +1569,14 @@ GUI_BOOL gui_doublefield(GuiContext *ctx, const char *label, double *value)
 	return ret;
 }
 
+GUI_BOOL gui_floatfield(GuiContext *ctx, const char *label, float *value)
+{
+	double v = *value;
+	GUI_BOOL ret = gui_doublefield(ctx, label, &v);
+	*value = (float)v;
+	return ret;
+}
+
 void gui_label(GuiContext *ctx, const char *label)
 {
 	gui_begin(ctx, label);
