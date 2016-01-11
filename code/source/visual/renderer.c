@@ -1152,6 +1152,8 @@ void render_frame()
 			glUniform2f(uniform_loc(shd->prog_gl_id, "u_occlusion_scale"),
 				occlusion_scale.x, occlusion_scale.y);
 
+			glUniform1f(uniform_loc(shd->prog_gl_id, "u_time"), g_env.time_from_start);
+
 			draw_screen_quad();
 		}
 
