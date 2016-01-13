@@ -11,7 +11,6 @@
 // Allocator types
 typedef enum AtorType {
 	AtorType_none,
-	AtorType_stack, // alloca
 	AtorType_gen, 	// malloc/realloc/free
 	AtorType_linear, // allocates linearly from buffer. free == nop
 	AtorType_dev,
@@ -31,22 +30,12 @@ typedef struct Ator {
 } Ator;
 
 // General allocation functions
-#define ALLOC(ator, size, tag) \
-	( ator->type == AtorType_stack ? \
-			STACK_ALLOC(size) : \
-			alloc_impl(ator, size, NULL, tag) )
-#define REALLOC(ator, ptr, size, tag) \
-	( ator->type == AtorType_stack ? \
-			STACK_ALLOC(size) : \
-			alloc_impl(ator, size, ptr, tag) )
-#define ZERO_ALLOC(ator, size, tag) \
-	( ator->type == AtorType_stack ? \
-			ZERO_STACK_ALLOC(size) : \
-			memset(alloc_impl(ator, size, NULL, tag), 0, size) )
-#define FREE(ator, ptr) (free_impl(ator, ptr))
+#define ALLOC(ator, size, tag) (alloc_impl((ator), (size), NULL, (tag)))
+#define REALLOC(ator, ptr, size, tag) (alloc_impl((ator), (size), ptr, (tag)))
+#define ZERO_ALLOC(ator, size, tag) (memset(alloc_impl((ator), (size), NULL, (tag)), 0, (size)))
+#define FREE(ator, ptr) (free_impl((ator), (ptr)))
 
 // Specific allocators to be used with general allocation functions
-REVOLC_API WARN_UNUSED Ator *stack_ator(); // No need to free
 REVOLC_API WARN_UNUSED Ator *gen_ator();
 REVOLC_API WARN_UNUSED Ator linear_ator(void *buf, U32 size, const char *tag);
 REVOLC_API WARN_UNUSED Ator *dev_ator();

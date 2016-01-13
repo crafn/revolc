@@ -58,7 +58,7 @@ void plat_init_impl(Device* d, const char* title, V2i reso)
 
 		if (!display)
 		{
-			plat_print("Failed to open X display\n");
+			plat_print("Failed to open X display");
 			exit(1);
 		}
 
@@ -85,7 +85,7 @@ void plat_init_impl(Device* d, const char* title, V2i reso)
 		GLXFBConfig* fbc = glXChooseFBConfig(display, DefaultScreen(display), visual_attribs, &fbcount);
 		if (!fbc)
 		{
-			plat_print( "Failed to retrieve a framebuffer config\n" );
+			plat_print("Failed to retrieve a framebuffer config");
 			exit(1);
 		}
 
@@ -131,9 +131,8 @@ void plat_init_impl(Device* d, const char* title, V2i reso)
 					  0, 0, reso.x, reso.y, 0, vi->depth, InputOutput, 
 					  vi->visual, 
 					  CWBorderPixel|CWColormap|CWEventMask, &swa );
-		if ( !win )
-		{
-			plat_print( "Failed to create window.\n" );
+		if (!win) {
+			plat_print( "Failed to create window" );
 			exit(1);
 		}
 
@@ -142,7 +141,7 @@ void plat_init_impl(Device* d, const char* title, V2i reso)
 
 		XStoreName( display, win, title );
 
-		//plat_print( "Mapping window\n" );
+		//plat_print( "Mapping window" );
 		XMapWindow( display, win );
 
 		// NOTE: It is not necessary to create or make current to a context before
@@ -184,7 +183,7 @@ void plat_init_impl(Device* d, const char* title, V2i reso)
 			// Sync to ensure any errors generated are processed->
 			XSync( display, False );
 			if ( !ctxErrorOccurred && ctx )
-				plat_print("Created GL 3.2 context\n");
+				plat_print("Created GL 3.2 context");
 			else
 				plat_fail("Couldn't create GL 3.2 context");
 		}
@@ -196,14 +195,14 @@ void plat_init_impl(Device* d, const char* title, V2i reso)
 
 		if ( ctxErrorOccurred || !ctx )
 		{
-			plat_print( "Failed to create an OpenGL context\n" );
+			plat_print("Failed to create an OpenGL context");
 			exit(1);
 		}
 
 		// Verifying that context is a direct context
 		if ( ! glXIsDirect ( display, ctx ) )
 		{
-			plat_print( "Indirect GLX rendering context obtained\n" );
+			plat_print("Indirect GLX rendering context obtained");
 		}
 
 		glXMakeCurrent(display, win, ctx);

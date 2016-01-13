@@ -531,6 +531,7 @@ Qf qf_by_xy_rot_matrix(F32 cs, F32 sn)
 static
 Qf lerp_qf(Qf a, Qf b, F32 t)
 {
+	// @todo Remove branch
 	if (a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w < 0.0f) // Pick shortest path
 		b = (Qf) {-b.x, -b.y, -b.z, -b.w};
 	return (Qf) {a.x*(1 - t) + b.x*t, a.y*(1 - t) + b.y*t, a.z*(1 - t) + b.z*t, a.w*(1 - t) + b.w*t, };
