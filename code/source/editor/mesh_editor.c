@@ -115,6 +115,10 @@ void gui_uvbox(GuiContext *gui, ModelEntity *m, bool outline_uv)
 		}
 	}
 
+	V2i padding = {20, 20};
+	pix_pos = add_v2i(pix_pos, padding);
+	pix_size = sub_v2i(pix_size, scaled_v2i(2, padding));
+
 	T3d coords = {
 		{pix_size.x, -pix_size.y, 1},
 		identity_qd(),
@@ -126,10 +130,6 @@ void gui_uvbox(GuiContext *gui, ModelEntity *m, bool outline_uv)
 	if (cursor_transform_delta_pixels(&delta, box_label, coords)) {
 		transform_mesh(m, delta, outline_uv ? MeshTransformType_outline_uv : MeshTransformType_uv);
 	}
-
-	V2i padding = {20, 20};
-	pix_pos = add_v2i(pix_pos, padding);
-	pix_size = sub_v2i(pix_size, scaled_v2i(2, padding));
 
 	if (!outline_uv)
 		drawcmd_px_model_image(pix_pos, pix_size, m, gui_layer(gui) + 2);
