@@ -27,16 +27,13 @@ void free_aitest(U32 handle)
 void * storage_aitest()
 { return temptest_aitest_storage; }
 
-void upd_aitest(	AiTest *t,
-					AiTest *e)
+void upd_aitest(AiTest *t)
 {
 	V2d target = {0.0, 30.0};
-	for (;t != e; ++t) {
-		V2d p = {t->input_pos.x, t->input_pos.y};
-		V2d dif = sub_v2d(target, p);
-		F64 r2 = length_sqr_v2d(dif);
-		t->force = scaled_v2d(1000.0/(r2 + 10.0), dif);
-	}
+	V2d p = {t->input_pos.x, t->input_pos.y};
+	V2d dif = sub_v2d(target, p);
+	F64 r2 = length_sqr_v2d(dif);
+	t->force = scaled_v2d(1000.0/(r2 + 10.0), dif);
 }
 
 void rotate_modelentity(ModelEntity *e, U32 count)

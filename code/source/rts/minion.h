@@ -11,7 +11,7 @@ typedef struct Minion {
 	F32 health;
 } Minion;
 
-MOD_API void upd_minion(Minion *begin, Minion *end);
+MOD_API void upd_minion(Minion *minion);
 MOD_API void pack_minion(struct WArchive *ar, const Minion *begin, const Minion *end);
 MOD_API void unpack_minion(struct RArchive *ar, Minion *begin, Minion *end);
 

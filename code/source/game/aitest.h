@@ -17,8 +17,7 @@ typedef struct AiTest {
 REVOLC_API U32 resurrect_aitest(const AiTest *dead);
 REVOLC_API void free_aitest(U32 handle);
 REVOLC_API void * storage_aitest();
-REVOLC_API void upd_aitest(	AiTest *t,
-							AiTest * e);
+REVOLC_API void upd_aitest(AiTest *t);
 
 REVOLC_API
 void rotate_modelentity(ModelEntity *e, U32 count);

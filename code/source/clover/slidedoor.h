@@ -16,6 +16,6 @@ typedef struct SlideDoor {
 } PACKED SlideDoor;
 
 MOD_API void init_slidedoor(SlideDoor *d);
-MOD_API void upd_slidedoor(SlideDoor *door, SlideDoor *door_end, RigidBody *body, RigidBody *body_end);
+MOD_API void upd_slidedoor(SlideDoor *door, RigidBody *body);
 
 #endif

@@ -22,6 +22,6 @@ REVOLC_API
 U32 resurrect_clipinst(ClipInst *dead);
 
 REVOLC_API
-void upd_clipinst(ClipInst *inst, ClipInst *e);
+void upd_clipinst(ClipInst *inst);
 
 #endif // REVOLC_ANIMATION_CLIPINST_H

@@ -15,18 +15,16 @@ U32 resurrect_clipinst(ClipInst *dead)
 	return NULL_HANDLE;
 }
 
-void upd_clipinst(ClipInst *inst, ClipInst *e)
+void upd_clipinst(ClipInst *inst)
 {
 	F64 dt = g_env.world->dt;
-	for (; inst != e; ++inst) {
-		// This hurts!
-		const Clip *c =
-			(Clip*)res_by_name(g_env.resblob, ResType_Clip, inst->clip_name);
+	// This hurts!
+	const Clip *c =
+		(Clip*)res_by_name(g_env.resblob, ResType_Clip, inst->clip_name);
 
-		inst->t += dt;
-		while (inst->t > c->duration)
-			inst->t -= c->duration;
+	inst->t += dt;
+	while (inst->t > c->duration)
+		inst->t -= c->duration;
 
-		inst->pose = calc_clip_pose(c, inst->t);
-	}
+	inst->pose = calc_clip_pose(c, inst->t);
 }

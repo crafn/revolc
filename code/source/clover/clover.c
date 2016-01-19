@@ -129,9 +129,8 @@ void adjust_soundtrack(const char *sound_name, F32 vol)
 		set_sound_vol(h, vol);
 }
 
-MOD_API void upd_worldenv(WorldEnv *w, WorldEnv *e)
+MOD_API void upd_worldenv(WorldEnv *w)
 {
-	ensure(w + 1 == e);
 	w->time += g_env.world->dt;
 
 	if (g_env.device->key_down[KEY_KP_9])
@@ -245,28 +244,27 @@ MOD_API void upd_worldenv(WorldEnv *w, WorldEnv *e)
 	}
 }
 
-MOD_API void upd_grass(	ModelEntity *front,	ModelEntity *front_e,
-						ModelEntity *back,	ModelEntity *back_e,
-						RigidBody *body,	RigidBody *body_e)
+MOD_API void upd_grass(	ModelEntity *front,
+						ModelEntity *back,
+						RigidBody *body)
 {
-	for (; front != front_e; ++front, ++back, ++body) {
-		T3d tf = body->tf;
+	T3d tf = body->tf;
 
-		back->tf = tf;
-		back->tf.pos.z -= 0.05;
+	back->tf = tf;
+	back->tf.pos.z -= 0.05;
 
-		front->tf = tf;
-		front->tf.pos.z += 0.05;
+	front->tf = tf;
+	front->tf.pos.z += 0.05;
 
-		V2i cell_vec = GRID_VEC_W(body->tf.pos.x, body->tf.pos.y);
-		V2i above_cell_vec = {cell_vec.x, cell_vec.y + 1};
-		if (grid_cell(cell_vec).material == GRIDCELL_MATERIAL_AIR) {
-			remove_node_group(g_env.world, body); // Kill me
-		}
-		if (grid_cell(above_cell_vec).material != GRIDCELL_MATERIAL_AIR) {
-			remove_node_group(g_env.world, body); // Kill me
-		}
+	V2i cell_vec = GRID_VEC_W(body->tf.pos.x, body->tf.pos.y);
+	V2i above_cell_vec = {cell_vec.x, cell_vec.y + 1};
+	if (grid_cell(cell_vec).material == GRIDCELL_MATERIAL_AIR) {
+		remove_node_group(g_env.world, body); // Kill me
 	}
+	if (grid_cell(above_cell_vec).material != GRIDCELL_MATERIAL_AIR) {
+		remove_node_group(g_env.world, body); // Kill me
+	}
+
 }
 
 MOD_API void init_clover()

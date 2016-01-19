@@ -14,8 +14,7 @@ typedef Handle (*ResurrectNodeImpl)(void *dead);
 typedef void (*OverwriteNodeImpl)(void *node, const void *dead);
 typedef void (*FreeNodeImpl)(Handle h, void *data);
 typedef void * (*StorageNodeImpl)();
-typedef void (*UpdNodeImpl)(void *begin,
-							void *end);
+typedef void (*UpdNodeImpl)(void *node);
 typedef void (*PackNodeImpl)(WArchive *ar, const void *begin, const void *end);
 typedef void (*UnpackNodeImpl)(RArchive *ar, void *begin, void *end);
 

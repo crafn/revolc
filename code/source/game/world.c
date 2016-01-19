@@ -247,10 +247,13 @@ void upd_world(World *w, F64 dt)
 		const U32 batch_size = node_i - batch_begin_i;
 		updated_count += batch_size; 
 		if (batch_begin_type->upd) {
-			U8 *begin = node_impl(w, NULL, &w->sort_space[batch_begin_i]);
-			batch_begin_type->upd(
-					begin,
-					begin + batch_size*batch_begin_type->size);
+			U8 *it = node_impl(w, NULL, &w->sort_space[batch_begin_i]);
+			U32 size = batch_begin_type->size;
+			U8 *end = it + batch_size*size;
+			while (it < end) {
+				batch_begin_type->upd(it);
+				it += size;
+			}
 		}
 		++batch_count;
 	}
@@ -292,40 +295,27 @@ void upd_world(World *w, F64 dt)
 		} break;
 		case CmdType_call: {
 			// This is ugly. Call function pointer with corresponding node parameters
-			/// @todo Generate this
 			switch (cmd.call.p_node_count) {
 			case 0:
 				((void (*)())cmd.call.fptr)();
 			break;
 			case 1: {
 				void * p1_impl = node_impl(w, NULL, &w->nodes[cmd.call.p_nodes[0]]);
-				U32 p1_size = w->nodes[cmd.call.p_nodes[0]].type->size;
-				((void (*)(void *, void *))cmd.call.fptr)(
-					p1_impl, p1_impl + p1_size);
+				((void (*)(void *))cmd.call.fptr)(
+					p1_impl);
 			} break;
 			case 2: {
 				void * p1_impl = node_impl(w, NULL, &w->nodes[cmd.call.p_nodes[0]]);
-				U32 p1_size = w->nodes[cmd.call.p_nodes[0]].type->size;
 				void * p2_impl = node_impl(w, NULL, &w->nodes[cmd.call.p_nodes[1]]);
-				U32 p2_size = w->nodes[cmd.call.p_nodes[1]].type->size;
-				((void (*)(void *, void *,
-						   void *, void *))cmd.call.fptr)(
-					p1_impl, p1_impl + p1_size,
-					p2_impl, p2_impl + p2_size);
+				((void (*)(void *, void *))cmd.call.fptr)(
+					p1_impl, p2_impl);
 			} break;
 			case 3: {
 				void * p1_impl = node_impl(w, NULL, &w->nodes[cmd.call.p_nodes[0]]);
-				U32 p1_size = w->nodes[cmd.call.p_nodes[0]].type->size;
 				void * p2_impl = node_impl(w, NULL, &w->nodes[cmd.call.p_nodes[1]]);
-				U32 p2_size = w->nodes[cmd.call.p_nodes[1]].type->size;
 				void * p3_impl = node_impl(w, NULL, &w->nodes[cmd.call.p_nodes[2]]);
-				U32 p3_size = w->nodes[cmd.call.p_nodes[2]].type->size;
-				((void (*)(void *, void *,
-						   void *, void *,
-						   void *, void *))cmd.call.fptr)(
-					p1_impl, p1_impl + p1_size,
-					p2_impl, p2_impl + p2_size,
-					p3_impl, p3_impl + p3_size);
+				((void (*)(void *, void *, void *))cmd.call.fptr)(
+					p1_impl,  p2_impl, p3_impl);
 			} break;
 			default: fail("Too many node params");
 			}

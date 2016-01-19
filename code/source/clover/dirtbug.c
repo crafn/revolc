@@ -159,26 +159,24 @@ void choose_safe_route(DirtBug *bug)
 	}
 }
 
-MOD_API void upd_dirtbug(DirtBug *bug, DirtBug *bug_end)
+MOD_API void upd_dirtbug(DirtBug *bug)
 {
 	//F64 dt = g_env.world->dt;
 
-	for (; bug != bug_end; ++bug) {
-		bug->velocity_out = (V2d) {bug->velocity_in.x, bug->velocity_in.y};
-		bug->max_force_out = 100.0;
-		//debug_print("DirtBug target %f, %f", bug->waypoints[0].x, bug->waypoints[1].y);
-		if (bug->next_waypoint_ix >= bug->waypoint_count) {
-			choose_safe_route(bug);
+	bug->velocity_out = (V2d) {bug->velocity_in.x, bug->velocity_in.y};
+	bug->max_force_out = 100.0;
+	//debug_print("DirtBug target %f, %f", bug->waypoints[0].x, bug->waypoints[1].y);
+	if (bug->next_waypoint_ix >= bug->waypoint_count) {
+		choose_safe_route(bug);
+	} else {
+		ensure(bug->next_waypoint_ix < DIRTBUG_MAX_WAYPOINT_COUNT);
+		V2d dif = sub_v2d(bug->waypoints[bug->next_waypoint_ix], v3d_to_v2d(bug->pos));
+		//debug_print("dif %f, %f", dif.x, dif.y);
+		if (length_sqr_v2d(dif) < 1.0f*1.0f) {
+			++bug->next_waypoint_ix;
 		} else {
-			ensure(bug->next_waypoint_ix < DIRTBUG_MAX_WAYPOINT_COUNT);
-			V2d dif = sub_v2d(bug->waypoints[bug->next_waypoint_ix], v3d_to_v2d(bug->pos));
-			//debug_print("dif %f, %f", dif.x, dif.y);
-			if (length_sqr_v2d(dif) < 1.0f*1.0f) {
-				++bug->next_waypoint_ix;
-			} else {
-				dif = normalized_v2d(dif);
-				bug->velocity_out = scaled_v2d(2.0, dif);
-			}
+			dif = normalized_v2d(dif);
+			bug->velocity_out = scaled_v2d(2.0, dif);
 		}
 	}
 }
