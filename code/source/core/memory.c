@@ -84,12 +84,6 @@ void free_impl(Ator *ator, void *ptr)
 	}
 }
 
-Ator *stack_ator()
-{
-	local_persist Ator ator = { .type = AtorType_stack, .tag = "stack" };
-	return &ator;
-}
-
 Ator *gen_ator()
 {
 	local_persist Ator ator = { .type = AtorType_gen, .tag = "general_heap" };

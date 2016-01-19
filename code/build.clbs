@@ -207,13 +207,14 @@ def buildInfo(env, tags):
 		# That function has been now updated to 7.0.1, so could try enabling this again
 		target_flags += [ "ffast-math" ]
 
+	target_flags += [ "march=native" ]
 	if "debug" in tags:
 		cfg= "debug"
 		target_defines += [ "BUILD=1" ]
 		target_flags += [ "g", "O0" ]
 	elif "dev" in tags:
 		cfg= "dev"
-		target_flags += [ "g", "O2", "mtune=native", "march=native" ]
+		target_flags += [ "g", "O2", "mtune=native" ]
 		target_defines += [ "BUILD=2" ]
 	else:
 		fail("Invalid tags: " + str(tags))

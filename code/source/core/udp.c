@@ -21,14 +21,12 @@ bool wrapped_gr(U32 s1, U32 s2, U32 max)
 // (re)init
 internal void init_udp_peer(UdpPeer *peer, U16 local_port, IpAddress *remote_addr)
 {
-	*peer = (UdpPeer) {
-		.socket = open_udp_socket(local_port),
-		.local_port = local_port,
-		.remote_addr = remote_addr ? *remote_addr : (IpAddress) {},
-		.rtt = 0.5, // Better to be too large than too small at the startup
-		.next_msg_id = 1, // 0 is heartbeat
-		.sent_msg_acks = peer->sent_msg_acks,
-	};
+	peer->socket = open_udp_socket(local_port);
+	peer->local_port = local_port;
+	peer->remote_addr = remote_addr ? *remote_addr : (IpAddress) {};
+	peer->rtt = 0.5; // Better to be too large than too small at the startup
+	peer->next_msg_id = 1; // 0 is heartbeat
+
 	for (U32 i = 0; i < UDP_PACKET_ID_COUNT; ++i) {
 		peer->packet_id_to_send_buffer_ix[i] = NULL_HANDLE;
 	}

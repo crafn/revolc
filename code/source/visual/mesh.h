@@ -40,7 +40,7 @@ typedef struct TriMeshVertex {
 	F32 emission;
 	bool selected; // Editor
 	bool pad[47];
-} TriMeshVertex ALIGNED(128);
+} PACKED TriMeshVertex; // 128 bytes
 
 REVOLC_API TriMeshVertex default_vertex();
 
