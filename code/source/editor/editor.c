@@ -252,9 +252,7 @@ void upd_editor(F64 *world_dt)
 
 	{ // F-keys
 		if (g_env.device->key_pressed[KEY_F1])
-			e->state = EditorState_mesh;
-		if (g_env.device->key_pressed[KEY_F2])
-			e->state = EditorState_armature;
+			e->state = EditorState_res;
 		if (g_env.device->key_pressed[KEY_F3])
 			e->state = EditorState_world;
 		if (g_env.device->key_pressed[KEY_F4])
@@ -299,7 +297,9 @@ void upd_editor(F64 *world_dt)
 		e->state = EditorState_invisible;
 	
 	// Prevent overwriting animation clip pose by other nodes
-	g_env.world->editor_disable_memcpy_cmds = e->state == EditorState_armature;
+	g_env.world->editor_disable_memcpy_cmds =
+		(e->state == EditorState_res && 
+		e->res_state == EditorState_Res_armature);
 
 	if (e->state != EditorState_invisible) {
 		// In editor
@@ -372,21 +372,42 @@ void upd_editor(F64 *world_dt)
 		bool tab_pressed = g_env.device->key_pressed[KEY_TAB];
 		if (tab_pressed)
 			toggle_bool(&e->is_edit_mode);
-		if (e->state == EditorState_mesh && e->cur_model_h == NULL_HANDLE)
-			e->is_edit_mode = false;
-		if (	e->state == EditorState_armature &&
-				e->ae_state.comp_h == NULL_HANDLE)
-			e->is_edit_mode = false;
+		if (e->state == EditorState_res) {
+			if (	e->res_state == EditorState_Res_mesh &&
+					e->cur_model_h == NULL_HANDLE)
+				e->is_edit_mode = false;
+			if (	e->res_state == EditorState_Res_armature &&
+					e->ae_state.comp_h == NULL_HANDLE)
+				e->is_edit_mode = false;
+		}
 
-		bool mesh_editor_active = e->state == EditorState_mesh;
-		bool armature_editor_active = e->state == EditorState_armature;
+		bool mesh_editor_active = e->state == EditorState_res && e->res_state == EditorState_Res_mesh;
+		bool armature_editor_active = e->state == EditorState_res && e->res_state == EditorState_Res_armature;
 
 		do_mesh_editor(&e->cur_model_h, &e->is_edit_mode, mesh_editor_active);
 		do_armature_editor(	&e->ae_state,
 							e->is_edit_mode,
 							armature_editor_active);
 
-		if (e->state == EditorState_world) {
+		if (e->state == EditorState_res) {
+
+			gui_begin_panel(ctx, "res_tools|Resource tools");
+				// @todo Selected res names
+				/*const char *str = gui_str(	ctx, "Selected: %s: %s",
+											restype_to_str(t),
+											res ? res->name : "<none>");
+				gui_label(ctx, str);
+				*/
+
+				if (gui_radiobutton(ctx, "res_tool_elem+mesh|Mesh", e->res_state == EditorState_Res_mesh))
+					e->res_state = EditorState_Res_mesh;
+				if (gui_radiobutton(ctx, "res_tool_elem+armature|Armature", e->res_state == EditorState_Res_armature))
+					e->res_state = EditorState_Res_armature;
+				if (gui_radiobutton(ctx, "res_tool_elem+shape|Shape", e->res_state == EditorState_Res_shape))
+					e->res_state = EditorState_Res_shape;
+			gui_end_panel(ctx);
+		} else if (e->state == EditorState_world) {
+
 			gui_begin_panel(ctx, "world_tools|World tools");
 				gui_checkbox(ctx, "world_tool_elem+prog|Show program state", &e->show_prog_state);
 				gui_checkbox(ctx, "world_tool_elem+nodes|Show nodes", &e->show_node_list);

@@ -28,6 +28,31 @@ void load_layout(GuiContext *ctx)
 
 	{
 		GuiElementLayout l = {0};
+		l.id = 271798778;
+		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "gui_client:res_tools");
+		l.on_same_row = 0;
+		l.has_offset = 0;
+		l.offset[0] = 0;
+		l.offset[1] = 0;
+		l.has_size = 1;
+		l.size[0] = 100;
+		l.size[1] = 20;
+		l.prevent_resizing = 0;
+		l.align_left = 0;
+		l.align_right = 0;
+		l.align_top = 0;
+		l.align_bottom = 0;
+		l.padding[0] = 0;
+		l.padding[1] = 0;
+		l.padding[2] = 0;
+		l.padding[3] = 0;
+		l.gap[0] = 0;
+		l.gap[1] = 5;
+		append_element_layout(ctx, l);
+	}
+
+	{
+		GuiElementLayout l = {0};
 		l.id = 318080033;
 		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "show_cmd_list|Show cmds");
 		l.on_same_row = 0;
@@ -482,11 +507,11 @@ void load_layout(GuiContext *ctx)
 		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "gui_layoutwin");
 		l.on_same_row = 0;
 		l.has_offset = 1;
-		l.offset[0] = 642;
-		l.offset[1] = 18;
+		l.offset[0] = 586;
+		l.offset[1] = 54;
 		l.has_size = 1;
-		l.size[0] = 363;
-		l.size[1] = 691;
+		l.size[0] = 416;
+		l.size[1] = 643;
 		l.prevent_resizing = 0;
 		l.align_left = 0;
 		l.align_right = 0;
@@ -1096,6 +1121,56 @@ void load_layout(GuiContext *ctx)
 		l.padding[1] = 0;
 		l.padding[2] = 10;
 		l.padding[3] = 5;
+		l.gap[0] = 0;
+		l.gap[1] = 0;
+		append_element_layout(ctx, l);
+	}
+
+	{
+		GuiElementLayout l = {0};
+		l.id = 3610928950;
+		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "res_tools|Resource tools");
+		l.on_same_row = 0;
+		l.has_offset = 1;
+		l.offset[0] = 0;
+		l.offset[1] = 0;
+		l.has_size = 1;
+		l.size[0] = 116;
+		l.size[1] = 89;
+		l.prevent_resizing = 1;
+		l.align_left = 0;
+		l.align_right = 0;
+		l.align_top = 0;
+		l.align_bottom = 0;
+		l.padding[0] = 5;
+		l.padding[1] = 5;
+		l.padding[2] = 5;
+		l.padding[3] = 0;
+		l.gap[0] = 0;
+		l.gap[1] = 0;
+		append_element_layout(ctx, l);
+	}
+
+	{
+		GuiElementLayout l = {0};
+		l.id = 3641925039;
+		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "res_tool_elem");
+		l.on_same_row = 0;
+		l.has_offset = 0;
+		l.offset[0] = 0;
+		l.offset[1] = 0;
+		l.has_size = 1;
+		l.size[0] = 100;
+		l.size[1] = 20;
+		l.prevent_resizing = 0;
+		l.align_left = 1;
+		l.align_right = 1;
+		l.align_top = 0;
+		l.align_bottom = 0;
+		l.padding[0] = 5;
+		l.padding[1] = 0;
+		l.padding[2] = 5;
+		l.padding[3] = 0;
 		l.gap[0] = 0;
 		l.gap[1] = 0;
 		append_element_layout(ctx, l);

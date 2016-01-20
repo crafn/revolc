@@ -185,8 +185,6 @@ void do_armature_editor(	ArmatureEditor *state,
 			a = entity->armature;	
 		}
 
-		gui_res_info(ResType_Armature, a ? &a->res : NULL);
-
 		{ // Timeline box
 			gui_begin(gui, "timeline");
 			V2i px_pos, px_size;

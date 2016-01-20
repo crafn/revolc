@@ -6,11 +6,16 @@
 
 typedef enum {
 	EditorState_invisible,
-	EditorState_mesh,
-	EditorState_armature,
+	EditorState_res,
 	EditorState_world,
 	EditorState_gui_test,
 } EditorState;
+
+typedef enum {
+	EditorState_Res_mesh,
+	EditorState_Res_armature,
+	EditorState_Res_shape,
+} EditorState_Res;
 
 typedef struct CreateCmdEditor {
 	bool select_src;
@@ -35,6 +40,7 @@ typedef struct Editor {
 	bool is_edit_mode; // Edit or object mode
 
 	EditorState state;
+	EditorState_Res res_state; // When in EditorState_res
 	bool edit_layout;
 
 	bool show_prog_state;
