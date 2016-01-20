@@ -40,8 +40,7 @@ typedef struct NodeGroupDef_Cmd {
 } PACKED NodeGroupDef_Cmd;
 
 typedef struct NodeGroupDef_Node_Defaults {
-	char dst[RES_NAME_SIZE];
-	char src[RES_NAME_SIZE];
+	char str[MAX_CMD_STR_SIZE]; // "member = value"
 } PACKED NodeGroupDef_Node_Defaults;
 
 typedef struct NodeGroupDef_Node {

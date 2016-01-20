@@ -390,6 +390,7 @@ void upd_editor(F64 *world_dt)
 			gui_begin_panel(ctx, "world_tools|World tools");
 				gui_checkbox(ctx, "world_tool_elem+prog|Show program state", &e->show_prog_state);
 				gui_checkbox(ctx, "world_tool_elem+nodes|Show nodes", &e->show_node_list);
+				gui_checkbox(ctx, "world_tool_elem+nodegroupdefs|Create NodeGroup", &e->show_nodegroupdef_list);
 				gui_checkbox(ctx, "world_tool_elem+cmds|Show commands", &e->show_cmd_list);
 				gui_checkbox(ctx, "world_tool_elem+create_cmd|Create command", &e->show_create_cmd);
 				if (gui_button(ctx, "world_tool_elem+delete_cmds|Delete selected commands")) {
@@ -400,7 +401,6 @@ void upd_editor(F64 *world_dt)
 						free_cmd(g_env.world, i);
 					}
 				}
-				gui_checkbox(ctx, "world_tool_elem+nodegroupdefs|Show NodeGroupDefs", &e->show_nodegroupdef_list);
 				gui_slider(ctx, "world_tool_elem+dt_mul|Time mul", &e->world_time_mul, 0.0f, 10.0f);
 				if (gui_button(ctx, "world_tool_elem+pause_game|Toggle pause")) {
 					if (e->world_time_mul > 0.0)

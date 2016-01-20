@@ -15,7 +15,9 @@ typedef enum {
 	TokType_dot, // .
 	TokType_open_paren, // (
 	TokType_close_paren, // )
-	TokType_number,
+	TokType_int,
+	TokType_float,
+	TokType_str,
 	TokType_kw_if, // if
 	TokType_unknown
 } TokType;
@@ -103,13 +105,13 @@ void tokenize(Token *dst_tokens, U32 *next_tok, U32 max_toks, const char* conten
 			case TokState_none:
 				if (single_char_token_type(*cur) != TokType_unknown)
 					state = TokState_maybe_single_char;
-				else if (*cur >= '0' && *cur <= '9')
+				else if ((*cur >= '0' && *cur <= '9') || *cur == '-') // @todo - should really be unary op
 					state = TokState_number;
 				else if (	(*cur >= 'a' && *cur <= 'z') ||
 							(*cur >= 'A' && *cur <= 'Z') ||
 							(*cur == '_'))
 					state = TokState_name;
-				else if (*cur == '\"')
+				else if (*cur == '\"' || *cur == '\'')
 					state = TokState_str;
 				tok_begin = cur;
 			break;
@@ -127,13 +129,14 @@ void tokenize(Token *dst_tokens, U32 *next_tok, U32 max_toks, const char* conten
 			case TokState_number:
 				if (	whitespace(*cur) ||
 						single_char_token_type(*cur) != TokType_unknown) {
-					if (state == TokState_number_after_dot) {
+					/*if (state == TokState_number_after_dot) {
 						// `123.` <- last dot is detected and removed,
-						commit(&state, dst_tokens, next_tok, max_toks, tok_begin, cur - 1, TokType_number, end);
+						commit(&state, dst_tokens, next_tok, max_toks, tok_begin, cur - 1, TokType_float, end);
 						cur -= 2;
 						break;
-					} else if (*cur != '.') {
-						commit(&state, dst_tokens, next_tok, max_toks, tok_begin, cur, TokType_number, end);
+					} else */ if (*cur != '.') {
+						TokType type = state == TokState_number ? TokType_int : TokType_float;
+						commit(&state, dst_tokens, next_tok, max_toks, tok_begin, cur, type, end);
 						--cur;
 						break;
 					}
@@ -141,8 +144,6 @@ void tokenize(Token *dst_tokens, U32 *next_tok, U32 max_toks, const char* conten
 
 				if (*cur == '.')
 					state = TokState_number_after_dot;
-				else
-					state = TokState_number;
 			break;
 			case TokState_name:
 				if (	whitespace(*cur) ||
@@ -152,8 +153,8 @@ void tokenize(Token *dst_tokens, U32 *next_tok, U32 max_toks, const char* conten
 				}
 			break;
 			case TokState_str:
-				if (*cur == '\"')
-					commit(&state, dst_tokens, next_tok, max_toks, tok_begin + 1, cur, TokType_name, end);
+				if (*cur == '\"' || *cur == '\'')
+					commit(&state, dst_tokens, next_tok, max_toks, tok_begin + 1, cur, TokType_str, end);
 			break;
 			default:;
 		}
@@ -175,18 +176,14 @@ U32 node_i_by_name(const NodeGroupDef *def, const char *name)
 	fail("Node not found: '%s'", name);
 }
 
-// Finds offset and size of the sub-member in "foo.bar.asdfg.hsdg"
+// Finds type, offset and size of the sub-member in "foo.bar.asdfg.hsdg"
 internal
-void find_member_storage(U32 *offset, U32 *size, const char *type_name, const Token *tok)
+void find_member_storage(const char **member_type_name, U32 *offset, U32 *size, const char *type_name, const Token *tok)
 {
+	if (member_type_name)
+		*member_type_name = NULL;
 	*offset = 0;
 	*size = 0;
-
-	// Skip over "struct_var_name." as we already have `type_name`
-	ensure(tok->type == TokType_name);
-	++tok;
-	ensure(tok->type == TokType_dot);
-	++tok;
 
 	while (tok->type != TokType_eof) {
 		ensure(tok->type == TokType_name);
@@ -197,6 +194,8 @@ void find_member_storage(U32 *offset, U32 *size, const char *type_name, const To
 		U32 member_ix = rtti_member_index(type_name, member_name);
 		*offset += s->members[member_ix].offset;
 		const char *next_type_name = s->members[member_ix].base_type_name;
+		if (member_type_name)
+			*member_type_name = next_type_name;
 
 		++tok;
 
@@ -269,8 +268,8 @@ void parse_cmd(NodeGroupDef_Cmd *cmd, const Token *toks, U32 tok_count, const No
 		cmd->dst_node_i = dst_node_i;
 		U32 dst_size;
 		U32 src_size;
-		find_member_storage(&cmd->dst_offset, &dst_size, dst_type_name, &toks[0]);
-		find_member_storage(&cmd->src_offset, &src_size, src_type_name, &toks[src_node_tok_i]);
+		find_member_storage(NULL, &cmd->dst_offset, &dst_size, dst_type_name, &toks[2]);
+		find_member_storage(NULL, &cmd->src_offset, &src_size, src_type_name, &toks[src_node_tok_i + 2]);
 		ensure(dst_size >= src_size); // Allow memcpying V2f to V3f
 		cmd->size = src_size;
 	} else if (toks[1].type == TokType_open_paren) {
@@ -318,23 +317,72 @@ void init_nodegroupdef(NodeGroupDef *def)
 	for (U32 node_i = 0; node_i < def->node_count; ++node_i) {
 		NodeGroupDef_Node *node = &def->nodes[node_i];
 
+		// Default values
 		for (U32 i = 0; i < node->defaults_count; ++i) {
-			const char *field_str = node->defaults[i].dst;
-			const char *value_str = node->defaults[i].src;
+			const char *str = node->defaults[i].str;
 
-			StructRtti *s = rtti_struct(node->type_name);
-			ensure(s);
-			U32 field_ix = rtti_member_index(node->type_name, field_str);
-			U32 size = s->members[field_ix].size;
-			U32 offset = s->members[field_ix].offset;
+			const U32 max_tokens = 64;
+			Token toks[max_tokens];
+			U32 tok_count;
+			tokenize(toks, &tok_count, max_tokens, str);
 
-			const U32 value_size = strlen(value_str) + 1;
-			ensure(offset + size < node->default_struct_size);
-			ensure(value_size <= size);
-			memcpy(	node->default_struct + offset, value_str,
-					value_size);
-			memset(	node->default_struct_set_bytes + offset, 1,
-					value_size);
+			// Find src node token after =
+			U32 src_value_tok_i = 1;
+			while (	src_value_tok_i < tok_count &&
+					toks[src_value_tok_i].type != TokType_assign)
+				++src_value_tok_i;
+			++src_value_tok_i;
+			ensure(src_value_tok_i < tok_count);
+
+			U32 dst_offset;
+			U32 dst_size;
+			const char *type_name;
+			find_member_storage(&type_name, &dst_offset, &dst_size, node->type_name, &toks[0]);
+			void *dst_ptr = &node->default_struct[dst_offset];
+			memset(node->default_struct_set_bytes + dst_offset, 1, dst_size);
+
+			{ // Deserialize value in a string to member
+				// @todo Need some generic way to transform text/numeric data to bits (and maybe back).
+				//       Something that can be used here, commands, and in program state editor. 
+				//       Probably want to stay in C-like syntax, like "foo.bar.x = 0.5" and not in JSON-like
+				//       "foo" : { "bar" : { "x" : 0.5 }}. Better to move to the direction of one single language
+				//       for engine, game, and data than to the opposite direction. (JSON is also very clumsy for
+				//       presenting function calls. It's not designed for presenting code.)
+
+				Token *value_tok = &toks[src_value_tok_i];
+				if (value_tok->type == TokType_str) {
+					fmt_str(dst_ptr, dst_size, "%s", value_tok->str);
+				} else if (value_tok->type == TokType_int || value_tok->type == TokType_float) {
+					// Numeric value
+
+					F64 value = 0.0;
+					if (value_tok->type == TokType_int) {
+						int v = 0;
+						sscanf(value_tok->str, "%i", &v);
+						value = v;
+					} else if (value_tok->type == TokType_float) {
+						F64 v = 0.0;
+						sscanf(value_tok->str, "%lf", &v);
+						value = v;
+					} else {
+						fail("Unhandled token type");
+					}
+
+					if (!strcmp(type_name, "F32")) {
+						F32 v = value;
+						ensure(dst_size == sizeof(v));
+						memcpy(dst_ptr, &v, dst_size);
+					} else if (!strcmp(type_name, "F64")) {
+						ensure(dst_size == sizeof(value));
+						memcpy(dst_ptr, &value, dst_size);
+					} else {
+						fail("Unhandled token type");
+					}
+
+				} else {
+					fail("Unhandled token type");
+				}
+			}
 		}
 	}
 
@@ -350,6 +398,14 @@ void init_nodegroupdef(NodeGroupDef *def)
 		parse_cmd(cmd, toks, tok_count, def);
 		if (cmd->type == CmdType_call)
 			cmd->fptr = rtti_func_ptr(cmd->func_name);
+	}
+}
+
+void deinit_nodegroupdef(NodeGroupDef *def)
+{
+	for (U32 i = 0; i < def->node_count; ++i) {
+		FREE(gen_ator(), def->nodes[i].default_struct);
+		FREE(gen_ator(), def->nodes[i].default_struct_set_bytes);
 	}
 }
 
@@ -385,21 +441,13 @@ int json_nodegroupdef_to_blob(struct BlobBuf *buf, JsonTok j)
 
 		JsonTok j_defaults = json_value_by_key(j_node, "defaults");
 		for (U32 i = 0; i < json_member_count(j_defaults); ++i) {
-			JsonTok j_d_obj = json_member(j_defaults, i);
-			ensure(json_member_count(j_d_obj) == 1);
+			JsonTok j_default = json_member(j_defaults, i);
+			ensure(json_is_string(j_default));
 
-			JsonTok j_default_field = json_member(j_d_obj, 0);
-			JsonTok j_default_value = json_member(j_default_field, 0);
-			ensure(json_is_string(j_default_field));
-			ensure(json_is_string(j_default_value)); /// @todo All types
-
-			const char *field_str = json_str(j_default_field);
-			const char *value_str = json_str(j_default_value);
-
+			const char *str = json_str(j_default);
 			NodeGroupDef_Node_Defaults *defaults =
 				&node->defaults[node->defaults_count++];
-			fmt_str(defaults->dst, sizeof(defaults->dst), "%s", field_str);
-			fmt_str(defaults->src, sizeof(defaults->src), "%s", value_str);
+			fmt_str(defaults->str, sizeof(defaults->str), "%s", str);
 		}
 
 		++def.node_count;
@@ -438,10 +486,3 @@ error:
 	return 1;
 }
 
-void deinit_nodegroupdef(NodeGroupDef *def)
-{
-	for (U32 i = 0; i < def->node_count; ++i) {
-		FREE(gen_ator(), def->nodes[i].default_struct);
-		FREE(gen_ator(), def->nodes[i].default_struct_set_bytes);
-	}
-}
