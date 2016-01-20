@@ -936,6 +936,7 @@ void render_frame()
 			}
 
 			// This is tightly coupled with the sorting order of draw cmds
+			bool first_pass = (cur_pass->begin_layer == S32_MIN);
 			bool layer_change = cur_pass->end_layer - 1 != cmd->layer;
 			bool opaque_change = (!cur_pass->is_alpha) != (!cmd->has_alpha);
 			bool opaque_alpha_alpha = (	renderpass_count >= 2 && // opaque -> alpha -> (depth clear here) alpha
@@ -943,13 +944,14 @@ void render_frame()
 										renderpasses[renderpass_count - 1].is_alpha &&
 										!renderpasses[renderpass_count - 2].is_alpha);
 			bool needs_new_pass =
+				first_pass ||
 				(!cur_pass->is_alpha && layer_change) || // Opaque stuff followed by new layer
 				opaque_change ||
 				opaque_alpha_alpha;
 
-			if (cur_pass->begin_layer == S32_MIN || needs_new_pass) {
+			if (needs_new_pass) {
 				//debug_print("new pass cmd %i layer %i alpha cmd %i depth clear needed %i prev pass: has_opaque %i, end layer %i", i, cmd->layer, cmd->has_alpha, depth_clear_needed, cur_pass->has_opaque, cur_pass->end_layer);
-				if (cur_pass->begin_layer != S32_MIN) {
+				if (!first_pass) {
 					// End previous pass
 					if (renderpass_count >= MAX_RENDERPASS_COUNT)
 						fail("Too many renderpasses");
@@ -960,7 +962,7 @@ void render_frame()
 				cur_pass->begin_index = begin_index;
 				cur_pass->begin_layer = cmd->layer;
 				cur_pass->is_alpha = cmd->has_alpha;
-				cur_pass->needs_depth_clear = !cmd->has_alpha || opaque_alpha_alpha;
+				cur_pass->needs_depth_clear = !cmd->has_alpha || opaque_alpha_alpha || first_pass;
 			}
 
 			cur_pass->end_index = cur_i;
@@ -1034,7 +1036,6 @@ void render_frame()
 
 			glDepthFunc(GL_LEQUAL);
 			glEnable(GL_DEPTH_TEST);
-			glClear(GL_DEPTH_BUFFER_BIT);
 
 			if (r->scene_ms_fbo)
 				glBindFramebuffer(GL_FRAMEBUFFER, r->scene_ms_fbo);

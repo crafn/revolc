@@ -3,7 +3,7 @@
 #include "ui/gui.h"
 
 F64 editor_vertex_size()
-{ return screen_to_world_size((V2i) {5, 0}).x; }
+{ return screen_to_world_size((V2i) {3, 0}).x; }
 
 internal
 V3f cursor_delta_in_tf_coords(T3d tf)

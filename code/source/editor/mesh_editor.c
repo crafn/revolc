@@ -24,6 +24,22 @@ V3d pix_to_uv(V2i p, V2i pix_pos, V2i pix_size)
 }
 
 internal
+void draw_mesh_vertex(V3d p, bool selected, S32 layer)
+{
+	const F64 v_size = editor_vertex_size();
+	V3d poly[4] = {
+		{-v_size + p.x, -v_size + p.y, p.z},
+		{-v_size + p.x, +v_size + p.y, p.z},
+		{+v_size + p.x, +v_size + p.y, p.z},
+		{+v_size + p.x, -v_size + p.y, p.z},
+	};
+
+	Color c = selected ?	(Color) {1.0, 0.7, 0.2, 0.9} :
+							(Color) {0.0, 0.0, 0.0, 0.9};
+	ddraw_poly(c, poly, 4, layer);
+}
+
+internal
 Mesh *editable_model_mesh(const char *name)
 {
 	Mesh *mesh = model_mesh((Model*)res_by_name(	g_env.resblob,
@@ -140,17 +156,7 @@ void gui_uvbox(GuiContext *gui, ModelEntity *m, bool outline_uv)
 
 		V2i pix_uv = uv_to_pix(uv, pix_pos, pix_size);
 		V2d p = screen_to_world_point(pix_uv);
-		const F64 v_size = editor_vertex_size();
-		V3d poly[4] = {
-			{-v_size + p.x, -v_size + p.y, 0},
-			{-v_size + p.x, +v_size + p.y, 0},
-			{+v_size + p.x, +v_size + p.y, 0},
-			{+v_size + p.x, -v_size + p.y, 0},
-		};
-		if (v->selected)
-			ddraw_poly((Color) {1.0, 0.7, 0.2, 0.8}, poly, 4, gui_layer(gui) + 3);
-		else
-			ddraw_poly((Color) {0.0, 0.0, 0.0, 0.8}, poly, 4, gui_layer(gui) + 3);
+		draw_mesh_vertex(v2d_to_v3d(p), v->selected, gui_layer(gui) + 3);
 	}
 
 	Color fill_color = {0.6, 0.6, 0.8, 0.4};
@@ -177,7 +183,6 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 {
 	UiContext *ctx = g_env.uicontext;
 	V3d cur_wp = v2d_to_v3d(screen_to_world_point(ctx->dev.cursor_pos));
-	F64 v_size = editor_vertex_size();
 
 	const char *box_label = "mesh_overlay_box";
 	EditorBoxState state = gui_begin_editorbox(ctx->gui, NULL, NULL, box_label, true);
@@ -299,17 +304,7 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 		for (U32 i = 0; i < m->mesh_v_count; ++i) {
 			TriMeshVertex *v = &m->vertices[i];
 			V3d p = vertex_world_pos(m, i);
-			V3d poly[4] = {
-				{-v_size + p.x, -v_size + p.y, p.z},
-				{-v_size + p.x, +v_size + p.y, p.z},
-				{+v_size + p.x, +v_size + p.y, p.z},
-				{+v_size + p.x, -v_size + p.y, p.z},
-			};
-
-			if (v->selected)
-				ddraw_poly((Color) {1.0, 0.7, 0.2, 0.8}, poly, 4, WORLD_DEBUG_VISUAL_LAYER + 1);
-			else
-				ddraw_poly((Color) {0.0, 0.0, 0.0, 0.8}, poly, 4, WORLD_DEBUG_VISUAL_LAYER + 1);
+			draw_mesh_vertex(p, v->selected, WORLD_DEBUG_VISUAL_LAYER + 1);
 		}
 	}
 	
