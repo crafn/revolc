@@ -2,7 +2,7 @@
 #include "global/env.h"
 #include "renderer.h"
 
-void ddraw_poly(Color c, V3d *poly, U32 count)
+void ddraw_poly(Color c, V3d *poly, U32 count, S32 layer)
 {
 	Renderer *r = g_env.renderer;
 
@@ -31,14 +31,25 @@ void ddraw_poly(Color c, V3d *poly, U32 count)
 		r->ddraw_v[r->ddraw_v_count++] = v;
 	}
 
+	U32 start_i_index = r->ddraw_i_count;
 	for (U32 i = 0; i < count - 2; ++i) {
-		r->ddraw_i[r->ddraw_i_count++] = start_index;
-		r->ddraw_i[r->ddraw_i_count++] = start_index + i + 1;
-		r->ddraw_i[r->ddraw_i_count++] = start_index + i + 2;
+		r->ddraw_i[r->ddraw_i_count++] = 0;
+		r->ddraw_i[r->ddraw_i_count++] = i + 1;
+		r->ddraw_i[r->ddraw_i_count++] = i + 2;
 	}
+
+	drawcmd(	identity_t3d(),
+				&r->ddraw_v[start_index], count,
+				&r->ddraw_i[start_i_index], (count - 2)*3,
+				((Texture*)res_by_name(g_env.resblob, ResType_Texture, "white"))->atlas_uv,
+				c,
+				c,
+				layer,
+				0.0,
+				true);
 }
 
-void ddraw_line(Color c, V3d a, V3d b)
+void ddraw_line(Color c, V3d a, V3d b, S32 layer)
 {
 	F64 scale = screen_to_world_size((V2i) {1, 0}).x;
 	F64 rot = atan2(a.y - b.y, a.x - b.x);
@@ -52,10 +63,10 @@ void ddraw_line(Color c, V3d a, V3d b)
 		{b.x + c2, b.y + s2, b.z},
 		{a.x + c2, a.y + s2, a.z},
 	};
-	ddraw_poly(c, quad, 4);
+	ddraw_poly(c, quad, 4, layer);
 }
 
-void ddraw_circle(Color c, V3d p, F32 rad)
+void ddraw_circle(Color c, V3d p, F32 rad, S32 layer)
 {
 	const U32 v_count = 15;
 	V3d v[v_count];
@@ -65,6 +76,6 @@ void ddraw_circle(Color c, V3d p, F32 rad)
 		v[i].y = p.y + sin(a)*rad;
 		v[i].z = 0.0;
 	}
-	ddraw_poly(c, v, v_count);
+	ddraw_poly(c, v, v_count, layer);
 }
 

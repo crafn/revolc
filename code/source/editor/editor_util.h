@@ -37,13 +37,11 @@ REVOLC_API CursorDeltaMode cursor_transform_delta_pixels(	T3f *out,
 															const char *label,
 															T3d coords);
 
-// Top-left box
-REVOLC_API void gui_res_info(ResType t, const Resource *res);
-
 // Some common functionality, like scale/grab/rotate
-REVOLC_API EditorBoxState gui_editorbox(	GuiContext *ctx,
-											V2i *p, V2i *s,
-											const char *label,
-											bool invisible);
+REVOLC_API EditorBoxState gui_begin_editorbox(	GuiContext *ctx,
+												V2i *p, V2i *s,
+												const char *label,
+												bool invisible);
+REVOLC_API void gui_end_editorbox(GuiContext *ctx);
 
 #endif // REVOLC_EDITOR_EDITOR_UTIL_H

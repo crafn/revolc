@@ -130,22 +130,10 @@ CursorDeltaMode cursor_transform_delta_pixels(	T3f *out,
 	return CursorDeltaMode_none;
 }
 
-void gui_res_info(ResType t, const Resource *res)
-{
-	GuiContext *ctx = g_env.uicontext->gui;
-
-	gui_begin_panel(ctx, "res_info");
-	const char *str = gui_str(	ctx, "%s: %s",
-								restype_to_str(t),
-								res ? res->name : "<none>");
-	gui_label(ctx, str);
-	gui_end_panel(ctx);
-}
-
-EditorBoxState gui_editorbox(	GuiContext *ctx,
-								V2i *p, V2i *s,
-								const char *label,
-								bool invisible)
+EditorBoxState gui_begin_editorbox(	GuiContext *ctx,
+									V2i *p, V2i *s,
+									const char *label,
+									bool invisible)
 {
 	UiContext *ui = g_env.uicontext;
 	const V2i c_p = ui->dev.cursor_pos;
@@ -231,7 +219,10 @@ EditorBoxState gui_editorbox(	GuiContext *ctx,
 	if (!invisible)
 		drawcmd_px_quad(px_pos, px_size, 0.0, c, outline_color(c), gui_layer(ctx));
 
-	gui_end(ctx);
-
 	return state;
+}
+
+void gui_end_editorbox(GuiContext *ctx)
+{
+	gui_end(ctx);
 }

@@ -8,7 +8,9 @@
 #include "mesh.h"
 #include "vao.h"
 
-#define NULL_PATTERN 0
+#define WORLD_VISUAL_LAYER 0
+#define WORLD_DEBUG_VISUAL_LAYER 10
+#define GUI_VISUAL_LAYER 20
 
 // Command for the (immediate-mode) renderer to draw a model this frame
 typedef struct DrawCmd {
@@ -52,7 +54,7 @@ typedef struct Renderer {
 	U32 next_c_entity;
 	U32 c_entity_count; // Statistics
 
-	// @todo Debug draw can be replaced with the new immediate-mode rendering
+	// Vertex storage for debug draw (could just use frame allocator)
 	TriMeshVertex ddraw_v[MAX_DEBUG_DRAW_VERTICES];
 	MeshIndexType ddraw_i[MAX_DEBUG_DRAW_INDICES];
 	U32 ddraw_v_count;

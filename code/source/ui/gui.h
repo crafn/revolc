@@ -226,6 +226,7 @@ typedef struct GuiContext {
 	int cursor_pos[2]; // Screen position, pixel coordinates
 	int mouse_scroll; // Typically +1 or -1
 	uint8_t key_state[GUI_KEY_COUNT];
+	int base_layer; // Smallest draw layer
 
 	// Internals
 
@@ -376,6 +377,8 @@ GUI_API GUI_BOOL gui_is_active(GuiContext *ctx, const char *label);
 GUI_API void gui_set_turtle_pos(GuiContext *ctx, int x, int y);
 GUI_API void gui_turtle_pos(GuiContext *ctx, int *x, int *y);
 GUI_API void gui_turtle_size(GuiContext *ctx, int *x, int *y);
+GUI_API int gui_turtle_layer(GuiContext *ctx);
+GUI_API void gui_turtle_add_layer(GuiContext *ctx, int delta);
 GUI_API void gui_enlarge_bounding(GuiContext *ctx, int x, int y);
 
 //

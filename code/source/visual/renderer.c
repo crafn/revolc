@@ -805,8 +805,9 @@ internal inline int drawcmd_cmp(const void *e1, const void *e2)
 }
 
 typedef struct RenderPass {
-	bool has_opaque;
-	bool has_alpha;
+	bool is_alpha;
+	bool needs_depth_clear;
+
 	U32 begin_index;
 	U32 end_index;
 	S32 begin_layer;
@@ -934,12 +935,19 @@ void render_frame()
 				++cur_v;
 			}
 
-			// New pass starts
 			// This is tightly coupled with the sorting order of draw cmds
-			bool depth_clear_needed =
-				(cur_pass->has_opaque && cur_pass->end_layer != cmd->layer + 1) // Opaque stuff followed by new layer
-				|| (cur_pass->has_alpha && !cmd->has_alpha); // Alpha stuff followed by opaque stuff
-			if (cur_pass->begin_layer == S32_MIN || depth_clear_needed) {
+			bool layer_change = cur_pass->end_layer - 1 != cmd->layer;
+			bool opaque_change = (!cur_pass->is_alpha) != (!cmd->has_alpha);
+			bool opaque_alpha_alpha = (	renderpass_count >= 2 && // opaque -> alpha -> (depth clear here) alpha
+										cmd->has_alpha &&
+										renderpasses[renderpass_count - 1].is_alpha &&
+										!renderpasses[renderpass_count - 2].is_alpha);
+			bool needs_new_pass =
+				(!cur_pass->is_alpha && layer_change) || // Opaque stuff followed by new layer
+				opaque_change ||
+				opaque_alpha_alpha;
+
+			if (cur_pass->begin_layer == S32_MIN || needs_new_pass) {
 				//debug_print("new pass cmd %i layer %i alpha cmd %i depth clear needed %i prev pass: has_opaque %i, end layer %i", i, cmd->layer, cmd->has_alpha, depth_clear_needed, cur_pass->has_opaque, cur_pass->end_layer);
 				if (cur_pass->begin_layer != S32_MIN) {
 					// End previous pass
@@ -951,10 +959,10 @@ void render_frame()
 				// Start new pass
 				cur_pass->begin_index = begin_index;
 				cur_pass->begin_layer = cmd->layer;
+				cur_pass->is_alpha = cmd->has_alpha;
+				cur_pass->needs_depth_clear = !cmd->has_alpha || opaque_alpha_alpha;
 			}
 
-			cur_pass->has_alpha |= cmd->has_alpha;
-			cur_pass->has_opaque |= !cmd->has_alpha;
 			cur_pass->end_index = cur_i;
 			cur_pass->end_layer = cmd->layer + 1;
 		}
@@ -1024,8 +1032,9 @@ void render_frame()
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 			glClearColor(0.0, 0.0, 0.0, 0.0);
 
-			glEnable(GL_DEPTH_TEST);
 			glDepthFunc(GL_LEQUAL);
+			glEnable(GL_DEPTH_TEST);
+			glClear(GL_DEPTH_BUFFER_BIT);
 
 			if (r->scene_ms_fbo)
 				glBindFramebuffer(GL_FRAMEBUFFER, r->scene_ms_fbo);
@@ -1064,7 +1073,17 @@ void render_frame()
 			for (U32 i = 0; i < renderpass_count; ++i) {
 				RenderPass pass = renderpasses[i];
 				//debug_print("pass %i, %i->%i", i, pass.begin_index, pass.end_index);
-				glClear(GL_DEPTH_BUFFER_BIT);
+				if (pass.needs_depth_clear) {
+					glDepthMask(GL_TRUE);
+					glClear(GL_DEPTH_BUFFER_BIT);
+				}
+
+				if (pass.is_alpha)
+					glDepthMask(GL_FALSE); // Alpha draw only reads depth buffer, doesn't write
+				else
+					glDepthMask(GL_TRUE);
+
+
 				draw_vao_range(&r->vao, pass.begin_index, pass.end_index);
 			}
 
@@ -1157,8 +1176,9 @@ void render_frame()
 			draw_screen_quad();
 		}
 
+		// Debug draw uses now ordinary draw cmds
 		// Debug draw
-		{
+		/*{
 			glEnable(GL_BLEND);
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 			ShaderSource* shd =
@@ -1202,7 +1222,11 @@ void render_frame()
 				draw_grid_quad();
 			}
 		}
+		*/
 	}
+
+	r->ddraw_v_count = 0;
+	r->ddraw_i_count = 0;
 
 	r->prev_cam_pos = r->cam_pos;
 }

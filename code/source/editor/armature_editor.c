@@ -26,7 +26,7 @@ bool gui_armature_overlay(ArmatureEditor *state, bool is_edit_mode)
 
 	const char *box_label = "armature_overlay_box";
 	EditorBoxState bstate =
-		gui_editorbox(g_env.uicontext->gui, NULL, NULL, box_label, true);
+		gui_begin_editorbox(ctx->gui, NULL, NULL, box_label, true);
 
 	if (!is_edit_mode) {
 		if (bstate.down)
@@ -37,7 +37,7 @@ bool gui_armature_overlay(ArmatureEditor *state, bool is_edit_mode)
 	if (state->comp_h != NULL_HANDLE)
 		entity = get_compentity(state->comp_h);
 	else
-		return editing_happening;
+		goto exit;
 	Armature *a = (Armature*)substitute_res(&entity->armature->res);
 	T3d global_pose[MAX_ARMATURE_JOINT_COUNT];
 	calc_global_pose(global_pose, entity);
@@ -53,7 +53,7 @@ bool gui_armature_overlay(ArmatureEditor *state, bool is_edit_mode)
 				a->joints[i].selected = !some_selected;
 		} else {
 			state->comp_h = NULL_HANDLE;
-			return editing_happening;
+			goto exit;
 		}
 	}
 
@@ -165,6 +165,10 @@ bool gui_armature_overlay(ArmatureEditor *state, bool is_edit_mode)
 			toggle_bool(&a->joints[closest_i].selected);
 		}
 	}
+	
+exit:
+	gui_end_editorbox(ctx->gui);
+
 	return editing_happening;
 }
 
@@ -272,7 +276,7 @@ void do_armature_editor(	ArmatureEditor *state,
 			drawcmd_px_quad(px_pos, px_size, 0.0, c, outline_color(c), gui_layer(gui) + 1);
 			const char *clip_timeline_label = "clip_timeline";
 			EditorBoxState bstate =
-				gui_editorbox(g_env.uicontext->gui, NULL, NULL, clip_timeline_label, true);
+				gui_begin_editorbox(g_env.uicontext->gui, NULL, NULL, clip_timeline_label, true);
 			if (entity && a) {
 				if (state->clip_is_bind_pose) {
 					entity->pose = identity_pose();
@@ -364,6 +368,7 @@ void do_armature_editor(	ArmatureEditor *state,
 				}
 			}
 
+			gui_end_editorbox(gui);
 			gui_end(gui);
 		}
 	}
@@ -403,15 +408,16 @@ void do_armature_editor(	ArmatureEditor *state,
 			Color c = default_color;
 			if (a->joints[i].selected || !is_edit_mode)
 				c = selected_color;
-			ddraw_poly(c, v, v_count);
+			ddraw_poly(c, v, v_count, WORLD_DEBUG_VISUAL_LAYER);
 
 			V3d end_p = transform_v3d(global_pose[i], (V3d) {rad, 0, 0});
-			ddraw_line(orientation_color, p, end_p);
+			ddraw_line(orientation_color, p, end_p, WORLD_DEBUG_VISUAL_LAYER);
 
 			if (a->joints[i].super_id != NULL_JOINT_ID) {
 				ddraw_line(	line_color,
 							p,
-							global_pose[a->joints[i].super_id].pos);
+							global_pose[a->joints[i].super_id].pos,
+							WORLD_DEBUG_VISUAL_LAYER);
 			}
 		}
 	}

@@ -81,6 +81,7 @@ void create_uicontext()
 {
 	UiContext *ctx = ZERO_ALLOC(gen_ator(), sizeof(*ctx), "uicontext");
 	ctx->gui = create_gui(calc_text_size, NULL);
+	ctx->gui->base_layer = GUI_VISUAL_LAYER;
 	load_layout(ctx->gui);
 	g_env.uicontext = ctx;
 }
@@ -176,6 +177,8 @@ void end_ui_frame()
 			limit_by_scissor(d.pos, d.size, d.scissor_pos, d.scissor_size);
 		V2i p = {d.pos[0], d.pos[1]};
 		V2i s = {d.size[0], d.size[1]};
+
+		ensure(d.layer >= GUI_VISUAL_LAYER);
 
 		switch (d.type) {
 		case GuiDrawInfo_button:

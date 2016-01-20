@@ -414,6 +414,12 @@ void gui_turtle_size(GuiContext *ctx, int *w, int *h)
 	*h = gui_turtle(ctx)->size[1];
 }
 
+int gui_turtle_layer(GuiContext *ctx)
+{ return gui_turtle(ctx)->layer; }
+
+void gui_turtle_add_layer(GuiContext *ctx, int delta)
+{ gui_turtle(ctx)->layer += delta; }
+
 void gui_parent_turtle_start_pos(GuiContext *ctx, int pos[2])
 {
 	if (ctx->turtle_ix == 0) {
@@ -672,6 +678,7 @@ void gui_pre_frame(GuiContext *ctx)
 	GUI_ZERO(*gui_turtle(ctx));
 	gui_turtle(ctx)->window_ix = GUI_BG_WINDOW_IX;
 	GUI_ASSIGN_V2(gui_turtle(ctx)->size, ctx->host_win_size);
+	gui_turtle(ctx)->layer = ctx->base_layer;
 
 	{ // Clickable background
 		int pos[2] = {};
@@ -1073,7 +1080,7 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, GUI_BOOL panel)
 		ctx->focused_win_ix = win_handle; // Appearing window will be focused
 
 	gui_turtle(ctx)->window_ix = win_handle;
-	gui_turtle(ctx)->layer = 1337 + gui_window_order(ctx, win_handle)*GUI_LAYERS_PER_WINDOW;
+	gui_turtle(ctx)->layer = ctx->base_layer + 1337 + gui_window_order(ctx, win_handle)*GUI_LAYERS_PER_WINDOW;
 	win->bar_height = win->has_bar ? bar_layout.size[1] : 0;
 
 	{ // Ordinary gui element logic

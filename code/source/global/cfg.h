@@ -4,6 +4,8 @@
 // These options largely determine the memory usage and performance of the engine.
 // Many of these will at some point be removed or moved to (game dependent) cfg files.
 
+// Many of these constraints will be removed at some point.
+
 #define FRAME_MEM_SIZE (1024*1024*50)
 
 #define MAX_BLOB_SIZE (1024*1024*512) // 0.5 Gb
@@ -30,7 +32,7 @@
 #define TEXTURE_ATLAS_LAYER_COUNT 4
 #define MAX_TEXTURE_LOD_COUNT 2
 #define MAX_SHADER_VARYING_COUNT 8
-#define MAX_RENDERPASS_COUNT 4 // World + gui (before 3d gui) needs at least 2
+#define MAX_RENDERPASS_COUNT 6 // World + gui (before 3d gui) needs at least 2. Plus debug drawing.
 
 #define MAX_NODE_COUNT (1024*20)
 #define MAX_NODE_CMD_COUNT (MAX_NODE_COUNT*4)

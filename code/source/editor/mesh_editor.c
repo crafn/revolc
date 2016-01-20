@@ -82,10 +82,10 @@ void gui_uvbox(GuiContext *gui, ModelEntity *m, bool outline_uv)
 	UiContext *ctx = g_env.uicontext;
 
 	V2i pix_pos, pix_size;
-	EditorBoxState state = gui_editorbox(gui, &pix_pos, &pix_size, box_label, false);
+	EditorBoxState state = gui_begin_editorbox(gui, &pix_pos, &pix_size, box_label, false);
 
 	if (!m)
-		return;
+		goto exit;
 
 	if (state.pressed) {
 		// Control vertex selection
@@ -132,7 +132,7 @@ void gui_uvbox(GuiContext *gui, ModelEntity *m, bool outline_uv)
 	}
 
 	if (!outline_uv)
-		drawcmd_px_model_image(pix_pos, pix_size, m, gui_layer(gui) + 2);
+		drawcmd_px_model_image(pix_pos, pix_size, m, gui_layer(gui) + 1);
 
 	for (U32 i = 0; i < m->mesh_v_count; ++i) {
 		TriMeshVertex *v = &m->vertices[i];
@@ -148,9 +148,9 @@ void gui_uvbox(GuiContext *gui, ModelEntity *m, bool outline_uv)
 			{+v_size + p.x, -v_size + p.y, 0},
 		};
 		if (v->selected)
-			ddraw_poly((Color) {1.0, 0.7, 0.2, 0.8}, poly, 4);
+			ddraw_poly((Color) {1.0, 0.7, 0.2, 0.8}, poly, 4, gui_layer(gui) + 3);
 		else
-			ddraw_poly((Color) {0.0, 0.0, 0.0, 0.8}, poly, 4);
+			ddraw_poly((Color) {0.0, 0.0, 0.0, 0.8}, poly, 4, gui_layer(gui) + 3);
 	}
 
 	Color fill_color = {0.6, 0.6, 0.8, 0.4};
@@ -164,8 +164,11 @@ void gui_uvbox(GuiContext *gui, ModelEntity *m, bool outline_uv)
 		poly[i%3] = (V3d) {p.x, p.y, 0};
 
 		if (i % 3 == 2)
-			ddraw_poly(fill_color, poly, 3);
+			ddraw_poly(fill_color, poly, 3, gui_layer(gui) + 2);
 	}
+	
+exit:
+	gui_end_editorbox(gui);
 }
 
 // Mesh editing on world
@@ -177,7 +180,7 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 	F64 v_size = editor_vertex_size();
 
 	const char *box_label = "mesh_overlay_box";
-	EditorBoxState state = gui_editorbox(ctx->gui, NULL, NULL, box_label, true);
+	EditorBoxState state = gui_begin_editorbox(ctx->gui, NULL, NULL, box_label, true);
 
 	if (!*is_edit_mode) { // Mesh select mode
 		if (state.down)
@@ -188,7 +191,7 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 	if (*model_h != NULL_HANDLE)
 		m = get_modelentity(*model_h);
 	else
-		return;
+		goto exit;
 
 	if (ctx->dev.toggle_select_all) {
 		if (*is_edit_mode) {
@@ -202,7 +205,7 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 			}
 		} else {
 			*model_h = NULL_HANDLE;
-			return;
+			goto exit;
 		}
 	}
 
@@ -304,11 +307,14 @@ void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
 			};
 
 			if (v->selected)
-				ddraw_poly((Color) {1.0, 0.7, 0.2, 0.8}, poly, 4);
+				ddraw_poly((Color) {1.0, 0.7, 0.2, 0.8}, poly, 4, WORLD_DEBUG_VISUAL_LAYER + 1);
 			else
-				ddraw_poly((Color) {0.0, 0.0, 0.0, 0.8}, poly, 4);
+				ddraw_poly((Color) {0.0, 0.0, 0.0, 0.8}, poly, 4, WORLD_DEBUG_VISUAL_LAYER + 1);
 		}
 	}
+	
+exit:
+	gui_end_editorbox(ctx->gui);
 }
 
 void do_mesh_editor(U32 *model_h, bool *is_edit_mode, bool active)
@@ -434,7 +440,7 @@ void do_mesh_editor(U32 *model_h, bool *is_edit_mode, bool active)
 			poly_color = inactive_color();
 
 		if (active)
-			ddraw_circle((Color) {1, 1, 1, 1}, m->tf.pos, editor_vertex_size()*0.5);
+			ddraw_circle((Color) {1, 1, 1, 1}, m->tf.pos, editor_vertex_size()*0.5, WORLD_DEBUG_VISUAL_LAYER);
 
 		V3d poly[3];
 		for (U32 i = 0; i < m->mesh_i_count; ++i) {
@@ -443,7 +449,7 @@ void do_mesh_editor(U32 *model_h, bool *is_edit_mode, bool active)
 			poly[i%3] = p;
 
 			if (i % 3 == 2 && !changed)
-				ddraw_poly(poly_color, poly, 3);
+				ddraw_poly(poly_color, poly, 3, WORLD_DEBUG_VISUAL_LAYER);
 		}
 	}
 }

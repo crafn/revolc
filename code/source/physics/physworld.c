@@ -538,10 +538,7 @@ void phys_draw_circle(
 	v[0].y = v[0].y*0.9 + pos.y*0.1;
 
 	Color c = {0.4, 0.7, 1.0, 0.5};
-	ddraw_poly(
-			c,
-			v,
-			v_count);
+	ddraw_poly(c, v, v_count, WORLD_DEBUG_VISUAL_LAYER);
 }
 
 internal
@@ -558,10 +555,7 @@ void phys_draw_poly(
 	}
 
 	Color c = {0.4, 0.7, 1.0, 0.5};
-	ddraw_poly(
-			c,
-			v,
-			count);
+	ddraw_poly(c, v, count, WORLD_DEBUG_VISUAL_LAYER);
 }
 
 int jointinfo_cmp(const void *void_a, const void *void_b)
