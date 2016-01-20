@@ -203,6 +203,8 @@ EditorBoxState gui_editorbox(	GuiContext *ctx,
 			state.pressed = true;
 			state.down = true;
 			gui_set_active(ctx, label);
+		} else if (ui->dev.mmb.pressed) {
+			gui_set_active(ctx, label);
 		} else if (ui->dev.g_pressed) {
 			ui->dev.grabbing = gui_id(label);
 			gui_set_active(ctx, label);

@@ -23,6 +23,7 @@ typedef struct UiContext_Dev {
 	V2i prev_cursor_pos;
 	V2i cursor_delta;
 	ButtonState lmb;
+	ButtonState mmb;
 	ButtonState rmb;
 	bool shift_down;
 	bool snap_to_closest;

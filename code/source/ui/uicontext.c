@@ -142,6 +142,10 @@ void begin_ui_frame()
 	ui->dev.lmb.down = g_env.device->key_down[KEY_LMB];
 	ui->dev.lmb.released = g_env.device->key_released[KEY_LMB];
 
+	ui->dev.mmb.pressed = g_env.device->key_pressed[KEY_MMB];
+	ui->dev.mmb.down = g_env.device->key_down[KEY_MMB];
+	ui->dev.mmb.released = g_env.device->key_released[KEY_MMB];
+
 	ui->dev.rmb.pressed = g_env.device->key_pressed[KEY_RMB];
 	ui->dev.rmb.down = g_env.device->key_down[KEY_RMB];
 	ui->dev.rmb.released = g_env.device->key_released[KEY_RMB];
