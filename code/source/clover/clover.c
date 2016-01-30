@@ -95,7 +95,7 @@ MOD_API void clover_worldgen(World *w)
 		T3d tf = {{1, 1, 1}, identity_qd(), {3, 12}};
 		U8 peer_id = 1;
 		SlotVal init_vals[] = {
-			{"char", "peer_id", WITH_DEREF_SIZEOF(&peer_id)},
+			{"ch", "peer_id", WITH_DEREF_SIZEOF(&peer_id)},
 			{"body", "tf", WITH_DEREF_SIZEOF(&tf)},
 		};
 		NodeGroupDef *def = (NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, "playerch");

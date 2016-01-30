@@ -64,3 +64,8 @@
 #include <vorbis/lib/window.c>
 
 #include <miniz/miniz.c>
+
+#define QC_BACKEND_C
+//#define QC_MALLOC revolc_qc_malloc
+//#define QC_FREE revolc_qc_free
+#include <qc/lib_unity.c>
