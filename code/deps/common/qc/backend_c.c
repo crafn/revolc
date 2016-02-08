@@ -44,6 +44,8 @@ void qc_append_builtin_type_c_str(QC_Array(char) *buf, QC_Builtin_Type bt)
 		qc_append_str(buf, "char");
 	} else if (bt.is_float) {
 		qc_append_str(buf, "%s", bt.bitness == 64 ? "double" : "float");
+	} else if (bt.is_boolean) {
+		qc_append_str(buf, "bool");
 	}
 
 	if (bt.is_matrix) {
@@ -112,10 +114,15 @@ QC_INTERNAL void append_type_and_ident_str(QC_Array(char) *buf, QC_AST_Type *typ
 	if (type->base_typedef) {
 		qc_append_str(buf, "%s ", type->base_typedef->ident->text.data);
 	} else {
-		if (type->base_type_decl->is_builtin) {
-			qc_append_builtin_type_c_str(buf, type->base_type_decl->builtin_type);
+		if (type->ident) {
+			qc_append_str(buf, "%s", type->ident->text.data);
 		} else {
-			qc_append_str(buf, "%s", type->base_type_decl->ident->text.data);
+			QC_ASSERT(type->base_type_decl);
+			if (type->base_type_decl->is_builtin) {
+				qc_append_builtin_type_c_str(buf, type->base_type_decl->builtin_type);
+			} else {
+				qc_append_str(buf, "%s", type->base_type_decl->ident->text.data);
+			}
 		}
 
 		if (ident)
@@ -499,6 +506,8 @@ QC_INTERNAL QC_AST_Node * qc_copy_excluding_types_and_funcs(Trav_Ctx *ctx, QC_AS
 		/* Remap referenced nodes */
 		for (i = 0; i < refnodes.size; ++i) {
 			QC_AST_Node *remapped = mapped_node(ctx, refnodes.data[i]);
+			if (!remapped)
+				remapped = refnodes.data[i]; /* This must be outside AST */
 			qc_push_array(QC_AST_Node_Ptr)(&remapped_refnodes, remapped);
 		}
 
@@ -1130,7 +1139,7 @@ QC_Bool qc_ast_to_c_str(QC_Array(char) *buf, int indent, QC_AST_Node *node)
 
 	case QC_AST_ident: {
 		QC_CASTED_NODE(QC_AST_Ident, ident, node);
-		if (ident->designated)
+		if (ident->is_designated)
 			qc_append_str(buf, ".");
 		qc_append_str(buf, "%s", ident->text.data);
 	} break;
@@ -1192,11 +1201,15 @@ QC_Bool qc_ast_to_c_str(QC_Array(char) *buf, int indent, QC_AST_Node *node)
 	case QC_AST_literal: {
 		QC_CASTED_NODE(QC_AST_Literal, literal, node);
 		switch (literal->type) {
-		case QC_Literal_int: qc_append_str(buf, "%i", literal->value.integer); break;
-		case QC_Literal_float: qc_append_str(buf, "%f", literal->value.floating); break;
+		case QC_Literal_integer: qc_append_str(buf, "%i", literal->value.integer); break;
+		case QC_Literal_floating: qc_append_str(buf, "%f", literal->value.floating); break;
+		case QC_Literal_boolean: qc_append_str(buf, "%s", 	literal->value.boolean ?
+															"true" : "false"); break;
 		case QC_Literal_string: qc_append_str(buf, "\"%s\"", literal->value.string.data); break;
 		case QC_Literal_null: qc_append_str(buf, "NULL"); break;
 		case QC_Literal_compound: {
+			QC_Bool oneliner = (literal->value.compound.subnodes.size < 2);
+
 			if (literal->value.compound.type) {
 				/* Compound literal */
 				qc_append_str(buf, "(");
@@ -1204,13 +1217,19 @@ QC_Bool qc_ast_to_c_str(QC_Array(char) *buf, int indent, QC_AST_Node *node)
 				qc_append_str(buf, ") ");
 			}
 
-			qc_append_str(buf, "{ ");
+			qc_append_str(buf, "{");
+			qc_append_str(buf, "%s", oneliner ? " " : "\n");
 			for (i = 0; i < literal->value.compound.subnodes.size; ++i) {
+				if (!oneliner)
+					qc_append_str(buf, "%*s", indent + indent_add, "");
 				qc_ast_to_c_str(buf, indent, literal->value.compound.subnodes.data[i]);
 				if (i + 1 < literal->value.compound.subnodes.size)
-					qc_append_str(buf, ", ");
+					qc_append_str(buf, ",");
+				qc_append_str(buf, "%s", oneliner ? " " : "\n");
 			}
-			qc_append_str(buf, " }");
+			if (!oneliner)
+				qc_append_str(buf, "%*s", indent, "");
+			qc_append_str(buf, "}");
 		} break;
 		default: QC_FAIL(("Unknown literal type: %i", literal->type));
 		}
@@ -1223,7 +1242,7 @@ QC_Bool qc_ast_to_c_str(QC_Array(char) *buf, int indent, QC_AST_Node *node)
 			QC_Bool rhs_parens = nested_expr_needs_parens(node, biop->rhs);
 			if (lhs_parens)
 				qc_append_str(buf, "(");
-			qc_ast_to_c_str(buf, indent, biop->lhs);
+			qc_ast_to_c_str(buf, indent + indent_add, biop->lhs);
 			if (lhs_parens)
 				qc_append_str(buf, ")");
 
@@ -1231,7 +1250,7 @@ QC_Bool qc_ast_to_c_str(QC_Array(char) *buf, int indent, QC_AST_Node *node)
 
 			if (rhs_parens)
 				qc_append_str(buf, "(");
-			qc_ast_to_c_str(buf, indent, biop->rhs);
+			qc_ast_to_c_str(buf, indent + indent_add, biop->rhs);
 			if (rhs_parens)
 				qc_append_str(buf, ")");
 		} else {
@@ -1242,7 +1261,7 @@ QC_Bool qc_ast_to_c_str(QC_Array(char) *buf, int indent, QC_AST_Node *node)
 			
 			if (parens_inside)
 				qc_append_str(buf, "(");
-			qc_ast_to_c_str(buf, indent, biop->rhs);
+			qc_ast_to_c_str(buf, indent + indent_add, biop->rhs);
 			if (parens_inside)
 				qc_append_str(buf, ")");
 		}

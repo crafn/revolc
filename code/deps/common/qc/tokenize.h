@@ -58,14 +58,15 @@ typedef enum {
 	QC_Token_kw_for, /* for */
 	QC_Token_kw_while, /* while */
 	QC_Token_kw_if, /* if */
-	QC_Token_kw_QC_true, /* QC_true */
-	QC_Token_kw_QC_false, /* QC_false */
+	QC_Token_kw_true, /* QC_true */
+	QC_Token_kw_false, /* QC_false */
 	QC_Token_kw_sizeof, /* sizeof */
 	QC_Token_kw_typedef, /* typedef */
 	QC_Token_kw_parallel, /* for_field */
 	/* Type-related */
 	QC_Token_kw_void,
 	QC_Token_kw_int,
+	QC_Token_kw_bool,
 	QC_Token_kw_size_t,
 	QC_Token_kw_char,
 	QC_Token_kw_float,

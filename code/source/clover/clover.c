@@ -17,6 +17,9 @@
 #include "resources/resblob.h"
 #include "visual/renderer.h" // screen_to_world_point, camera
 
+#include <qc/ast.h> // Test output
+#include <qc/backend_c.h> // Test output
+
 MOD_API void clover_worldgen(World *w)
 {
 	if (!g_env.netstate->authority)
@@ -289,6 +292,82 @@ MOD_API void init_clover()
 #if 0
 	critical_print("Simulated packet loss is ON!");
 	g_env.netstate->peer->simulated_packet_loss = 0.05f;
+#endif
+
+
+#if 1 // Test C output and parsing
+	QC_Array(char) code = qc_create_array(char)(128);
+
+	debug_print("Written code");
+	{
+		QC_Write_Context *ctx = qc_create_write_context();
+		qc_begin_initializer(ctx);
+			qc_add_designated(ctx, "erkki");
+			qc_add_integer(ctx, 123);
+
+			qc_add_designated(ctx, "pekka");
+			qc_begin_compound(ctx, "Raimo");
+				qc_add_designated(ctx, "vuosi");
+				qc_add_integer(ctx, 95);
+			qc_end_compound(ctx);
+
+			qc_add_designated(ctx, "pätkä");
+			qc_begin_compound(ctx, "Reiska");
+				qc_add_designated(ctx, "magia");
+				qc_add_integer(ctx, 9000);
+
+				qc_add_designated(ctx, "loitsu");
+				qc_add_string(ctx, "ös");
+			qc_end_compound(ctx);
+
+			qc_add_designated(ctx, "array");
+			qc_begin_compound(ctx, NULL);
+				qc_add_floating(ctx, 0.0);
+				qc_add_floating(ctx, 1.0);
+				qc_add_floating(ctx, 2.0);
+				qc_add_floating(ctx, 3.0);
+				qc_add_floating(ctx, -1235.6);
+			qc_end_compound(ctx);
+
+			qc_add_integer(ctx, 1337);
+			qc_add_floating(ctx, 1337.95);
+		qc_end_initializer(ctx);
+
+		qc_ast_to_c_str(&code, 0, QC_AST_BASE(ctx->root));
+		qc_destroy_write_context(ctx);
+
+		debug_print("%s", code.data);
+	}
+
+	debug_print("Parsed code");
+	{
+		QC_AST_Node *expr;
+		QC_AST_Scope *parsed_root = qc_parse_string(&expr, code.data);
+		ensure(parsed_root);
+
+		qc_clear_array(char)(&code);
+		qc_ast_to_c_str(&code, 0, expr);
+		qc_print_ast(expr, 4);
+		debug_print("%s", code.data);
+
+		{ /* Test json-like interface for reading parsed C */
+			bool err = false;
+			QC_AST_Node *pekka = cson_key(expr, "pekka");
+			QC_AST_Node *vuosi = cson_key(pekka, "vuosi");
+			debug_print("recovered pekka.vuosi: %i", cson_integer(vuosi, &err));
+
+			QC_AST_Node *arr_4 = cson_member(cson_key(expr, "array"), 4);
+			debug_print("recovered array[4]: %f", cson_floating(arr_4, &err));
+
+			debug_print("recovered pätkä.loitsu: %s", cson_string(cson_key(cson_key(expr, "pätkä"), "loitsu"), &err));
+
+			ensure(!err);
+		}
+
+		qc_destroy_ast(parsed_root);
+	}
+
+	qc_destroy_array(char)(&code);
 #endif
 }
 

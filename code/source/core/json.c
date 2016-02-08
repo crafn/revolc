@@ -251,6 +251,135 @@ T3d json_t3(JsonTok j)
 	};
 }
 
+QC_AST_Node *cson_key(QC_AST_Node *n, const char *key)
+{
+	if (!qc_is_literal_node(n, QC_Literal_compound))
+		return NULL;
+
+	QC_CASTED_NODE(QC_AST_Literal, literal, n);
+
+	QC_Array(QC_AST_Node_Ptr) *nodes = &literal->value.compound.subnodes;
+	for (int i = 0; i < nodes->size; ++i) {
+		QC_AST_Node *node = nodes->data[i];
+		if (node->type != QC_AST_biop)
+			continue;
+
+		QC_CASTED_NODE(QC_AST_Biop, biop, node);
+		if (!biop->lhs || !biop->rhs)
+			continue;
+
+		QC_AST_Ident *ident = qc_unwrap_ident(biop->lhs);
+		if (!ident)
+			continue;
+		if (!ident->is_designated)
+			continue;
+		if (strcmp(ident->text.data, key))
+			continue;
+
+		return biop->rhs;
+	}
+
+	return NULL;
+}
+
+QC_AST_Node *cson_member(QC_AST_Node *n, U32 i)
+{
+	if (!cson_is_compound(n))
+		return NULL;
+
+	QC_CASTED_NODE(QC_AST_Literal, literal, n);
+	QC_Array(QC_AST_Node_Ptr) *nodes = &literal->value.compound.subnodes;
+	ensure((int)i < nodes->size);
+	return nodes->data[i];
+}
+
+const char *cson_compound_type(QC_AST_Node *n)
+{
+	if (!cson_is_compound(n))
+		return NULL;
+
+	QC_CASTED_NODE(QC_AST_Literal, literal, n);
+	QC_AST_Type *type = literal->value.compound.type;
+	if (!type)
+		return NULL;
+	
+	return type->base_type_decl->ident->text.data;
+}
+
+bool cson_is_compound(QC_AST_Node *n)
+{
+	if (!n || n->type != QC_AST_literal)
+		return false;
+
+	QC_CASTED_NODE(QC_AST_Literal, literal, n);
+	if (literal->type != QC_Literal_compound)
+		return false;
+	
+	return true;
+}
+
+U32 cson_member_count(QC_AST_Node *n)
+{
+	if (!cson_is_compound(n))
+		return 0;
+
+	QC_CASTED_NODE(QC_AST_Literal, literal, n);
+	return literal->value.compound.subnodes.size;
+}
+
+const char *cson_string(QC_AST_Node *n, bool *err)
+{
+	if (!qc_is_literal_node(n, QC_Literal_string)) {
+		if (err)
+			*err = true;
+		return NULL;
+	}
+
+	QC_CASTED_NODE(QC_AST_Literal, literal, n);
+	return literal->value.string.data;
+}
+
+F64 cson_floating(QC_AST_Node *n, bool *err)
+{
+	QC_AST_Literal *eval = qc_eval_const_expr(n);
+	F64 val = 0.0;
+	if (!eval || (eval->type != QC_Literal_integer && eval->type != QC_Literal_floating)) {
+		if (err)
+			*err = true;
+		goto exit;
+	}
+
+	if (eval->type == QC_Literal_floating)
+		val = eval->value.floating;
+	else
+		val = eval->value.integer;
+
+exit:
+	qc_destroy_node(QC_AST_BASE(eval));
+	return val;
+}
+
+// @todo
+S64 cson_integer(QC_AST_Node *n, bool *err)
+{ return (S64)cson_floating(n, err); }
+
+bool cson_boolean(QC_AST_Node *n, bool *err)
+{
+	QC_AST_Literal *eval = qc_eval_const_expr(n);
+	bool val = false;
+	if (!eval || eval->type != QC_Literal_boolean) {
+		if (err)
+			*err = true;
+		goto exit;
+	}
+
+	val = eval->value.boolean;
+
+exit:
+	qc_destroy_node(QC_AST_BASE(eval));
+	return val;
+}
+
 //
 // wjson
 //

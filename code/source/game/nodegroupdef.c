@@ -163,6 +163,46 @@ void parse_cmd(NodeGroupDef_Cmd *cmd, QC_AST_Node *node, const NodeGroupDef *def
 	}
 }
 
+internal void eval_to_bits(void *dst, U32 dst_size, const char *dst_type_hint, QC_AST_Node *expr)
+{
+	// Deserialize value of an expression to memory
+	// @todo Need some generic way to transform text/numeric data to bits (and maybe back).
+	//       Something that can be used here, commands, and in program state editor. 
+	//       Probably want to stay in C-like syntax, like "foo.bar.x = 0.5" and not in JSON-like
+	//       "foo" : { "bar" : { "x" : 0.5 }}. Better to move to the direction of one single language
+	//       for engine, game, and data than to the opposite direction. (JSON is also very clumsy for
+	//       presenting function calls. It's not designed for presenting code.)
+
+	QC_AST_Literal *eval = qc_eval_const_expr(expr);
+
+	if (eval->type == QC_Literal_string) {
+		fmt_str(dst, dst_size, "%s", eval->value.string.data);
+	} else if (eval->type == QC_Literal_integer || eval->type == QC_Literal_floating) {
+		F64 value = 0.0;
+		if (eval->type == QC_Literal_integer) {
+			value = eval->value.integer;
+		} else if (eval->type == QC_Literal_floating) {
+			value = eval->value.floating;
+		} else {
+			fail("Unhandled token type");
+		}
+
+		if (!strcmp(dst_type_hint, "F32")) {
+			F32 v = value;
+			ensure(dst_size == sizeof(v));
+			memcpy(dst, &v, dst_size);
+		} else if (!strcmp(dst_type_hint, "F64")) {
+			ensure(dst_size == sizeof(value));
+			memcpy(dst, &value, dst_size);
+		} else {
+			fail("Unhandled value type");
+		}
+	} else {
+		fail("Unhandled literal type");
+	}
+	qc_destroy_node(QC_AST_BASE(eval));
+}
+
 void init_nodegroupdef(NodeGroupDef *def)
 {
 	for (U32 node_i = 0; node_i < def->node_count; ++node_i) {
@@ -198,44 +238,8 @@ void init_nodegroupdef(NodeGroupDef *def)
 			void *dst_ptr = &node->default_struct[dst_offset];
 			memset(node->default_struct_set_bytes + dst_offset, 1, dst_size);
 
-			// @todo Move to some function like `eval_to_bits(dst, type_hint, expr)`
-			{ // Deserialize value in a string to member
-				// @todo Need some generic way to transform text/numeric data to bits (and maybe back).
-				//       Something that can be used here, commands, and in program state editor. 
-				//       Probably want to stay in C-like syntax, like "foo.bar.x = 0.5" and not in JSON-like
-				//       "foo" : { "bar" : { "x" : 0.5 }}. Better to move to the direction of one single language
-				//       for engine, game, and data than to the opposite direction. (JSON is also very clumsy for
-				//       presenting function calls. It's not designed for presenting code.)
+			eval_to_bits(dst_ptr, dst_size, type_name, biop->rhs);
 
-				QC_AST_Literal *eval = qc_eval_const_expr(biop->rhs);
-
-				if (eval->type == QC_Literal_string) {
-					fmt_str(dst_ptr, dst_size, "%s", eval->value.string.data);
-				} else if (eval->type == QC_Literal_int || eval->type == QC_Literal_float) {
-					F64 value = 0.0;
-					if (eval->type == QC_Literal_int) {
-						value = eval->value.integer;
-					} else if (eval->type == QC_Literal_float) {
-						value = eval->value.floating;
-					} else {
-						fail("Unhandled token type");
-					}
-
-					if (!strcmp(type_name, "F32")) {
-						F32 v = value;
-						ensure(dst_size == sizeof(v));
-						memcpy(dst_ptr, &v, dst_size);
-					} else if (!strcmp(type_name, "F64")) {
-						ensure(dst_size == sizeof(value));
-						memcpy(dst_ptr, &value, dst_size);
-					} else {
-						fail("Unhandled value type");
-					}
-				} else {
-					fail("Unhandled literal type");
-				}
-				qc_destroy_node(QC_AST_BASE(eval));
-			}
 			qc_destroy_ast(root);
 		}
 	}

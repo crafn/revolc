@@ -371,7 +371,7 @@ QC_INTERNAL QC_Bool parse_ident(Parse_Ctx *ctx, QC_AST_Ident **ret, QC_AST_Node 
 	if (allow_designated) {
 		/* Consume dot before designated initializer identifier */
 		if (accept_tok(ctx, QC_Token_dot)) {
-			ident->designated = QC_true;
+			ident->is_designated = QC_true;
 		}
 	}
 
@@ -590,7 +590,7 @@ QC_INTERNAL QC_Bool parse_type_and_ident(Parse_Ctx *ctx, QC_AST_Type **ret_type,
 	QC_AST_Type *type = qc_create_type_node();
 	begin_node_parsing(ctx, QC_AST_BASE(type));
 
-	/* @todo ptr-to-funcs, const (?), types with multiple identifiers... */
+	/* @todo ptr-to-funcs, types with multiple identifiers... */
 
 	{ /* Type */
 		QC_AST_Node *found_decl = NULL;
@@ -613,6 +613,10 @@ QC_INTERNAL QC_Bool parse_type_and_ident(Parse_Ctx *ctx, QC_AST_Type **ret_type,
 			case QC_Token_kw_int:
 				bt.is_integer = QC_true;
 				bt.bitness = 0; /* Not specified */
+				advance_tok(ctx);
+			break;
+			case QC_Token_kw_bool:
+				bt.is_boolean = QC_true;
 				advance_tok(ctx);
 			break;
 			case QC_Token_kw_size_t:
@@ -675,7 +679,7 @@ QC_INTERNAL QC_Bool parse_type_and_ident(Parse_Ctx *ctx, QC_AST_Type **ret_type,
 					report_error(ctx, QC_PRIORITY_DEFAULT, "Field dimension must be a constant expression");
 					goto mismatch;
 				}
-				if (dim_value->type != QC_Literal_int) {
+				if (dim_value->type != QC_Literal_integer) {
 					report_error(ctx, QC_PRIORITY_DEFAULT, "Field dimension must be an integer");
 					goto mismatch;
 				}
@@ -731,8 +735,9 @@ QC_INTERNAL QC_Bool parse_type_and_ident(Parse_Ctx *ctx, QC_AST_Type **ret_type,
 				qc_destroy_node(QC_AST_BASE(ident));
 				goto mismatch;
 			}
+
 			found_decl = ident->decl;
-			qc_destroy_node(QC_AST_BASE(ident));
+			type->ident = ident;
 		}
 
 		if (found_decl || !ctx->allow_undeclared) {
@@ -894,15 +899,27 @@ QC_INTERNAL QC_Bool parse_literal(Parse_Ctx *ctx, QC_AST_Node **ret)
 
 	switch (tok->type) {
 		case QC_Token_int:
-			literal->type = QC_Literal_int;
+			literal->type = QC_Literal_integer;
 			literal->value.integer = str_to_int(tok->text);
 			literal->base_type_decl = qc_create_builtin_decl(ctx, qc_int_builtin_type());
 			advance_tok(ctx);
 		break;
 		case QC_Token_float:
-			literal->type = QC_Literal_float;
+			literal->type = QC_Literal_floating;
 			literal->value.floating = str_to_float(tok->text);
 			literal->base_type_decl = qc_create_builtin_decl(ctx, qc_float_builtin_type());
+			advance_tok(ctx);
+		break;
+		case QC_Token_kw_true:
+			literal->type = QC_Literal_boolean;
+			literal->value.boolean = QC_true;
+			literal->base_type_decl = qc_create_builtin_decl(ctx, qc_boolean_builtin_type());
+			advance_tok(ctx);
+		break;
+		case QC_Token_kw_false:
+			literal->type = QC_Literal_boolean;
+			literal->value.boolean = QC_false;
+			literal->base_type_decl = qc_create_builtin_decl(ctx, qc_boolean_builtin_type());
 			advance_tok(ctx);
 		break;
 		case QC_Token_string:
@@ -1590,6 +1607,7 @@ QC_AST_Scope *qc_parse_tokens(QC_Token *toks, QC_Bool dont_reference_tokens, QC_
 		qc_create_builtin_decl(&ctx, qc_void_builtin_type());
 		qc_create_builtin_decl(&ctx, qc_int_builtin_type());
 		qc_create_builtin_decl(&ctx, qc_char_builtin_type());
+		qc_create_builtin_decl(&ctx, qc_boolean_builtin_type());
 		/* @todo Rest */
 	}
 

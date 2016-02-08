@@ -17,6 +17,7 @@ void qc_append_builtin_type_c_str(QC_Array(char) *buf, QC_Builtin_Type bt);
 /* Function name for expression */
 void qc_append_expr_c_func_name(QC_Array(char) *buf, QC_AST_Node *expr);
 void qc_append_c_stdlib_includes(QC_Array(char) *buf);
+
 QC_Bool qc_ast_to_c_str(QC_Array(char) *buf, int indent, QC_AST_Node *node);
 
 /* @todo Flag determining C99 or C89 */

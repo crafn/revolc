@@ -27,6 +27,7 @@ QC_Bool builtin_type_equals(QC_Builtin_Type a, QC_Builtin_Type b)
 	return	a.is_void == b.is_void &&
 			a.is_integer == b.is_integer &&
 			a.is_float == b.is_float &&
+			a.is_boolean == b.is_boolean &&
 			a.bitness == b.bitness &&
 			a.is_unsigned == b.is_unsigned &&
 			is_same_matrix &&
@@ -165,8 +166,8 @@ void qc_copy_ast_node(QC_AST_Node *copy, QC_AST_Node *node, QC_AST_Node **subnod
 		} break;
 
 		case QC_AST_type: {
-			QC_ASSERT(subnode_count == 0 && refnode_count == 2);
-			qc_copy_type_node((QC_AST_Type*)copy, (QC_AST_Type*)node, refnodes[0], refnodes[1]);
+			QC_ASSERT(subnode_count == 1 && refnode_count == 2);
+			qc_copy_type_node((QC_AST_Type*)copy, (QC_AST_Type*)node, subnodes[0], refnodes[0], refnodes[1]);
 		} break;
 
 		case QC_AST_type_decl: {
@@ -277,15 +278,17 @@ void qc_copy_ident_node(QC_AST_Ident *copy, QC_AST_Ident *ident, QC_AST_Node *re
 		qc_destroy_array(char)(&copy->text);
 		copy->text = qc_copy_array(char)(&ident->text);
 	}
-	copy->designated = ident->designated;
+	copy->is_designated = ident->is_designated;
 	copy->decl = ref_to_decl;
 }
 
-void qc_copy_type_node(QC_AST_Type *copy, QC_AST_Type *type, QC_AST_Node *ref_to_base_type_decl, QC_AST_Node *ref_to_base_typedef)
+void qc_copy_type_node(QC_AST_Type *copy, QC_AST_Type *type, QC_AST_Node *ident, QC_AST_Node *ref_to_base_type_decl, QC_AST_Node *ref_to_base_typedef)
 {
 	qc_copy_ast_node_base(QC_AST_BASE(copy), QC_AST_BASE(type));
 	QC_ASSERT(!ref_to_base_type_decl || ref_to_base_type_decl->type == QC_AST_type_decl);
 	QC_ASSERT(!ref_to_base_typedef || ref_to_base_typedef->type == QC_AST_typedef);
+	QC_ASSERT(!ident || ident->type == QC_AST_ident);
+	copy->ident = (QC_AST_Ident*)ident;
 	copy->base_type_decl = (QC_AST_Type_Decl*)ref_to_base_type_decl;
 	copy->base_typedef = (QC_AST_Typedef*)ref_to_base_typedef;
 	copy->ptr_depth = type->ptr_depth;
@@ -343,6 +346,7 @@ void qc_copy_func_decl_node(QC_AST_Func_Decl *copy, QC_AST_Func_Decl *decl, QC_A
 void qc_copy_literal_node(QC_AST_Literal *copy, QC_AST_Literal *literal, QC_AST_Node *comp_type, QC_AST_Node **comp_subs, int comp_sub_count, QC_AST_Node *type_decl_ref)
 {
 	QC_Bool is_same = (copy == literal);
+	/* @todo Tidy up is_same handling */
 	if (!is_same) {
 		if (copy->type == QC_Literal_string) {
 			qc_destroy_array(char)(&copy->value.string);
@@ -369,6 +373,8 @@ void qc_copy_literal_node(QC_AST_Literal *copy, QC_AST_Literal *literal, QC_AST_
 
 		QC_ASSERT(!comp_type || comp_type->type == QC_AST_type);
 		copy->value.compound.type = (QC_AST_Type*)comp_type;
+		QC_ASSERT(!copy->value.compound.type || copy->value.compound.type->base_type_decl);
+
 		for (i = 0; i < comp_sub_count; ++i) {
 			qc_push_array(QC_AST_Node_Ptr)(&copy->value.compound.subnodes, comp_subs[i]);
 		}
@@ -482,6 +488,8 @@ void qc_destroy_node(QC_AST_Node *node)
 	} break;
 
 	case QC_AST_type: {
+		QC_CASTED_NODE(QC_AST_Type, type, node);
+		qc_destroy_node(QC_AST_BASE(type->ident));
 	} break;
 
 	case QC_AST_type_decl: {
@@ -711,6 +719,8 @@ QC_AST_Literal *qc_eval_const_expr(QC_AST_Node *expr)
 {
 	QC_AST_Literal *ret = NULL;
 	QC_AST_Literal *lhs = NULL, *rhs = NULL;
+	if (!expr)
+		return NULL;
 
 	switch (expr->type) {
 	case QC_AST_literal: {
@@ -729,7 +739,7 @@ QC_AST_Literal *qc_eval_const_expr(QC_AST_Node *expr)
 			ret = (QC_AST_Literal*)qc_copy_ast(QC_AST_BASE(rhs));
 
 			switch (rhs->type) {
-			case QC_Literal_int: {
+			case QC_Literal_integer: {
 				int result;
 				switch (biop->type) {
 				case QC_Token_add: result = lhs->value.integer + rhs->value.integer; break;
@@ -738,7 +748,7 @@ QC_AST_Literal *qc_eval_const_expr(QC_AST_Node *expr)
 				}
 				ret->value.integer = result;
 			} break;
-			case QC_Literal_float: {
+			case QC_Literal_floating: {
 				double result;
 				switch (biop->type) {
 				case QC_Token_add: result = lhs->value.floating + rhs->value.floating; break;
@@ -757,7 +767,7 @@ QC_AST_Literal *qc_eval_const_expr(QC_AST_Node *expr)
 			ret = (QC_AST_Literal*)qc_copy_ast(QC_AST_BASE(rhs));
 
 			switch (rhs->type) {
-			case QC_Literal_int: {
+			case QC_Literal_integer: {
 				int result;
 				switch (biop->type) {
 				case QC_Token_add: result = rhs->value.integer; break;
@@ -766,7 +776,7 @@ QC_AST_Literal *qc_eval_const_expr(QC_AST_Node *expr)
 				}
 				ret->value.integer = result;
 			} break;
-			case QC_Literal_float: {
+			case QC_Literal_floating: {
 				double result;
 				switch (biop->type) {
 				case QC_Token_add: result = rhs->value.floating; break;
@@ -913,8 +923,8 @@ QC_AST_Node *qc_copy_ast_impl(Copy_Ctx *ctx, QC_AST_Node *node)
 		}
 
 		qc_copy_ast_node(	copy, node,
-						subnodes.data, subnodes.size,
-						refnodes.data, refnodes.size);
+							subnodes.data, subnodes.size,
+							refnodes.data, refnodes.size);
 
 		qc_destroy_array(QC_AST_Node_Ptr)(&subnodes);
 		qc_destroy_array(QC_AST_Node_Ptr)(&refnodes);
@@ -1114,6 +1124,9 @@ QC_INTERNAL QC_Bool qc_resolve_ident_in_scope(QC_AST_Ident *ident, QC_AST_Scope 
 {
 	/* Search from given scope */
 	int i;
+	if (!search_scope)
+		return QC_false;
+
 	for (i = 0; i < search_scope->nodes.size; ++i) {
 		QC_AST_Node *subnode = search_scope->nodes.data[i];
 		if (!qc_is_decl(subnode))
@@ -1142,7 +1155,8 @@ QC_INTERNAL QC_Bool resolve_node(QC_AST_Parent_Map *map, QC_AST_Ident *ident, QC
 		if (parent->type == QC_AST_literal) {
 			QC_CASTED_NODE(QC_AST_Literal, literal, parent);
 			if (	literal->type == QC_Literal_compound &&
-					literal->value.compound.type) {
+					literal->value.compound.type &&
+					literal->value.compound.type->base_type_decl) {
 				qc_resolve_ident_in_scope(ident, literal->value.compound.type->base_type_decl->body);
 			}
 		}
@@ -1211,6 +1225,17 @@ QC_AST_Ident *qc_resolve_ident(QC_AST_Parent_Map *map, QC_AST_Ident *ident)
 
 QC_DECLARE_ARRAY(QC_AST_Type)
 QC_DEFINE_ARRAY(QC_AST_Type)
+
+QC_Bool qc_is_literal_node(QC_AST_Node *node, QC_Literal_Type literal_type)
+{
+	if (!node || node->type != QC_AST_literal)
+		return QC_false;
+	
+	{
+		QC_CASTED_NODE(QC_AST_Literal, literal, node);
+		return literal->type == literal_type;
+	}
+}
 
 QC_AST_Ident *qc_call_ident(QC_AST_Call *call)
 {
@@ -1331,6 +1356,8 @@ void qc_push_immediate_subnodes(QC_Array(QC_AST_Node_Ptr) *ret, QC_AST_Node *nod
 	} break;
 
 	case QC_AST_type: {
+		QC_CASTED_NODE(QC_AST_Type, type, node);
+		qc_push_array(QC_AST_Node_Ptr)(ret, QC_AST_BASE(type->ident));
 	} break;
 
 	case QC_AST_type_decl: {
@@ -1631,11 +1658,18 @@ void qc_print_ast(QC_AST_Node *node, int indent)
 		QC_CASTED_NODE(QC_AST_Literal, literal, node);
 		printf("literal: ");
 		switch (literal->type) {
-			case QC_Literal_int: printf("int: %i\n", literal->value.integer); break;
-			case QC_Literal_float: printf("float: %f\n", literal->value.floating); break;
+			case QC_Literal_integer: printf("int: %i\n", literal->value.integer); break;
+			case QC_Literal_floating: printf("float: %f\n", literal->value.floating); break;
+			case QC_Literal_boolean: printf("bool: %i\n", literal->value.boolean); break;
 			case QC_Literal_string: printf("str: %s\n", literal->value.string.data); break;
 			case QC_Literal_null: printf("NULL\n"); break;
-			case QC_Literal_compound: printf("COMPOUND\n"); break;
+			case QC_Literal_compound:
+				printf("compound\n");
+				for (i = 0; i < literal->value.compound.subnodes.size; ++i) {
+					qc_print_ast(	literal->value.compound.subnodes.data[i],
+									indent + 2);
+				}
+			break;
 			default: QC_FAIL(("Unknown literal type: %i", literal->type));
 		}
 	} break;
@@ -1773,19 +1807,30 @@ QC_AST_Type_Decl *qc_find_builtin_type_decl(QC_Builtin_Type bt, QC_AST_Scope *ro
 QC_AST_Literal *qc_create_integer_literal(int value, QC_AST_Scope *root)
 {
 	QC_AST_Literal *literal = qc_create_literal_node();
-	literal->type = QC_Literal_int;
+	literal->type = QC_Literal_integer;
 	literal->value.integer = value;
 	if (root) /* @todo Don't accept NULL */
 		literal->base_type_decl = qc_find_builtin_type_decl(qc_int_builtin_type(), root);
 	return literal;
 }
 
+QC_AST_Literal *qc_create_string_literal(const char *value, QC_AST_Scope *root)
+{
+	QC_AST_Literal *literal = qc_create_literal_node();
+	literal->type = QC_Literal_string;
+	literal->value.string = qc_create_array(char)(8);
+	qc_append_str(&literal->value.string, "%s", value);
+	if (root)
+		literal->base_type_decl = qc_find_builtin_type_decl(qc_char_builtin_type(), root);
+	return literal;
+}
+
 QC_AST_Literal *qc_create_floating_literal(double value, QC_AST_Scope *root)
 {
 	QC_AST_Literal *literal = qc_create_literal_node();
-	literal->type = QC_Literal_float;
+	literal->type = QC_Literal_floating;
 	literal->value.floating = value;
-	if (root) /* @todo Don't accept NULL */
+	if (root)
 		literal->base_type_decl = qc_find_builtin_type_decl(qc_float_builtin_type(), root);
 	return literal;
 }
@@ -2016,6 +2061,13 @@ QC_Builtin_Type qc_float_builtin_type()
 	return bt;
 }
 
+QC_Builtin_Type qc_boolean_builtin_type()
+{
+	QC_Builtin_Type bt = {0};
+	bt.is_boolean = QC_true;
+	return bt;
+}
+
 QC_Builtin_Type qc_char_builtin_type()
 {
 	QC_Builtin_Type bt = {0};
@@ -2085,3 +2137,132 @@ void qc_add_parallel_id_init(QC_AST_Scope *root, QC_AST_Parallel *parallel, int 
 		qc_insert_array(QC_AST_Node_Ptr)(&parallel->body->nodes, 1, (QC_AST_Node**)&assign, 1);
 	}
 }
+
+
+/* Immediate-mode AST generation */
+
+QC_INTERNAL void qc_add_to_parent(QC_Write_Context *ctx, QC_AST_Node *node)
+{
+	if (ctx->stack.size == 0) {
+		qc_push_array(QC_AST_Node_Ptr)(&ctx->root->nodes, node);
+	} else {
+		QC_AST_Node *parent = ctx->stack.data[ctx->stack.size - 1];
+		switch (parent->type) {
+		case QC_AST_biop: {
+			QC_CASTED_NODE(QC_AST_Biop, biop, parent);
+
+			QC_ASSERT(biop->rhs == NULL);
+			biop->rhs = node;
+
+			/* Biops are ended after inserting complete node for RHS */
+			qc_pop_array(QC_AST_Node_Ptr)(&ctx->stack);
+		} break;
+		case QC_AST_literal: {
+			QC_CASTED_NODE(QC_AST_Literal, literal, parent);
+			if (literal->type == QC_Literal_compound) {
+				qc_push_array(QC_AST_Node_Ptr)(
+					&literal->value.compound.subnodes, node);
+			}
+		} break;
+		default:;
+		}
+	}
+}
+
+QC_INTERNAL void qc_push_write_stack(QC_Write_Context *ctx, QC_AST_Node *node)
+{
+	qc_add_to_parent(ctx, node);
+	qc_push_array(QC_AST_Node_Ptr)(&ctx->stack, node);
+}
+
+QC_INTERNAL void qc_pop_write_stack(QC_Write_Context *ctx)
+{ qc_pop_array(QC_AST_Node_Ptr)(&ctx->stack); }
+
+QC_Write_Context *qc_create_write_context()
+{
+	QC_Write_Context *ctx = QC_MALLOC(sizeof*(ctx));
+	memset(ctx, 0, sizeof(*ctx));
+	ctx->root = qc_create_ast();
+	ctx->stack = qc_create_array(QC_AST_Node_Ptr)(16);
+	ctx->loose_nodes = qc_create_array(QC_AST_Node_Ptr)(16);
+	return ctx;
+}
+
+void qc_destroy_write_context(QC_Write_Context *ctx)
+{
+	int i;
+	for (i = 0; i < ctx->loose_nodes.size; ++i)
+		qc_destroy_node(ctx->loose_nodes.data[i]);
+	qc_destroy_array(QC_AST_Node_Ptr)(&ctx->stack);
+	qc_destroy_array(QC_AST_Node_Ptr)(&ctx->loose_nodes);
+	QC_FREE(ctx);
+}
+
+void qc_begin_initializer(QC_Write_Context *ctx)
+{
+	QC_AST_Literal *compound = qc_create_literal_node();
+	compound->type = QC_Literal_compound;
+	compound->value.compound.subnodes = qc_create_array(QC_AST_Node_Ptr)(2);
+
+	qc_push_write_stack(ctx, QC_AST_BASE(compound));
+}
+
+void qc_end_initializer(QC_Write_Context *ctx)
+{ qc_pop_write_stack(ctx); }
+
+void qc_begin_compound(QC_Write_Context *ctx, const char *type_name)
+{
+	if (type_name) {
+		QC_AST_Type *type = qc_create_type_node();
+		QC_AST_Type_Decl *type_decl = qc_create_type_decl_node();
+		QC_AST_Literal *compound = qc_create_literal_node();
+		compound->type = QC_Literal_compound;
+		compound->value.compound.subnodes = qc_create_array(QC_AST_Node_Ptr)(2);
+
+		compound->value.compound.type = type;
+		type->base_type_decl = type_decl;
+		type_decl->ident = qc_create_ident_with_text(NULL, "%s", type_name);
+
+		QC_ASSERT(compound->value.compound.type->base_type_decl);
+
+		qc_push_write_stack(ctx, QC_AST_BASE(compound));
+		qc_push_array(QC_AST_Node_Ptr)(&ctx->loose_nodes, QC_AST_BASE(type_decl));
+	} else {
+		qc_begin_initializer(ctx);
+	}
+}
+
+void qc_end_compound(QC_Write_Context *ctx)
+{ qc_pop_write_stack(ctx); }
+
+void qc_add_designated(QC_Write_Context *ctx, const char *var_name)
+{
+	/* RHS is set by command following this */
+	QC_AST_Ident *ident = qc_create_ident_with_text(NULL, "%s", var_name);
+	QC_AST_Biop *assign =
+		qc_create_assign(
+			qc_try_create_access(QC_AST_BASE(ident)),
+			NULL);
+	ident->is_designated = QC_true;
+	/* This is popped in next qc_add_to_parent() at one level deeper */
+	qc_push_write_stack(ctx, QC_AST_BASE(assign));
+}
+
+void qc_add_string(QC_Write_Context *ctx, const char *str)
+{
+	QC_AST_Literal *literal = qc_create_string_literal(str, NULL);
+	qc_add_to_parent(ctx, QC_AST_BASE(literal));
+}
+
+void qc_add_integer(QC_Write_Context *ctx, int value)
+{
+	QC_AST_Literal *literal = qc_create_integer_literal(value, NULL);
+	qc_add_to_parent(ctx, QC_AST_BASE(literal));
+}
+
+void qc_add_floating(QC_Write_Context *ctx, double value)
+{
+	QC_AST_Literal *literal = qc_create_floating_literal(value, NULL);
+	qc_add_to_parent(ctx, QC_AST_BASE(literal));
+}
+

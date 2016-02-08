@@ -7,6 +7,7 @@
 
 #ifndef CODEGEN
 #	include <jsmn/jsmn.h>
+#	include <qc/ast.h>
 #endif
 
 typedef enum {
@@ -61,6 +62,19 @@ REVOLC_API V3d json_v3(JsonTok j);
 REVOLC_API Color json_color(JsonTok j);
 REVOLC_API Qd json_q(JsonTok j);
 REVOLC_API T3d json_t3(JsonTok j);
+
+// Api for traversing json-like subset of C99
+
+REVOLC_API QC_AST_Node *cson_key(QC_AST_Node *n, const char *key);
+REVOLC_API QC_AST_Node *cson_member(QC_AST_Node *n, U32 i);
+REVOLC_API const char *cson_compound_type(QC_AST_Node *n); // NULL for plain initializer list
+REVOLC_API bool cson_is_compound(QC_AST_Node *n);
+REVOLC_API U32 cson_member_count(QC_AST_Node *n);
+// 'err' can only be modified to be true. This allows chaining with the same error variable.
+REVOLC_API const char *cson_string(QC_AST_Node *n, bool *err);
+REVOLC_API F64 cson_floating(QC_AST_Node *n, bool *err);
+REVOLC_API S64 cson_integer(QC_AST_Node *n, bool *err);
+REVOLC_API bool cson_boolean(QC_AST_Node *n, bool *err);
 
 // Used to partially update json strings
 // If complex manipulation of json files is needed, this should

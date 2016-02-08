@@ -110,12 +110,10 @@ QC_INTERNAL QC_Token_Type kw_tokentype(const char *buf, int size)
 		return QC_Token_kw_while;
 	if (str_equals_buf("if", buf, size))
 		return QC_Token_kw_if;
-	if (str_equals_buf("QC_true", buf, size))
-		return QC_Token_kw_QC_true;
-	if (str_equals_buf("QC_true", buf, size))
-		return QC_Token_kw_QC_true;
-	if (str_equals_buf("QC_false", buf, size))
-		return QC_Token_kw_QC_false;
+	if (str_equals_buf("true", buf, size))
+		return QC_Token_kw_true;
+	if (str_equals_buf("false", buf, size))
+		return QC_Token_kw_false;
 	if (str_equals_buf("sizeof", buf, size))
 		return QC_Token_kw_sizeof;
 	if (str_equals_buf("typedef", buf, size))
@@ -126,6 +124,8 @@ QC_INTERNAL QC_Token_Type kw_tokentype(const char *buf, int size)
 		return QC_Token_kw_void;
 	if (str_equals_buf("int", buf, size))
 		return QC_Token_kw_int;
+	if (str_equals_buf("bool", buf, size))
+		return QC_Token_kw_bool;
 	if (str_equals_buf("size_t", buf, size))
 		return QC_Token_kw_size_t;
 	if (str_equals_buf("char", buf, size))
@@ -367,13 +367,14 @@ const char* qc_tokentype_str(QC_Token_Type type)
 		case QC_Token_kw_null: return "kw_null";
 		case QC_Token_kw_for: return "kw_for";
 		case QC_Token_kw_if: return "kw_if";
-		case QC_Token_kw_QC_true: return "kw_QC_true";
-		case QC_Token_kw_QC_false: return "kw_QC_false";
+		case QC_Token_kw_true: return "kw_true";
+		case QC_Token_kw_false: return "kw_false";
 		case QC_Token_kw_sizeof: return "kw_sizeof";
 		case QC_Token_kw_typedef: return "kw_typedef";
 		case QC_Token_kw_parallel: return "kw_parallel";
 		case QC_Token_kw_void: return "kw_void";
 		case QC_Token_kw_int: return "kw_int";
+		case QC_Token_kw_bool: return "kw_bool";
 		case QC_Token_kw_size_t: return "kw_size_t";
 		case QC_Token_kw_char: return "kw_char";
 		case QC_Token_kw_float: return "kw_float";
@@ -441,13 +442,14 @@ const char* qc_tokentype_codestr(QC_Token_Type type)
 		case QC_Token_kw_for: return "for";
 		case QC_Token_kw_while: return "while";
 		case QC_Token_kw_if: return "if";
-		case QC_Token_kw_QC_true: return "QC_true";
-		case QC_Token_kw_QC_false: return "QC_false";
+		case QC_Token_kw_true: return "true";
+		case QC_Token_kw_false: return "false";
 		case QC_Token_kw_sizeof: return "sizeof";
 		case QC_Token_kw_typedef: return "typedef";
 		case QC_Token_kw_parallel: return "for_field";
 		case QC_Token_kw_void: return "void";
 		case QC_Token_kw_int: return "int";
+		case QC_Token_kw_bool: return "bool";
 		case QC_Token_kw_size_t: return "size_t";
 		case QC_Token_kw_char: return "char";
 		case QC_Token_kw_float: return "float";
