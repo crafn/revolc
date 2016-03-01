@@ -43,6 +43,8 @@ REVOLC_API void pack_buf(WArchive *ar, const void *data, U32 data_size);
 REVOLC_API void pack_strbuf(WArchive *ar, const char *str, U32 str_max_size);
 
 REVOLC_API void pack_buf_patch(WArchive *ar, U32 offset, const void *data, U32 data_size);
+// Patches current offset to "offset_to_ptr" location in buf
+REVOLC_API void pack_buf_patch_rel_ptr(WArchive *ar, U32 offset_to_ptr);
 
 REVOLC_API void unpack_u32(RArchive *ar, U32 *value);
 REVOLC_API void unpack_u64(RArchive *ar, U64 *value);

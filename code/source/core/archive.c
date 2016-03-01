@@ -184,6 +184,12 @@ void pack_buf_patch(WArchive *ar, U32 offset, const void *data, U32 data_size)
 	ar->data_size = end;
 }
 
+void pack_patch_rel_ptr(WArchive *ar, U32 offset_to_ptr)
+{
+	RelPtr ptr = { .value = ar->data_size - offset_to_ptr };
+	pack_buf_patch(ar, offset_to_ptr, &ptr, sizeof(ptr));
+}
+
 void unpack_u32(RArchive *ar, U32 *value)
 { unpack_int_funcs[ar->type](ar, value, sizeof(*value)); }
 void unpack_u64(RArchive *ar, U64 *value)

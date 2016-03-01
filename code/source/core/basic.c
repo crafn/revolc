@@ -109,6 +109,15 @@ void *read_file(Ator *ator, const char *path, U32 *file_size)
 	return buf;
 }
 
+char *read_file_as_str(struct Ator *ator, const char *path)
+{
+	U32 size;
+	char *data = read_file(ator, path, &size);
+	data = REALLOC(ator, data, size + 1, "read_file_as_str");
+	data[size] = '\0';
+	return data;
+}
+
 void file_write(FILE *f, const void *data, U32 size)
 {
 	int ret = fwrite(data, 1, size, f);

@@ -11,9 +11,19 @@
 internal
 int json_res_to_blob(BlobBuf *buf, JsonTok j, ResType res_t)
 {
-#define RESOURCE(name, init, deinit, blobify, jsonify, recache) \
+#define RESOURCE(name, init, deinit, c_blobify, blobify, jsonify, recache) \
 	if (res_t == ResType_ ## name) \
 		return blobify(buf, j);
+#	include "resources.def"
+#undef RESOURCE
+	return 1;
+}
+
+internal int blobify_res(WArchive *ar, Cson c, ResType res_t, const char *base_path)
+{
+#define RESOURCE(name, init, deinit, c_blobify, blobify, jsonify, recache) \
+	if (res_t == ResType_ ## name) \
+		return ((int (*)(WArchive*, Cson, const char *))c_blobify)(ar, c, base_path);
 #	include "resources.def"
 #undef RESOURCE
 	return 1;
@@ -22,7 +32,7 @@ int json_res_to_blob(BlobBuf *buf, JsonTok j, ResType res_t)
 internal
 void res_to_json(WJson *j, const Resource *res)
 {
-#define RESOURCE(rtype, init, deinit, blobify, jsonify, recache) \
+#define RESOURCE(rtype, init, deinit, c_blobify, blobify, jsonify, recache) \
 	{ \
 		void *fptr = (void*)jsonify; \
 		if (ResType_ ## rtype == res->type) { \
@@ -39,7 +49,7 @@ void res_to_json(WJson *j, const Resource *res)
 internal
 void init_res(Resource *res)
 {
-#define RESOURCE(rtype, init, deinit, blobify, jsonify, recache) \
+#define RESOURCE(rtype, init, deinit, c_blobify, blobify, jsonify, recache) \
 	{ \
 		void *fptr = (void*)init; \
 		if (fptr && ResType_ ## rtype == res->type) \
@@ -89,7 +99,7 @@ void load_blob(ResBlob **blob, const char *path)
 internal
 void deinit_res(Resource *res)
 {
-#define RESOURCE(rtype, init, deinit, blobify, jsonify, recache) \
+#define RESOURCE(rtype, init, deinit, c_blobify, blobify, jsonify, recache) \
 	{ \
 		void* fptr = (void*)deinit; \
 		if (fptr && ResType_ ## rtype == res->type) \
@@ -194,24 +204,20 @@ Resource * res_by_name(ResBlob *blob, ResType type, const char *name)
 		const U32 missing_res_max_size = 1024*4;
 		new_res->res = ZERO_ALLOC(dev_ator(), missing_res_max_size, "new_res->res");
 
-		BlobBuf buf = {
-			.data = new_res->res,
-			.max_size = missing_res_max_size,
-		};
+		Ator new_res_ator = linear_ator(new_res->res, missing_res_max_size, "new_res");
+		WArchive ar = create_warchive(ArchiveType_binary, &new_res_ator, missing_res_max_size);
 
+		char *file_data = read_file_as_str(dev_ator(), MISSING_RES_FILE);
 
-		ParsedJsonFile parsed_json = parse_json_file(dev_ator(), MISSING_RES_FILE);
-		if (parsed_json.tokens == NULL)
+		QC_AST_Node *expr;
+		QC_AST_Scope *root = qc_parse_string(&expr, file_data);
+		if (!root)
 			fail("Failed parsing %s", MISSING_RES_FILE);
-		ensure(parsed_json.root.tok);
 
-		JsonTok j_res = json_value_by_key(
-							parsed_json.root, 
-							restype_to_str(type));
-		if (json_is_null(j_res))
+		QC_AST_Node *c_res = cson_key(expr, restype_to_str(type));
+		if (!c_res)
 			fail("Config for missing resources invalid, not found: %s", restype_to_str(type));
-
-		int err = json_res_to_blob(&buf, j_res, type);
+		int err = blobify_res(&ar, c_res, type, MISSING_RES_BASE);
 		if (err)
 			fail("Creating MissingResource failed (wtf, where's your resources?)");
 
@@ -221,10 +227,13 @@ Resource * res_by_name(ResBlob *blob, ResType type, const char *name)
 		res_header.type = type;
 		res_header.blob = blob;
 		res_header.runtime_owner = new_res;
-		res_header.size = buf.offset;
-		memcpy(buf.data, &res_header, sizeof(res_header));
+		res_header.size = ar.data_size;
+		memcpy(ar.data, &res_header, sizeof(res_header));
 
-		free_parsed_json_file(parsed_json);
+		qc_destroy_ast(root);
+		FREE(dev_ator(), file_data);
+		destroy_warchive(&ar);
+
 		init_res(new_res->res);
 
 		add_rt_res(blob, new_res);
@@ -534,7 +543,7 @@ bool inside_blob(const ResBlob *blob, void *ptr)
 
 internal void recache_ptrs_to(Resource *res)
 {
-#define RESOURCE(rtype, init, deinit, blobify, jsonify, recache) \
+#define RESOURCE(rtype, init, deinit, c_blobify, blobify, jsonify, recache) \
 	{ \
 		void (*fptr)() = recache; \
 		if (fptr && ResType_ ## rtype == res->type) \

@@ -65,16 +65,18 @@ REVOLC_API T3d json_t3(JsonTok j);
 
 // Api for traversing json-like subset of C99
 
-REVOLC_API QC_AST_Node *cson_key(QC_AST_Node *n, const char *key);
-REVOLC_API QC_AST_Node *cson_member(QC_AST_Node *n, U32 i);
-REVOLC_API const char *cson_compound_type(QC_AST_Node *n); // NULL for plain initializer list
-REVOLC_API bool cson_is_compound(QC_AST_Node *n);
-REVOLC_API U32 cson_member_count(QC_AST_Node *n);
+typedef QC_AST_Node *Cson;
+REVOLC_API Cson cson_key(Cson c, const char *key);
+REVOLC_API Cson cson_member(Cson c, U32 i);
+REVOLC_API const char *cson_compound_type(Cson c); // NULL for plain initializer list
+REVOLC_API bool cson_is_compound(Cson c);
+REVOLC_API bool cson_is_null(Cson c);
+REVOLC_API U32 cson_member_count(Cson c);
 // 'err' can only be modified to be true. This allows chaining with the same error variable.
-REVOLC_API const char *cson_string(QC_AST_Node *n, bool *err);
-REVOLC_API F64 cson_floating(QC_AST_Node *n, bool *err);
-REVOLC_API S64 cson_integer(QC_AST_Node *n, bool *err);
-REVOLC_API bool cson_boolean(QC_AST_Node *n, bool *err);
+REVOLC_API const char *cson_string(Cson c, bool *err);
+REVOLC_API F64 cson_floating(Cson c, bool *err);
+REVOLC_API S64 cson_integer(Cson c, bool *err);
+REVOLC_API bool cson_boolean(Cson c, bool *err);
 
 // Used to partially update json strings
 // If complex manipulation of json files is needed, this should

@@ -12,6 +12,7 @@
 #define MAX_RES_FILES 64
 #define DEFAULT_RES_ROOT "../../resources/"
 #define MISSING_RES_FILE "../../resources/revolc/basic/missing"
+#define MISSING_RES_BASE "../../resources/revolc/basic/"
 
 #define MAX_ARMATURE_JOINT_COUNT 16
 #define MAX_ARMATURE_CLIP_COUNT 32

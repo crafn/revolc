@@ -251,7 +251,7 @@ T3d json_t3(JsonTok j)
 	};
 }
 
-QC_AST_Node *cson_key(QC_AST_Node *n, const char *key)
+Cson cson_key(Cson n, const char *key)
 {
 	if (!qc_is_literal_node(n, QC_Literal_compound))
 		return NULL;
@@ -260,7 +260,7 @@ QC_AST_Node *cson_key(QC_AST_Node *n, const char *key)
 
 	QC_Array(QC_AST_Node_Ptr) *nodes = &literal->value.compound.subnodes;
 	for (int i = 0; i < nodes->size; ++i) {
-		QC_AST_Node *node = nodes->data[i];
+		Cson node = nodes->data[i];
 		if (node->type != QC_AST_biop)
 			continue;
 
@@ -282,7 +282,7 @@ QC_AST_Node *cson_key(QC_AST_Node *n, const char *key)
 	return NULL;
 }
 
-QC_AST_Node *cson_member(QC_AST_Node *n, U32 i)
+Cson cson_member(Cson n, U32 i)
 {
 	if (!cson_is_compound(n))
 		return NULL;
@@ -293,7 +293,7 @@ QC_AST_Node *cson_member(QC_AST_Node *n, U32 i)
 	return nodes->data[i];
 }
 
-const char *cson_compound_type(QC_AST_Node *n)
+const char *cson_compound_type(Cson n)
 {
 	if (!cson_is_compound(n))
 		return NULL;
@@ -306,7 +306,7 @@ const char *cson_compound_type(QC_AST_Node *n)
 	return type->base_type_decl->ident->text.data;
 }
 
-bool cson_is_compound(QC_AST_Node *n)
+bool cson_is_compound(Cson n)
 {
 	if (!n || n->type != QC_AST_literal)
 		return false;
@@ -318,7 +318,10 @@ bool cson_is_compound(QC_AST_Node *n)
 	return true;
 }
 
-U32 cson_member_count(QC_AST_Node *n)
+bool cson_is_null(Cson n)
+{ return n == NULL; }
+
+U32 cson_member_count(Cson n)
 {
 	if (!cson_is_compound(n))
 		return 0;
@@ -327,7 +330,7 @@ U32 cson_member_count(QC_AST_Node *n)
 	return literal->value.compound.subnodes.size;
 }
 
-const char *cson_string(QC_AST_Node *n, bool *err)
+const char *cson_string(Cson n, bool *err)
 {
 	if (!qc_is_literal_node(n, QC_Literal_string)) {
 		if (err)
@@ -339,7 +342,7 @@ const char *cson_string(QC_AST_Node *n, bool *err)
 	return literal->value.string.data;
 }
 
-F64 cson_floating(QC_AST_Node *n, bool *err)
+F64 cson_floating(Cson n, bool *err)
 {
 	QC_AST_Literal *eval = qc_eval_const_expr(n);
 	F64 val = 0.0;
@@ -360,10 +363,10 @@ exit:
 }
 
 // @todo
-S64 cson_integer(QC_AST_Node *n, bool *err)
+S64 cson_integer(Cson n, bool *err)
 { return (S64)cson_floating(n, err); }
 
-bool cson_boolean(QC_AST_Node *n, bool *err)
+bool cson_boolean(Cson n, bool *err)
 {
 	QC_AST_Literal *eval = qc_eval_const_expr(n);
 	bool val = false;

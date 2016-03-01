@@ -313,11 +313,11 @@ MOD_API void init_clover()
 
 			qc_add_designated(ctx, "pätkä");
 			qc_begin_compound(ctx, "Reiska");
-				qc_add_designated(ctx, "magia");
-				qc_add_integer(ctx, 9000);
-
 				qc_add_designated(ctx, "loitsu");
 				qc_add_string(ctx, "ös");
+
+				qc_add_designated(ctx, "magia");
+				qc_add_integer(ctx, 9000);
 			qc_end_compound(ctx);
 
 			qc_add_designated(ctx, "array");
@@ -368,6 +368,9 @@ MOD_API void init_clover()
 	}
 
 	qc_destroy_array(char)(&code);
+
+	// Query non-existing resources to test missing resources
+	res_by_name(g_env.resblob, ResType_Texture, "foobar");
 #endif
 }
 

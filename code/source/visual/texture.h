@@ -29,4 +29,7 @@ V2i lod_reso(V2i base, U32 lod);
 REVOLC_API WARN_UNUSED
 int json_texture_to_blob(struct BlobBuf *buf, JsonTok j);
 
+REVOLC_API WARN_UNUSED
+int blobify_texture(struct WArchive *ar, Cson c, const char *base_path);
+
 #endif // REVOLC_VISUAL_TEXTURE_H
