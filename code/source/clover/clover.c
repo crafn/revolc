@@ -371,6 +371,9 @@ MOD_API void init_clover()
 
 	// Query non-existing resources to test missing resources
 	res_by_name(g_env.resblob, ResType_Texture, "foobar");
+	res_by_name(g_env.resblob, ResType_Mesh, "foobar");
+	res_by_name(g_env.resblob, ResType_Model, "foobar");
+	res_by_name(g_env.resblob, ResType_CompDef, "foobar");
 #endif
 }
 

@@ -383,6 +383,57 @@ exit:
 	return val;
 }
 
+V2d cson_v2(Cson c, bool *err)
+{
+	V2d value = {};
+	value.x = cson_floating(cson_member(c, 0), err);
+	value.y = cson_floating(cson_member(c, 1), err);
+	return value;
+}
+
+V3d cson_v3(Cson c, bool *err)
+{
+	V3d value = {};
+	value.x = cson_floating(cson_member(c, 0), err);
+	value.y = cson_floating(cson_member(c, 1), err);
+	value.x = cson_floating(cson_member(c, 2), err);
+	return value;
+}
+
+Color cson_color(Cson c, bool *err)
+{
+	Color value = {};
+	value.r = cson_floating(cson_member(c, 0), err);
+	value.g = cson_floating(cson_member(c, 1), err);
+	value.b = cson_floating(cson_member(c, 2), err);
+	value.a = cson_floating(cson_member(c, 3), err);
+	return value;
+}
+
+Qd cson_q(Cson j, bool *err)
+{
+	V3d axis = {
+		cson_floating(cson_member(j, 0), err),
+		cson_floating(cson_member(j, 1), err),
+		cson_floating(cson_member(j, 2), err)
+	};
+	F64 angle = cson_floating(cson_member(j, 3), err);
+	ensure(	isfinite(axis.x) &&
+			isfinite(axis.y) &&
+			isfinite(axis.z) &&
+			isfinite(angle));
+	return qd_by_axis(axis, angle);
+}
+
+T3d cson_t3(Cson c, bool *err)
+{
+	return (T3d) {
+		cson_v3(cson_key(c, "scale"), err),
+		cson_q(cson_key(c, "rot"), err),
+		cson_v3(cson_key(c, "pos"), err)
+	};
+}
+
 //
 // wjson
 //

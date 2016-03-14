@@ -205,6 +205,125 @@ void mesh_to_json(WJson *j, const Mesh *m)
 	}
 }
 
+int blobify_mesh(struct WArchive *ar, Cson c, const char *base_path)
+{
+	MeshType type = MeshType_tri;
+
+	Cson c_pos = cson_key(c, "pos");
+	Cson c_uv = cson_key(c, "uv");
+	Cson c_outline_uv = cson_key(c, "outline_uv");
+	Cson c_color = cson_key(c, "color");
+	Cson c_color_exp = cson_key(c, "color_exp");
+	Cson c_outline_color = cson_key(c, "outline_color");
+	Cson c_outline_exp = cson_key(c, "outline_exp");
+	Cson c_outline_width = cson_key(c, "outline_width");
+	Cson c_ind = cson_key(c, "ind");
+
+	if (cson_is_null(c_pos))
+		RES_ATTRIB_MISSING("pos");
+	if (cson_is_null(c_ind))
+		RES_ATTRIB_MISSING("ind");
+
+	if (	!cson_is_null(c_uv) &&
+			cson_member_count(c_uv) != cson_member_count(c_pos)) {
+		critical_print("Attrib 'uv' size doesn't match with 'pos' for Mesh: %s",
+				cson_string(cson_key(c, "name"), NULL));
+		goto error;
+	}
+
+	if (	!cson_is_null(c_outline_uv) &&
+			cson_member_count(c_outline_uv) != cson_member_count(c_pos)) {
+		critical_print("Attrib 'outline_uv' size doesn't match with 'pos' for Mesh: %s",
+				cson_string(cson_key(c, "name"), NULL));
+		goto error;
+	}
+
+	{
+		const U32 v_count = cson_member_count(c_pos);
+		const U32 i_count = cson_member_count(c_ind);
+		TriMeshVertex *vertices = ZERO_ALLOC(dev_ator(), sizeof(*vertices)*v_count, "verts");
+		MeshIndexType *indices = ZERO_ALLOC(dev_ator(), sizeof(*indices)*i_count, "inds");
+		for (U32 i = 0; i < v_count; ++i) {
+			Cson c_p = cson_member(c_pos, i);
+			V3f p = {};
+			for (U32 c = 0; c < cson_member_count(c_p); ++c)
+				(&p.x)[c] = cson_floating(cson_member(c_p, c), NULL);
+			vertices[i] = default_vertex();
+			vertices[i].pos = p;
+
+			if (!cson_is_null(c_uv)) {
+				Cson c_u = cson_member(c_uv, i);
+				V3f u = {};
+				u.x = cson_floating(cson_member(c_u, 0), NULL);
+				u.y = cson_floating(cson_member(c_u, 1), NULL);
+				vertices[i].uv = u;
+			}
+
+			if (!cson_is_null(c_outline_uv)) {
+				Cson c_u = cson_member(c_outline_uv, i);
+				vertices[i].outline_uv = v2d_to_v2f(cson_v2(c_u, NULL));
+			}
+
+			if (!cson_is_null(c_color)) {
+				Cson c = cson_member(c_color, i);
+				vertices[i].color = cson_color(c, NULL);
+			}
+
+			if (!cson_is_null(c_outline_color)) {
+				Cson c = cson_member(c_outline_color, i);
+				vertices[i].outline_color = cson_color(c, NULL);
+			}
+
+			if (!cson_is_null(c_color_exp)) {
+				Cson c = cson_member(c_color_exp, i);
+				vertices[i].color_exp = cson_floating(c, NULL);
+			}
+
+			if (!cson_is_null(c_outline_exp)) {
+				Cson c = cson_member(c_outline_exp, i);
+				vertices[i].outline_exp = cson_floating(c, NULL);
+			}
+
+			if (!cson_is_null(c_outline_width)) {
+				Cson c = cson_member(c_outline_width, i);
+				vertices[i].outline_width = cson_floating(c, NULL);
+			}
+
+		}
+		for (U32 i = 0; i < i_count; ++i)
+			indices[i] = cson_integer(cson_member(c_ind, i), NULL);
+
+		// @todo Fill Mesh and write it instead of individual members
+		Resource res;
+
+		pack_buf(ar, &res, sizeof(res));
+		pack_buf(ar, &type, sizeof(type));
+		pack_buf(ar, &v_count, sizeof(v_count));
+		pack_buf(ar, &i_count, sizeof(i_count));
+
+		U32 v_offset = ar->data_size;
+		RelPtr rel_ptr = {};
+		pack_buf(ar, &rel_ptr, sizeof(rel_ptr));
+
+		U32 i_offset = ar->data_size;
+		pack_buf(ar, &rel_ptr, sizeof(rel_ptr));
+
+		pack_patch_rel_ptr(ar, v_offset);
+		pack_buf(ar, &vertices[0], sizeof(*vertices)*v_count);
+
+		pack_patch_rel_ptr(ar, i_offset);
+		pack_buf(ar, &indices[0], sizeof(*indices)*i_count);
+
+		FREE(dev_ator(), vertices);
+		FREE(dev_ator(), indices);
+	}
+
+	return 0;
+
+error:
+	return 1;
+}
+
 void add_rt_mesh_vertex(Mesh *mesh, TriMeshVertex vertex)
 {
 	U32 old_size = sizeof(TriMeshVertex)*mesh->v_count;

@@ -57,3 +57,36 @@ void model_to_json(WJson *j, const Model *m)
 		wjson_append(j_texs, wjson_str(m->textures[i]));
 	}
 }
+
+int blobify_model(struct WArchive *ar, Cson c, const char *base_path)
+{
+	Cson c_mesh = cson_key(c, "mesh");
+	Cson c_texs = cson_key(c, "textures");
+	Cson c_color = cson_key(c, "color");
+	Cson c_emission = cson_key(c, "emission");
+
+	if (cson_is_null(c_mesh))
+		RES_ATTRIB_MISSING("mesh");
+	if (cson_is_null(c_texs))
+		RES_ATTRIB_MISSING("textures");
+	if (cson_is_null(c_color))
+		RES_ATTRIB_MISSING("color");
+
+	Model m = {};
+	fmt_str(m.mesh, sizeof(m.mesh), "%s", cson_string(c_mesh, NULL));
+
+	for (U32 i = 0; i < cson_member_count(c_texs); ++i) {
+		Cson c_tex = cson_member(c_texs, i);
+		fmt_str(m.textures[i], sizeof(m.textures[i]), "%s", cson_string(c_tex, NULL));
+	}
+
+	m.color = cson_color(c_color, NULL);
+	if (!cson_is_null(c_emission))
+		m.emission = cson_floating(c_emission, NULL);
+
+	pack_buf(ar, &m, sizeof(m));
+	return 0;
+
+error:
+	return 1;
+}

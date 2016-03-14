@@ -22,4 +22,6 @@ REVOLC_API Mesh* model_mesh(const Model *model);
 REVOLC_API WARN_UNUSED int json_model_to_blob(struct BlobBuf *buf, JsonTok j);
 REVOLC_API void model_to_json(WJson *j, const Model *m);
 
+REVOLC_API WARN_UNUSED int blobify_model(struct WArchive *ar, Cson c, const char *base_path);
+
 #endif // REVOLC_VISUAL_MODEL_H

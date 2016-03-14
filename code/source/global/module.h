@@ -45,4 +45,7 @@ REVOLC_API void deinit_module(Module *mod);
 REVOLC_API WARN_UNUSED
 int json_module_to_blob(struct BlobBuf *buf, JsonTok j);
 
+REVOLC_API WARN_UNUSED
+int blobify_module(struct WArchive *ar, Cson c, const char *base_path);
+
 #endif // REVOLC_GLOBAL_MODULE_H

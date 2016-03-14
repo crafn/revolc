@@ -158,3 +158,45 @@ int json_module_to_blob(struct BlobBuf *buf, JsonTok j)
 error:
 	return 1;
 }
+
+int blobify_module(struct WArchive *ar, Cson c, const char *base_path)
+{
+	Cson c_file = cson_key(c, "extless_file");
+	Cson c_worldgen = cson_key(c, "worldgen_func");
+	Cson c_init = cson_key(c, "init_func");
+	Cson c_deinit = cson_key(c, "deinit_func");
+	Cson c_upd = cson_key(c, "upd_func");
+	Cson c_name = cson_key(c, "name");
+
+	if (cson_is_null(c_file))
+		RES_ATTRIB_MISSING("extless_file");
+
+	Module m = {};
+	if (!cson_is_null(c_worldgen)) {
+		fmt_str(m.worldgen_func_name, sizeof(m.worldgen_func_name),
+				"%s", cson_string(c_worldgen, NULL));
+	}
+	if (!cson_is_null(c_init)) {
+		fmt_str(m.init_func_name, sizeof(m.init_func_name),
+				"%s", cson_string(c_init, NULL));
+	}
+	if (!cson_is_null(c_deinit)) {
+		fmt_str(m.deinit_func_name, sizeof(m.deinit_func_name),
+				"%s", cson_string(c_deinit, NULL));
+	}
+	if (!cson_is_null(c_upd)) {
+		fmt_str(m.upd_func_name, sizeof(m.upd_func_name),
+				"%s", cson_string(c_upd, NULL));
+	}
+
+	fmt_str(m.extless_file, sizeof(m.extless_file), "%s%s", base_path, cson_string(c_file, NULL));
+	const char *name = cson_string(c_name, NULL);
+	if (name && !strcmp(name, "main_prog"))
+		m.is_main_prog_module = true;
+
+	pack_buf(ar, &m, sizeof(m));
+
+	return 0;
+error:
+	return 1;
+}

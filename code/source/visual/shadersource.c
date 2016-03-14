@@ -169,3 +169,94 @@ error:
 	goto cleanup;
 }
 
+int blobify_shadersource(struct WArchive *ar, Cson c, const char *base_path)
+{
+	int return_value = 0;
+	char *vs_src = NULL; /// @warning Not null-terminated!
+	char *gs_src = NULL; /// @warning Not null-terminated!
+	char *fs_src = NULL; /// @warning Not null-terminated!
+
+	Cson c_vs_file = cson_key(c, "vs_file");
+	Cson c_gs_file = cson_key(c, "gs_file");
+	Cson c_fs_file = cson_key(c, "fs_file");
+	Cson c_varyings = cson_key(c, "feedback_varyings");
+
+	if (cson_is_null(c_vs_file)) {
+		critical_print("Attrib 'vs_file' missing");
+		goto error;
+	}
+
+	char varyings[MAX_SHADER_VARYING_COUNT][RES_NAME_SIZE] = {};
+	if (!cson_is_null(c_varyings)) {
+		ensure(cson_member_count(c_varyings) < MAX_SHADER_VARYING_COUNT);
+		for (U32 i = 0; i < cson_member_count(c_varyings); ++i) {
+			Cson c_str = cson_member(c_varyings, i);
+			fmt_str(varyings[i], sizeof(varyings[i]), "%s", cson_string(c_str, NULL));
+		}
+	}
+
+	char vs_total_path[MAX_PATH_SIZE];
+	char gs_total_path[MAX_PATH_SIZE];
+	char fs_total_path[MAX_PATH_SIZE];
+	joined_path(	vs_total_path,
+					base_path,
+					cson_string(c_vs_file, NULL));
+	if (!cson_is_null(c_gs_file))
+		joined_path(	gs_total_path,
+						base_path,
+						cson_string(c_gs_file, NULL));
+	if (!cson_is_null(c_fs_file))
+		joined_path(	fs_total_path,
+						base_path,
+						cson_string(c_fs_file, NULL));
+
+	U32 vs_src_len = 0;
+	U32 gs_src_len = 0;
+	U32 fs_src_len = 0;
+	vs_src = read_file(gen_ator(), vs_total_path, &vs_src_len);
+	if (!cson_is_null(c_gs_file))
+		gs_src = read_file(gen_ator(), gs_total_path, &gs_src_len);
+	if (!cson_is_null(c_fs_file))
+		fs_src = read_file(gen_ator(), fs_total_path, &fs_src_len);
+
+	U64 vs_src_offset = ar->data_size + offsetof(ShaderSource, vs_src_offset);
+	U64 gs_src_offset = ar->data_size + offsetof(ShaderSource, gs_src_offset);
+	U64 fs_src_offset = ar->data_size + offsetof(ShaderSource, fs_src_offset);
+	MeshType mesh_type = MeshType_tri;
+	U32 cached = 0;
+	U8 null_byte = 0;
+
+	// @todo Fill ShaderSource and write that instead of separate members
+	Resource res;
+
+	pack_buf(ar, &res, sizeof(res));
+	pack_buf(ar, &vs_src_offset, sizeof(vs_src_offset));
+	pack_buf(ar, &gs_src_offset, sizeof(gs_src_offset));
+	pack_buf(ar, &fs_src_offset, sizeof(fs_src_offset));
+	pack_buf(ar, &mesh_type, sizeof(mesh_type));
+	pack_buf(ar, &varyings, sizeof(varyings));
+	pack_buf(ar, &cached, sizeof(cached));
+	pack_buf(ar, &cached, sizeof(cached));
+	pack_buf(ar, &cached, sizeof(cached));
+	pack_buf(ar, &cached, sizeof(cached));
+	pack_patch_rel_ptr(ar, vs_src_offset);
+	pack_buf(ar, vs_src, vs_src_len);
+	pack_buf(ar, &null_byte, 1);
+	pack_patch_rel_ptr(ar, gs_src_offset);
+	pack_buf(ar, gs_src, gs_src_len);
+	pack_buf(ar, &null_byte, 1);
+	pack_patch_rel_ptr(ar, fs_src_offset);
+	pack_buf(ar, fs_src, fs_src_len);
+	pack_buf(ar, &null_byte, 1);
+
+cleanup:
+	free(vs_src);
+	free(gs_src);
+	free(fs_src);
+	return return_value;
+
+error:
+	return_value = 1;
+	goto cleanup;
+}
+

@@ -64,6 +64,7 @@ REVOLC_API Qd json_q(JsonTok j);
 REVOLC_API T3d json_t3(JsonTok j);
 
 // Api for traversing json-like subset of C99
+// Json usage should be eventually substituted with C99
 
 typedef QC_AST_Node *Cson;
 REVOLC_API Cson cson_key(Cson c, const char *key);
@@ -77,6 +78,14 @@ REVOLC_API const char *cson_string(Cson c, bool *err);
 REVOLC_API F64 cson_floating(Cson c, bool *err);
 REVOLC_API S64 cson_integer(Cson c, bool *err);
 REVOLC_API bool cson_boolean(Cson c, bool *err);
+
+// Aggregate Cson types
+
+REVOLC_API V2d cson_v2(Cson c, bool *err);
+REVOLC_API V3d cson_v3(Cson c, bool *err);
+REVOLC_API Color cson_color(Cson c, bool *err);
+REVOLC_API Qd cson_q(Cson c, bool *err);
+REVOLC_API T3d cson_t3(Cson c, bool *err);
 
 // Used to partially update json strings
 // If complex manipulation of json files is needed, this should
