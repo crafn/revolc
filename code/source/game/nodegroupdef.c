@@ -344,3 +344,62 @@ error:
 	return 1;
 }
 
+int blobify_nodegroupdef(struct WArchive *ar, Cson c, const char *base_path)
+{
+	Cson c_nodes = cson_key(c, "nodes");
+	Cson c_cmds = cson_key(c, "cmds");
+	if (cson_is_null(c_nodes))
+		RES_ATTRIB_MISSING("nodes");
+	if (cson_is_null(c_cmds))
+		RES_ATTRIB_MISSING("cmds");
+
+	// nodes
+	NodeGroupDef def = {};
+	for (U32 node_i = 0; node_i < cson_member_count(c_nodes); ++node_i) {
+		Cson c_node = cson_member(c_nodes, node_i);
+		NodeGroupDef_Node *node = &def.nodes[node_i];
+
+		Cson c_type_name = cson_key(c_node, "type");
+		Cson c_name = cson_key(c_node, "name");
+		if (cson_is_null(c_type_name))
+			RES_ATTRIB_MISSING("type");
+		if (cson_is_null(c_name))
+			RES_ATTRIB_MISSING("name");
+
+		fmt_str(	node->type_name,
+					sizeof(def.nodes[node_i].type_name),
+					"%s", cson_string(c_type_name, NULL));
+
+		fmt_str(	node->name,
+					sizeof(def.nodes[node_i].name),
+					"%s", cson_string(c_name, NULL));
+
+		Cson c_defaults = cson_key(c_node, "defaults");
+		for (U32 i = 0; i < cson_member_count(c_defaults); ++i) {
+			Cson c_default = cson_member(c_defaults, i);
+
+			const char *str = cson_string(c_default, NULL);
+			NodeGroupDef_Node_Defaults *defaults =
+				&node->defaults[node->defaults_count++];
+			fmt_str(defaults->str, sizeof(defaults->str), "%s", str);
+		}
+
+		++def.node_count;
+	}
+
+	// cmds
+	for (U32 cmd_i = 0; cmd_i < cson_member_count(c_cmds); ++cmd_i) {
+		Cson c_cmd = cson_member(c_cmds, cmd_i);
+		const char *cmd_str = cson_string(c_cmd, NULL);
+		NodeGroupDef_Cmd *cmd = &def.cmds[def.cmd_count];
+		fmt_str(cmd->str, sizeof(cmd->str), "%s", cmd_str);
+		++def.cmd_count;
+	}
+
+	pack_buf(ar, &def, sizeof(def));
+
+	return 0;
+
+error:
+	return 1;
+}

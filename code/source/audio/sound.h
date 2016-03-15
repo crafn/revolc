@@ -16,4 +16,7 @@ typedef struct Sound {
 REVOLC_API WARN_UNUSED
 int json_sound_to_blob(struct BlobBuf *buf, JsonTok j);
 
+REVOLC_API WARN_UNUSED
+int blobify_sound(struct WArchive *ar, Cson c, const char *base_path);
+
 #endif // REVOLC_SOUND_H

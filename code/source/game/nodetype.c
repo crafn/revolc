@@ -155,3 +155,90 @@ int json_nodetype_to_blob(struct BlobBuf *buf, JsonTok j)
 error:
 	return 1;
 }
+
+int blobify_nodetype(struct WArchive *ar, Cson c, const char *base_path)
+{
+	Cson c_impl_mgmt = cson_key(c, "impl_mgmt");
+	Cson c_max_count = cson_key(c, "max_count");
+	Cson c_init = cson_key(c, "init_func");
+	Cson c_resurrect = cson_key(c, "resurrect_func");
+	Cson c_overwrite = cson_key(c, "overwrite_func");
+	Cson c_free = cson_key(c, "free_func");
+	Cson c_upd = cson_key(c, "upd_func");
+	Cson c_storage = cson_key(c, "storage_func");
+	Cson c_pack = cson_key(c, "pack_func");
+	Cson c_unpack = cson_key(c, "unpack_func");
+	Cson c_packsync = cson_key(c, "packsync");
+
+	if (cson_is_null(c_impl_mgmt))
+		RES_ATTRIB_MISSING("impl_mgmt");
+	if (cson_is_null(c_init))
+		RES_ATTRIB_MISSING("init_func");
+	if (cson_is_null(c_resurrect))
+		RES_ATTRIB_MISSING("resurrect_func");
+	if (cson_is_null(c_overwrite))
+		RES_ATTRIB_MISSING("overwrite_func");
+	if (cson_is_null(c_upd))
+		RES_ATTRIB_MISSING("upd_func");
+	if (cson_is_null(c_free))
+		RES_ATTRIB_MISSING("free_func");
+	if (cson_is_null(c_pack))
+		RES_ATTRIB_MISSING("pack_func");
+	if (cson_is_null(c_unpack))
+		RES_ATTRIB_MISSING("unpack_func");
+
+	bool auto_impl_mgmt = !strcmp(cson_string(c_impl_mgmt, NULL), "auto");
+	U32 max_count = 0;
+	if (auto_impl_mgmt == false) {
+		if (cson_is_null(c_storage) || strlen(cson_string(c_storage, NULL)) == 0)
+			RES_ATTRIB_MISSING("storage_func");
+		if (cson_is_null(c_resurrect) || strlen(cson_string(c_resurrect, NULL)) == 0)
+			RES_ATTRIB_MISSING("resurrect_func");
+	} else {
+		if (cson_is_null(c_max_count))
+			RES_ATTRIB_MISSING("max_count");
+		if (!cson_is_null(c_storage)) {
+			critical_print("Shouldn't have 'storage_func', impl_mgmt is 'auto'");
+			goto error;
+		}
+	}
+	if (!cson_is_null(c_max_count))
+		max_count = cson_integer(c_max_count, NULL);
+
+	NodeType n = {
+		.auto_impl_mgmt = auto_impl_mgmt,
+		.max_count = max_count,
+	};
+	fmt_str(n.init_func_name, sizeof(n.init_func_name), "%s", cson_string(c_init, NULL));
+	fmt_str(n.resurrect_func_name, sizeof(n.resurrect_func_name), "%s", cson_string(c_resurrect, NULL));
+	fmt_str(n.overwrite_func_name, sizeof(n.overwrite_func_name), "%s", cson_string(c_overwrite, NULL));
+	fmt_str(n.upd_func_name, sizeof(n.upd_func_name), "%s", cson_string(c_upd, NULL));
+	fmt_str(n.free_func_name, sizeof(n.free_func_name), "%s", cson_string(c_free, NULL));
+	fmt_str(n.pack_func_name, sizeof(n.pack_func_name), "%s", cson_string(c_pack, NULL));
+	fmt_str(n.unpack_func_name, sizeof(n.unpack_func_name), "%s", cson_string(c_unpack, NULL));
+
+	if (n.auto_impl_mgmt == false) {
+		fmt_str(n.storage_func_name, sizeof(n.storage_func_name), "%s", cson_string(c_storage, NULL));
+	}
+
+	if (cson_is_null(c_packsync)) {
+		n.packsync = PackSync_full;
+	} else {
+		const char *net = cson_string(c_packsync, NULL);
+		if (!strcmp(net, "presence")) {
+			n.packsync = PackSync_presence;
+		} else if (!strcmp(net, "full")) {
+			n.packsync = PackSync_full;
+		} else {
+			critical_print("Invalid packsync: %s", net);
+			goto error;
+		}
+	}
+
+	pack_buf(ar, &n, sizeof(n));
+
+	return 0;
+
+error:
+	return 1;
+}

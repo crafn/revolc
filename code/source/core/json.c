@@ -335,7 +335,7 @@ const char *cson_string(Cson n, bool *err)
 	if (!qc_is_literal_node(n, QC_Literal_string)) {
 		if (err)
 			*err = true;
-		return NULL;
+		return ""; // Should return valid value, NULL is not
 	}
 
 	QC_CASTED_NODE(QC_AST_Literal, literal, n);

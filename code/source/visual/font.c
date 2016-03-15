@@ -47,6 +47,53 @@ error:
 	goto cleanup;
 }
 
+int blobify_font(struct WArchive *ar, Cson c, const char *base_path)
+{
+	int return_value = 0;
+	U8 *ttf_data = NULL;
+	U8 *bitmap = NULL;
+
+	Cson c_file = cson_key(c, "file");
+	if (cson_is_null(c_file))
+		RES_ATTRIB_MISSING("file");
+
+	char total_path[MAX_PATH_SIZE];
+	joined_path(total_path, base_path, cson_string(c_file, NULL));
+
+	ttf_data = read_file(gen_ator(), total_path, NULL);
+
+	// @todo No guarantee this is enough!
+	const int reso = 512;
+	bitmap = malloc(reso*reso);
+	Font font = {
+		.bitmap_reso = {reso, reso},
+		.px_height = 13*16.0/12.0,
+	};
+
+	stbtt_pack_context ctx;
+	stbtt_PackBegin(&ctx, bitmap, reso, reso, 0, 0, NULL);
+	stbtt_PackSetOversampling(&ctx, 1, 1);
+	stbtt_PackFontRange(&ctx, ttf_data, 0, font.px_height,
+						FONT_CHAR_BEGIN,
+						FONT_CHAR_COUNT,
+						font.chars);
+	stbtt_PackEnd(&ctx);
+
+	U32 bitmap_ptr_buf_offset = ar->data_size + offsetof(Font, bitmap_offset);
+	pack_buf(ar, &font, sizeof(font));
+	pack_patch_rel_ptr(ar, bitmap_ptr_buf_offset);
+	pack_buf(ar, bitmap, reso*reso);
+
+cleanup:
+	free(bitmap);
+	free(ttf_data);
+	return return_value;
+
+error:
+	return_value = 1;
+	goto cleanup;
+}
+
 internal
 U8 *font_bitmap(const Font *font)
 { return rel_ptr(&font->bitmap_offset); }

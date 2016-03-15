@@ -21,7 +21,8 @@ typedef union Clip_Key_Value {
 } Clip_Key_Value;
 
 typedef struct Clip_Key {
-	JointId joint_id;
+	char joint_name[RES_NAME_SIZE];
+	U8 joint_ix; // Index in clip, not in armature
 	F64 time;
 
 	Clip_Key_Type type;
@@ -31,26 +32,35 @@ typedef struct Clip_Key {
 typedef struct Clip {
 	Resource res;
 
-	F32 duration; // A the beginning of the last frame
+	F32 duration; // At the beginning of the last frame
 
-	// @todo #if away from release build -- only for editor/saving
 	char armature_name[RES_NAME_SIZE];
 	REL_PTR(Clip_Key) keys;
 	U32 key_count;
 
-	U32 joint_count;
+	// Clip joint index to armature joint id
+	JointId joint_ix_to_id[MAX_ARMATURE_JOINT_COUNT];
+
+	U32 joint_count; // Can be less than armature->joint_count
 	U32 frame_count; // Last frame is only interpolation target
 	REL_PTR(T3f) local_samples; // joint_count*frame_count elements
 } PACKED Clip;
 
+struct Armature;
+REVOLC_API struct Armature *clip_armature(const Clip *c);
 REVOLC_API U32 clip_sample_count(const Clip *c);
 REVOLC_API T3f * clip_local_samples(const Clip *c);
 REVOLC_API Clip_Key * clip_keys(const Clip *c);
 
+REVOLC_API void init_clip(Clip *clip);
 REVOLC_API WARN_UNUSED
 int json_clip_to_blob(struct BlobBuf *buf, JsonTok j);
 REVOLC_API
 void clip_to_json(WJson *j, const Clip *c);
+
+struct WArchive;
+REVOLC_API WARN_UNUSED
+int blobify_clip(struct WArchive *ar, Cson c, const char *base_path);
 
 REVOLC_API JointPoseArray calc_clip_pose(const Clip *c, F64 t);
 

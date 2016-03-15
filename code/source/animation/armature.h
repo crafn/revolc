@@ -18,6 +18,11 @@ REVOLC_API WARN_UNUSED
 int json_armature_to_blob(struct BlobBuf *buf, JsonTok j);
 REVOLC_API void armature_to_json(WJson *j, const Armature *a);
 
+struct WArchive;
+
+REVOLC_API WARN_UNUSED
+int blobify_armature(struct WArchive *ar, Cson c, const char *base_path);
+
 REVOLC_API
 JointId joint_id_by_name(const Armature *a, const char *name);
 

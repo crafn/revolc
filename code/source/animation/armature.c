@@ -1,4 +1,5 @@
 #include "armature.h"
+#include "core/archive.h"
 #include "core/debug.h"
 #include "core/memory.h"
 #include "core/basic.h"
@@ -106,6 +107,72 @@ void armature_to_json(WJson *j, const Armature *a)
 	}
 }
 
+int blobify_armature(struct WArchive *ar, Cson c, const char *base_path)
+{
+	Cson c_joints = cson_key(c, "joints");
+	if (cson_is_null(c_joints))
+		RES_ATTRIB_MISSING("joints");
+
+	JointDef defs[MAX_ARMATURE_JOINT_COUNT] = {};
+	U32 def_count = 0;
+	if (cson_member_count(c_joints) > MAX_ARMATURE_JOINT_COUNT) {
+		critical_print("Too many joints: %i > %i",
+				cson_member_count(c_joints), MAX_ARMATURE_JOINT_COUNT);
+		goto error;
+	}
+	for (U32 joint_i = 0; joint_i < cson_member_count(c_joints); ++joint_i) {
+		Cson c_joint = cson_member(c_joints, joint_i);
+
+		Cson c_name = cson_key(c_joint, "name");
+		Cson c_super = cson_key(c_joint, "super");
+		Cson c_offset = cson_key(c_joint, "offset");
+
+		if (cson_is_null(c_name))
+			RES_ATTRIB_MISSING("name");
+		if (cson_is_null(c_super))
+			RES_ATTRIB_MISSING("super");
+		if (cson_is_null(c_offset))
+			RES_ATTRIB_MISSING("offset");
+
+		JointDef *def = &defs[joint_i];
+		def->name = cson_string(c_name, NULL);
+		def->super_name = cson_string(c_super, NULL);
+		def->offset = t3d_to_t3f(cson_t3(c_offset, NULL));
+		++def_count;
+	}
+
+	Armature a = {};	
+	for (U32 i = 0; i < def_count; ++i) {
+		Joint *joint = &a.joints[i];
+		JointDef *def = &defs[i];
+
+		fmt_str(	a.joint_names[i], sizeof(a.joint_names[i]), "%s",
+					def->name);
+		joint->id = i;
+		joint->super_id = NULL_JOINT_ID;
+		joint->bind_pose = def->offset;
+
+		if (strlen(def->super_name) > 0) {
+			joint->super_id =
+				super_id_from_defs(defs, def_count, def->super_name);
+			if (joint->super_id == NULL_JOINT_ID) {
+				critical_print("Unknown super joint: %s", def->super_name);
+				goto error;
+			}
+			ensure(	joint->super_id < joint->id &&
+					"@todo Allow free joint ordering");
+		}
+
+		++a.joint_count;
+	}
+
+	pack_buf(ar, &a, sizeof(a));
+
+	return 0;
+
+error:
+	return 1;
+}
 JointId joint_id_by_name(const Armature *a, const char *name)
 {
 	for (JointId i = 0; i < a->joint_count; ++i) {
@@ -114,3 +181,4 @@ JointId joint_id_by_name(const Armature *a, const char *name)
 	}
 	return NULL_JOINT_ID;
 }
+

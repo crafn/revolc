@@ -12,8 +12,10 @@ typedef struct PhysMat {
 	F64 restitution;
 } PACKED PhysMat;
 
-
 REVOLC_API WARN_UNUSED
 int json_physmat_to_blob(struct BlobBuf *buf, JsonTok j);
+
+REVOLC_API WARN_UNUSED
+int blobify_physmat(struct WArchive *ar, Cson c, const char *base_path);
 
 #endif // REVOLC_PHYSICS_PHYSMAT_HPP

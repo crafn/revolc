@@ -72,8 +72,9 @@ REVOLC_API bool blob_has_modifications(const ResBlob *blob);
 REVOLC_API void *save_res_state(const Resource *res);
 REVOLC_API void load_res_state(void *data);
 
+// @todo Remove BlobBuf when substituted by WArchive
+
 typedef struct BlobBuf {
-	// @todo Use WArchive
 	void *data;
 	U32 offset;
 	U32 max_size;

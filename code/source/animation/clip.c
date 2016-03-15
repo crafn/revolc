@@ -2,7 +2,15 @@
 #include "clip.h"
 #include "core/array.h"
 #include "core/memory.h"
+#include "global/env.h"
 #include "resources/resblob.h"
+
+Armature *clip_armature(const Clip *c)
+{
+	return (Armature*)res_by_name(	c->res.blob,
+									ResType_Armature,
+									c->armature_name);
+}
 
 U32 clip_sample_count(const Clip *c)
 { return c->joint_count*c->frame_count; }
@@ -13,21 +21,19 @@ T3f * clip_local_samples(const Clip *c)
 Clip_Key * clip_keys(const Clip *c)
 { return rel_ptr(&c->keys); }
 
-
-#define QSORT_CMP_INC(a, b) (((a) > (b)) - ((a) < (b)))
-
+internal
 int clip_key_cmp(const void *a_, const void *b_)
 {
 	const Clip_Key *a = a_;
 	const Clip_Key *b = b_;
 
-	if (a->joint_id != b->joint_id)
-		return QSORT_CMP_INC(a->joint_id, b->joint_id);
+	if (strcmp(a->joint_name, b->joint_name))
+		return strcmp(a->joint_name, b->joint_name);
 
 	if (a->type != b->type)
-		return QSORT_CMP_INC(a->type, b->type);
+		return CMP(a->type, b->type);
 
-	return QSORT_CMP_INC(a->time, b->time);
+	return CMP(a->time, b->time);
 }
 
 internal
@@ -56,11 +62,11 @@ void calc_samples_for_clip(	T3f *samples, U32 joint_count, U32 frame_count,
 	for (;	ch_key_begin_i < key_count;
 			ch_key_begin_i = ch_key_end_i) {
 		const Clip_Key_Type ch_type = keys[ch_key_begin_i].type;
-		const JointId joint_id = keys[ch_key_begin_i].joint_id;
+		const char *joint_name = keys[ch_key_begin_i].joint_name;
 
 		while (	ch_key_end_i < key_count &&
 				keys[ch_key_end_i].type == ch_type &&
-				keys[ch_key_end_i].joint_id == joint_id)
+				!strcmp(keys[ch_key_end_i].joint_name, joint_name))
 			++ch_key_end_i;
 
 		// Interpolate samples from sorted keys
@@ -95,7 +101,7 @@ void calc_samples_for_clip(	T3f *samples, U32 joint_count, U32 frame_count,
 			}
 
 			// Write samples
-			const U32 s_i = frame_i*joint_count + joint_id;
+			const U32 s_i = frame_i*joint_count + keys[ch_key_begin_i].joint_ix;
 			ensure(s_i < sample_count);
 			const F32 lerp = CLAMP((frame_t - key_t)/(next_key_t - key_t), 0, 1);
 			switch (ch_type) {
@@ -119,12 +125,28 @@ void calc_samples_for_clip(	T3f *samples, U32 joint_count, U32 frame_count,
 	}
 }
 
+void init_clip(Clip *clip)
+{
+	Armature *armature = clip_armature(clip);
+
+	// Write joint ix -> id map
+	U32 key_count = clip->key_count;
+	Clip_Key *keys = clip_keys(clip);
+	for (U32 i = 0; i < key_count;) {
+		const char *joint_name = keys[i].joint_name;
+		clip->joint_ix_to_id[keys[i].joint_ix] = joint_id_by_name(armature, joint_name);
+
+		while (	i < key_count &&
+				!strcmp(keys[i].joint_name, joint_name))
+			++i;
+	}
+}
+
 int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 {
 	int return_value = 0;
-	T3f *samples = NULL;
-	const Armature *armature = NULL;
 	Clip_Key *keys = NULL;
+	T3f *samples = NULL;
 
 	JsonTok j_armature = json_value_by_key(j, "armature");
 	JsonTok j_duration = json_value_by_key(j, "duration");
@@ -137,23 +159,8 @@ int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 	if (json_is_null(j_channels))
 		RES_ATTRIB_MISSING("channels");
 
-	armature = (Armature*)find_res_by_name_from_blobbuf(	buf,
-														ResType_Armature,
-														json_str(j_armature));
-	if (!armature) {
-		critical_print("Couldn't find armature %s", json_str(j_armature));
-		goto error;
-	}
-
-	const U32 fps = 30.0;
-	const U32 joint_count = armature->joint_count;
-	const F32 duration = json_real(j_duration);
-	const U32 frame_count = floor(duration*fps + 0.5) + 1; // +1 for end lerp target
-
-	const U32 sample_count = joint_count*frame_count;
-	samples = malloc(sizeof(*samples)*sample_count);
-	for (U32 i = 0; i < sample_count; ++i)
-		samples[i] = identity_t3f();
+	U32 fps = 30.0;
+	F32 duration = json_real(j_duration);
 
 	U32 keys_capacity = 0;
 	U32 total_key_count = 0;
@@ -173,7 +180,7 @@ int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 			RES_ATTRIB_MISSING("keys");
 
 		const char *type_str = json_str(j_type);
-		JointId joint_id = joint_id_by_name(armature, json_str(j_joint));
+		//JointId joint_id = joint_id_by_name(armature, json_str(j_joint));
 
 		Clip_Key_Type type;
 		if (!strcmp(type_str, "pos"))
@@ -193,10 +200,8 @@ int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 		for (U32 key_i = 0; key_i < key_count; ++key_i) {
 			JsonTok j_key = json_member(j_keys, key_i);
 			JsonTok j_value = json_value_by_key(j_key, "v");
-			Clip_Key key = {
-				.joint_id = joint_id,
-				.type = type,
-			};
+			Clip_Key key = { .type = type };
+			fmt_str(key.joint_name, sizeof(key.joint_name), "%s", json_str(j_joint));
 			key.time = json_real(json_value_by_key(j_key, "t"));
 			key.time = CLAMP(key.time, 0, duration);
 
@@ -219,6 +224,24 @@ int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 	}
 
 	sort_clip_keys(keys, total_key_count);
+
+	U32 joint_count = 0;
+	for (U32 i = 0; i < total_key_count; ++joint_count) {
+		const char *joint_name = keys[i].joint_name;
+
+		while (	i < total_key_count &&
+				!strcmp(keys[i].joint_name, joint_name)) {
+			keys[i].joint_ix = joint_count;
+			++i;
+		}
+	}
+
+	U32 frame_count = floor(duration*fps + 0.5) + 1; // +1 for end lerp target
+	const U32 sample_count = joint_count*frame_count;
+	samples = malloc(sizeof(*samples)*sample_count);
+	for (U32 i = 0; i < sample_count; ++i)
+		samples[i] = identity_t3f();
+
 	calc_samples_for_clip(	samples, joint_count, frame_count,
 							keys, total_key_count,
 							duration);
@@ -230,7 +253,7 @@ int json_clip_to_blob(struct BlobBuf *buf, JsonTok j)
 		.frame_count = frame_count,
 	};
 	fmt_str(clip.armature_name, sizeof(clip.armature_name),
-			"%s", armature->res.name);
+			"%s", json_str(j_armature));
 
 	const U32 samples_offset = buf->offset + offsetof(Clip, local_samples);
 	const U32 keys_offset = buf->offset + offsetof(Clip, keys);
@@ -267,12 +290,16 @@ const char * clip_key_type_to_str(Clip_Key_Type t)
 	}
 }
 
+internal
+JointId joint_id_by_ix(const Clip *c, U8 ix)
+{
+	ensure(ix < c->joint_count);
+	return c->joint_ix_to_id[ix];
+}
+
 void clip_to_json(WJson *j, const Clip *c)
 {
-	const Armature *a =
-		(Armature*)res_by_name(	c->res.blob,
-								ResType_Armature, 
-								c->armature_name);
+	const Armature *a = clip_armature(c);
 	const Clip_Key *keys = clip_keys(c);
 	// @todo armature field
 	WJson *j_channels = wjson_named_member(j, JsonType_array, "channels");
@@ -282,11 +309,12 @@ void clip_to_json(WJson *j, const Clip *c)
 	for (;	ch_key_begin_i < c->key_count;
 			ch_key_begin_i = ch_key_end_i) {
 		const Clip_Key_Type ch_type = keys[ch_key_begin_i].type;
-		const JointId joint_id = keys[ch_key_begin_i].joint_id;
+		U8 joint_ix = keys[ch_key_begin_i].joint_ix;
+		const JointId joint_id = joint_id_by_ix(c, joint_ix);
 
 		while (	ch_key_end_i < c->key_count &&
 				keys[ch_key_end_i].type == ch_type &&
-				keys[ch_key_end_i].joint_id == joint_id)
+				keys[ch_key_end_i].joint_ix == joint_ix)
 			++ch_key_end_i;
 
 		WJson *j_ch = wjson_object();
@@ -326,6 +354,142 @@ void clip_to_json(WJson *j, const Clip *c)
 	}
 }
 
+int blobify_clip(struct WArchive *ar, Cson c, const char *base_path)
+{
+	int return_value = 0;
+	Clip_Key *keys = NULL;
+	T3f *samples = NULL;
+
+	Cson c_armature = cson_key(c, "armature");
+	Cson c_duration = cson_key(c, "duration");
+	Cson c_channels = cson_key(c, "channels");
+
+	if (cson_is_null(c_armature))
+		RES_ATTRIB_MISSING("armature");
+	if (cson_is_null(c_duration))
+		RES_ATTRIB_MISSING("duration");
+	if (cson_is_null(c_channels))
+		RES_ATTRIB_MISSING("channels");
+
+	U32 fps = 30.0;
+	F32 duration = cson_floating(c_duration, NULL);
+
+	U32 keys_capacity = 0;
+	U32 total_key_count = 0;
+
+	for (U32 ch_i = 0; ch_i < cson_member_count(c_channels); ++ch_i) {
+		Cson c_ch = cson_member(c_channels, ch_i);
+
+		Cson c_joint = cson_key(c_ch, "joint");
+		Cson c_type = cson_key(c_ch, "type");
+		Cson c_keys = cson_key(c_ch, "keys");
+
+		if (cson_is_null(c_joint))
+			RES_ATTRIB_MISSING("joint");
+		if (cson_is_null(c_type))
+			RES_ATTRIB_MISSING("type");
+		if (cson_is_null(c_keys))
+			RES_ATTRIB_MISSING("keys");
+
+		const char *type_str = cson_string(c_type, NULL);
+
+		Clip_Key_Type type;
+		if (!strcmp(type_str, "pos"))
+			type = Clip_Key_Type_pos;
+		else if (!strcmp(type_str, "rot"))
+			type = Clip_Key_Type_rot;
+		else if (!strcmp(type_str, "scale"))
+			type = Clip_Key_Type_scale;
+		else
+			fail("Unknown Clip channel type: %s", type_str);
+
+		const U32 key_count = cson_member_count(c_keys);
+		if (key_count == 0)
+			continue;
+
+		// Gather keys of the channel
+		for (U32 key_i = 0; key_i < key_count; ++key_i) {
+			Cson c_key = cson_member(c_keys, key_i);
+			Cson c_value = cson_key(c_key, "v");
+			Clip_Key key = { .type = type };
+			fmt_str(key.joint_name, sizeof(key.joint_name), "%s", cson_string(c_joint, NULL));
+			key.time = cson_floating(cson_key(c_key, "t"), NULL);
+			key.time = CLAMP(key.time, 0, duration);
+
+			switch (type) {
+				case Clip_Key_Type_pos:
+					key.value.pos = v3d_to_v3f(cson_v3(c_value, NULL));
+				break;
+				case Clip_Key_Type_rot:
+					key.value.rot = qd_to_qf(cson_q(c_value, NULL));
+				break;
+				case Clip_Key_Type_scale:
+					key.value.scale = v3d_to_v3f(cson_v3(c_value, NULL));
+				break;
+				default: fail("Unhandled Clip_Key_Type: %i", type);
+			}
+
+			keys = push_dyn_array(	keys, &keys_capacity, &total_key_count,
+									sizeof(*keys), &key);
+		}
+	}
+
+	sort_clip_keys(keys, total_key_count);
+
+	U32 joint_count = 0;
+	for (U32 i = 0; i < total_key_count; ++joint_count) {
+		const char *joint_name = keys[i].joint_name;
+
+		while (	i < total_key_count &&
+				!strcmp(keys[i].joint_name, joint_name)) {
+			keys[i].joint_ix = joint_count;
+			++i;
+		}
+	}
+
+	U32 frame_count = floor(duration*fps + 0.5) + 1; // +1 for end lerp target
+	const U32 sample_count = joint_count*frame_count;
+	samples = malloc(sizeof(*samples)*sample_count);
+	for (U32 i = 0; i < sample_count; ++i)
+		samples[i] = identity_t3f();
+
+	calc_samples_for_clip(	samples, joint_count, frame_count,
+							keys, total_key_count,
+							duration);
+
+	Clip clip = {
+		.duration = duration,
+		.key_count = total_key_count,
+		.joint_count = joint_count,
+		.frame_count = frame_count,
+	};
+	fmt_str(clip.armature_name, sizeof(clip.armature_name),
+			"%s", cson_string(c_armature, NULL));
+
+	const U32 samples_offset = ar->data_size + offsetof(Clip, local_samples);
+	const U32 keys_offset = ar->data_size + offsetof(Clip, keys);
+
+	const U32 samples_size = sizeof(*samples)*sample_count;
+	const U32 keys_size = sizeof(*keys)*total_key_count;
+
+	pack_buf(ar, &clip, sizeof(clip));
+
+	pack_patch_rel_ptr(ar, samples_offset);
+	pack_buf(ar, samples, samples_size);
+
+	pack_patch_rel_ptr(ar, keys_offset);
+	pack_buf(ar, keys, keys_size);
+
+cleanup:
+	free(samples);
+	free(keys);
+	return return_value;
+
+error:
+	return_value = 1;
+	goto cleanup;
+}
+
 internal
 F64 wrap_float(F64 t, const F64 max)
 {
@@ -337,7 +501,7 @@ JointPoseArray calc_clip_pose(const Clip *c, F64 t)
 	t = wrap_float(t, c->duration);
 	ensure(t >= 0 && t <= c->duration);
 
-	JointPoseArray pose;
+	JointPoseArray pose = identity_pose();
 	// -1's are in the calculations because last frame
 	// is only for interpolation target.
 	const U32 frame_i =
@@ -350,8 +514,9 @@ JointPoseArray calc_clip_pose(const Clip *c, F64 t)
 	for (U32 j_i = 0; j_i < c->joint_count; ++j_i) {
 		U32 sample_i = frame_i*c->joint_count + j_i;
 		U32 next_sample_i = next_frame_i*c->joint_count + j_i;
+		JointId id = c->joint_ix_to_id[j_i];
 
-		pose.tf[j_i] =
+		pose.tf[id] =
 			lerp_t3f(	clip_local_samples(c)[sample_i],
 						clip_local_samples(c)[next_sample_i],
 						lerp);
@@ -362,6 +527,8 @@ JointPoseArray calc_clip_pose(const Clip *c, F64 t)
 internal
 void add_rt_clip_key(Clip *c, Clip_Key key)
 {
+	fail("This crash is expected! @todo Update joint_count and realloc samples if joint_ix will be new");
+
 	const U32 old_count = c->key_count;
 	const U32 new_count = old_count + 1;
 
@@ -381,7 +548,7 @@ void update_rt_clip_key(Clip *c, Clip_Key key)
 	for (U32 i = 0; i < c->key_count; ++i) {
 		Clip_Key *cmp = &clip_keys(c)[i];
 		if (	cmp->time == key.time &&
-				cmp->joint_id == key.joint_id &&
+				cmp->joint_ix == key.joint_ix &&
 				cmp->type == key.type) {
 			edit_key = cmp;
 			break;
@@ -423,17 +590,17 @@ void make_rt_clip_looping(Clip *c)
 	U32 key_count = 0;
 
 	// Find keys to-be-appended
-	JointId last_key_joint = NULL_JOINT_ID;
+	U8 last_key_joint = (U8)-1;
 	Clip_Key_Type last_key_type = Clip_Key_Type_none;
 	for (U32 i = 0; i < c->key_count; ++i) {
 		Clip_Key key = clip_keys(c)[i];
-		if (	key.joint_id != last_key_joint ||
+		if (	key.joint_ix == last_key_joint ||
 				key.type != last_key_type) {
 			keys[key_count] = key;
 			keys[key_count].time = c->duration;
 			++key_count;
 
-			last_key_joint = key.joint_id;
+			last_key_joint = key.joint_ix;
 			last_key_type = key.type;
 		}
 	}
@@ -453,7 +620,8 @@ void move_rt_clip_keys(Clip *c, F64 from, F64 to)
 
 	for (U32 i = 0; i < c->key_count; ++i) {
 		Clip_Key *key = &clip_keys(c)[i];
-		if (key->time == from && a->joints[key->joint_id].selected) {
+		JointId id = joint_id_by_ix(c, key->joint_ix);
+		if (key->time == from && a->joints[id].selected) {
 			key->time = to;
 		}
 	}

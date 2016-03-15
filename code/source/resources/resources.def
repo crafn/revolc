@@ -17,19 +17,20 @@
 
 #else
 
+// @todo Init functions should be called resurrect_*
 RESOURCE(Module, init_module, deinit_module, blobify_module, json_module_to_blob, NULL, NULL)
 RESOURCE(Texture, NULL, NULL, blobify_texture, json_texture_to_blob, NULL, NULL)
 RESOURCE(Mesh, NULL, NULL, blobify_mesh, json_mesh_to_blob, mesh_to_json, recache_ptrs_to_meshes)
 RESOURCE(Model, NULL, NULL, blobify_model, json_model_to_blob, model_to_json, NULL)
 RESOURCE(CompDef, NULL, NULL, blobify_compdef, json_compdef_to_blob, NULL, NULL)
 RESOURCE(ShaderSource, init_shadersource, deinit_shadersource, blobify_shadersource, json_shadersource_to_blob, NULL, NULL)
-RESOURCE(RigidBodyDef, NULL, NULL, NULL, json_rigidbodydef_to_blob, NULL, NULL)
-RESOURCE(PhysMat, NULL, NULL, NULL, json_physmat_to_blob, NULL, NULL)
-RESOURCE(NodeType, init_nodetype, NULL, NULL, json_nodetype_to_blob, NULL, NULL)
-RESOURCE(NodeGroupDef, init_nodegroupdef, deinit_nodegroupdef, NULL, json_nodegroupdef_to_blob, NULL, NULL)
-RESOURCE(Sound, NULL, NULL, NULL, json_sound_to_blob, NULL, NULL)
-RESOURCE(Armature, NULL, NULL, NULL, json_armature_to_blob, armature_to_json, recache_ptrs_to_armatures)
-RESOURCE(Clip, NULL, NULL, NULL, json_clip_to_blob, clip_to_json, recache_ptrs_to_clips)
-RESOURCE(Font, NULL, NULL, NULL, json_font_to_blob, NULL, NULL)
+RESOURCE(RigidBodyDef, NULL, NULL, blobify_rigidbodydef, json_rigidbodydef_to_blob, NULL, NULL)
+RESOURCE(PhysMat, NULL, NULL, blobify_physmat, json_physmat_to_blob, NULL, NULL)
+RESOURCE(NodeType, init_nodetype, NULL, blobify_nodetype, json_nodetype_to_blob, NULL, NULL)
+RESOURCE(NodeGroupDef, init_nodegroupdef, deinit_nodegroupdef, blobify_nodegroupdef, json_nodegroupdef_to_blob, NULL, NULL)
+RESOURCE(Sound, NULL, NULL, blobify_sound, json_sound_to_blob, NULL, NULL)
+RESOURCE(Armature, NULL, NULL, blobify_armature, json_armature_to_blob, armature_to_json, recache_ptrs_to_armatures)
+RESOURCE(Clip, init_clip, NULL, blobify_clip, json_clip_to_blob, clip_to_json, recache_ptrs_to_clips)
+RESOURCE(Font, NULL, NULL, blobify_font, json_font_to_blob, NULL, NULL)
 
 #endif

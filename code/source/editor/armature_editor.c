@@ -111,10 +111,9 @@ bool gui_armature_overlay(ArmatureEditor *state, bool is_edit_mode)
 
 				const T3f base = entity->pose.tf[i];
 
-				Clip_Key key = {
-					.joint_id = i,
-					.time = state->clip_time,
-				};
+				Clip_Key key = { .time = state->clip_time };
+				fmt_str(key.joint_name, sizeof(key.joint_name), "%s", a->joint_names[i]);
+
 				switch (m) {
 				case CursorDeltaMode_scale:
 					key.type = Clip_Key_Type_scale;
@@ -238,7 +237,7 @@ void do_armature_editor(	ArmatureEditor *state,
 						for (U32 i = 0; i < clip->key_count; ++i) {
 							Clip_Key key = clip_keys(clip)[i];
 							if (	key.time == state->clip_time &&
-									a->joints[key.joint_id].selected) {
+									a->joints[joint_id_by_name(a, key.joint_name)].selected) {
 								delete_rt_clip_key(clip, i);
 								key_deleted = true;
 								break;
@@ -325,9 +324,10 @@ void do_armature_editor(	ArmatureEditor *state,
 					// Show keys
 					for (U32 key_i = 0; key_i < clip->key_count; ++key_i) {
 						Clip_Key key = clip_keys(clip)[key_i];
+						JointId joint_id = joint_id_by_name(a, key.joint_name);
 
 						F64 lerp_x = key.time/clip->duration;
-						F64 lerp_y = (F64)key.joint_id/clip->joint_count;
+						F64 lerp_y = (F64)joint_id/clip->joint_count;
 						V2i pos = {
 							px_pos.x + px_size.x*lerp_x - 3,
 							px_pos.y + px_size.y*lerp_y - 6 + 4*key.type
@@ -340,7 +340,7 @@ void do_armature_editor(	ArmatureEditor *state,
 							{0.0, 1.0, 0.0, 1.0}, // rot
 							{0.0, 0.0, 1.0, 1.0}, // pos
 						}[key.type];
-						if (key.time == state->clip_time && a->joints[key.joint_id].selected) {
+						if (key.time == state->clip_time && a->joints[joint_id].selected) {
 							color = (Color) {1.0, 1.0, 1.0, 1.0};
 							size.y += 5;
 						}
