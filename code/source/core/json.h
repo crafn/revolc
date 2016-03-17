@@ -87,6 +87,38 @@ REVOLC_API Color cson_color(Cson c, bool *err);
 REVOLC_API Qd cson_q(Cson c, bool *err);
 REVOLC_API T3d cson_t3(Cson c, bool *err);
 
+// Api for creating json-like subset for C99
+
+typedef QC_Write_Context WCson;
+
+REVOLC_API WCson *wcson_create();
+REVOLC_API void wcson_destroy(WCson *c);
+
+// { ... }
+REVOLC_API void wcson_begin_initializer(WCson *c);
+REVOLC_API void wcson_end_initializer(WCson *c);
+
+// (type_name) { ... }
+REVOLC_API void wcson_begin_compound(WCson *c, const char *type_name);
+REVOLC_API void wcson_end_compound(WCson *c);
+
+// .var_name = ...
+REVOLC_API void wcson_designated(WCson *c, const char *var_name);
+
+REVOLC_API void wcson_string(WCson *c, const char *str);
+REVOLC_API void wcson_integer(WCson *c, S64 value);
+REVOLC_API void wcson_floating(WCson *c, double value);
+
+// Aggregate types
+
+REVOLC_API void wcson_v2(WCson *c, V2d v);
+REVOLC_API void wcson_v3(WCson *c, V3d v);
+REVOLC_API void wcson_color(WCson *c, Color v);
+REVOLC_API void wcson_q(WCson *c, Qd v);
+REVOLC_API void wcson_t3(WCson *c, T3d v);
+
+
+
 // Used to partially update json strings
 // If complex manipulation of json files is needed, this should
 // probably override JsonTok as read/write structure

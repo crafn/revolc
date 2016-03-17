@@ -490,6 +490,72 @@ error:
 	goto cleanup;
 }
 
+void deblobify_clip(WCson *c, struct RArchive *ar)
+{
+	// @todo Alignment
+	Clip *clip = (Clip*)(ar->data + ar->offset);
+	ar->offset +=	sizeof(*clip) +
+					sizeof(*clip_keys(clip))*clip->key_count +
+					sizeof(*clip_local_samples(clip))*clip->joint_count*clip->frame_count;
+
+	Armature *a = clip_armature(clip);
+	Clip_Key *keys = clip_keys(clip);
+
+	wcson_designated(c, "armature");
+	wcson_string(c, clip->armature_name);
+
+	wcson_begin_compound(c, "channels");
+
+	U32 ch_key_begin_i = 0;
+	U32 ch_key_end_i = 0;
+	for (;	ch_key_begin_i < clip->key_count;
+			ch_key_begin_i = ch_key_end_i) {
+		const Clip_Key_Type ch_type = keys[ch_key_begin_i].type;
+		U8 joint_ix = keys[ch_key_begin_i].joint_ix;
+		const JointId joint_id = joint_id_by_ix(clip, joint_ix);
+
+		while (	ch_key_end_i < clip->key_count &&
+				keys[ch_key_end_i].type == ch_type &&
+				keys[ch_key_end_i].joint_ix == joint_ix)
+			++ch_key_end_i;
+
+		wcson_begin_initializer(c);
+
+		wcson_designated(c, "joint");
+		wcson_string(c, a->joint_names[joint_id]);
+
+		wcson_designated(c, "type");
+		wcson_string(c, clip_key_type_to_str(ch_type));
+
+		wcson_designated(c, "keys");
+		wcson_begin_initializer(c);
+		for (U32 i = ch_key_begin_i; i < ch_key_end_i; ++i) {
+
+			wcson_designated(c, "t");
+			wcson_floating(c, keys[i].time);
+
+			wcson_designated(c, "v");
+			switch (ch_type) {
+			case Clip_Key_Type_pos:
+				wcson_v3(c, v3f_to_v3d(keys[i].value.pos));
+			break;
+			case Clip_Key_Type_rot:
+				wcson_q(c, qf_to_qd(keys[i].value.rot));
+			break;
+			case Clip_Key_Type_scale:
+				wcson_v3(c, v3f_to_v3d(keys[i].value.scale));
+			break;
+			default: fail("Unhandled Clip_Key_Type: %i", ch_type);
+			}
+		}
+		wcson_end_initializer(c);
+
+		wcson_end_initializer(c);
+	}
+
+	wcson_end_compound(c);
+}
+
 internal
 F64 wrap_float(F64 t, const F64 max)
 {

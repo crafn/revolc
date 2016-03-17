@@ -435,6 +435,93 @@ T3d cson_t3(Cson c, bool *err)
 }
 
 //
+// WCson
+//
+
+WCson *wcson_create()
+{ return qc_create_write_context(); }
+void wcson_destroy(WCson *c)
+{ return qc_destroy_write_context(c); }
+
+void wcson_begin_initializer(WCson *c)
+{ qc_begin_initializer(c); }
+void wcson_end_initializer(WCson *c)
+{ qc_end_initializer(c); }
+
+void wcson_begin_compound(WCson *c, const char *type_name)
+{ qc_begin_compound(c, type_name); }
+void wcson_end_compound(WCson *c)
+{ qc_end_compound(c); }
+
+void wcson_designated(WCson *c, const char *var_name)
+{ qc_add_designated(c, var_name); }
+
+void wcson_string(WCson *c, const char *str)
+{ qc_add_string(c, str); }
+void wcson_integer(WCson *c, S64 value)
+{ qc_add_integer(c, value); }
+void wcson_floating(WCson *c, double value)
+{ qc_add_floating(c, value); }
+
+void wcson_v2(WCson *c, V2d v)
+{
+	wcson_begin_compound(c, "V2d");
+	wcson_floating(c, v.x);
+	wcson_floating(c, v.y);
+	wcson_end_compound(c);
+}
+
+void wcson_v3(WCson *c, V3d v)
+{
+	wcson_begin_compound(c, "V3d");
+	wcson_floating(c, v.x);
+	wcson_floating(c, v.y);
+	wcson_floating(c, v.z);
+	wcson_end_compound(c);
+}
+
+void wcson_color(WCson *c, Color v)
+{
+	wcson_begin_compound(c, "Color");
+	wcson_floating(c, v.r);
+	wcson_floating(c, v.g);
+	wcson_floating(c, v.b);
+	wcson_floating(c, v.a);
+	wcson_end_compound(c);
+}
+
+void wcson_q(WCson *c, Qd v)
+{
+	V3d axis = axis_qd(v);
+	F64 angle = angle_qd(v);
+
+	wcson_begin_compound(c, "Qd");
+
+	wcson_floating(c, axis.x);
+	wcson_floating(c, axis.y);
+	wcson_floating(c, axis.z);
+	wcson_floating(c, angle);
+
+	wcson_end_compound(c);
+}
+
+void wcson_t3(WCson *c, T3d v)
+{
+	wcson_begin_compound(c, "T3d");
+
+	wcson_designated(c, "scale");
+	wcson_v3(c, v.scale);
+
+	wcson_designated(c, "rot");
+	wcson_q(c, v.rot);
+
+	wcson_designated(c, "pos");
+	wcson_v3(c, v.pos);
+
+	wcson_end_compound(c);
+}
+
+//
 // wjson
 //
 

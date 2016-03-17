@@ -367,13 +367,26 @@ MOD_API void init_clover()
 		qc_destroy_ast(parsed_root);
 	}
 
-	qc_destroy_array(char)(&code);
 
-	// Query non-existing resources to test missing resources
-	res_by_name(g_env.resblob, ResType_Texture, "foobar");
-	res_by_name(g_env.resblob, ResType_Mesh, "foobar");
-	res_by_name(g_env.resblob, ResType_Model, "foobar");
-	res_by_name(g_env.resblob, ResType_CompDef, "foobar");
+
+	{
+		qc_clear_array(char)(&code);
+
+		Clip *clip = (Clip*)res_by_name(g_env.resblob, ResType_Clip, "playerch_idle");
+		RArchive ar = create_rarchive(ArchiveType_binary, clip, 1337);
+		WCson *cson = wcson_create();
+
+		deblobify_clip(cson, &ar);
+		debug_print("DEBLOBBED CLIP!!");
+
+		qc_ast_to_c_str(&code, 0, QC_AST_BASE(cson->root));
+		debug_print("%s", code.data);
+
+		destroy_rarchive(&ar);
+		wcson_destroy(cson);
+	}
+
+	qc_destroy_array(char)(&code);
 #endif
 }
 

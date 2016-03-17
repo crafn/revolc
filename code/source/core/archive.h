@@ -7,7 +7,6 @@
 typedef enum ArchiveType {
 	ArchiveType_measure, // Doesn't write anything // @todo Get rid of
 	ArchiveType_binary, // Binary
-	// @todo Think about json archive (replacing hand-written json serialization)
 } ArchiveType;
 
 typedef struct WArchive {
