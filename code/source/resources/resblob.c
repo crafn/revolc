@@ -11,19 +11,9 @@
 internal
 int json_res_to_blob(BlobBuf *buf, JsonTok j, ResType res_t)
 {
-#define RESOURCE(name, init, deinit, c_blobify, blobify, jsonify, recache) \
+#define RESOURCE(name, init, deinit, c_blobify, c_deblobify, blobify, jsonify, recache) \
 	if (res_t == ResType_ ## name) \
 		return blobify(buf, j);
-#	include "resources.def"
-#undef RESOURCE
-	return 1;
-}
-
-internal int blobify_res(WArchive *ar, Cson c, ResType res_t, const char *base_path)
-{
-#define RESOURCE(name, init, deinit, c_blobify, blobify, jsonify, recache) \
-	if (res_t == ResType_ ## name) \
-		return ((int (*)(WArchive*, Cson, const char *))c_blobify)(ar, c, base_path);
 #	include "resources.def"
 #undef RESOURCE
 	return 1;
@@ -32,7 +22,7 @@ internal int blobify_res(WArchive *ar, Cson c, ResType res_t, const char *base_p
 internal
 void res_to_json(WJson *j, const Resource *res)
 {
-#define RESOURCE(rtype, init, deinit, c_blobify, blobify, jsonify, recache) \
+#define RESOURCE(rtype, init, deinit, c_blobify, c_deblobify, blobify, jsonify, recache) \
 	{ \
 		void *fptr = (void*)jsonify; \
 		if (ResType_ ## rtype == res->type) { \
@@ -49,7 +39,7 @@ void res_to_json(WJson *j, const Resource *res)
 internal
 void init_res(Resource *res)
 {
-#define RESOURCE(rtype, init, deinit, c_blobify, blobify, jsonify, recache) \
+#define RESOURCE(rtype, init, deinit, c_blobify, c_deblobify, blobify, jsonify, recache) \
 	{ \
 		void *fptr = (void*)init; \
 		if (fptr && ResType_ ## rtype == res->type) \
@@ -99,7 +89,7 @@ void load_blob(ResBlob **blob, const char *path)
 internal
 void deinit_res(Resource *res)
 {
-#define RESOURCE(rtype, init, deinit, c_blobify, blobify, jsonify, recache) \
+#define RESOURCE(rtype, init, deinit, c_blobify, c_deblobify, blobify, jsonify, recache) \
 	{ \
 		void* fptr = (void*)deinit; \
 		if (fptr && ResType_ ## rtype == res->type) \
@@ -543,7 +533,7 @@ bool inside_blob(const ResBlob *blob, void *ptr)
 
 internal void recache_ptrs_to(Resource *res)
 {
-#define RESOURCE(rtype, init, deinit, c_blobify, blobify, jsonify, recache) \
+#define RESOURCE(rtype, init, deinit, c_blobify, c_deblobify, blobify, jsonify, recache) \
 	{ \
 		void (*fptr)() = recache; \
 		if (fptr && ResType_ ## rtype == res->type) \
@@ -738,6 +728,28 @@ void *save_res_state(const Resource *res)
 	release_warchive(&ret, NULL, &ar);
 	return ret;
 }
+
+int blobify_res(WArchive *ar, Cson c, ResType res_t, const char *base_path)
+{
+#define RESOURCE(name, init, deinit, c_blobify, c_deblobify, blobify, jsonify, recache) \
+	if (res_t == ResType_ ## name) \
+		return ((int (*)(WArchive*, Cson, const char *))c_blobify)(ar, c, base_path);
+#	include "resources.def"
+#undef RESOURCE
+	return 1;
+}
+
+void deblobify_res(WCson *c, Resource *res)
+{
+	RArchive ar = create_rarchive(ArchiveType_binary, res, res->size);
+#define RESOURCE(name, init, deinit, c_blobify, c_deblobify, blobify, jsonify, recache) \
+	if (res->type == ResType_ ## name) \
+		((void (*)(WCson *, RArchive *))c_deblobify)(c, &ar);
+#	include "resources.def"
+#undef RESOURCE
+	destroy_rarchive(&ar);
+}
+
 
 void load_res_state(void *data)
 {

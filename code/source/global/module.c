@@ -148,6 +148,7 @@ int json_module_to_blob(struct BlobBuf *buf, JsonTok j)
 				"%s", json_str(j_upd));
 	}
 
+	fmt_str(m.rel_extless_file, sizeof(m.rel_extless_file), "%s", json_str(j_file));
 	fmt_str(m.extless_file, sizeof(m.extless_file), "%s%s", j.json_dir, json_str(j_file));
 	if (!strcmp(json_str(json_value_by_key(j, "name")), "main_prog"))
 		m.is_main_prog_module = true;
@@ -189,6 +190,7 @@ int blobify_module(struct WArchive *ar, Cson c, const char *base_path)
 				"%s", cson_string(c_upd, NULL));
 	}
 
+	fmt_str(m.rel_extless_file, sizeof(m.rel_extless_file), "%s", cson_string(c_file, NULL));
 	fmt_str(m.extless_file, sizeof(m.extless_file), "%s%s", base_path, cson_string(c_file, NULL));
 	const char *name = cson_string(c_name, NULL);
 	if (name && !strcmp(name, "main_prog"))
@@ -199,4 +201,32 @@ int blobify_module(struct WArchive *ar, Cson c, const char *base_path)
 	return 0;
 error:
 	return 1;
+}
+
+void deblobify_module(WCson *c, struct RArchive *ar)
+{
+	Module m;
+	unpack_buf(ar, &m, sizeof(m));
+
+	wcson_begin_compound(c, "Module");
+
+	wcson_designated(c, "name");
+	wcson_string(c, m.res.name);
+
+	wcson_designated(c, "extless_file");
+	wcson_string(c, m.rel_extless_file);
+
+	wcson_designated(c, "worldgen_func");
+	wcson_string(c, m.worldgen_func_name);
+
+	wcson_designated(c, "init_func");
+	wcson_string(c, m.init_func_name);
+
+	wcson_designated(c, "deinit_func");
+	wcson_string(c, m.deinit_func_name);
+
+	wcson_designated(c, "upd_func");
+	wcson_string(c, m.upd_func_name);
+
+	wcson_end_compound(c);
 }

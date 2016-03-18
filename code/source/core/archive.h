@@ -54,6 +54,9 @@ REVOLC_API void unpack_f64(RArchive *ar, F64 *value);
 REVOLC_API void unpack_buf(RArchive *ar, void *data, U32 data_size);
 REVOLC_API void unpack_strbuf(RArchive *ar, char *str, U32 str_max_size);
 
+REVOLC_API void *unpack_peek(RArchive *ar, U32 data_size);
+REVOLC_API void unpack_advance(RArchive *ar, U32 data_size);
+
 // Lossy packing implemented on top of the regular packing
 // @todo Fine-tuning, now just F64 -> F32
 

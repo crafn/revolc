@@ -190,7 +190,9 @@ int blobify_texture(struct WArchive *ar, Cson c, const char *base_path)
 	Texture tex = {
 		.reso = {width, height},
 		.lod_count = lod_count,
+		.texel_data_size = width*height*comps,
 	};
+	fmt_str(tex.rel_file, sizeof(tex.rel_file), "%s", cson_string(c_file, NULL));
 
 	// Calculate mip-map data and offsets to it
 	for (U32 lod_i = 0; lod_i < lod_count; ++lod_i) {
@@ -200,6 +202,8 @@ int blobify_texture(struct WArchive *ar, Cson c, const char *base_path)
 
 		if (lod_i == 0) // Not a mip-level
 			continue;
+
+		tex.texel_data_size += byte_count;
 
 		// Calculate mip-maps
 		const U32 mip_i = lod_i - 1;
@@ -260,5 +264,21 @@ cleanup:
 error:
 	return_value = 1;
 	goto cleanup;
+}
+
+void deblobify_texture(WCson *c, struct RArchive *ar)
+{
+	Texture *tex = unpack_peek(ar, sizeof(*tex));
+	unpack_advance(ar, sizeof(*tex) + tex->texel_data_size);
+
+	wcson_begin_compound(c, "Texture");
+
+	wcson_designated(c, "name");
+	wcson_string(c, tex->res.name);
+
+	wcson_designated(c, "file");
+	wcson_string(c, tex->rel_file);
+
+	wcson_end_compound(c);
 }
 

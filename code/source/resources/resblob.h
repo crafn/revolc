@@ -72,6 +72,10 @@ REVOLC_API bool blob_has_modifications(const ResBlob *blob);
 REVOLC_API void *save_res_state(const Resource *res);
 REVOLC_API void load_res_state(void *data);
 
+// Convenience functions forwarding to corresponding blobify_* and deblobify_*
+REVOLC_API int blobify_res(WArchive *ar, Cson c, ResType res_t, const char *base_path);
+REVOLC_API void deblobify_res(WCson *c, Resource *res);
+
 // @todo Remove BlobBuf when substituted by WArchive
 
 typedef struct BlobBuf {

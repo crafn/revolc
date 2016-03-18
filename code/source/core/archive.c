@@ -57,6 +57,17 @@ void binary_unpack_buf(RArchive *ar, void *data, U32 data_size)
 void binary_unpack_strbuf(RArchive *ar, char *str, U32 str_max_size)
 { binary_unpack_buf(ar, str, str_max_size); str[str_max_size - 1] = '\0'; }
 
+void *unpack_peek(RArchive *ar, U32 data_size)
+{
+	ensure(ar->offset + data_size <= ar->data_size);
+	return (void*)(ar->data + ar->offset);
+}
+
+void unpack_advance(RArchive *ar, U32 data_size)
+{
+	ar->offset += data_size;
+	ensure(ar->offset <= ar->data_size);
+}
 
 
 // ArchiveType to pack-function -tables

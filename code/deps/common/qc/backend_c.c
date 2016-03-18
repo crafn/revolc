@@ -1222,7 +1222,7 @@ QC_Bool qc_ast_to_c_str(QC_Array(char) *buf, int indent, QC_AST_Node *node)
 			for (i = 0; i < literal->value.compound.subnodes.size; ++i) {
 				if (!oneliner)
 					qc_append_str(buf, "%*s", indent + indent_add, "");
-				qc_ast_to_c_str(buf, indent, literal->value.compound.subnodes.data[i]);
+				qc_ast_to_c_str(buf, indent + indent_add, literal->value.compound.subnodes.data[i]);
 				if (i + 1 < literal->value.compound.subnodes.size)
 					qc_append_str(buf, ",");
 				qc_append_str(buf, "%s", oneliner ? " " : "\n");
@@ -1242,7 +1242,7 @@ QC_Bool qc_ast_to_c_str(QC_Array(char) *buf, int indent, QC_AST_Node *node)
 			QC_Bool rhs_parens = nested_expr_needs_parens(node, biop->rhs);
 			if (lhs_parens)
 				qc_append_str(buf, "(");
-			qc_ast_to_c_str(buf, indent + indent_add, biop->lhs);
+			qc_ast_to_c_str(buf, indent, biop->lhs);
 			if (lhs_parens)
 				qc_append_str(buf, ")");
 
@@ -1250,7 +1250,7 @@ QC_Bool qc_ast_to_c_str(QC_Array(char) *buf, int indent, QC_AST_Node *node)
 
 			if (rhs_parens)
 				qc_append_str(buf, "(");
-			qc_ast_to_c_str(buf, indent + indent_add, biop->rhs);
+			qc_ast_to_c_str(buf, indent, biop->rhs);
 			if (rhs_parens)
 				qc_append_str(buf, ")");
 		} else {

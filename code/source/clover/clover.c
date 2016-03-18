@@ -19,6 +19,7 @@
 
 #include <qc/ast.h> // Test output
 #include <qc/backend_c.h> // Test output
+#include "global/module.h" // Test serialization
 
 MOD_API void clover_worldgen(World *w)
 {
@@ -368,21 +369,18 @@ MOD_API void init_clover()
 	}
 
 
-
 	{
 		qc_clear_array(char)(&code);
 
-		Clip *clip = (Clip*)res_by_name(g_env.resblob, ResType_Clip, "playerch_idle");
-		RArchive ar = create_rarchive(ArchiveType_binary, clip, 1337);
+		Clip *res = (Clip*)res_by_name(g_env.resblob, ResType_Clip, "test_clip");
 		WCson *cson = wcson_create();
 
-		deblobify_clip(cson, &ar);
-		debug_print("DEBLOBBED CLIP!!");
+		deblobify_res(cson, &res->res);
+		debug_print("DEBLOBBED RES!!");
 
 		qc_ast_to_c_str(&code, 0, QC_AST_BASE(cson->root));
 		debug_print("%s", code.data);
 
-		destroy_rarchive(&ar);
 		wcson_destroy(cson);
 	}
 

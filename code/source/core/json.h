@@ -79,7 +79,7 @@ REVOLC_API F64 cson_floating(Cson c, bool *err);
 REVOLC_API S64 cson_integer(Cson c, bool *err);
 REVOLC_API bool cson_boolean(Cson c, bool *err);
 
-// Aggregate Cson types
+// Convenience functions for common aggregate types
 
 REVOLC_API V2d cson_v2(Cson c, bool *err);
 REVOLC_API V3d cson_v3(Cson c, bool *err);
@@ -109,7 +109,7 @@ REVOLC_API void wcson_string(WCson *c, const char *str);
 REVOLC_API void wcson_integer(WCson *c, S64 value);
 REVOLC_API void wcson_floating(WCson *c, double value);
 
-// Aggregate types
+// Convenience functions for common aggregate types
 
 REVOLC_API void wcson_v2(WCson *c, V2d v);
 REVOLC_API void wcson_v3(WCson *c, V3d v);

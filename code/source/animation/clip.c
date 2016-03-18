@@ -492,19 +492,24 @@ error:
 
 void deblobify_clip(WCson *c, struct RArchive *ar)
 {
-	// @todo Alignment
-	Clip *clip = (Clip*)(ar->data + ar->offset);
-	ar->offset +=	sizeof(*clip) +
-					sizeof(*clip_keys(clip))*clip->key_count +
-					sizeof(*clip_local_samples(clip))*clip->joint_count*clip->frame_count;
+	Clip *clip = unpack_peek(ar, sizeof(*clip));
+	unpack_advance(ar,	sizeof(*clip) +
+						sizeof(*clip_keys(clip))*clip->key_count +
+						sizeof(*clip_local_samples(clip))*clip->joint_count*clip->frame_count);
 
 	Armature *a = clip_armature(clip);
 	Clip_Key *keys = clip_keys(clip);
 
+	wcson_begin_compound(c, "Clip");
+
+	wcson_designated(c, "name");
+	wcson_string(c, clip->res.name);
+
 	wcson_designated(c, "armature");
 	wcson_string(c, clip->armature_name);
 
-	wcson_begin_compound(c, "channels");
+	wcson_designated(c, "channels");
+	wcson_begin_initializer(c);
 
 	U32 ch_key_begin_i = 0;
 	U32 ch_key_end_i = 0;
@@ -552,6 +557,8 @@ void deblobify_clip(WCson *c, struct RArchive *ar)
 
 		wcson_end_initializer(c);
 	}
+
+	wcson_end_compound(c);
 
 	wcson_end_compound(c);
 }
