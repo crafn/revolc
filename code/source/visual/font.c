@@ -47,9 +47,9 @@ error:
 	goto cleanup;
 }
 
-int blobify_font(struct WArchive *ar, Cson c, const char *base_path)
+Font *blobify_font(struct WArchive *ar, Cson c, bool *err)
 {
-	int return_value = 0;
+	Font *ptr = warchive_ptr(ar);
 	U8 *ttf_data = NULL;
 	U8 *bitmap = NULL;
 
@@ -58,7 +58,7 @@ int blobify_font(struct WArchive *ar, Cson c, const char *base_path)
 		RES_ATTRIB_MISSING("file");
 
 	char total_path[MAX_PATH_SIZE];
-	joined_path(total_path, base_path, cson_string(c_file, NULL));
+	joined_path(total_path, c.dir_path, blobify_string(c_file, err));
 
 	ttf_data = read_file(gen_ator(), total_path, NULL);
 
@@ -79,6 +79,9 @@ int blobify_font(struct WArchive *ar, Cson c, const char *base_path)
 						font.chars);
 	stbtt_PackEnd(&ctx);
 
+	if (err && *err)
+		goto error;
+
 	U32 bitmap_ptr_buf_offset = ar->data_size + offsetof(Font, bitmap_offset);
 	pack_buf(ar, &font, sizeof(font));
 	pack_patch_rel_ptr(ar, bitmap_ptr_buf_offset);
@@ -87,10 +90,10 @@ int blobify_font(struct WArchive *ar, Cson c, const char *base_path)
 cleanup:
 	free(bitmap);
 	free(ttf_data);
-	return return_value;
+	return ptr;
 
 error:
-	return_value = 1;
+	ptr = NULL;
 	goto cleanup;
 }
 

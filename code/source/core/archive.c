@@ -57,12 +57,6 @@ void binary_unpack_buf(RArchive *ar, void *data, U32 data_size)
 void binary_unpack_strbuf(RArchive *ar, char *str, U32 str_max_size)
 { binary_unpack_buf(ar, str, str_max_size); str[str_max_size - 1] = '\0'; }
 
-void *unpack_peek(RArchive *ar, U32 data_size)
-{
-	ensure(ar->offset + data_size <= ar->data_size);
-	return (void*)(ar->data + ar->offset);
-}
-
 void unpack_advance(RArchive *ar, U32 data_size)
 {
 	ar->offset += data_size;
@@ -154,6 +148,9 @@ void release_warchive(void **data, U32 *size, WArchive *ar)
 	*ar = (WArchive) {};
 }
 
+void *warchive_ptr(WArchive *ar)
+{ return ar->data + ar->data_size; }
+
 RArchive create_rarchive(ArchiveType t, const void *data, U32 data_size)
 {
 	ensure(t == ArchiveType_binary);
@@ -168,6 +165,12 @@ RArchive create_rarchive(ArchiveType t, const void *data, U32 data_size)
 void destroy_rarchive(RArchive *ar)
 {
 	*ar = (RArchive) {};
+}
+
+void *rarchive_ptr(RArchive *ar, U32 data_size)
+{
+	ensure(ar->offset + data_size <= ar->data_size);
+	return (void*)(ar->data + ar->offset);
 }
 
 void pack_u32(WArchive *ar, const U32 *value)

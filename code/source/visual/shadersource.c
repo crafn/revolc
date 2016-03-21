@@ -169,9 +169,9 @@ error:
 	goto cleanup;
 }
 
-int blobify_shadersource(struct WArchive *ar, Cson c, const char *base_path)
+ShaderSource *blobify_shadersource(struct WArchive *ar, Cson c, bool *err)
 {
-	int return_value = 0;
+	ShaderSource *ptr = warchive_ptr(ar);
 	char *vs_src = NULL; /// @warning Not null-terminated!
 	char *gs_src = NULL; /// @warning Not null-terminated!
 	char *fs_src = NULL; /// @warning Not null-terminated!
@@ -191,7 +191,7 @@ int blobify_shadersource(struct WArchive *ar, Cson c, const char *base_path)
 		ensure(cson_member_count(c_varyings) < MAX_SHADER_VARYING_COUNT);
 		for (U32 i = 0; i < cson_member_count(c_varyings); ++i) {
 			Cson c_str = cson_member(c_varyings, i);
-			fmt_str(varyings[i], sizeof(varyings[i]), "%s", cson_string(c_str, NULL));
+			fmt_str(varyings[i], sizeof(varyings[i]), "%s", blobify_string(c_str, err));
 		}
 	}
 
@@ -199,16 +199,16 @@ int blobify_shadersource(struct WArchive *ar, Cson c, const char *base_path)
 	char gs_total_path[MAX_PATH_SIZE];
 	char fs_total_path[MAX_PATH_SIZE];
 	joined_path(	vs_total_path,
-					base_path,
-					cson_string(c_vs_file, NULL));
+					c.dir_path,
+					blobify_string(c_vs_file, err));
 	if (!cson_is_null(c_gs_file))
 		joined_path(	gs_total_path,
-						base_path,
-						cson_string(c_gs_file, NULL));
+						c.dir_path,
+						blobify_string(c_gs_file, err));
 	if (!cson_is_null(c_fs_file))
 		joined_path(	fs_total_path,
-						base_path,
-						cson_string(c_fs_file, NULL));
+						c.dir_path,
+						blobify_string(c_fs_file, err));
 
 	U32 vs_src_len = 0;
 	U32 gs_src_len = 0;
@@ -225,6 +225,9 @@ int blobify_shadersource(struct WArchive *ar, Cson c, const char *base_path)
 	MeshType mesh_type = MeshType_tri;
 	U32 cached = 0;
 	U8 null_byte = 0;
+
+	if (err && *err)
+		goto error;
 
 	// @todo Fill ShaderSource and write that instead of separate members
 	Resource res;
@@ -253,10 +256,11 @@ cleanup:
 	free(vs_src);
 	free(gs_src);
 	free(fs_src);
-	return return_value;
+	return ptr;
 
 error:
-	return_value = 1;
+	ptr = NULL;
+	SET_ERROR_FLAG(err);
 	goto cleanup;
 }
 

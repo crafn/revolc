@@ -29,7 +29,7 @@ REVOLC_API WARN_UNUSED
 int json_font_to_blob(struct BlobBuf *buf, JsonTok j);
 
 REVOLC_API WARN_UNUSED
-int blobify_font(struct WArchive *ar, Cson c, const char *base_path);
+Font *blobify_font(struct WArchive *ar, Cson c, bool *err);
 
 Texel * malloc_rgba_font_bitmap(const Font *font);
 

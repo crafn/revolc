@@ -156,7 +156,7 @@ error:
 	return 1;
 }
 
-int blobify_nodetype(struct WArchive *ar, Cson c, const char *base_path)
+NodeType *blobify_nodetype(struct WArchive *ar, Cson c, bool *err)
 {
 	Cson c_impl_mgmt = cson_key(c, "impl_mgmt");
 	Cson c_max_count = cson_key(c, "max_count");
@@ -187,12 +187,12 @@ int blobify_nodetype(struct WArchive *ar, Cson c, const char *base_path)
 	if (cson_is_null(c_unpack))
 		RES_ATTRIB_MISSING("unpack_func");
 
-	bool auto_impl_mgmt = !strcmp(cson_string(c_impl_mgmt, NULL), "auto");
+	bool auto_impl_mgmt = !strcmp(blobify_string(c_impl_mgmt, err), "auto");
 	U32 max_count = 0;
 	if (auto_impl_mgmt == false) {
-		if (cson_is_null(c_storage) || strlen(cson_string(c_storage, NULL)) == 0)
+		if (cson_is_null(c_storage) || strlen(blobify_string(c_storage, err)) == 0)
 			RES_ATTRIB_MISSING("storage_func");
-		if (cson_is_null(c_resurrect) || strlen(cson_string(c_resurrect, NULL)) == 0)
+		if (cson_is_null(c_resurrect) || strlen(blobify_string(c_resurrect, err)) == 0)
 			RES_ATTRIB_MISSING("resurrect_func");
 	} else {
 		if (cson_is_null(c_max_count))
@@ -203,28 +203,28 @@ int blobify_nodetype(struct WArchive *ar, Cson c, const char *base_path)
 		}
 	}
 	if (!cson_is_null(c_max_count))
-		max_count = cson_integer(c_max_count, NULL);
+		max_count = blobify_integer(c_max_count, err);
 
 	NodeType n = {
 		.auto_impl_mgmt = auto_impl_mgmt,
 		.max_count = max_count,
 	};
-	fmt_str(n.init_func_name, sizeof(n.init_func_name), "%s", cson_string(c_init, NULL));
-	fmt_str(n.resurrect_func_name, sizeof(n.resurrect_func_name), "%s", cson_string(c_resurrect, NULL));
-	fmt_str(n.overwrite_func_name, sizeof(n.overwrite_func_name), "%s", cson_string(c_overwrite, NULL));
-	fmt_str(n.upd_func_name, sizeof(n.upd_func_name), "%s", cson_string(c_upd, NULL));
-	fmt_str(n.free_func_name, sizeof(n.free_func_name), "%s", cson_string(c_free, NULL));
-	fmt_str(n.pack_func_name, sizeof(n.pack_func_name), "%s", cson_string(c_pack, NULL));
-	fmt_str(n.unpack_func_name, sizeof(n.unpack_func_name), "%s", cson_string(c_unpack, NULL));
+	fmt_str(n.init_func_name, sizeof(n.init_func_name), "%s", blobify_string(c_init, err));
+	fmt_str(n.resurrect_func_name, sizeof(n.resurrect_func_name), "%s", blobify_string(c_resurrect, err));
+	fmt_str(n.overwrite_func_name, sizeof(n.overwrite_func_name), "%s", blobify_string(c_overwrite, err));
+	fmt_str(n.upd_func_name, sizeof(n.upd_func_name), "%s", blobify_string(c_upd, err));
+	fmt_str(n.free_func_name, sizeof(n.free_func_name), "%s", blobify_string(c_free, err));
+	fmt_str(n.pack_func_name, sizeof(n.pack_func_name), "%s", blobify_string(c_pack, err));
+	fmt_str(n.unpack_func_name, sizeof(n.unpack_func_name), "%s", blobify_string(c_unpack, err));
 
 	if (n.auto_impl_mgmt == false) {
-		fmt_str(n.storage_func_name, sizeof(n.storage_func_name), "%s", cson_string(c_storage, NULL));
+		fmt_str(n.storage_func_name, sizeof(n.storage_func_name), "%s", blobify_string(c_storage, err));
 	}
 
 	if (cson_is_null(c_packsync)) {
 		n.packsync = PackSync_full;
 	} else {
-		const char *net = cson_string(c_packsync, NULL);
+		const char *net = blobify_string(c_packsync, err);
 		if (!strcmp(net, "presence")) {
 			n.packsync = PackSync_presence;
 		} else if (!strcmp(net, "full")) {
@@ -235,10 +235,14 @@ int blobify_nodetype(struct WArchive *ar, Cson c, const char *base_path)
 		}
 	}
 
-	pack_buf(ar, &n, sizeof(n));
+	if (err && *err)
+		goto error;
 
-	return 0;
+	NodeType *ptr = warchive_ptr(ar);
+	pack_buf(ar, &n, sizeof(n));
+	return ptr;
 
 error:
-	return 1;
+	SET_ERROR_FLAG(err);
+	return NULL;
 }

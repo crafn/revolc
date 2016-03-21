@@ -354,9 +354,9 @@ void clip_to_json(WJson *j, const Clip *c)
 	}
 }
 
-int blobify_clip(struct WArchive *ar, Cson c, const char *base_path)
+Clip *blobify_clip(struct WArchive *ar, Cson c, bool *err)
 {
-	int return_value = 0;
+	Clip *ptr = warchive_ptr(ar);
 	Clip_Key *keys = NULL;
 	T3f *samples = NULL;
 
@@ -372,7 +372,7 @@ int blobify_clip(struct WArchive *ar, Cson c, const char *base_path)
 		RES_ATTRIB_MISSING("channels");
 
 	U32 fps = 30.0;
-	F32 duration = cson_floating(c_duration, NULL);
+	F32 duration = blobify_floating(c_duration, err);
 
 	U32 keys_capacity = 0;
 	U32 total_key_count = 0;
@@ -391,7 +391,7 @@ int blobify_clip(struct WArchive *ar, Cson c, const char *base_path)
 		if (cson_is_null(c_keys))
 			RES_ATTRIB_MISSING("keys");
 
-		const char *type_str = cson_string(c_type, NULL);
+		const char *type_str = blobify_string(c_type, err);
 
 		Clip_Key_Type type;
 		if (!strcmp(type_str, "pos"))
@@ -412,19 +412,19 @@ int blobify_clip(struct WArchive *ar, Cson c, const char *base_path)
 			Cson c_key = cson_member(c_keys, key_i);
 			Cson c_value = cson_key(c_key, "v");
 			Clip_Key key = { .type = type };
-			fmt_str(key.joint_name, sizeof(key.joint_name), "%s", cson_string(c_joint, NULL));
-			key.time = cson_floating(cson_key(c_key, "t"), NULL);
+			fmt_str(key.joint_name, sizeof(key.joint_name), "%s", blobify_string(c_joint, err));
+			key.time = blobify_floating(cson_key(c_key, "t"), err);
 			key.time = CLAMP(key.time, 0, duration);
 
 			switch (type) {
 				case Clip_Key_Type_pos:
-					key.value.pos = v3d_to_v3f(cson_v3(c_value, NULL));
+					key.value.pos = v3d_to_v3f(blobify_v3(c_value, err));
 				break;
 				case Clip_Key_Type_rot:
-					key.value.rot = qd_to_qf(cson_q(c_value, NULL));
+					key.value.rot = qd_to_qf(blobify_q(c_value, err));
 				break;
 				case Clip_Key_Type_scale:
-					key.value.scale = v3d_to_v3f(cson_v3(c_value, NULL));
+					key.value.scale = v3d_to_v3f(blobify_v3(c_value, err));
 				break;
 				default: fail("Unhandled Clip_Key_Type: %i", type);
 			}
@@ -464,13 +464,16 @@ int blobify_clip(struct WArchive *ar, Cson c, const char *base_path)
 		.frame_count = frame_count,
 	};
 	fmt_str(clip.armature_name, sizeof(clip.armature_name),
-			"%s", cson_string(c_armature, NULL));
+			"%s", blobify_string(c_armature, err));
 
 	const U32 samples_offset = ar->data_size + offsetof(Clip, local_samples);
 	const U32 keys_offset = ar->data_size + offsetof(Clip, keys);
 
 	const U32 samples_size = sizeof(*samples)*sample_count;
 	const U32 keys_size = sizeof(*keys)*total_key_count;
+
+	if (err && *err)
+		goto error;
 
 	pack_buf(ar, &clip, sizeof(clip));
 
@@ -483,16 +486,17 @@ int blobify_clip(struct WArchive *ar, Cson c, const char *base_path)
 cleanup:
 	free(samples);
 	free(keys);
-	return return_value;
+	return ptr;
 
 error:
-	return_value = 1;
+	ptr = NULL;
+	SET_ERROR_FLAG(err);
 	goto cleanup;
 }
 
 void deblobify_clip(WCson *c, struct RArchive *ar)
 {
-	Clip *clip = unpack_peek(ar, sizeof(*clip));
+	Clip *clip = rarchive_ptr(ar, sizeof(*clip));
 	unpack_advance(ar,	sizeof(*clip) +
 						sizeof(*clip_keys(clip))*clip->key_count +
 						sizeof(*clip_local_samples(clip))*clip->joint_count*clip->frame_count);
@@ -503,10 +507,10 @@ void deblobify_clip(WCson *c, struct RArchive *ar)
 	wcson_begin_compound(c, "Clip");
 
 	wcson_designated(c, "name");
-	wcson_string(c, clip->res.name);
+	deblobify_string(c, clip->res.name);
 
 	wcson_designated(c, "armature");
-	wcson_string(c, clip->armature_name);
+	deblobify_string(c, clip->armature_name);
 
 	wcson_designated(c, "channels");
 	wcson_begin_initializer(c);
@@ -527,28 +531,28 @@ void deblobify_clip(WCson *c, struct RArchive *ar)
 		wcson_begin_initializer(c);
 
 		wcson_designated(c, "joint");
-		wcson_string(c, a->joint_names[joint_id]);
+		deblobify_string(c, a->joint_names[joint_id]);
 
 		wcson_designated(c, "type");
-		wcson_string(c, clip_key_type_to_str(ch_type));
+		deblobify_string(c, clip_key_type_to_str(ch_type));
 
 		wcson_designated(c, "keys");
 		wcson_begin_initializer(c);
 		for (U32 i = ch_key_begin_i; i < ch_key_end_i; ++i) {
 
 			wcson_designated(c, "t");
-			wcson_floating(c, keys[i].time);
+			deblobify_floating(c, keys[i].time);
 
 			wcson_designated(c, "v");
 			switch (ch_type) {
 			case Clip_Key_Type_pos:
-				wcson_v3(c, v3f_to_v3d(keys[i].value.pos));
+				deblobify_v3(c, v3f_to_v3d(keys[i].value.pos));
 			break;
 			case Clip_Key_Type_rot:
-				wcson_q(c, qf_to_qd(keys[i].value.rot));
+				deblobify_q(c, qf_to_qd(keys[i].value.rot));
 			break;
 			case Clip_Key_Type_scale:
-				wcson_v3(c, v3f_to_v3d(keys[i].value.scale));
+				deblobify_v3(c, v3f_to_v3d(keys[i].value.scale));
 			break;
 			default: fail("Unhandled Clip_Key_Type: %i", ch_type);
 			}

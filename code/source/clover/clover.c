@@ -342,30 +342,33 @@ MOD_API void init_clover()
 
 	debug_print("Parsed code");
 	{
-		QC_AST_Node *expr;
-		QC_AST_Scope *parsed_root = qc_parse_string(&expr, code.data);
-		ensure(parsed_root);
+		Cson expr = cson_create(code.data, "");
 
 		qc_clear_array(char)(&code);
-		qc_ast_to_c_str(&code, 0, expr);
-		qc_print_ast(expr, 4);
+		qc_ast_to_c_str(&code, 0, expr.ast_node);
+		qc_print_ast(expr.ast_node, 4);
 		debug_print("%s", code.data);
 
 		{ /* Test json-like interface for reading parsed C */
 			bool err = false;
-			QC_AST_Node *pekka = cson_key(expr, "pekka");
-			QC_AST_Node *vuosi = cson_key(pekka, "vuosi");
-			debug_print("recovered pekka.vuosi: %i", cson_integer(vuosi, &err));
+			Cson pekka = cson_key(expr, "pekka");
+			Cson vuosi = cson_key(pekka, "vuosi");
+			debug_print("recovered pekka.vuosi: %i", blobify_integer(vuosi, &err));
+			ensure(!err);
 
-			QC_AST_Node *arr_4 = cson_member(cson_key(expr, "array"), 4);
-			debug_print("recovered array[4]: %f", cson_floating(arr_4, &err));
+			Cson arr = cson_key(expr, "array");
+			ensure(!cson_is_null(arr));
+			Cson arr_4 = cson_member(arr, 4);
+			ensure(!cson_is_null(arr_4));
+			debug_print("recovered array[4]: %f", blobify_floating(arr_4, &err));
+			ensure(!err);
 
-			debug_print("recovered pätkä.loitsu: %s", cson_string(cson_key(cson_key(expr, "pätkä"), "loitsu"), &err));
+			debug_print("recovered pätkä.loitsu: %s", blobify_string(cson_key(cson_key(expr, "pätkä"), "loitsu"), &err));
 
 			ensure(!err);
 		}
 
-		qc_destroy_ast(parsed_root);
+		cson_destroy(expr);
 	}
 
 

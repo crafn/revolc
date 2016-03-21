@@ -26,7 +26,7 @@ error:
 	return 1;
 }
 
-int blobify_physmat(struct WArchive *ar, Cson c, const char *base_path)
+PhysMat *blobify_physmat(struct WArchive *ar, Cson c, bool *err)
 {
 	Cson c_density = cson_key(c, "density");
 	Cson c_friction = cson_key(c, "friction");
@@ -40,14 +40,20 @@ int blobify_physmat(struct WArchive *ar, Cson c, const char *base_path)
 		RES_ATTRIB_MISSING("restitution");
 
 	PhysMat mat = {
-		.density = cson_floating(c_density, NULL),
-		.friction = cson_floating(c_friction, NULL),
-		.restitution = cson_floating(c_restitution, NULL),
+		.density = blobify_floating(c_density, err),
+		.friction = blobify_floating(c_friction, err),
+		.restitution = blobify_floating(c_restitution, err),
 	};
-	pack_buf(ar, &mat, sizeof(mat));
 
-	return 0;
+	if (err && *err)
+		goto error;
+
+	PhysMat *ptr = warchive_ptr(ar);
+	pack_buf(ar, &mat, sizeof(mat));
+	return ptr;
+
 error:
-	return 1;
+	SET_ERROR_FLAG(err);
+	return NULL;
 }
 

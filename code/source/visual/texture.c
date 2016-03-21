@@ -149,9 +149,9 @@ error:
 	goto cleanup;
 }
 
-int blobify_texture(struct WArchive *ar, Cson c, const char *base_path)
+Texture *blobify_texture(struct WArchive *ar, Cson c, bool *err)
 {
-	int return_value = 0;
+	Texture *ptr = warchive_ptr(ar);
 	U8 *loaded_image = NULL;
 	Texel *image = NULL;
 #define MAX_MIP_COUNT (MAX_TEXTURE_LOD_COUNT - 1)
@@ -163,15 +163,15 @@ int blobify_texture(struct WArchive *ar, Cson c, const char *base_path)
 		RES_ATTRIB_MISSING("file");
 
 	char total_path[MAX_PATH_SIZE];
-	joined_path(total_path, base_path, cson_string(c_file, NULL));
+	joined_path(total_path, c.dir_path, blobify_string(c_file, err));
 
 	const int comps = 4;
 	U32 width, height;
-	int err =
+	int png_err =
 		lodepng_decode32_file(&loaded_image, &width, &height, total_path);
-	if (err) {
+	if (png_err) {
 		critical_print(	"PNG load error for '%s': %s",
-						total_path, lodepng_error_text(err));
+						total_path, lodepng_error_text(png_err));
 		goto error;
 	}
 	ensure(width > 0 && height > 0);
@@ -192,7 +192,7 @@ int blobify_texture(struct WArchive *ar, Cson c, const char *base_path)
 		.lod_count = lod_count,
 		.texel_data_size = width*height*comps,
 	};
-	fmt_str(tex.rel_file, sizeof(tex.rel_file), "%s", cson_string(c_file, NULL));
+	fmt_str(tex.rel_file, sizeof(tex.rel_file), "%s", blobify_string(c_file, err));
 
 	// Calculate mip-map data and offsets to it
 	for (U32 lod_i = 0; lod_i < lod_count; ++lod_i) {
@@ -245,6 +245,9 @@ int blobify_texture(struct WArchive *ar, Cson c, const char *base_path)
 	for (U32 i = 0; i < MAX_TEXTURE_LOD_COUNT; ++i)
 		texel_member_buf_offsets[i] = ar->data_size + offsetof(Texture, texel_offsets[i]);
 
+	if (err && *err)
+		goto error;
+
 	pack_buf(ar, &tex, sizeof(tex));
 	pack_patch_rel_ptr(ar, texel_member_buf_offsets[0]);
 	pack_buf(ar, image, width*height*comps);
@@ -259,25 +262,26 @@ cleanup:
 	for (U32 i = 0; i < MAX_MIP_COUNT; ++i)
 		free(mips[i]);
 
-	return return_value;
+	return ptr;
 
 error:
-	return_value = 1;
+	SET_ERROR_FLAG(err);
+	ptr = NULL;
 	goto cleanup;
 }
 
 void deblobify_texture(WCson *c, struct RArchive *ar)
 {
-	Texture *tex = unpack_peek(ar, sizeof(*tex));
+	Texture *tex = rarchive_ptr(ar, sizeof(*tex));
 	unpack_advance(ar, sizeof(*tex) + tex->texel_data_size);
 
 	wcson_begin_compound(c, "Texture");
 
 	wcson_designated(c, "name");
-	wcson_string(c, tex->res.name);
+	deblobify_string(c, tex->res.name);
 
 	wcson_designated(c, "file");
-	wcson_string(c, tex->rel_file);
+	deblobify_string(c, tex->rel_file);
 
 	wcson_end_compound(c);
 }

@@ -2,7 +2,9 @@
 #include "nodegroupdef.h"
 #include "resources/resblob.h"
 
-#include <qc/parse.h>
+#ifndef CODEGEN
+#	include <qc/parse.h>
+#endif
 
 #define MAX_TOKEN_STR_SIZE 64
 
@@ -344,7 +346,7 @@ error:
 	return 1;
 }
 
-int blobify_nodegroupdef(struct WArchive *ar, Cson c, const char *base_path)
+NodeGroupDef *blobify_nodegroupdef(struct WArchive *ar, Cson c, bool *err)
 {
 	Cson c_nodes = cson_key(c, "nodes");
 	Cson c_cmds = cson_key(c, "cmds");
@@ -368,17 +370,17 @@ int blobify_nodegroupdef(struct WArchive *ar, Cson c, const char *base_path)
 
 		fmt_str(	node->type_name,
 					sizeof(def.nodes[node_i].type_name),
-					"%s", cson_string(c_type_name, NULL));
+					"%s", blobify_string(c_type_name, err));
 
 		fmt_str(	node->name,
 					sizeof(def.nodes[node_i].name),
-					"%s", cson_string(c_name, NULL));
+					"%s", blobify_string(c_name, err));
 
 		Cson c_defaults = cson_key(c_node, "defaults");
 		for (U32 i = 0; i < cson_member_count(c_defaults); ++i) {
 			Cson c_default = cson_member(c_defaults, i);
 
-			const char *str = cson_string(c_default, NULL);
+			const char *str = blobify_string(c_default, err);
 			NodeGroupDef_Node_Defaults *defaults =
 				&node->defaults[node->defaults_count++];
 			fmt_str(defaults->str, sizeof(defaults->str), "%s", str);
@@ -390,16 +392,20 @@ int blobify_nodegroupdef(struct WArchive *ar, Cson c, const char *base_path)
 	// cmds
 	for (U32 cmd_i = 0; cmd_i < cson_member_count(c_cmds); ++cmd_i) {
 		Cson c_cmd = cson_member(c_cmds, cmd_i);
-		const char *cmd_str = cson_string(c_cmd, NULL);
+		const char *cmd_str = blobify_string(c_cmd, err);
 		NodeGroupDef_Cmd *cmd = &def.cmds[def.cmd_count];
 		fmt_str(cmd->str, sizeof(cmd->str), "%s", cmd_str);
 		++def.cmd_count;
 	}
 
-	pack_buf(ar, &def, sizeof(def));
+	if (err && *err)
+		goto error;
 
-	return 0;
+	NodeGroupDef *ptr = warchive_ptr(ar);
+	pack_buf(ar, &def, sizeof(def));
+	return ptr;
 
 error:
-	return 1;
+	SET_ERROR_FLAG(err);
+	return NULL;
 }

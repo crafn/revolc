@@ -58,7 +58,7 @@ void model_to_json(WJson *j, const Model *m)
 	}
 }
 
-int blobify_model(struct WArchive *ar, Cson c, const char *base_path)
+Model *blobify_model(struct WArchive *ar, Cson c, bool *err)
 {
 	Cson c_mesh = cson_key(c, "mesh");
 	Cson c_texs = cson_key(c, "textures");
@@ -73,20 +73,25 @@ int blobify_model(struct WArchive *ar, Cson c, const char *base_path)
 		RES_ATTRIB_MISSING("color");
 
 	Model m = {};
-	fmt_str(m.mesh, sizeof(m.mesh), "%s", cson_string(c_mesh, NULL));
+	fmt_str(m.mesh, sizeof(m.mesh), "%s", blobify_string(c_mesh, err));
 
 	for (U32 i = 0; i < cson_member_count(c_texs); ++i) {
 		Cson c_tex = cson_member(c_texs, i);
-		fmt_str(m.textures[i], sizeof(m.textures[i]), "%s", cson_string(c_tex, NULL));
+		fmt_str(m.textures[i], sizeof(m.textures[i]), "%s", blobify_string(c_tex, err));
 	}
 
-	m.color = cson_color(c_color, NULL);
+	m.color = blobify_color(c_color, err);
 	if (!cson_is_null(c_emission))
-		m.emission = cson_floating(c_emission, NULL);
+		m.emission = blobify_floating(c_emission, err);
 
+	if (err && *err)
+		goto error;
+
+	Model *ptr = warchive_ptr(ar);
 	pack_buf(ar, &m, sizeof(m));
-	return 0;
+	return ptr;
 
 error:
-	return 1;
+	SET_ERROR_FLAG(err);
+	return NULL;
 }

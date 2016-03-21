@@ -199,32 +199,29 @@ Resource * res_by_name(ResBlob *blob, ResType type, const char *name)
 
 		char *file_data = read_file_as_str(dev_ator(), MISSING_RES_FILE);
 
-		QC_AST_Node *expr;
-		QC_AST_Scope *root = qc_parse_string(&expr, file_data);
-		if (!root)
-			fail("Failed parsing %s", MISSING_RES_FILE);
+		Cson c_file = cson_create(file_data, MISSING_RES_BASE);
 
-		QC_AST_Node *c_res = cson_key(expr, restype_to_str(type));
-		if (!c_res)
+		Cson c_res = cson_key(c_file, restype_to_str(type));
+		if (cson_is_null(c_res))
 			fail("Config for missing resources invalid, not found: %s", restype_to_str(type));
-		int err = blobify_res(&ar, c_res, type, MISSING_RES_BASE);
+		bool err = false;
+		Resource *res = blobify_res(&ar, c_res, &err);
 		if (err)
 			fail("Creating MissingResource failed (wtf, where's your resources?)");
 
 		// Patch header
-		Resource res_header = {};
-		fmt_str(res_header.name, RES_NAME_SIZE, "%s", name);
-		res_header.type = type;
-		res_header.blob = blob;
-		res_header.runtime_owner = new_res;
-		res_header.size = ar.data_size;
-		memcpy(ar.data, &res_header, sizeof(res_header));
+		fmt_str(res->name, sizeof(res->name), "%s", name);
+		res->type = type;
+		res->blob = blob;
+		res->runtime_owner = new_res;
+		res->size = ar.data_size;
 
-		qc_destroy_ast(root);
+		cson_destroy(c_file);
+
 		FREE(dev_ator(), file_data);
 		destroy_warchive(&ar);
 
-		init_res(new_res->res);
+		init_res(res);
 
 		add_rt_res(blob, new_res);
 		return new_res->res;
@@ -729,14 +726,18 @@ void *save_res_state(const Resource *res)
 	return ret;
 }
 
-int blobify_res(WArchive *ar, Cson c, ResType res_t, const char *base_path)
+Resource *blobify_res(WArchive *ar, Cson c, bool *err)
 {
+	const char *type_name = cson_compound_type(c);
+	ResType res_t = str_to_restype(type_name);
 #define RESOURCE(name, init, deinit, c_blobify, c_deblobify, blobify, jsonify, recache) \
 	if (res_t == ResType_ ## name) \
-		return ((int (*)(WArchive*, Cson, const char *))c_blobify)(ar, c, base_path);
+		return (Resource*)((name *(*)(WArchive *, Cson, bool *))c_blobify)(ar, c, err);
 #	include "resources.def"
 #undef RESOURCE
-	return 1;
+	if (err)
+		*err = true;
+	return NULL;
 }
 
 void deblobify_res(WCson *c, Resource *res)

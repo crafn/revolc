@@ -59,7 +59,7 @@ REVOLC_API MeshIndexType * mesh_indices(const Mesh *m);
 REVOLC_API WARN_UNUSED int json_mesh_to_blob(struct BlobBuf *buf, JsonTok j);
 REVOLC_API void mesh_to_json(WJson *j, const Mesh *m);
 
-REVOLC_API WARN_UNUSED int blobify_mesh(struct WArchive *ar, Cson c, const char *base_path);
+REVOLC_API WARN_UNUSED Mesh *blobify_mesh(struct WArchive *ar, Cson c, bool *err);
 
 // Only for runtime resources
 REVOLC_API void add_rt_mesh_vertex(Mesh *mesh, TriMeshVertex vertex);

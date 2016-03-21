@@ -49,7 +49,7 @@ error:
 	return 1;
 }
 
-int blobify_compdef(struct WArchive *ar, Cson c, const char *base_path)
+CompDef *blobify_compdef(struct WArchive *ar, Cson c, bool *err)
 {
 	Cson c_armature = cson_key(c, "armature");
 	Cson c_subs = cson_key(c, "subs");
@@ -61,7 +61,7 @@ int blobify_compdef(struct WArchive *ar, Cson c, const char *base_path)
 
 	CompDef def = {};
 	fmt_str(def.armature_name, sizeof(def.armature_name), "%s",
-			cson_string(c_armature, NULL));
+			blobify_string(c_armature, err));
 	if (cson_member_count(c_subs) > MAX_SUBENTITY_COUNT) {
 		critical_print("Too many subs: %i > %i",
 				cson_member_count(c_subs), MAX_SUBENTITY_COUNT);
@@ -83,17 +83,21 @@ int blobify_compdef(struct WArchive *ar, Cson c, const char *base_path)
 
 		CompDef_Sub *sub = &def.subs[sub_i];
 		fmt_str(sub->entity_name, sizeof(sub->entity_name), "%s",
-				cson_string(c_entity, NULL));
+				blobify_string(c_entity, err));
 		fmt_str(sub->joint_name, sizeof(sub->joint_name), "%s",
-				cson_string(c_joint, NULL));
-		sub->offset = t3d_to_t3f(cson_t3(c_offset, NULL));
+				blobify_string(c_joint, err));
+		sub->offset = t3d_to_t3f(blobify_t3(c_offset, err));
 		++def.sub_count;
 	}
 
-	pack_buf(ar, &def, sizeof(def));
+	if (err && *err)
+		goto error;
 
-	return 0;
+	CompDef *ptr = warchive_ptr(ar);
+	pack_buf(ar, &def, sizeof(def));
+	return ptr;
 
 error:
-	return 1;
+	SET_ERROR_FLAG(err);
+	return NULL;
 }

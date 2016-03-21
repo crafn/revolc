@@ -79,6 +79,6 @@ REVOLC_API WARN_UNUSED
 int json_nodegroupdef_to_blob(struct BlobBuf *buf, JsonTok j);
 
 REVOLC_API WARN_UNUSED
-int blobify_nodegroupdef(struct WArchive *ar, Cson c, const char *base_path);
+NodeGroupDef *blobify_nodegroupdef(struct WArchive *ar, Cson c, bool *err);
 
 #endif // REVOLC_GAME_NODEGROUPDEF_H

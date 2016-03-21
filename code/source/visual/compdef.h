@@ -25,6 +25,6 @@ REVOLC_API WARN_UNUSED
 int json_compdef_to_blob(struct BlobBuf *buf, JsonTok j);
 
 REVOLC_API WARN_UNUSED
-int blobify_compdef(struct WArchive *ar, Cson c, const char *base_path);
+CompDef *blobify_compdef(struct WArchive *ar, Cson c, bool *err);
 
 #endif // REVOLC_VISUAL_COMPDEF_H

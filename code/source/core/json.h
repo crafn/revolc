@@ -7,7 +7,6 @@
 
 #ifndef CODEGEN
 #	include <jsmn/jsmn.h>
-#	include <qc/ast.h>
 #endif
 
 typedef enum {
@@ -66,30 +65,42 @@ REVOLC_API T3d json_t3(JsonTok j);
 // Api for traversing json-like subset of C99
 // Json usage should be eventually substituted with C99
 
-typedef QC_AST_Node *Cson;
+struct QC_AST_Node;
+struct QC_AST_Scope;
+typedef struct Cson {
+	struct QC_AST_Node *ast_node;
+	struct QC_AST_Scope *root;
+	const char *dir_path; // Directory of parsed file
+} Cson;
+
+REVOLC_API Cson cson_create(const char *text, const char *dir_path);
+REVOLC_API void cson_destroy(Cson c);
+
 REVOLC_API Cson cson_key(Cson c, const char *key);
 REVOLC_API Cson cson_member(Cson c, U32 i);
+REVOLC_API Cson cson_null();
 REVOLC_API const char *cson_compound_type(Cson c); // NULL for plain initializer list
 REVOLC_API bool cson_is_compound(Cson c);
 REVOLC_API bool cson_is_null(Cson c);
 REVOLC_API U32 cson_member_count(Cson c);
+
+// Conversion op from cson to dead binary format is called "blobify"
+
 // 'err' can only be modified to be true. This allows chaining with the same error variable.
-REVOLC_API const char *cson_string(Cson c, bool *err);
-REVOLC_API F64 cson_floating(Cson c, bool *err);
-REVOLC_API S64 cson_integer(Cson c, bool *err);
-REVOLC_API bool cson_boolean(Cson c, bool *err);
-
-// Convenience functions for common aggregate types
-
-REVOLC_API V2d cson_v2(Cson c, bool *err);
-REVOLC_API V3d cson_v3(Cson c, bool *err);
-REVOLC_API Color cson_color(Cson c, bool *err);
-REVOLC_API Qd cson_q(Cson c, bool *err);
-REVOLC_API T3d cson_t3(Cson c, bool *err);
+REVOLC_API const char *blobify_string(Cson c, bool *err);
+REVOLC_API F64 blobify_floating(Cson c, bool *err);
+REVOLC_API S64 blobify_integer(Cson c, bool *err);
+REVOLC_API bool blobify_boolean(Cson c, bool *err);
+REVOLC_API V2d blobify_v2(Cson c, bool *err);
+REVOLC_API V3d blobify_v3(Cson c, bool *err);
+REVOLC_API Color blobify_color(Cson c, bool *err);
+REVOLC_API Qd blobify_q(Cson c, bool *err);
+REVOLC_API T3d blobify_t3(Cson c, bool *err);
 
 // Api for creating json-like subset for C99
 
-typedef QC_Write_Context WCson;
+struct QC_Write_Context;
+typedef struct QC_Write_Context WCson;
 
 REVOLC_API WCson *wcson_create();
 REVOLC_API void wcson_destroy(WCson *c);
@@ -105,18 +116,14 @@ REVOLC_API void wcson_end_compound(WCson *c);
 // .var_name = ...
 REVOLC_API void wcson_designated(WCson *c, const char *var_name);
 
-REVOLC_API void wcson_string(WCson *c, const char *str);
-REVOLC_API void wcson_integer(WCson *c, S64 value);
-REVOLC_API void wcson_floating(WCson *c, double value);
-
-// Convenience functions for common aggregate types
-
-REVOLC_API void wcson_v2(WCson *c, V2d v);
-REVOLC_API void wcson_v3(WCson *c, V3d v);
-REVOLC_API void wcson_color(WCson *c, Color v);
-REVOLC_API void wcson_q(WCson *c, Qd v);
-REVOLC_API void wcson_t3(WCson *c, T3d v);
-
+REVOLC_API void deblobify_string(WCson *c, const char *str);
+REVOLC_API void deblobify_integer(WCson *c, S64 value);
+REVOLC_API void deblobify_floating(WCson *c, double value);
+REVOLC_API void deblobify_v2(WCson *c, V2d v);
+REVOLC_API void deblobify_v3(WCson *c, V3d v);
+REVOLC_API void deblobify_color(WCson *c, Color v);
+REVOLC_API void deblobify_q(WCson *c, Qd v);
+REVOLC_API void deblobify_t3(WCson *c, T3d v);
 
 
 // Used to partially update json strings

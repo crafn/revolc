@@ -324,11 +324,11 @@ error:
 	goto cleanup;
 }
 
-int blobify_sound(struct WArchive *ar, Cson c, const char *base_path)
+Sound *blobify_sound(struct WArchive *ar, Cson c, bool *err)
 {
+	Sound *ptr = warchive_ptr(ar);
 	U8 *file_contents = NULL;
 	F32 *samples = NULL;
-	int return_value = 0;
 
 	Cson c_file = cson_key(c, "file");
 	if (cson_is_null(c_file)) {
@@ -337,7 +337,7 @@ int blobify_sound(struct WArchive *ar, Cson c, const char *base_path)
 	}
 
 	char total_path[MAX_PATH_SIZE];
-	joined_path(total_path, base_path, cson_string(c_file, NULL));
+	joined_path(total_path, c.dir_path, blobify_string(c_file, err));
 
 	U32 file_size;
 	file_contents = read_file(gen_ator(), total_path, &file_size);
@@ -345,7 +345,10 @@ int blobify_sound(struct WArchive *ar, Cson c, const char *base_path)
 	U32 ch_count;
 	U32 frame_count;
 	samples = malloc_decoded_ogg_vorbis(	&frame_count, &ch_count,
-										file_contents, file_size);
+											file_contents, file_size);
+
+	if (err || *err)
+		goto error;
 
 	// @todo Fill Sound struct and write that
 	Resource res;
@@ -357,9 +360,10 @@ int blobify_sound(struct WArchive *ar, Cson c, const char *base_path)
 cleanup:
 	free(samples);
 	free(file_contents);
-	return return_value;
+	return ptr;
 
 error:
-	return_value = 1;
+	ptr = NULL;
+	SET_ERROR_FLAG(err);
 	goto cleanup;
 }

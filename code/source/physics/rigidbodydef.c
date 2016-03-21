@@ -80,7 +80,7 @@ error:
 	return 1;
 }
 
-int blobify_rigidbodydef(struct WArchive *ar, Cson c, const char *base_path)
+RigidBodyDef *blobify_rigidbodydef(struct WArchive *ar, Cson c, bool *err)
 {
 	Cson c_mat = cson_key(c, "mat");
 	Cson c_disable_rot = cson_key(c, "disable_rot");
@@ -101,14 +101,14 @@ int blobify_rigidbodydef(struct WArchive *ar, Cson c, const char *base_path)
 
 	RigidBodyDef def = {};
 	fmt_str(def.mat_name, sizeof(def.mat_name), "%s",
-			cson_string(c_mat, NULL));
+			blobify_string(c_mat, err));
 
 
 	if (!cson_is_null(c_disable_rot))
-		def.disable_rot = cson_boolean(c_disable_rot, NULL);
+		def.disable_rot = blobify_boolean(c_disable_rot, err);
 
 	if (!cson_is_null(c_is_static))
-		def.is_static = cson_boolean(c_is_static, NULL);
+		def.is_static = blobify_boolean(c_is_static, err);
 
 	/// @todo Take density into account
 
@@ -117,45 +117,50 @@ int blobify_rigidbodydef(struct WArchive *ar, Cson c, const char *base_path)
 
 		if (!cson_is_compound(c_shp)) {
 			critical_print("Attrib 'shapes' should contain objects");
-			return 1;
+			goto error;
 		}
 
-		const char *shp_type = cson_string(cson_key(c_shp, "type"), NULL);
+		const char *shp_type = blobify_string(cson_key(c_shp, "type"), err);
 		if (!strcmp(shp_type, "Circle")) {
 			Cson c_pos = cson_key(c_shp, "pos");
 			Cson c_rad = cson_key(c_shp, "rad");
 			
 			if (cson_is_null(c_pos) || cson_is_null(c_rad)) {
 				critical_print("Circle shape must have 'pos' and 'rad'");
-				return 1;
+				goto error;
 			}
 
-			def.circles[def.circle_count].pos = cson_v2(c_pos, NULL);
-			def.circles[def.circle_count].rad = cson_floating(c_rad, NULL);
+			def.circles[def.circle_count].pos = blobify_v2(c_pos, err);
+			def.circles[def.circle_count].rad = blobify_floating(c_rad, err);
 			++def.circle_count;
 		} else if (!strcmp(shp_type, "Poly")) {
 			Cson c_v = cson_key(c_shp, "v");
 			
 			if (cson_is_null(c_v)) {
 				critical_print("Poly shape must have 'v'");
-				return 1;
+				goto error;
 			}
 
 			for (U32 v_i = 0; v_i < cson_member_count(c_v); ++v_i) {
-				def.polys[def.poly_count].v[v_i] = cson_v2(cson_member(c_v, v_i), NULL);
+				def.polys[def.poly_count].v[v_i] = blobify_v2(cson_member(c_v, v_i), err);
 				++def.polys[def.poly_count].v_count;
 			}
 			++def.poly_count;
 		} else {
 			critical_print("Unknown shape type: %s", shp_type);
-			return 1;
+			goto error;
 		}
 	}
 
+	if (err && *err)
+		goto error;
+
+	RigidBodyDef *ptr = warchive_ptr(ar);
 	pack_buf(ar, &def, sizeof(def));
-	return 0;
+	return ptr;
 
 error:
-	return 1;
+	SET_ERROR_FLAG(err);
+	return NULL;
 }
 

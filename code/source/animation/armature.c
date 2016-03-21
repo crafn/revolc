@@ -107,7 +107,7 @@ void armature_to_json(WJson *j, const Armature *a)
 	}
 }
 
-int blobify_armature(struct WArchive *ar, Cson c, const char *base_path)
+Armature *blobify_armature(struct WArchive *ar, Cson c, bool *err)
 {
 	Cson c_joints = cson_key(c, "joints");
 	if (cson_is_null(c_joints))
@@ -135,9 +135,9 @@ int blobify_armature(struct WArchive *ar, Cson c, const char *base_path)
 			RES_ATTRIB_MISSING("offset");
 
 		JointDef *def = &defs[joint_i];
-		def->name = cson_string(c_name, NULL);
-		def->super_name = cson_string(c_super, NULL);
-		def->offset = t3d_to_t3f(cson_t3(c_offset, NULL));
+		def->name = blobify_string(c_name, err);
+		def->super_name = blobify_string(c_super, err);
+		def->offset = t3d_to_t3f(blobify_t3(c_offset, err));
 		++def_count;
 	}
 
@@ -166,12 +166,16 @@ int blobify_armature(struct WArchive *ar, Cson c, const char *base_path)
 		++a.joint_count;
 	}
 
+	if (err && *err)
+		goto error;
+
+	Armature *ptr = warchive_ptr(ar);
 	pack_buf(ar, &a, sizeof(a));
 
-	return 0;
+	return ptr;
 
 error:
-	return 1;
+	return NULL;
 }
 JointId joint_id_by_name(const Armature *a, const char *name)
 {

@@ -27,11 +27,15 @@ typedef struct RArchive {
 REVOLC_API WArchive create_warchive(ArchiveType t, Ator *ator, U32 capacity);
 REVOLC_API void destroy_warchive(WArchive *ar);
 REVOLC_API void release_warchive(void **data, U32 *size, WArchive *ar); // Another way of destructing
+REVOLC_API void *warchive_ptr(WArchive *ar);
 
 REVOLC_API RArchive create_rarchive(ArchiveType t, const void *data, U32 data_size);
 REVOLC_API void destroy_rarchive(RArchive *ar);
+REVOLC_API void *rarchive_ptr(RArchive *ar, U32 data_size);
+
 
 // @todo Pass by value
+// @todo Rename pack -> e.g. warch_/rarch_, because pack/unpack should be used only with packed data
 REVOLC_API void pack_u32(WArchive *ar, const U32 *value);
 REVOLC_API void pack_u64(WArchive *ar, const U64 *value);
 REVOLC_API void pack_s32(WArchive *ar, const S32 *value);
@@ -54,7 +58,6 @@ REVOLC_API void unpack_f64(RArchive *ar, F64 *value);
 REVOLC_API void unpack_buf(RArchive *ar, void *data, U32 data_size);
 REVOLC_API void unpack_strbuf(RArchive *ar, char *str, U32 str_max_size);
 
-REVOLC_API void *unpack_peek(RArchive *ar, U32 data_size);
 REVOLC_API void unpack_advance(RArchive *ar, U32 data_size);
 
 // Lossy packing implemented on top of the regular packing

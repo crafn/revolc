@@ -205,7 +205,7 @@ void mesh_to_json(WJson *j, const Mesh *m)
 	}
 }
 
-int blobify_mesh(struct WArchive *ar, Cson c, const char *base_path)
+Mesh *blobify_mesh(struct WArchive *ar, Cson c, bool *err)
 {
 	MeshType type = MeshType_tri;
 
@@ -227,14 +227,14 @@ int blobify_mesh(struct WArchive *ar, Cson c, const char *base_path)
 	if (	!cson_is_null(c_uv) &&
 			cson_member_count(c_uv) != cson_member_count(c_pos)) {
 		critical_print("Attrib 'uv' size doesn't match with 'pos' for Mesh: %s",
-				cson_string(cson_key(c, "name"), NULL));
+				blobify_string(cson_key(c, "name"), err));
 		goto error;
 	}
 
 	if (	!cson_is_null(c_outline_uv) &&
 			cson_member_count(c_outline_uv) != cson_member_count(c_pos)) {
 		critical_print("Attrib 'outline_uv' size doesn't match with 'pos' for Mesh: %s",
-				cson_string(cson_key(c, "name"), NULL));
+				blobify_string(cson_key(c, "name"), err));
 		goto error;
 	}
 
@@ -247,51 +247,56 @@ int blobify_mesh(struct WArchive *ar, Cson c, const char *base_path)
 			Cson c_p = cson_member(c_pos, i);
 			V3f p = {};
 			for (U32 c = 0; c < cson_member_count(c_p); ++c)
-				(&p.x)[c] = cson_floating(cson_member(c_p, c), NULL);
+				(&p.x)[c] = blobify_floating(cson_member(c_p, c), err);
 			vertices[i] = default_vertex();
 			vertices[i].pos = p;
 
 			if (!cson_is_null(c_uv)) {
 				Cson c_u = cson_member(c_uv, i);
 				V3f u = {};
-				u.x = cson_floating(cson_member(c_u, 0), NULL);
-				u.y = cson_floating(cson_member(c_u, 1), NULL);
+				u.x = blobify_floating(cson_member(c_u, 0), err);
+				u.y = blobify_floating(cson_member(c_u, 1), err);
 				vertices[i].uv = u;
 			}
 
 			if (!cson_is_null(c_outline_uv)) {
 				Cson c_u = cson_member(c_outline_uv, i);
-				vertices[i].outline_uv = v2d_to_v2f(cson_v2(c_u, NULL));
+				vertices[i].outline_uv = v2d_to_v2f(blobify_v2(c_u, err));
 			}
 
 			if (!cson_is_null(c_color)) {
 				Cson c = cson_member(c_color, i);
-				vertices[i].color = cson_color(c, NULL);
+				vertices[i].color = blobify_color(c, err);
 			}
 
 			if (!cson_is_null(c_outline_color)) {
 				Cson c = cson_member(c_outline_color, i);
-				vertices[i].outline_color = cson_color(c, NULL);
+				vertices[i].outline_color = blobify_color(c, err);
 			}
 
 			if (!cson_is_null(c_color_exp)) {
 				Cson c = cson_member(c_color_exp, i);
-				vertices[i].color_exp = cson_floating(c, NULL);
+				vertices[i].color_exp = blobify_floating(c, err);
 			}
 
 			if (!cson_is_null(c_outline_exp)) {
 				Cson c = cson_member(c_outline_exp, i);
-				vertices[i].outline_exp = cson_floating(c, NULL);
+				vertices[i].outline_exp = blobify_floating(c, err);
 			}
 
 			if (!cson_is_null(c_outline_width)) {
 				Cson c = cson_member(c_outline_width, i);
-				vertices[i].outline_width = cson_floating(c, NULL);
+				vertices[i].outline_width = blobify_floating(c, err);
 			}
 
 		}
 		for (U32 i = 0; i < i_count; ++i)
-			indices[i] = cson_integer(cson_member(c_ind, i), NULL);
+			indices[i] = blobify_integer(cson_member(c_ind, i), err);
+
+		if (err && *err)
+			goto error;
+
+		Mesh *ptr = warchive_ptr(ar);
 
 		// @todo Fill Mesh and write it instead of individual members
 		Resource res;
@@ -316,12 +321,13 @@ int blobify_mesh(struct WArchive *ar, Cson c, const char *base_path)
 
 		FREE(dev_ator(), vertices);
 		FREE(dev_ator(), indices);
+
+		return ptr;
 	}
 
-	return 0;
-
 error:
-	return 1;
+	SET_ERROR_FLAG(err);
+	return NULL;
 }
 
 void add_rt_mesh_vertex(Mesh *mesh, TriMeshVertex vertex)

@@ -1,6 +1,11 @@
 #include "json.h"
 #include "basic.h"
 
+#ifndef CODEGEN
+#	include <qc/ast.h>
+#	include <qc/parse.h>
+#endif
+
 ParsedJsonFile parse_json_file(Ator *ator, const char *file)
 {
 	ParsedJsonFile ret = {};
@@ -251,16 +256,45 @@ T3d json_t3(JsonTok j)
 	};
 }
 
-Cson cson_key(Cson n, const char *key)
+internal
+Cson cson_mod(Cson n, QC_AST_Node *ast_node)
 {
+	n.ast_node = ast_node;
+	return n;
+}
+
+Cson cson_create(const char *text, const char *dir_path)
+{
+	QC_AST_Node *expr;
+	QC_AST_Scope *root = qc_parse_string(&expr, text);
+	if (!root)
+		fail("Failed parsing %s", MISSING_RES_FILE);
+
+	Cson cson = {
+		.ast_node = expr,
+		.root = root,
+		.dir_path = dir_path,
+	};
+	return cson;
+}
+
+void cson_destroy(Cson c)
+{
+	qc_destroy_ast(c.root);
+}
+
+Cson cson_key(Cson c, const char *key)
+{
+	QC_AST_Node *n = c.ast_node;
+
 	if (!qc_is_literal_node(n, QC_Literal_compound))
-		return NULL;
+		return cson_null();
 
 	QC_CASTED_NODE(QC_AST_Literal, literal, n);
 
 	QC_Array(QC_AST_Node_Ptr) *nodes = &literal->value.compound.subnodes;
 	for (int i = 0; i < nodes->size; ++i) {
-		Cson node = nodes->data[i];
+		QC_AST_Node *node = nodes->data[i];
 		if (node->type != QC_AST_biop)
 			continue;
 
@@ -276,38 +310,53 @@ Cson cson_key(Cson n, const char *key)
 		if (strcmp(ident->text.data, key))
 			continue;
 
-		return biop->rhs;
+		return cson_mod(c, biop->rhs);
 	}
 
-	return NULL;
+	return cson_null();
 }
 
-Cson cson_member(Cson n, U32 i)
+Cson cson_member(Cson c, U32 i)
 {
-	if (!cson_is_compound(n))
-		return NULL;
+	QC_AST_Node *n = c.ast_node;
+
+	if (!cson_is_compound(c))
+		return cson_null();
 
 	QC_CASTED_NODE(QC_AST_Literal, literal, n);
 	QC_Array(QC_AST_Node_Ptr) *nodes = &literal->value.compound.subnodes;
 	ensure((int)i < nodes->size);
-	return nodes->data[i];
+	return cson_mod(c, nodes->data[i]);
 }
 
-const char *cson_compound_type(Cson n)
+Cson cson_null()
 {
-	if (!cson_is_compound(n))
-		return NULL;
+	Cson cson = {
+		.ast_node = NULL,
+		.dir_path = "<none>",
+	};
+	return cson;
+}
+
+const char *cson_compound_type(Cson c)
+{
+	QC_AST_Node *n = c.ast_node;
+
+	if (!cson_is_compound(c))
+		return "";
 
 	QC_CASTED_NODE(QC_AST_Literal, literal, n);
 	QC_AST_Type *type = literal->value.compound.type;
 	if (!type)
-		return NULL;
+		return "";
 	
 	return type->base_type_decl->ident->text.data;
 }
 
-bool cson_is_compound(Cson n)
+bool cson_is_compound(Cson c)
 {
+	QC_AST_Node *n = c.ast_node;
+
 	if (!n || n->type != QC_AST_literal)
 		return false;
 
@@ -318,20 +367,24 @@ bool cson_is_compound(Cson n)
 	return true;
 }
 
-bool cson_is_null(Cson n)
-{ return n == NULL; }
+bool cson_is_null(Cson c)
+{ return c.ast_node == NULL; }
 
-U32 cson_member_count(Cson n)
+U32 cson_member_count(Cson c)
 {
-	if (!cson_is_compound(n))
+	QC_AST_Node *n = c.ast_node;
+
+	if (!cson_is_compound(c))
 		return 0;
 
 	QC_CASTED_NODE(QC_AST_Literal, literal, n);
 	return literal->value.compound.subnodes.size;
 }
 
-const char *cson_string(Cson n, bool *err)
+const char *blobify_string(Cson c, bool *err)
 {
+	QC_AST_Node *n = c.ast_node;
+
 	if (!qc_is_literal_node(n, QC_Literal_string)) {
 		if (err)
 			*err = true;
@@ -342,8 +395,10 @@ const char *cson_string(Cson n, bool *err)
 	return literal->value.string.data;
 }
 
-F64 cson_floating(Cson n, bool *err)
+F64 blobify_floating(Cson c, bool *err)
 {
+	QC_AST_Node *n = c.ast_node;
+
 	QC_AST_Literal *eval = qc_eval_const_expr(n);
 	F64 val = 0.0;
 	if (!eval || (eval->type != QC_Literal_integer && eval->type != QC_Literal_floating)) {
@@ -363,11 +418,13 @@ exit:
 }
 
 // @todo
-S64 cson_integer(Cson n, bool *err)
-{ return (S64)cson_floating(n, err); }
+S64 blobify_integer(Cson c, bool *err)
+{ return (S64)blobify_floating(c, err); }
 
-bool cson_boolean(Cson n, bool *err)
+bool blobify_boolean(Cson c, bool *err)
 {
+	QC_AST_Node *n = c.ast_node;
+
 	QC_AST_Literal *eval = qc_eval_const_expr(n);
 	bool val = false;
 	if (!eval || eval->type != QC_Literal_boolean) {
@@ -383,41 +440,41 @@ exit:
 	return val;
 }
 
-V2d cson_v2(Cson c, bool *err)
+V2d blobify_v2(Cson c, bool *err)
 {
 	V2d value = {};
-	value.x = cson_floating(cson_member(c, 0), err);
-	value.y = cson_floating(cson_member(c, 1), err);
+	value.x = blobify_floating(cson_member(c, 0), err);
+	value.y = blobify_floating(cson_member(c, 1), err);
 	return value;
 }
 
-V3d cson_v3(Cson c, bool *err)
+V3d blobify_v3(Cson c, bool *err)
 {
 	V3d value = {};
-	value.x = cson_floating(cson_member(c, 0), err);
-	value.y = cson_floating(cson_member(c, 1), err);
-	value.x = cson_floating(cson_member(c, 2), err);
+	value.x = blobify_floating(cson_member(c, 0), err);
+	value.y = blobify_floating(cson_member(c, 1), err);
+	value.x = blobify_floating(cson_member(c, 2), err);
 	return value;
 }
 
-Color cson_color(Cson c, bool *err)
+Color blobify_color(Cson c, bool *err)
 {
 	Color value = {};
-	value.r = cson_floating(cson_member(c, 0), err);
-	value.g = cson_floating(cson_member(c, 1), err);
-	value.b = cson_floating(cson_member(c, 2), err);
-	value.a = cson_floating(cson_member(c, 3), err);
+	value.r = blobify_floating(cson_member(c, 0), err);
+	value.g = blobify_floating(cson_member(c, 1), err);
+	value.b = blobify_floating(cson_member(c, 2), err);
+	value.a = blobify_floating(cson_member(c, 3), err);
 	return value;
 }
 
-Qd cson_q(Cson j, bool *err)
+Qd blobify_q(Cson j, bool *err)
 {
 	V3d axis = {
-		cson_floating(cson_member(j, 0), err),
-		cson_floating(cson_member(j, 1), err),
-		cson_floating(cson_member(j, 2), err)
+		blobify_floating(cson_member(j, 0), err),
+		blobify_floating(cson_member(j, 1), err),
+		blobify_floating(cson_member(j, 2), err)
 	};
-	F64 angle = cson_floating(cson_member(j, 3), err);
+	F64 angle = blobify_floating(cson_member(j, 3), err);
 	ensure(	isfinite(axis.x) &&
 			isfinite(axis.y) &&
 			isfinite(axis.z) &&
@@ -425,12 +482,12 @@ Qd cson_q(Cson j, bool *err)
 	return qd_by_axis(axis, angle);
 }
 
-T3d cson_t3(Cson c, bool *err)
+T3d blobify_t3(Cson c, bool *err)
 {
 	return (T3d) {
-		cson_v3(cson_key(c, "scale"), err),
-		cson_q(cson_key(c, "rot"), err),
-		cson_v3(cson_key(c, "pos"), err)
+		blobify_v3(cson_key(c, "scale"), err),
+		blobify_q(cson_key(c, "rot"), err),
+		blobify_v3(cson_key(c, "pos"), err)
 	};
 }
 
@@ -456,67 +513,67 @@ void wcson_end_compound(WCson *c)
 void wcson_designated(WCson *c, const char *var_name)
 { qc_add_designated(c, var_name); }
 
-void wcson_string(WCson *c, const char *str)
+void deblobify_string(WCson *c, const char *str)
 { qc_add_string(c, str); }
-void wcson_integer(WCson *c, S64 value)
+void deblobify_integer(WCson *c, S64 value)
 { qc_add_integer(c, value); }
-void wcson_floating(WCson *c, double value)
+void deblobify_floating(WCson *c, double value)
 { qc_add_floating(c, value); }
 
-void wcson_v2(WCson *c, V2d v)
+void deblobify_v2(WCson *c, V2d v)
 {
 	wcson_begin_compound(c, "V2d");
-	wcson_floating(c, v.x);
-	wcson_floating(c, v.y);
+	deblobify_floating(c, v.x);
+	deblobify_floating(c, v.y);
 	wcson_end_compound(c);
 }
 
-void wcson_v3(WCson *c, V3d v)
+void deblobify_v3(WCson *c, V3d v)
 {
 	wcson_begin_compound(c, "V3d");
-	wcson_floating(c, v.x);
-	wcson_floating(c, v.y);
-	wcson_floating(c, v.z);
+	deblobify_floating(c, v.x);
+	deblobify_floating(c, v.y);
+	deblobify_floating(c, v.z);
 	wcson_end_compound(c);
 }
 
-void wcson_color(WCson *c, Color v)
+void deblobify_color(WCson *c, Color v)
 {
 	wcson_begin_compound(c, "Color");
-	wcson_floating(c, v.r);
-	wcson_floating(c, v.g);
-	wcson_floating(c, v.b);
-	wcson_floating(c, v.a);
+	deblobify_floating(c, v.r);
+	deblobify_floating(c, v.g);
+	deblobify_floating(c, v.b);
+	deblobify_floating(c, v.a);
 	wcson_end_compound(c);
 }
 
-void wcson_q(WCson *c, Qd v)
+void deblobify_q(WCson *c, Qd v)
 {
 	V3d axis = axis_qd(v);
 	F64 angle = angle_qd(v);
 
 	wcson_begin_compound(c, "Qd");
 
-	wcson_floating(c, axis.x);
-	wcson_floating(c, axis.y);
-	wcson_floating(c, axis.z);
-	wcson_floating(c, angle);
+	deblobify_floating(c, axis.x);
+	deblobify_floating(c, axis.y);
+	deblobify_floating(c, axis.z);
+	deblobify_floating(c, angle);
 
 	wcson_end_compound(c);
 }
 
-void wcson_t3(WCson *c, T3d v)
+void deblobify_t3(WCson *c, T3d v)
 {
 	wcson_begin_compound(c, "T3d");
 
 	wcson_designated(c, "scale");
-	wcson_v3(c, v.scale);
+	deblobify_v3(c, v.scale);
 
 	wcson_designated(c, "rot");
-	wcson_q(c, v.rot);
+	deblobify_q(c, v.rot);
 
 	wcson_designated(c, "pos");
-	wcson_v3(c, v.pos);
+	deblobify_v3(c, v.pos);
 
 	wcson_end_compound(c);
 }

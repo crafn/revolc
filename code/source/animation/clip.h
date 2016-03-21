@@ -61,7 +61,7 @@ void clip_to_json(WJson *j, const Clip *c);
 struct WArchive;
 struct RArchive;
 
-REVOLC_API WARN_UNUSED int blobify_clip(struct WArchive *ar, Cson c, const char *base_path);
+REVOLC_API WARN_UNUSED Clip *blobify_clip(struct WArchive *ar, Cson c, bool *err);
 REVOLC_API void deblobify_clip(WCson *c, struct RArchive *ar);
 
 REVOLC_API JointPoseArray calc_clip_pose(const Clip *c, F64 t);

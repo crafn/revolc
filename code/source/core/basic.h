@@ -80,6 +80,8 @@ typedef void (*VoidFunc)();
 #define NULL_ID ((U64)-1)
 #define CMP(a, b) (((a) > (b)) - ((b) > (a)))
 
+#define SET_ERROR_FLAG(ptr_to_bool) do { if (ptr_to_bool) *ptr_to_bool = true; } while(0)
+
 #define TO_STRING_IND(X) #X
 #define TO_STRING(X) TO_STRING_IND(X)
 
