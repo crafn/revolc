@@ -78,6 +78,7 @@ int json_texture_to_blob(struct BlobBuf *buf, JsonTok j)
 		.reso = {width, height},
 		.lod_count = lod_count,
 	};
+	fmt_str(tex.rel_file, sizeof(tex.rel_file), "%s", json_str(j_file));
 
 	// Calculate mip-map data and offsets to it
 	for (U32 lod_i = 0; lod_i < lod_count; ++lod_i) {

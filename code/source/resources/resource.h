@@ -4,7 +4,7 @@
 #include "build.h"
 #include "global/cfg.h"
 
-// Don't use this for members. Use RelPtr in core/ptr.h
+// @todo Don't use this for members. Use RelPtr in core/ptr.h
 typedef U64 BlobOffset;
 
 #define RES_ATTRIB_MISSING(name) \

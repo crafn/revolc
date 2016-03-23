@@ -274,6 +274,44 @@ MOD_API void upd_grass(	ModelEntity *front,
 
 }
 
+internal
+void convert_resources()
+{
+	ResBlob *blob = g_env.resblob;
+	WCson *cson[MAX_RES_FILES];
+	for (U32 i = 0; i < MAX_RES_FILES; ++i)
+		cson[i] = wcson_create();
+
+	{
+		for (U32 i = 0; i < MAX_RES_FILES; ++i)
+			wcson_begin_initializer(cson[i]);
+
+		for (U32 i = 0; i < blob->res_count; ++i) {
+			Resource *res = (Resource*)((U8*)blob + blob->res_offsets[i]);
+			deblobify_res(cson[res->res_file_index], res);
+		}
+		
+		for (U32 i = 0; i < MAX_RES_FILES; ++i)
+			wcson_end_initializer(cson[i]);
+	}
+
+	
+	for (U32 i = 0; i < blob->res_file_count; ++i) {
+		FILE *file = fopen(frame_str("%s.ctest", blob->res_file_paths[i]), "wb");
+		ensure(file);
+
+		QC_Array(char) code = qc_create_array(char)(0);
+		qc_ast_to_c_str(&code, 0, QC_AST_BASE(cson[i]->root));
+		fprintf(file, "%s", code.data);
+		qc_destroy_array(char)(&code);
+
+		fclose(file);
+	}
+
+	for (U32 i = 0; i < MAX_RES_FILES; ++i)
+		wcson_destroy(cson[i]);
+}
+
 MOD_API void init_clover()
 {
 	bool authority = false;
@@ -375,22 +413,9 @@ MOD_API void init_clover()
 	}
 
 
-	{
-		qc_clear_array(char)(&code);
-
-		Font *res = (Font*)res_by_name(g_env.resblob, ResType_Font, "dev");
-		WCson *cson = wcson_create();
-
-		deblobify_res(cson, &res->res);
-		debug_print("DEBLOBBED RES!!");
-
-		qc_ast_to_c_str(&code, 0, QC_AST_BASE(cson->root));
-		debug_print("%s", code.data);
-
-		wcson_destroy(cson);
-	}
-
 	qc_destroy_array(char)(&code);
+
+	convert_resources();
 #endif
 }
 
