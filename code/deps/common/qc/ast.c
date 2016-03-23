@@ -1835,6 +1835,16 @@ QC_AST_Literal *qc_create_floating_literal(double value, QC_AST_Scope *root)
 	return literal;
 }
 
+QC_AST_Literal *qc_create_boolean_literal(QC_Bool value, QC_AST_Scope *root)
+{
+	QC_AST_Literal *literal = qc_create_literal_node();
+	literal->type = QC_Literal_boolean;
+	literal->value.boolean = value;
+	if (root)
+		literal->base_type_decl = qc_find_builtin_type_decl(qc_boolean_builtin_type(), root);
+	return literal;
+}
+
 QC_AST_Call *qc_create_call_1(QC_AST_Ident *ident, QC_AST_Node *arg)
 {
 	QC_AST_Call *call = qc_create_call_node();
@@ -2263,6 +2273,12 @@ void qc_add_integer(QC_Write_Context *ctx, int value)
 void qc_add_floating(QC_Write_Context *ctx, double value)
 {
 	QC_AST_Literal *literal = qc_create_floating_literal(value, NULL);
+	qc_add_to_parent(ctx, QC_AST_BASE(literal));
+}
+
+void qc_add_boolean(QC_Write_Context *ctx, QC_Bool value)
+{
+	QC_AST_Literal *literal = qc_create_boolean_literal(value, NULL);
 	qc_add_to_parent(ctx, QC_AST_BASE(literal));
 }
 

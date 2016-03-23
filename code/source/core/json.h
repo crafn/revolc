@@ -119,6 +119,7 @@ REVOLC_API void wcson_designated(WCson *c, const char *var_name);
 REVOLC_API void deblobify_string(WCson *c, const char *str);
 REVOLC_API void deblobify_integer(WCson *c, S64 value);
 REVOLC_API void deblobify_floating(WCson *c, double value);
+REVOLC_API void deblobify_boolean(WCson *c, bool boolean);
 REVOLC_API void deblobify_v2(WCson *c, V2d v);
 REVOLC_API void deblobify_v3(WCson *c, V3d v);
 REVOLC_API void deblobify_color(WCson *c, Color v);

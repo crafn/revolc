@@ -409,3 +409,48 @@ error:
 	SET_ERROR_FLAG(err);
 	return NULL;
 }
+
+void deblobify_nodegroupdef(WCson *c, struct RArchive *ar)
+{
+	NodeGroupDef *def = rarchive_ptr(ar, sizeof(*def));
+	unpack_advance(ar, sizeof(*def));
+
+	wcson_begin_compound(c, "NodeGroupDef");
+
+	wcson_designated(c, "name");
+	deblobify_string(c, def->res.name);
+
+	wcson_designated(c, "nodes");
+	wcson_begin_initializer(c);
+	for (U32 i = 0; i < def->node_count; ++i) {
+		NodeGroupDef_Node node = def->nodes[i];
+
+		wcson_begin_initializer(c);
+
+		wcson_designated(c, "type");
+		deblobify_string(c, node.type_name);
+
+		wcson_designated(c, "name");
+		deblobify_string(c, node.name);
+
+		// @todo string -> code
+		wcson_designated(c, "defaults");
+		wcson_begin_initializer(c);
+		for (U32 k = 0; k < node.defaults_count; ++k)
+			deblobify_string(c, node.defaults[k].str);
+		wcson_end_initializer(c);
+
+		wcson_end_initializer(c);
+	}
+	wcson_end_initializer(c);
+
+	wcson_designated(c, "cmds");
+	wcson_begin_initializer(c);
+	// @todo string -> code
+	for (U32 i = 0; i < def->cmd_count; ++i)
+		deblobify_string(c, def->cmds[i].str);
+	wcson_end_initializer(c);
+
+	wcson_end_compound(c);
+}
+

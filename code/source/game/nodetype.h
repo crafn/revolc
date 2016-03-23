@@ -66,5 +66,6 @@ int json_nodetype_to_blob(struct BlobBuf *buf, JsonTok j);
 
 REVOLC_API WARN_UNUSED
 NodeType *blobify_nodetype(struct WArchive *ar, Cson c, bool *err);
+REVOLC_API void deblobify_nodetype(WCson *c, struct RArchive *ar);
 
 #endif // REVOLC_GAME_NODETYPE_H

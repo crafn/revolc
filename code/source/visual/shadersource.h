@@ -8,6 +8,11 @@
 
 typedef struct ShaderSource {
 	Resource res;
+
+	char rel_vs_file[MAX_PATH_SIZE];
+	char rel_gs_file[MAX_PATH_SIZE];
+	char rel_fs_file[MAX_PATH_SIZE];
+
 	// NULL-terminated strings
 	REL_PTR(char) vs_src_offset;
 	REL_PTR(char) gs_src_offset;
@@ -32,5 +37,6 @@ int json_shadersource_to_blob(struct BlobBuf *buf, JsonTok j);
 
 REVOLC_API WARN_UNUSED
 ShaderSource *blobify_shadersource(struct WArchive *ar, Cson c, bool *err);
+REVOLC_API void deblobify_shadersource(WCson *c, struct RArchive *ar);
 
 #endif // REVOLC_VISUAL_SHADERSOURCE_H

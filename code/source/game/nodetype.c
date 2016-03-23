@@ -246,3 +246,51 @@ error:
 	SET_ERROR_FLAG(err);
 	return NULL;
 }
+
+void deblobify_nodetype(WCson *c, struct RArchive *ar)
+{
+	NodeType *n = rarchive_ptr(ar, sizeof(*n));
+	unpack_advance(ar, sizeof(*n));
+
+	wcson_begin_compound(c, "NodeType");
+
+	wcson_designated(c, "name");
+	deblobify_string(c, n->res.name);
+
+	wcson_designated(c, "init_func");
+	deblobify_string(c, n->init_func_name);
+
+	wcson_designated(c, "resurrect_func");
+	deblobify_string(c, n->resurrect_func_name);
+
+	wcson_designated(c, "overwrite_func");
+	deblobify_string(c, n->overwrite_func_name);
+
+	wcson_designated(c, "free_func");
+	deblobify_string(c, n->free_func_name);
+
+	wcson_designated(c, "upd_func");
+	deblobify_string(c, n->upd_func_name);
+
+	wcson_designated(c, "storage_func");
+	deblobify_string(c, n->storage_func_name);
+
+	wcson_designated(c, "pack_func");
+	deblobify_string(c, n->pack_func_name);
+
+	wcson_designated(c, "unpack_func");
+	deblobify_string(c, n->unpack_func_name);
+
+	wcson_designated(c, "impl_mgmt");
+	deblobify_string(c, n->auto_impl_mgmt ? "auto" : "manual");
+
+	wcson_designated(c, "packsync");
+	switch (n->packsync) {
+		case PackSync_presence: deblobify_string(c, "presence"); break;
+		case PackSync_full: deblobify_string(c, "full"); break;
+		default: fail("Unhandled packsync");
+	}
+
+	wcson_end_compound(c);
+}
+

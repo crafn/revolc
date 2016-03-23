@@ -10,8 +10,11 @@ int json_font_to_blob(struct BlobBuf *buf, JsonTok j)
 	if (json_is_null(j_file))
 		RES_ATTRIB_MISSING("file");
 
+	char rel_path[MAX_PATH_SIZE];
+	fmt_str(rel_path, sizeof(rel_path), "%s", json_str(j_file));
+
 	char total_path[MAX_PATH_SIZE];
-	joined_path(total_path, j.json_path, json_str(j_file));
+	joined_path(total_path, j.json_path, rel_path);
 
 	ttf_data = read_file(gen_ator(), total_path, NULL);
 
@@ -22,6 +25,7 @@ int json_font_to_blob(struct BlobBuf *buf, JsonTok j)
 		.bitmap_reso = {reso, reso},
 		.px_height = 13*16.0/12.0,
 	};
+	fmt_str(font.rel_file, sizeof(font.rel_file), "%s", rel_path);
 
 	stbtt_pack_context ctx;
 	stbtt_PackBegin(&ctx, bitmap, reso, reso, 0, 0, NULL);
@@ -57,8 +61,11 @@ Font *blobify_font(struct WArchive *ar, Cson c, bool *err)
 	if (cson_is_null(c_file))
 		RES_ATTRIB_MISSING("file");
 
+	char rel_path[MAX_PATH_SIZE];
+	fmt_str(rel_path, sizeof(rel_path), "%s", blobify_string(c_file, err));
+
 	char total_path[MAX_PATH_SIZE];
-	joined_path(total_path, c.dir_path, blobify_string(c_file, err));
+	joined_path(total_path, c.dir_path, rel_path);
 
 	ttf_data = read_file(gen_ator(), total_path, NULL);
 
@@ -69,6 +76,7 @@ Font *blobify_font(struct WArchive *ar, Cson c, bool *err)
 		.bitmap_reso = {reso, reso},
 		.px_height = 13*16.0/12.0,
 	};
+	fmt_str(font.rel_file, sizeof(font.rel_file), "%s", rel_path);
 
 	stbtt_pack_context ctx;
 	stbtt_PackBegin(&ctx, bitmap, reso, reso, 0, 0, NULL);
@@ -95,6 +103,22 @@ cleanup:
 error:
 	ptr = NULL;
 	goto cleanup;
+}
+
+void deblobify_font(WCson *c, struct RArchive *ar)
+{
+	Font *f = rarchive_ptr(ar, sizeof(*f));
+	unpack_advance(ar, f->res.size);
+
+	wcson_begin_compound(c, "Font");
+
+	wcson_designated(c, "name");
+	deblobify_string(c, f->res.name);
+
+	wcson_designated(c, "file");
+	deblobify_string(c, f->rel_file);
+
+	wcson_end_compound(c);
 }
 
 internal

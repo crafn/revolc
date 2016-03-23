@@ -57,3 +57,25 @@ error:
 	return NULL;
 }
 
+void deblobify_physmat(WCson *c, struct RArchive *ar)
+{
+	PhysMat *mat = rarchive_ptr(ar, sizeof(*mat));
+	unpack_advance(ar, sizeof(*mat));
+
+	wcson_begin_compound(c, "PhysMat");
+
+	wcson_designated(c, "name");
+	deblobify_string(c, mat->res.name);
+
+	wcson_designated(c, "density");
+	deblobify_floating(c, mat->density);
+
+	wcson_designated(c, "friction");
+	deblobify_floating(c, mat->friction);
+
+	wcson_designated(c, "restitution");
+	deblobify_floating(c, mat->restitution);
+
+	wcson_end_compound(c);
+}
+

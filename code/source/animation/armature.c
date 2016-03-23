@@ -177,6 +177,41 @@ Armature *blobify_armature(struct WArchive *ar, Cson c, bool *err)
 error:
 	return NULL;
 }
+
+void deblobify_armature(WCson *c, struct RArchive *ar)
+{
+	Armature *a = rarchive_ptr(ar, sizeof(*a));
+	unpack_advance(ar, sizeof(*a));
+
+	wcson_begin_compound(c, "Armature");
+
+	wcson_designated(c, "name");
+	deblobify_string(c, a->res.name);
+
+	wcson_designated(c, "joints");
+	wcson_begin_initializer(c);
+	for (U32 i = 0; i < a->joint_count; ++i) {
+		Joint joint = a->joints[i];
+
+		wcson_begin_initializer(c);
+
+		wcson_designated(c, "name");
+		deblobify_string(c, a->joint_names[i]);
+
+		wcson_designated(c, "super");
+		JointId super_id = joint.super_id;
+		deblobify_string(c, super_id != NULL_JOINT_ID ? a->joint_names[super_id] : "");
+
+		wcson_designated(c, "offset");
+		deblobify_t3(c, t3f_to_t3d(joint.bind_pose));
+
+		wcson_end_initializer(c);
+	}
+	wcson_end_initializer(c);
+
+	wcson_end_compound(c);
+}
+
 JointId joint_id_by_name(const Armature *a, const char *name)
 {
 	for (JointId i = 0; i < a->joint_count; ++i) {

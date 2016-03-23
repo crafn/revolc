@@ -164,3 +164,58 @@ error:
 	return NULL;
 }
 
+void deblobify_rigidbodydef(WCson *c, struct RArchive *ar)
+{
+	RigidBodyDef *def = rarchive_ptr(ar, sizeof(*def));
+	unpack_advance(ar, sizeof(*def));
+
+	wcson_begin_compound(c, "RigidBodyDef");
+
+	wcson_designated(c, "name");
+	deblobify_string(c, def->res.name);
+
+	wcson_designated(c, "mat");
+	deblobify_string(c, def->mat_name);
+
+	wcson_designated(c, "disable_rot");
+	deblobify_boolean(c, def->disable_rot);
+
+	wcson_designated(c, "is_static");
+	deblobify_boolean(c, def->is_static);
+
+	wcson_designated(c, "shapes");
+	wcson_begin_initializer(c);
+	for (U32 i = 0; i < def->circle_count; ++i) {
+		Circle circle = def->circles[i];
+
+		wcson_designated(c, "type");
+		deblobify_string(c, "Circle");
+
+		wcson_designated(c, "pos");
+		deblobify_v2(c, circle.pos);
+
+		wcson_designated(c, "rad");
+		deblobify_floating(c, circle.rad);
+	}
+	for (U32 i = 0; i < def->poly_count; ++i) {
+		Poly p = def->polys[i];
+
+		wcson_begin_initializer(c);
+
+		// @todo "type" = ... -> (Type) { ... }
+		wcson_designated(c, "type");
+		deblobify_string(c, "Poly");
+
+		wcson_designated(c, "v");
+		wcson_begin_initializer(c);
+		for (U32 k = 0; k < p.v_count; ++k)
+			deblobify_v2(c, p.v[k]);
+		wcson_end_initializer(c);
+
+		wcson_end_initializer(c);
+	}
+	wcson_end_initializer(c);
+
+	wcson_end_compound(c);
+}
+

@@ -24,5 +24,6 @@ int json_rigidbodydef_to_blob(struct BlobBuf *buf, JsonTok j);
 
 REVOLC_API WARN_UNUSED
 RigidBodyDef *blobify_rigidbodydef(struct WArchive *ar, Cson c, bool *err);
+REVOLC_API void deblobify_rigidbodydef(WCson *c, struct RArchive *ar);
 
 #endif // REVOLC_PHYSICS_RIGIDBODYDEF_H

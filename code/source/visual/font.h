@@ -14,6 +14,8 @@
 typedef struct Font {
 	Resource res;
 
+	char rel_file[MAX_PATH_SIZE];
+
 	// Renderer sets
 	AtlasUv atlas_uv;
 
@@ -30,6 +32,7 @@ int json_font_to_blob(struct BlobBuf *buf, JsonTok j);
 
 REVOLC_API WARN_UNUSED
 Font *blobify_font(struct WArchive *ar, Cson c, bool *err);
+REVOLC_API void deblobify_font(WCson *c, struct RArchive *ar);
 
 Texel * malloc_rgba_font_bitmap(const Font *font);
 

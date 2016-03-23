@@ -17,5 +17,6 @@ int json_physmat_to_blob(struct BlobBuf *buf, JsonTok j);
 
 REVOLC_API WARN_UNUSED
 PhysMat *blobify_physmat(struct WArchive *ar, Cson c, bool *err);
+REVOLC_API void deblobify_physmat(WCson *c, struct RArchive *ar);
 
 #endif // REVOLC_PHYSICS_PHYSMAT_HPP

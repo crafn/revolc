@@ -80,5 +80,6 @@ int json_nodegroupdef_to_blob(struct BlobBuf *buf, JsonTok j);
 
 REVOLC_API WARN_UNUSED
 NodeGroupDef *blobify_nodegroupdef(struct WArchive *ar, Cson c, bool *err);
+REVOLC_API void deblobify_nodegroupdef(WCson *c, struct RArchive *ar);
 
 #endif // REVOLC_GAME_NODEGROUPDEF_H

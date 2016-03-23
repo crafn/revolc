@@ -330,6 +330,77 @@ error:
 	return NULL;
 }
 
+void deblobify_mesh(WCson *c, struct RArchive *ar)
+{
+	Mesh *m = rarchive_ptr(ar, sizeof(*m));
+	unpack_advance(ar,	sizeof(*m) +
+						sizeof(*mesh_vertices(m))*m->v_count +
+						sizeof(*mesh_indices(m))*m->i_count);
+
+	TriMeshVertex *v = mesh_vertices(m);
+
+	wcson_begin_compound(c, "Mesh");
+
+	wcson_designated(c, "name");
+	deblobify_string(c, m->res.name);
+
+	wcson_designated(c, "pos");
+	wcson_begin_initializer(c);
+	for (U32 i = 0; i < m->v_count; ++i)
+		deblobify_v3(c, v3f_to_v3d(v[i].pos));
+	wcson_end_initializer(c);
+	
+	wcson_designated(c, "uv");
+	wcson_begin_initializer(c);
+	for (U32 i = 0; i < m->v_count; ++i)
+		deblobify_v2(c, v2f_to_v2d(v3f_to_v2f(v[i].uv)));
+	wcson_end_initializer(c);
+
+	wcson_designated(c, "outline_uv");
+	wcson_begin_initializer(c);
+	for (U32 i = 0; i < m->v_count; ++i)
+		deblobify_v2(c, v2f_to_v2d(v[i].outline_uv));
+	wcson_end_initializer(c);
+
+	wcson_designated(c, "color");
+	wcson_begin_initializer(c);
+	for (U32 i = 0; i < m->v_count; ++i)
+		deblobify_color(c, v[i].color);
+	wcson_end_initializer(c);
+
+	wcson_designated(c, "outline_color");
+	wcson_begin_initializer(c);
+	for (U32 i = 0; i < m->v_count; ++i)
+		deblobify_color(c, v[i].outline_color);
+	wcson_end_initializer(c);
+
+	wcson_designated(c, "color_exp");
+	wcson_begin_initializer(c);
+	for (U32 i = 0; i < m->v_count; ++i)
+		deblobify_floating(c, v[i].color_exp);
+	wcson_end_initializer(c);
+
+	wcson_designated(c, "outline_exp");
+	wcson_begin_initializer(c);
+	for (U32 i = 0; i < m->v_count; ++i)
+		deblobify_floating(c, v[i].outline_exp);
+	wcson_end_initializer(c);
+
+	wcson_designated(c, "outline_width");
+	wcson_begin_initializer(c);
+	for (U32 i = 0; i < m->v_count; ++i)
+		deblobify_floating(c, v[i].outline_width);
+	wcson_end_initializer(c);
+
+	wcson_designated(c, "ind");
+	wcson_begin_initializer(c);
+	for (U32 i = 0; i < m->i_count; ++i)
+		deblobify_integer(c, mesh_indices(m)[i]);
+	wcson_end_initializer(c);
+
+	wcson_end_compound(c);
+}
+
 void add_rt_mesh_vertex(Mesh *mesh, TriMeshVertex vertex)
 {
 	U32 old_size = sizeof(TriMeshVertex)*mesh->v_count;

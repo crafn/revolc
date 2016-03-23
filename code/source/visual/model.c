@@ -95,3 +95,33 @@ error:
 	SET_ERROR_FLAG(err);
 	return NULL;
 }
+
+void deblobify_model(WCson *c, struct RArchive *ar)
+{
+	Model *m = rarchive_ptr(ar, sizeof(*m));
+	unpack_advance(ar, sizeof(*m));
+
+	wcson_begin_compound(c, "Model");
+
+	wcson_designated(c, "name");
+	deblobify_string(c, m->res.name);
+
+	wcson_designated(c, "mesh");
+	deblobify_string(c, m->mesh);
+
+	wcson_designated(c, "color");
+	deblobify_color(c, m->color);
+
+	wcson_designated(c, "emission");
+	deblobify_floating(c, m->emission);
+
+	wcson_designated(c, "textures");
+	wcson_begin_initializer(c);
+	for (U32 i = 0; i < MODEL_TEX_COUNT; ++i) {
+		deblobify_string(c, m->textures[i]);
+	}
+	wcson_end_initializer(c);
+
+	wcson_end_compound(c);
+}
+

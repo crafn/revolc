@@ -26,5 +26,6 @@ int json_compdef_to_blob(struct BlobBuf *buf, JsonTok j);
 
 REVOLC_API WARN_UNUSED
 CompDef *blobify_compdef(struct WArchive *ar, Cson c, bool *err);
+REVOLC_API void deblobify_compdef(WCson *c, struct RArchive *ar);
 
 #endif // REVOLC_VISUAL_COMPDEF_H

@@ -101,3 +101,40 @@ error:
 	SET_ERROR_FLAG(err);
 	return NULL;
 }
+
+void deblobify_compdef(WCson *c, struct RArchive *ar)
+{
+	CompDef *def = rarchive_ptr(ar, sizeof(*def));
+	unpack_advance(ar, sizeof(*def));
+
+	wcson_begin_compound(c, "CompDef");
+
+	wcson_designated(c, "name");
+	deblobify_string(c, def->res.name);
+
+	wcson_designated(c, "armature");
+	deblobify_string(c, def->armature_name);
+
+	wcson_designated(c, "subs");
+	wcson_begin_initializer(c);
+	for (U32 i = 0; i < def->sub_count; ++i) {
+		CompDef_Sub sub = def->subs[i];
+
+		wcson_begin_initializer(c);
+
+		wcson_designated(c, "entity");
+		deblobify_string(c, sub.entity_name);
+
+		wcson_designated(c, "joint");
+		deblobify_string(c, sub.joint_name);
+
+		wcson_designated(c, "offset");
+		deblobify_t3(c, t3f_to_t3d(sub.offset));
+
+		wcson_end_initializer(c);
+	}
+	wcson_end_initializer(c);
+
+	wcson_end_compound(c);
+}
+

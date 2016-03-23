@@ -519,6 +519,8 @@ void deblobify_integer(WCson *c, S64 value)
 { qc_add_integer(c, value); }
 void deblobify_floating(WCson *c, double value)
 { qc_add_floating(c, value); }
+void deblobify_boolean(WCson *c, bool boolean)
+{ qc_add_boolean(c, boolean); }
 
 void deblobify_v2(WCson *c, V2d v)
 {

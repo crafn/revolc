@@ -414,6 +414,7 @@ QC_AST_Var_Decl *qc_create_var_decl(QC_AST_Type_Decl *type_decl, QC_AST_Ident *i
 QC_AST_Type_Decl *qc_find_builtin_type_decl(QC_Builtin_Type bt, QC_AST_Scope *root);
 QC_AST_Literal *qc_create_integer_literal(int value, QC_AST_Scope *root);
 QC_AST_Literal *qc_create_floating_literal(double value, QC_AST_Scope *root);
+QC_AST_Literal *qc_create_boolean_literal(QC_Bool value, QC_AST_Scope *root);
 QC_AST_Literal *qc_create_string_literal(const char *value, QC_AST_Scope *root);
 QC_AST_Call *qc_create_call_1(QC_AST_Ident *ident, QC_AST_Node *arg);
 QC_AST_Call *qc_create_call_2(QC_AST_Ident *ident, QC_AST_Node *arg1, QC_AST_Node *arg2);
@@ -487,6 +488,7 @@ void qc_add_designated(QC_Write_Context *ctx, const char *var_name);
 void qc_add_string(QC_Write_Context *ctx, const char *str);
 void qc_add_integer(QC_Write_Context *ctx, int value);
 void qc_add_floating(QC_Write_Context *ctx, double value);
+void qc_add_boolean(QC_Write_Context *ctx, QC_Bool value);
 
 
 #endif

@@ -296,6 +296,9 @@ int json_sound_to_blob(struct BlobBuf *buf, JsonTok j)
 		goto error;
 	}
 
+	char rel_path[MAX_PATH_SIZE];
+	fmt_str(rel_path, sizeof(rel_path), "%s", json_str(j_file));
+
 	char total_path[MAX_PATH_SIZE];
 	joined_path(total_path, j.json_path, json_str(j_file));
 
@@ -310,6 +313,7 @@ int json_sound_to_blob(struct BlobBuf *buf, JsonTok j)
 	// @todo Fill Sound struct and write that
 	Resource res;
 	blob_write(buf, &res, sizeof(res));
+	blob_write(buf, rel_path, sizeof(rel_path));
 	blob_write(buf, &ch_count, sizeof(ch_count));
 	blob_write(buf, &frame_count, sizeof(frame_count));
 	blob_write(buf, samples, sizeof(*samples)*ch_count*frame_count);
@@ -336,8 +340,11 @@ Sound *blobify_sound(struct WArchive *ar, Cson c, bool *err)
 		goto error;
 	}
 
+	char rel_path[MAX_PATH_SIZE];
+	fmt_str(rel_path, sizeof(rel_path), "%s", blobify_string(c_file, err));
+
 	char total_path[MAX_PATH_SIZE];
-	joined_path(total_path, c.dir_path, blobify_string(c_file, err));
+	joined_path(total_path, c.dir_path, rel_path);
 
 	U32 file_size;
 	file_contents = read_file(gen_ator(), total_path, &file_size);
@@ -353,6 +360,7 @@ Sound *blobify_sound(struct WArchive *ar, Cson c, bool *err)
 	// @todo Fill Sound struct and write that
 	Resource res;
 	pack_buf(ar, &res, sizeof(res));
+	pack_strbuf(ar, rel_path, sizeof(rel_path));
 	pack_buf(ar, &ch_count, sizeof(ch_count));
 	pack_buf(ar, &frame_count, sizeof(frame_count));
 	pack_buf(ar, samples, sizeof(*samples)*ch_count*frame_count);
@@ -367,3 +375,20 @@ error:
 	SET_ERROR_FLAG(err);
 	goto cleanup;
 }
+
+void deblobify_sound(WCson *c, struct RArchive *ar)
+{
+	Sound *s = rarchive_ptr(ar, sizeof(*s));
+	unpack_advance(ar, sizeof(*s));
+
+	wcson_begin_compound(c, "Sound");
+
+	wcson_designated(c, "name");
+	deblobify_string(c, s->res.name);
+
+	wcson_designated(c, "file");
+	deblobify_string(c, s->rel_file);
+
+	wcson_end_compound(c);
+}
+

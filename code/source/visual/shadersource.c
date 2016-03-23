@@ -104,6 +104,15 @@ int json_shadersource_to_blob(struct BlobBuf *buf, JsonTok j)
 		}
 	}
 
+	char rel_vs_path[MAX_PATH_SIZE] = {0};
+	char rel_gs_path[MAX_PATH_SIZE] = {0};
+	char rel_fs_path[MAX_PATH_SIZE] = {0};
+	fmt_str(rel_vs_path, sizeof(rel_vs_path), "%s", json_str(j_vs_file));
+	if (!json_is_null(j_gs_file))
+		fmt_str(rel_gs_path, sizeof(rel_gs_path), "%s", json_str(j_gs_file));
+	if (!json_is_null(j_fs_file))
+		fmt_str(rel_fs_path, sizeof(rel_fs_path), "%s", json_str(j_fs_file));
+
 	char vs_total_path[MAX_PATH_SIZE];
 	char gs_total_path[MAX_PATH_SIZE];
 	char fs_total_path[MAX_PATH_SIZE];
@@ -139,6 +148,9 @@ int json_shadersource_to_blob(struct BlobBuf *buf, JsonTok j)
 	Resource res;
 
 	blob_write(buf, &res, sizeof(res));
+	blob_write(buf, rel_vs_path, sizeof(rel_vs_path));
+	blob_write(buf, rel_gs_path, sizeof(rel_gs_path));
+	blob_write(buf, rel_fs_path, sizeof(rel_fs_path));
 	blob_write(buf, &vs_src_offset, sizeof(vs_src_offset));
 	blob_write(buf, &gs_src_offset, sizeof(gs_src_offset));
 	blob_write(buf, &fs_src_offset, sizeof(fs_src_offset));
@@ -195,20 +207,21 @@ ShaderSource *blobify_shadersource(struct WArchive *ar, Cson c, bool *err)
 		}
 	}
 
+	char rel_vs_path[MAX_PATH_SIZE] = {0};
+	char rel_gs_path[MAX_PATH_SIZE] = {0};
+	char rel_fs_path[MAX_PATH_SIZE] = {0};
+	fmt_str(rel_vs_path, sizeof(rel_vs_path), "%s", blobify_string(c_vs_file, err));
+	fmt_str(rel_gs_path, sizeof(rel_gs_path), "%s", blobify_string(c_gs_file, err));
+	fmt_str(rel_fs_path, sizeof(rel_fs_path), "%s", blobify_string(c_fs_file, err));
+
 	char vs_total_path[MAX_PATH_SIZE];
 	char gs_total_path[MAX_PATH_SIZE];
 	char fs_total_path[MAX_PATH_SIZE];
-	joined_path(	vs_total_path,
-					c.dir_path,
-					blobify_string(c_vs_file, err));
+	joined_path(vs_total_path, c.dir_path, blobify_string(c_vs_file, err));
 	if (!cson_is_null(c_gs_file))
-		joined_path(	gs_total_path,
-						c.dir_path,
-						blobify_string(c_gs_file, err));
+		joined_path(gs_total_path, c.dir_path, blobify_string(c_gs_file, err));
 	if (!cson_is_null(c_fs_file))
-		joined_path(	fs_total_path,
-						c.dir_path,
-						blobify_string(c_fs_file, err));
+		joined_path(fs_total_path, c.dir_path, blobify_string(c_fs_file, err));
 
 	U32 vs_src_len = 0;
 	U32 gs_src_len = 0;
@@ -233,6 +246,9 @@ ShaderSource *blobify_shadersource(struct WArchive *ar, Cson c, bool *err)
 	Resource res;
 
 	pack_buf(ar, &res, sizeof(res));
+	pack_strbuf(ar, rel_vs_path, sizeof(rel_vs_path));
+	pack_strbuf(ar, rel_gs_path, sizeof(rel_gs_path));
+	pack_strbuf(ar, rel_fs_path, sizeof(rel_fs_path));
 	pack_buf(ar, &vs_src_offset, sizeof(vs_src_offset));
 	pack_buf(ar, &gs_src_offset, sizeof(gs_src_offset));
 	pack_buf(ar, &fs_src_offset, sizeof(fs_src_offset));
@@ -262,5 +278,33 @@ error:
 	ptr = NULL;
 	SET_ERROR_FLAG(err);
 	goto cleanup;
+}
+
+void deblobify_shadersource(WCson *c, struct RArchive *ar)
+{
+	ShaderSource *shd = rarchive_ptr(ar, sizeof(*shd));
+	unpack_advance(ar, shd->res.size);
+
+	wcson_begin_compound(c, "ShaderSource");
+
+	wcson_designated(c, "name");
+	deblobify_string(c, shd->res.name);
+
+	if (shd->rel_vs_file[0]) {
+		wcson_designated(c, "vs_file");
+		deblobify_string(c, shd->rel_vs_file);
+	}
+
+	if (shd->rel_gs_file[0]) {
+		wcson_designated(c, "gs_file");
+		deblobify_string(c, shd->rel_gs_file);
+	}
+
+	if (shd->rel_fs_file[0]) {
+		wcson_designated(c, "fs_file");
+		deblobify_string(c, shd->rel_fs_file);
+	}
+
+	wcson_end_compound(c);
 }
 

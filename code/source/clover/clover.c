@@ -20,6 +20,9 @@
 #include <qc/ast.h> // Test output
 #include <qc/backend_c.h> // Test output
 #include "global/module.h" // Test serialization
+#include "visual/shadersource.h" // Test
+#include "audio/sound.h" // Test
+#include "visual/font.h" // Test
 
 MOD_API void clover_worldgen(World *w)
 {
@@ -375,7 +378,7 @@ MOD_API void init_clover()
 	{
 		qc_clear_array(char)(&code);
 
-		Clip *res = (Clip*)res_by_name(g_env.resblob, ResType_Clip, "test_clip");
+		Font *res = (Font*)res_by_name(g_env.resblob, ResType_Font, "dev");
 		WCson *cson = wcson_create();
 
 		deblobify_res(cson, &res->res);
