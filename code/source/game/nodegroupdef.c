@@ -229,7 +229,7 @@ void init_nodegroupdef(NodeGroupDef *def)
 			//debug_print("PARSE DEFAULT %s", str);
 			QC_AST_Node *expr;
 			QC_AST_Scope *root = qc_parse_string(&expr, str); 
-			qc_print_ast(expr, 4);
+			//qc_print_ast(expr, 4);
 			ensure(expr->type == QC_AST_biop);
 			QC_CASTED_NODE(QC_AST_Biop, biop, expr);
 

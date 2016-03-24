@@ -418,7 +418,7 @@ MOD_API void init_clover()
 #endif
 
 
-#if CONVERSION_FROM_JSON_TO_C99
+#if 0
 	convert_resources();
 #endif
 }

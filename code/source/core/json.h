@@ -98,7 +98,7 @@ REVOLC_API Color blobify_color(Cson c, bool *err);
 REVOLC_API Qd blobify_q(Cson c, bool *err);
 REVOLC_API T3d blobify_t3(Cson c, bool *err);
 
-// Api for creating json-like subset for C99
+// Api for creating json-like subset of C99
 
 struct QC_Write_Context;
 typedef struct QC_Write_Context WCson;

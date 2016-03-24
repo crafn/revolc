@@ -453,7 +453,7 @@ V3d blobify_v3(Cson c, bool *err)
 	V3d value = {};
 	value.x = blobify_floating(cson_member(c, 0), err);
 	value.y = blobify_floating(cson_member(c, 1), err);
-	value.x = blobify_floating(cson_member(c, 2), err);
+	value.z = blobify_floating(cson_member(c, 2), err);
 	return value;
 }
 
@@ -485,9 +485,9 @@ Qd blobify_q(Cson j, bool *err)
 T3d blobify_t3(Cson c, bool *err)
 {
 	return (T3d) {
-		blobify_v3(cson_key(c, "scale"), err),
-		blobify_q(cson_key(c, "rot"), err),
-		blobify_v3(cson_key(c, "pos"), err)
+		.scale = blobify_v3(cson_key(c, "scale"), err),
+		.rot = blobify_q(cson_key(c, "rot"), err),
+		.pos = blobify_v3(cson_key(c, "pos"), err)
 	};
 }
 
