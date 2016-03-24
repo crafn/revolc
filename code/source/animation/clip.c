@@ -74,7 +74,7 @@ void calc_samples_for_clip(	T3f *samples, U32 joint_count, U32 frame_count,
 		U32 next_key_i = 0;
 		F32 key_t = 0.0;
 		F32 next_key_t = 0.0;
-		Clip_Key_Value key_value, next_key_value;
+		T3f key_value, next_key_value;
 		bool first = true;
 		for (U32 frame_i = 0; frame_i < frame_count; ++frame_i) {
 			const F32 frame_t = frame_i*duration/(frame_count - 1);
@@ -411,7 +411,7 @@ Clip *blobify_clip(struct WArchive *ar, Cson c, bool *err)
 		for (U32 key_i = 0; key_i < key_count; ++key_i) {
 			Cson c_key = cson_member(c_keys, key_i);
 			Cson c_value = cson_key(c_key, "v");
-			Clip_Key key = { .type = type };
+			Clip_Key key = { .value = identity_t3f(), .type = type };
 			fmt_str(key.joint_name, sizeof(key.joint_name), "%s", blobify_string(c_joint, err));
 			key.time = blobify_floating(cson_key(c_key, "t"), err);
 			key.time = CLAMP(key.time, 0, duration);
@@ -509,6 +509,9 @@ void deblobify_clip(WCson *c, struct RArchive *ar)
 	wcson_designated(c, "name");
 	deblobify_string(c, clip->res.name);
 
+	wcson_designated(c, "duration");
+	deblobify_floating(c, clip->duration);
+
 	wcson_designated(c, "armature");
 	deblobify_string(c, clip->armature_name);
 
@@ -539,6 +542,7 @@ void deblobify_clip(WCson *c, struct RArchive *ar)
 		wcson_designated(c, "keys");
 		wcson_begin_initializer(c);
 		for (U32 i = ch_key_begin_i; i < ch_key_end_i; ++i) {
+			wcson_begin_initializer(c);
 
 			wcson_designated(c, "t");
 			deblobify_floating(c, keys[i].time);
@@ -556,6 +560,8 @@ void deblobify_clip(WCson *c, struct RArchive *ar)
 			break;
 			default: fail("Unhandled Clip_Key_Type: %i", ch_type);
 			}
+
+			wcson_end_initializer(c);
 		}
 		wcson_end_initializer(c);
 

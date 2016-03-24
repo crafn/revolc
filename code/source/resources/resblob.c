@@ -344,6 +344,7 @@ void print_blob(const ResBlob *blob)
 /// Used to write header and perform second scan
 typedef struct ResInfo {
 	Resource header;
+	Cson cson;
 	JsonTok tok;
 } ResInfo;
 
@@ -363,6 +364,159 @@ int resinfo_cmp(const void *a_, const void *b_)
 
 void make_blob(const char *dst_file_path, char **res_file_paths)
 {
+#if !CONVERSION_FROM_JSON_TO_C99
+	char *data = NULL;
+	WArchive ar = {};
+	FILE *blob_file = NULL;
+	ResInfo *res_infos = NULL;
+	BlobOffset *res_offsets = NULL;
+
+	U32 res_file_count = 0;
+	while (res_file_paths[res_file_count])
+		++res_file_count;
+
+	// Parse all resource files
+	Cson *csons = ZERO_ALLOC(dev_ator(), sizeof(*csons)*res_file_count, "csons");
+	char **file_contents = 
+		ZERO_ALLOC(dev_ator(), sizeof(*file_contents)*res_file_count, "file_contents");
+	for (U32 i = 0; i < res_file_count; ++i) {
+		char *dir = ALLOC(frame_ator(), MAX_PATH_SIZE, "res_dir");
+		path_to_dir(dir, res_file_paths[i]);
+		file_contents[i] = read_file_as_str(dev_ator(), res_file_paths[i]);
+		csons[i] = cson_create(file_contents[i], dir);
+		if (cson_is_null(csons[i]))
+			goto error;
+	}
+
+	U32 res_info_count = 0;
+	U32 res_info_capacity = 1024;
+	res_infos = ALLOC(dev_ator(), sizeof(*res_infos)*res_info_capacity, "res_infos");
+	{ // Scan throught JSON and gather ResInfos
+		for (U32 cson_i = 0; cson_i < res_file_count; ++cson_i) {
+			debug_print(
+					"make_blob: gathering res file: %s",
+					res_file_paths[cson_i]);
+
+			Cson cson = csons[cson_i];
+			for (U32 res_i = 0; res_i < cson_member_count(cson); ++res_i) {
+				Cson c_res = cson_member(cson, res_i);
+				ResInfo res_info = {};
+				res_info.cson = c_res;
+				res_info.header.res_file_index = cson_i;
+
+				ensure(cson_is_compound(c_res));
+
+				// Read type
+				const char *type_str = cson_compound_type(c_res);
+				if (strlen(type_str) > 0) {
+					res_info.header.type = str_to_restype(type_str);
+					if (res_info.header.type == ResType_None) {
+						critical_print("Invalid resource type: %s", type_str);
+						goto error;
+					}
+				} else {
+					critical_print("CSON resource missing 'type'");
+					goto error;
+				}
+
+				// Read name
+				// @todo This should be done by blobify functions
+				Cson c_name = cson_key(c_res, "name");
+				if (!cson_is_null(c_name)) {
+					fmt_str(res_info.header.name, sizeof(res_info.header.name), "%s", blobify_string(c_name, NULL));
+				} else {
+					critical_print("JSON resource missing 'name'");
+					goto error;
+				}
+
+				res_infos = push_dyn_array(
+						res_infos,
+						&res_info_capacity, &res_info_count, sizeof(*res_infos),
+						&res_info);
+			}
+		}
+
+		qsort(res_infos, res_info_count, sizeof(*res_infos), resinfo_cmp);
+	}
+
+	{ // Output file
+		ar = create_warchive(ArchiveType_binary, dev_ator(), MAX_BLOB_SIZE);
+
+		ResBlob header = {
+			.version = 1,
+			.res_count = res_info_count,
+			.res_file_count = res_file_count,
+		};
+		for (U32 i = 0; i < res_file_count; ++i) {
+			fmt_str(	header.res_file_paths[i], sizeof(header.res_file_paths[i]),
+						"%s", res_file_paths[i]);
+		}
+		pack_buf(&ar, &header, sizeof(header));
+
+		BlobOffset offset_of_offset_table = ar.data_size;
+
+		// Write zeros as offsets and fix them afterwards, as they aren't yet known
+		res_offsets = ZERO_ALLOC(dev_ator(), sizeof(*res_offsets)*header.res_count, "res_offsets");
+		pack_buf(&ar, &res_offsets[0], sizeof(*res_offsets)*header.res_count);
+
+		for (U32 res_i = 0; res_i < res_info_count; ++res_i) {
+			ResInfo *res = &res_infos[res_i];
+			debug_print("blobbing: %s, %s", res->header.name, restype_to_str(res->header.type));
+
+			U64 offset_before_res = ar.data_size;
+			res_offsets[res_i] = ar.data_size;
+			bool err = false;
+			blobify_res(&ar, res->cson, &err);
+
+			// Patch res header
+			res->header.size = ar.data_size - offset_before_res;
+			pack_buf_patch(&ar, res_offsets[res_i], &res->header, sizeof(res->header));
+
+			if (err) {
+				critical_print("Failed to process resource: %s, %s",
+					res->header.name, restype_to_str(res->header.type));
+				goto error;
+			}
+		}
+
+		// Write offsets to the header
+		pack_buf_patch(&ar, offset_of_offset_table, &res_offsets[0], sizeof(*res_offsets)*header.res_count);
+
+		{ // Write blob from memory to file
+			blob_file = fopen(dst_file_path, "wb"); 
+			if (!blob_file) {
+				critical_print("Opening for write failed: %s", dst_file_path);
+				goto error;
+			}
+			U32 written = fwrite(ar.data, 1, ar.data_size, blob_file);
+			if (written != ar.data_size) {
+				critical_print("Writing blob failed: %i != %i", written, ar.data_size);
+				goto error;
+			}
+		}
+	}
+
+exit:
+	{
+		for (U32 i = 0; i < res_file_count; ++i) {
+			FREE(dev_ator(), file_contents[i]);
+			cson_destroy(csons[i]);
+		}
+		FREE(dev_ator(), file_contents);
+	}
+	FREE(dev_ator(), res_offsets);
+	if (blob_file)
+		fclose(blob_file);
+	destroy_warchive(&ar);
+	FREE(dev_ator(), res_infos);
+	FREE(dev_ator(), data);
+
+	return;
+
+error:
+	critical_print("make_blob failed");
+	goto exit;
+#else // JSON RESOURCE PROCESSING
 	// Resources-to-be-allocated
 	char *data = NULL;
 	BlobBuf buf = {};
@@ -519,6 +673,7 @@ exit:
 error:
 	critical_print("make_blob failed");
 	goto exit;
+#endif
 }
 
 bool inside_blob(const ResBlob *blob, void *ptr)

@@ -138,6 +138,7 @@ Armature *blobify_armature(struct WArchive *ar, Cson c, bool *err)
 		def->name = blobify_string(c_name, err);
 		def->super_name = blobify_string(c_super, err);
 		def->offset = t3d_to_t3f(blobify_t3(c_offset, err));
+
 		++def_count;
 	}
 

@@ -9,15 +9,15 @@ internal HashTbl_Entry(K, V) null_tbl_entry(K, V)(HashTbl(K, V) *tbl)\
 }\
 \
 HashTbl(K, V) create_tbl(K, V)(	K null_key, V null_value,\
-								Ator *ator, U32 max_size)\
+								Ator *ator, U32 capacity)\
 {\
 	HashTbl(K, V) tbl = {};\
 	tbl.null_key = null_key;\
 	tbl.null_value = null_value;\
 	tbl.ator = ator;\
-	tbl.array_size = max_size;\
-	tbl.array = ALLOC(ator, sizeof(*tbl.array)*max_size, "tbl.array");\
-	for (U32 i = 0; i < max_size; ++i)\
+	tbl.array_size = capacity*2;\
+	tbl.array = ALLOC(ator, sizeof(*tbl.array)*tbl.array_size, "tbl.array");\
+	for (U32 i = 0; i < tbl.array_size; ++i)\
 		tbl.array[i] = null_tbl_entry(K, V)(&tbl);\
 	return tbl;\
 }\
@@ -45,6 +45,22 @@ V get_tbl(K, V)(HashTbl(K, V) *tbl, K key)\
 void set_tbl(K, V)(HashTbl(K, V) *tbl, K key, V value)\
 {\
 	ensure(key != tbl->null_key);\
+	if (tbl->count > tbl->array_size/2) {\
+		/* Resize container */\
+		HashTbl(K, V) larger =\
+			create_tbl(K, V)(	tbl->null_key,\
+								tbl->null_value,\
+								tbl->ator,\
+								tbl->array_size);\
+		for (U32 i = 0; i < tbl->array_size; ++i) {\
+			if (tbl->array[i].key == tbl->null_key)\
+				continue;\
+			set_tbl(K, V)(&larger, tbl->array[i].key, tbl->array[i].value);\
+		}\
+\
+		destroy_tbl(K, V)(tbl);\
+		*tbl = larger;\
+	}\
 \
 	U32 ix = hash(K)(key) % tbl->array_size;\
 \

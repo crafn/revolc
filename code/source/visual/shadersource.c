@@ -211,8 +211,10 @@ ShaderSource *blobify_shadersource(struct WArchive *ar, Cson c, bool *err)
 	char rel_gs_path[MAX_PATH_SIZE] = {0};
 	char rel_fs_path[MAX_PATH_SIZE] = {0};
 	fmt_str(rel_vs_path, sizeof(rel_vs_path), "%s", blobify_string(c_vs_file, err));
-	fmt_str(rel_gs_path, sizeof(rel_gs_path), "%s", blobify_string(c_gs_file, err));
-	fmt_str(rel_fs_path, sizeof(rel_fs_path), "%s", blobify_string(c_fs_file, err));
+	if (!cson_is_null(c_gs_file))
+		fmt_str(rel_gs_path, sizeof(rel_gs_path), "%s", blobify_string(c_gs_file, err));
+	if (!cson_is_null(c_fs_file))
+		fmt_str(rel_fs_path, sizeof(rel_fs_path), "%s", blobify_string(c_fs_file, err));
 
 	char vs_total_path[MAX_PATH_SIZE];
 	char gs_total_path[MAX_PATH_SIZE];

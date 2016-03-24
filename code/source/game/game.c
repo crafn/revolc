@@ -6,8 +6,13 @@ void make_main_blob(const char *blob_path, const char *game)
 	const char *game_res_root = frame_str("%s%s/", DEFAULT_RES_ROOT, game);
 
 	// @todo Fix crappy api!
+#if CONVERSION_FROM_JSON_TO_C99
 	char **game_res_paths = plat_find_paths_with_end(game_res_root, ".res");
 	char **engine_res_paths = plat_find_paths_with_end(engine_res_root, ".res");
+#else
+	char **game_res_paths = plat_find_paths_with_end(game_res_root, ".cres");
+	char **engine_res_paths = plat_find_paths_with_end(engine_res_root, ".cres");
+#endif
 
 	U32 res_count = 0;
 	char *res_paths[MAX_RES_FILES] = {0};

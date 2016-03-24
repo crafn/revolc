@@ -14,19 +14,13 @@ typedef enum {
 	Clip_Key_Type_pos,
 } Clip_Key_Type;
 
-typedef union Clip_Key_Value {
-	V3f scale;
-	Qf rot;
-	V3f pos;
-} Clip_Key_Value;
-
 typedef struct Clip_Key {
 	char joint_name[RES_NAME_SIZE];
 	U8 joint_ix; // Index in clip, not in armature
 	F64 time;
 
 	Clip_Key_Type type;
-	Clip_Key_Value value;
+	T3f value;
 } Clip_Key;
 
 typedef struct Clip {

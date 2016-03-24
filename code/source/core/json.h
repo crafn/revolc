@@ -73,6 +73,7 @@ typedef struct Cson {
 	const char *dir_path; // Directory of parsed file
 } Cson;
 
+// @todo Swap word order (create_cson etc)
 REVOLC_API Cson cson_create(const char *text, const char *dir_path);
 REVOLC_API void cson_destroy(Cson c);
 

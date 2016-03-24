@@ -39,7 +39,7 @@ typedef struct HashTbl_Entry(K, V) {\
 } HashTbl_Entry(K, V);\
 \
 REVOLC_API HashTbl(K, V) create_tbl(K, V)(	K null_key, V null_value,\
-											Ator *ator, U32 max_size);\
+											Ator *ator, U32 capacity);\
 REVOLC_API void destroy_tbl(K, V)(HashTbl(K, V) *tbl);\
 \
 REVOLC_API V get_tbl(K, V)(HashTbl(K, V) *tbl, K key);\

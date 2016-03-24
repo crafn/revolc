@@ -354,7 +354,7 @@ Sound *blobify_sound(struct WArchive *ar, Cson c, bool *err)
 	samples = malloc_decoded_ogg_vorbis(	&frame_count, &ch_count,
 											file_contents, file_size);
 
-	if (err || *err)
+	if (err && *err)
 		goto error;
 
 	// @todo Fill Sound struct and write that

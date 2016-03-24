@@ -201,7 +201,7 @@ typedef struct QC_Hash_Table_Entry(K, V) {\
 	V value;\
 } QC_Hash_Table_Entry(K, V);\
 \
-QC_Hash_Table(K, V) qc_create_tbl(K, V)(	K null_key, V null_value, int max_size);\
+QC_Hash_Table(K, V) qc_create_tbl(K, V)(	K null_key, V null_value, int capacity);\
 void qc_destroy_tbl(K, V)(QC_Hash_Table(K, V) *tbl);\
 \
 V qc_get_tbl(K, V)(QC_Hash_Table(K, V) *tbl, K key);\
@@ -216,15 +216,15 @@ QC_Hash_Table_Entry(K, V) qc_null_tbl_entry(K, V)(QC_Hash_Table(K, V) *tbl)\
 	return e;\
 }\
 \
-QC_Hash_Table(K, V) qc_create_tbl(K, V)(K null_key, V null_value, int max_size)\
+QC_Hash_Table(K, V) qc_create_tbl(K, V)(K null_key, V null_value, int capacity)\
 {\
 	int i;\
 	QC_Hash_Table(K, V) tbl = {0};\
 	tbl.null_key = null_key;\
 	tbl.null_value = null_value;\
-	tbl.array_size = max_size;\
-	tbl.array = QC_MALLOC(sizeof(*tbl.array)*max_size);\
-	for (i = 0; i < max_size; ++i)\
+	tbl.array_size = capacity*2;\
+	tbl.array = QC_MALLOC(sizeof(*tbl.array)*tbl.array_size);\
+	for (i = 0; i < tbl.array_size; ++i)\
 		tbl.array[i] = qc_null_tbl_entry(K, V)(&tbl);\
 	return tbl;\
 }\
@@ -251,7 +251,25 @@ V qc_get_tbl(K, V)(QC_Hash_Table(K, V) *tbl, K key)\
 \
 void qc_set_tbl(K, V)(QC_Hash_Table(K, V) *tbl, K key, V value)\
 {\
-	int ix = qc_hash(K)(key) % tbl->array_size;\
+	int ix;\
+	if (tbl->count > tbl->array_size/2) {\
+		/* Resize container */\
+		int i;\
+		QC_Hash_Table(K, V) larger =\
+			qc_create_tbl(K, V)(tbl->null_key,\
+								tbl->null_value,\
+								tbl->array_size);\
+		for (i = 0; i < tbl->array_size; ++i) {\
+			if (tbl->array[i].key == tbl->null_key)\
+				continue;\
+			qc_set_tbl(K, V)(&larger, tbl->array[i].key, tbl->array[i].value);\
+		}\
+\
+		qc_destroy_tbl(K, V)(tbl);\
+		*tbl = larger;\
+	}\
+\
+	ix = qc_hash(K)(key) % tbl->array_size;\
 	QC_ASSERT(key != tbl->null_key);\
 \
 	/* Linear probing */\

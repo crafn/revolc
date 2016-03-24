@@ -297,7 +297,7 @@ void convert_resources()
 
 	
 	for (U32 i = 0; i < blob->res_file_count; ++i) {
-		FILE *file = fopen(frame_str("%s.ctest", blob->res_file_paths[i]), "wb");
+		FILE *file = fopen(frame_str("%s.cres", blob->res_file_paths[i]), "wb");
 		ensure(file);
 
 		QC_Array(char) code = qc_create_array(char)(0);
@@ -415,7 +415,9 @@ MOD_API void init_clover()
 
 	qc_destroy_array(char)(&code);
 
+#if CONVERSION_FROM_JSON_TO_C99
 	convert_resources();
+#endif
 #endif
 }
 

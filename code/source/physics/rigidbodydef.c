@@ -188,6 +188,8 @@ void deblobify_rigidbodydef(WCson *c, struct RArchive *ar)
 	for (U32 i = 0; i < def->circle_count; ++i) {
 		Circle circle = def->circles[i];
 
+		wcson_begin_initializer(c);
+
 		wcson_designated(c, "type");
 		deblobify_string(c, "Circle");
 
@@ -196,6 +198,8 @@ void deblobify_rigidbodydef(WCson *c, struct RArchive *ar)
 
 		wcson_designated(c, "rad");
 		deblobify_floating(c, circle.rad);
+
+		wcson_end_initializer(c);
 	}
 	for (U32 i = 0; i < def->poly_count; ++i) {
 		Poly p = def->polys[i];

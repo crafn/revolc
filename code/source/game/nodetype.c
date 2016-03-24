@@ -272,9 +272,6 @@ void deblobify_nodetype(WCson *c, struct RArchive *ar)
 	wcson_designated(c, "upd_func");
 	deblobify_string(c, n->upd_func_name);
 
-	wcson_designated(c, "storage_func");
-	deblobify_string(c, n->storage_func_name);
-
 	wcson_designated(c, "pack_func");
 	deblobify_string(c, n->pack_func_name);
 
@@ -283,6 +280,14 @@ void deblobify_nodetype(WCson *c, struct RArchive *ar)
 
 	wcson_designated(c, "impl_mgmt");
 	deblobify_string(c, n->auto_impl_mgmt ? "auto" : "manual");
+
+	wcson_designated(c, "max_count");
+	deblobify_integer(c, n->max_count);
+
+	if (!n->auto_impl_mgmt) {
+		wcson_designated(c, "storage_func");
+		deblobify_string(c, n->storage_func_name);
+	}
 
 	wcson_designated(c, "packsync");
 	switch (n->packsync) {

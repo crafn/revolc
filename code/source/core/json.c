@@ -350,7 +350,7 @@ const char *cson_compound_type(Cson c)
 	if (!type)
 		return "";
 	
-	return type->base_type_decl->ident->text.data;
+	return type->ident->text.data;
 }
 
 bool cson_is_compound(Cson c)

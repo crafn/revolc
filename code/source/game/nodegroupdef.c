@@ -376,16 +376,19 @@ NodeGroupDef *blobify_nodegroupdef(struct WArchive *ar, Cson c, bool *err)
 					sizeof(def.nodes[node_i].name),
 					"%s", blobify_string(c_name, err));
 
+		ensure(!*err);
 		Cson c_defaults = cson_key(c_node, "defaults");
 		for (U32 i = 0; i < cson_member_count(c_defaults); ++i) {
 			Cson c_default = cson_member(c_defaults, i);
 
 			const char *str = blobify_string(c_default, err);
+			debug_print("foo %i %s", i, str);
 			NodeGroupDef_Node_Defaults *defaults =
 				&node->defaults[node->defaults_count++];
 			fmt_str(defaults->str, sizeof(defaults->str), "%s", str);
 		}
 
+		ensure(!*err);
 		++def.node_count;
 	}
 
