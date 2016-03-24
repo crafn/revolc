@@ -66,6 +66,8 @@
 #include <miniz/miniz.c>
 
 #define QC_BACKEND_C
+// @todo Remove QC usage in game dll code, then this can be removed
+#define QC_API __attribute__((visibility ("default")))
 //#define QC_MALLOC revolc_qc_malloc
 //#define QC_FREE revolc_qc_free
 #include <qc/lib_unity.c>

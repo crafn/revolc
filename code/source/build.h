@@ -40,6 +40,8 @@
 #define GUI_API REVOLC_API
 #define GUI_BOOL bool
 
+#define QC_API REVOLC_API
+
 // @todo Don't include here
 #include "core/basic.h"
 

@@ -337,7 +337,7 @@ MOD_API void init_clover()
 #endif
 
 
-#if 1 // Test C output and parsing
+#if 0 // Test C output and parsing
 	QC_Array(char) code = qc_create_array(char)(128);
 
 	debug_print("Written code");
@@ -415,9 +415,11 @@ MOD_API void init_clover()
 
 	qc_destroy_array(char)(&code);
 
+#endif
+
+
 #if CONVERSION_FROM_JSON_TO_C99
 	convert_resources();
-#endif
 #endif
 }
 
