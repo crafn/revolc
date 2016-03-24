@@ -12,7 +12,7 @@
 #include "core/gl.c"
 #include "core/grid.c"
 #include "core/hashtable.c"
-#include "core/json.c"
+#include "core/cson.c"
 #include "core/memory.c"
 #include "core/math.c"
 #include "core/socket.c"

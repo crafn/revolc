@@ -2,7 +2,7 @@
 #define REVOLC_VISUAL_SHADERSOURCE_H
 
 #include "build.h"
-#include "core/json.h"
+#include "core/cson.h"
 #include "resources/resource.h"
 #include "mesh.h" // MeshType
 
@@ -31,9 +31,6 @@ typedef struct ShaderSource {
 
 REVOLC_API void init_shadersource(ShaderSource *shd);
 REVOLC_API void deinit_shadersource(ShaderSource *shd);
-
-REVOLC_API WARN_UNUSED
-int json_shadersource_to_blob(struct BlobBuf *buf, JsonTok j);
 
 REVOLC_API WARN_UNUSED
 ShaderSource *blobify_shadersource(struct WArchive *ar, Cson c, bool *err);

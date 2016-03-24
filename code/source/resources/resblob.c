@@ -1,45 +1,18 @@
 #include "core/array.h"
 #include "core/basic.h"
 #include "core/debug.h"
-#include "core/json.h"
+#include "core/cson.h"
 #include "resblob.h"
 
 #define HEADERS
 #	include "resources/resources.def"
 #undef HEADERS
 
-internal
-int json_res_to_blob(BlobBuf *buf, JsonTok j, ResType res_t)
-{
-#define RESOURCE(name, init, deinit, c_blobify, c_deblobify, blobify, jsonify, recache) \
-	if (res_t == ResType_ ## name) \
-		return blobify(buf, j);
-#	include "resources.def"
-#undef RESOURCE
-	return 1;
-}
-
-internal
-void res_to_json(WJson *j, const Resource *res)
-{
-#define RESOURCE(rtype, init, deinit, c_blobify, c_deblobify, blobify, jsonify, recache) \
-	{ \
-		void *fptr = (void*)jsonify; \
-		if (ResType_ ## rtype == res->type) { \
-			if (!fptr) \
-				fail(	"Jsonify function missing for resource type: %s", \
-						restype_to_str(res->type)); \
-			((void (*)(WJson *, const rtype *))fptr)(j, (const rtype*)res); \
-		} \
-	}
-#	include "resources/resources.def"
-#undef RESOURCE
-}
 
 internal
 void init_res(Resource *res)
 {
-#define RESOURCE(rtype, init, deinit, c_blobify, c_deblobify, blobify, jsonify, recache) \
+#define RESOURCE(rtype, init, deinit, blobify, deblobify, recache) \
 	{ \
 		void *fptr = (void*)init; \
 		if (fptr && ResType_ ## rtype == res->type) \
@@ -89,7 +62,7 @@ void load_blob(ResBlob **blob, const char *path)
 internal
 void deinit_res(Resource *res)
 {
-#define RESOURCE(rtype, init, deinit, c_blobify, c_deblobify, blobify, jsonify, recache) \
+#define RESOURCE(rtype, init, deinit, blobify, deblobify, recache) \
 	{ \
 		void* fptr = (void*)deinit; \
 		if (fptr && ResType_ ## rtype == res->type) \
@@ -258,20 +231,6 @@ Resource * find_res_by_name(const ResBlob *b, ResType t, const char *n)
 	return NULL;
 }
 
-Resource * find_res_by_name_from_blobbuf(	const BlobBuf *buf,
-											ResType t,
-											const char *n)
-{
-	/// @todo Binary search from organized blob
-	for (U32 i = 0; i < buf->res_count; ++i) {
-		Resource* res = (Resource*)((U8*)buf->data + buf->res_offsets[i]);
-		if (res->type == t && !strcmp(n, res->name)) {
-			return res;
-		}
-	}
-	return NULL;
-}
-
 Resource ** all_res_by_type(	U32 *count,
 								const ResBlob *blob,
 								ResType t)
@@ -345,7 +304,6 @@ void print_blob(const ResBlob *blob)
 typedef struct ResInfo {
 	Resource header;
 	Cson cson;
-	JsonTok tok;
 } ResInfo;
 
 internal
@@ -364,7 +322,6 @@ int resinfo_cmp(const void *a_, const void *b_)
 
 void make_blob(const char *dst_file_path, char **res_file_paths)
 {
-#if !CONVERSION_FROM_JSON_TO_C99
 	char *data = NULL;
 	WArchive ar = {};
 	FILE *blob_file = NULL;
@@ -516,164 +473,6 @@ exit:
 error:
 	critical_print("make_blob failed");
 	goto exit;
-#else // JSON RESOURCE PROCESSING
-	// Resources-to-be-allocated
-	char *data = NULL;
-	BlobBuf buf = {};
-	FILE *blob_file = NULL;
-	ResInfo *res_infos = NULL;
-	BlobOffset *res_offsets = NULL;
-
-	U32 res_file_count = 0;
-	while (res_file_paths[res_file_count])
-		++res_file_count;
-
-	// Parse all resource files
-	ParsedJsonFile *parsed_jsons =
-		ZERO_ALLOC(dev_ator(), sizeof(*parsed_jsons)*res_file_count, "parsed_jsons");
-	for (U32 i = 0; i < res_file_count; ++i) {
-		parsed_jsons[i] = parse_json_file(dev_ator(), res_file_paths[i]);
-		if (parsed_jsons[i].tokens == NULL)
-			goto error;
-	}
-
-	U32 res_info_count = 0;
-	U32 res_info_capacity = 1024;
-	res_infos = ALLOC(dev_ator(), sizeof(*res_infos)*res_info_capacity, "res_infos");
-	{ // Scan throught JSON and gather ResInfos
-		for (U32 json_i = 0; json_i < res_file_count; ++json_i) {
-			debug_print(
-					"make_blob: gathering res file: %s",
-					res_file_paths[json_i]);
-
-			JsonTok j_root = parsed_jsons[json_i].root;
-			for (U32 res_i = 0; res_i < json_member_count(j_root); ++res_i) {
-				JsonTok j_res = json_member(j_root, res_i);
-				ResInfo res_info = {};
-				res_info.tok = j_res;
-				res_info.header.res_file_index = json_i;
-
-				ensure(json_is_object(j_res));
-
-				// Read type
-				JsonTok j_type = json_value_by_key(j_res, "type");
-				if (!json_is_null(j_type)) {
-					const char *type_str = json_str(j_type);
-					res_info.header.type = str_to_restype(type_str);
-					if (res_info.header.type == ResType_None) {
-						critical_print("Invalid resource type: %s", type_str);
-						goto error;
-					}
-				} else {
-					critical_print("JSON resource missing 'type'");
-					goto error;
-				}
-
-				// Read name
-				JsonTok j_name = json_value_by_key(j_res, "name");
-				if (!json_is_null(j_name)) {
-					json_strcpy(
-							res_info.header.name,
-							sizeof(res_info.header.name),
-							j_name);
-				} else {
-					critical_print("JSON resource missing 'name'");
-					goto error;
-				}
-
-				res_infos = push_dyn_array(
-						res_infos,
-						&res_info_capacity, &res_info_count, sizeof(*res_infos),
-						&res_info);
-			}
-		}
-
-		qsort(res_infos, res_info_count, sizeof(*res_infos), resinfo_cmp);
-	}
-
-	{ // Output file
-		buf = (BlobBuf) {
-			.data = ALLOC(dev_ator(), MAX_BLOB_SIZE, "output_file"),
-			.max_size = MAX_BLOB_SIZE,
-		};
-
-		ResBlob header = {
-			.version = 1,
-			.res_count = res_info_count,
-			.res_file_count = res_file_count,
-		};
-		for (U32 i = 0; i < res_file_count; ++i) {
-			fmt_str(	header.res_file_paths[i], sizeof(header.res_file_paths[i]),
-						"%s", parsed_jsons[i].json_path);
-		}
-		blob_write(&buf, &header, sizeof(header));
-
-		BlobOffset offset_of_offset_table = buf.offset;
-
-		// Write zeros as offsets and fix them afterwards, as they aren't yet known
-		res_offsets = ZERO_ALLOC(dev_ator(), sizeof(*res_offsets)*header.res_count, "res_offsets");
-		blob_write(&buf, &res_offsets[0], sizeof(*res_offsets)*header.res_count);
-
-		buf.res_offsets = res_offsets;
-		buf.res_count = header.res_count;
-
-		for (U32 res_i = 0; res_i < res_info_count; ++res_i) {
-			ResInfo *res = &res_infos[res_i];
-			debug_print("blobbing: %s, %s", res->header.name, restype_to_str(res->header.type));
-
-			U64 offset_before_res = buf.offset;
-			res_offsets[res_i] = buf.offset;
-			int err = json_res_to_blob(&buf, res->tok, res->header.type);
-
-			// Patch res header
-			res->header.size = buf.offset - offset_before_res;
-			memcpy((U8*)buf.data + res_offsets[res_i], &res->header, sizeof(res->header));
-			
-			if (err) {
-				critical_print("Failed to process resource: %s, %s",
-					res->header.name, restype_to_str(res->header.type));
-				goto error;
-			}
-		}
-		const U32 blob_size = buf.offset;
-
-		// Write offsets to the header
-		buf.offset = offset_of_offset_table;
-		blob_write(&buf, &res_offsets[0], sizeof(*res_offsets)*header.res_count);
-
-		{ // Write blob from memory to file
-			blob_file = fopen(dst_file_path, "wb"); 
-			if (!blob_file) {
-				critical_print("Opening for write failed: %s", dst_file_path);
-				goto error;
-			}
-			U32 written = fwrite(buf.data, 1, blob_size, blob_file);
-			if (written != blob_size) {
-				critical_print("Writing blob failed: %i != %i", written, blob_size);
-				goto error;
-			}
-		}
-	}
-
-exit:
-	{
-		for (U32 i = 0; i < res_file_count; ++i)
-			free_parsed_json_file(parsed_jsons[i]);
-		FREE(dev_ator(), parsed_jsons);
-	}
-	FREE(dev_ator(), res_offsets);
-	if (blob_file)
-		fclose(blob_file);
-	FREE(dev_ator(), buf.data);
-	FREE(dev_ator(), res_infos);
-	FREE(dev_ator(), data);
-
-	return;
-
-error:
-	critical_print("make_blob failed");
-	goto exit;
-#endif
 }
 
 bool inside_blob(const ResBlob *blob, void *ptr)
@@ -685,7 +484,7 @@ bool inside_blob(const ResBlob *blob, void *ptr)
 
 internal void recache_ptrs_to(Resource *res)
 {
-#define RESOURCE(rtype, init, deinit, c_blobify, c_deblobify, blobify, jsonify, recache) \
+#define RESOURCE(rtype, init, deinit, blobify, deblobify, recache) \
 	{ \
 		void (*fptr)() = recache; \
 		if (fptr && ResType_ ## rtype == res->type) \
@@ -762,6 +561,7 @@ void realloc_res_member(Resource *res, RelPtr *member, U32 size, U32 old_size)
 	recache_ptrs_to(res);
 }
 
+#if 0
 
 // Mirror possibly modified resource to json
 internal
@@ -801,6 +601,7 @@ error:
 	critical_print("Error at mirroring resources");
 	goto cleanup;
 }
+#endif
 
 void resource_modified(Resource *res)
 {
@@ -812,6 +613,9 @@ void resource_modified(Resource *res)
 
 U32 mirror_blob_modifications(ResBlob *blob)
 {
+	fail("@todo mirror_blob_modifications");
+	return 0;
+#if 0
 	U32 count = 0;
 	RuntimeResource *rt_res = blob->first_runtime_res;
 	while (rt_res) {
@@ -829,6 +633,7 @@ U32 mirror_blob_modifications(ResBlob *blob)
 	}
 	debug_print("mirror_blob_modifications: %i", count);
 	return count;
+#endif
 }
 
 bool blob_has_modifications(const ResBlob *blob)
@@ -885,9 +690,9 @@ Resource *blobify_res(WArchive *ar, Cson c, bool *err)
 {
 	const char *type_name = cson_compound_type(c);
 	ResType res_t = str_to_restype(type_name);
-#define RESOURCE(name, init, deinit, c_blobify, c_deblobify, blobify, jsonify, recache) \
+#define RESOURCE(name, init, deinit, blobify, deblobify, recache) \
 	if (res_t == ResType_ ## name) \
-		return (Resource*)((name *(*)(WArchive *, Cson, bool *))c_blobify)(ar, c, err);
+		return (Resource*)((name *(*)(WArchive *, Cson, bool *))blobify)(ar, c, err);
 #	include "resources.def"
 #undef RESOURCE
 	if (err)
@@ -898,9 +703,9 @@ Resource *blobify_res(WArchive *ar, Cson c, bool *err)
 void deblobify_res(WCson *c, Resource *res)
 {
 	RArchive ar = create_rarchive(ArchiveType_binary, res, res->size);
-#define RESOURCE(name, init, deinit, c_blobify, c_deblobify, blobify, jsonify, recache) \
+#define RESOURCE(name, init, deinit, blobify, deblobify, recache) \
 	if (res->type == ResType_ ## name) \
-		((void (*)(WCson *, RArchive *))c_deblobify)(c, &ar);
+		((void (*)(WCson *, RArchive *))deblobify)(c, &ar);
 #	include "resources.def"
 #undef RESOURCE
 	destroy_rarchive(&ar);
@@ -942,21 +747,5 @@ void load_res_state(void *data)
 	// Only relative member arrays have changed place in memory, recaching fixes that
 	FREE(dev_ator(), old_res);
 	recache_ptrs_to(new_res);
-}
-
-void blob_write(BlobBuf *buf, const void *data, U32 byte_count)
-{
-	ensure(buf->offset + byte_count <= buf->max_size);
-	if (data)
-		memcpy(buf->data + buf->offset, data, byte_count);
-	else
-		memset(buf->data + buf->offset, 0, byte_count);
-	buf->offset += byte_count;
-}
-
-void blob_patch_rel_ptr(BlobBuf *buf, U32 offset_to_ptr)
-{
-	RelPtr ptr = { .value = buf->offset - offset_to_ptr };
-	memcpy(buf->data + offset_to_ptr, &ptr, sizeof(ptr));
 }
 

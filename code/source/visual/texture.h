@@ -3,7 +3,7 @@
 
 #include "atlas.h"
 #include "build.h"
-#include "core/json.h"
+#include "core/cson.h"
 #include "core/math.h"
 #include "global/cfg.h"
 #include "resources/resource.h"
@@ -27,9 +27,6 @@ typedef struct Texture {
 
 Texel * texture_texels(const Texture *tex, U32 lod);
 V2i lod_reso(V2i base, U32 lod);
-
-REVOLC_API WARN_UNUSED
-int json_texture_to_blob(struct BlobBuf *buf, JsonTok j);
 
 REVOLC_API WARN_UNUSED
 Texture *blobify_texture(struct WArchive *ar, Cson c, bool *err);

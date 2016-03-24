@@ -2,7 +2,7 @@
 #define REVOLC_ANIMATION_CLIP_H
 
 #include "build.h"
-#include "core/json.h"
+#include "core/cson.h"
 #include "core/basic.h"
 #include "joint.h"
 #include "resources/resource.h"
@@ -47,10 +47,6 @@ REVOLC_API T3f * clip_local_samples(const Clip *c);
 REVOLC_API Clip_Key * clip_keys(const Clip *c);
 
 REVOLC_API void init_clip(Clip *clip);
-REVOLC_API WARN_UNUSED
-int json_clip_to_blob(struct BlobBuf *buf, JsonTok j);
-REVOLC_API
-void clip_to_json(WJson *j, const Clip *c);
 
 struct WArchive;
 struct RArchive;

@@ -2,7 +2,7 @@
 #define REVOLC_ANIMATION_ARMATURE_H
 
 #include "build.h"
-#include "core/json.h"
+#include "core/cson.h"
 #include "global/cfg.h"
 #include "joint.h"
 #include "resources/resource.h"
@@ -13,10 +13,6 @@ typedef struct Armature {
 	Joint joints[MAX_ARMATURE_JOINT_COUNT];
 	U32 joint_count;
 } PACKED Armature;
-
-REVOLC_API WARN_UNUSED
-int json_armature_to_blob(struct BlobBuf *buf, JsonTok j);
-REVOLC_API void armature_to_json(WJson *j, const Armature *a);
 
 struct WArchive;
 struct RArchive;

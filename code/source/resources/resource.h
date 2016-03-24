@@ -12,7 +12,7 @@ typedef U64 BlobOffset;
 
 typedef enum {
 	ResType_None,
-#define RESOURCE(x, init, deinit, c_blobify, c_deblobify, blobify, jsonify, recache) ResType_ ## x,
+#define RESOURCE(x, init, deinit, blobify, deblobify, recache) ResType_ ## x,
 #	include "resources.def"
 #undef RESOURCE
 	ResType_last

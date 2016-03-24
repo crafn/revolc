@@ -284,50 +284,6 @@ F32 *malloc_decoded_ogg_vorbis(U32 *frame_count, U32 *ch_count, U8 *ogg_data, U3
 	return samples;
 }
 
-int json_sound_to_blob(struct BlobBuf *buf, JsonTok j)
-{
-	U8 *file_contents = NULL;
-	F32 *samples = NULL;
-	int return_value = 0;
-
-	JsonTok j_file = json_value_by_key(j, "file");
-	if (json_is_null(j_file)) {
-		RES_ATTRIB_MISSING("file");
-		goto error;
-	}
-
-	char rel_path[MAX_PATH_SIZE];
-	fmt_str(rel_path, sizeof(rel_path), "%s", json_str(j_file));
-
-	char total_path[MAX_PATH_SIZE];
-	joined_path(total_path, j.json_path, json_str(j_file));
-
-	U32 file_size;
-	file_contents = read_file(gen_ator(), total_path, &file_size);
-
-	U32 ch_count;
-	U32 frame_count;
-	samples = malloc_decoded_ogg_vorbis(	&frame_count, &ch_count,
-										file_contents, file_size);
-
-	// @todo Fill Sound struct and write that
-	Resource res;
-	blob_write(buf, &res, sizeof(res));
-	blob_write(buf, rel_path, sizeof(rel_path));
-	blob_write(buf, &ch_count, sizeof(ch_count));
-	blob_write(buf, &frame_count, sizeof(frame_count));
-	blob_write(buf, samples, sizeof(*samples)*ch_count*frame_count);
-
-cleanup:
-	free(samples);
-	free(file_contents);
-	return return_value;
-
-error:
-	return_value = 1;
-	goto cleanup;
-}
-
 Sound *blobify_sound(struct WArchive *ar, Cson c, bool *err)
 {
 	Sound *ptr = warchive_ptr(ar);

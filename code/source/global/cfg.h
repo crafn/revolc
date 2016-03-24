@@ -6,8 +6,6 @@
 
 // Many of these constraints will be removed at some point.
 
-#define CONVERSION_FROM_JSON_TO_C99 0
-
 #define FRAME_MEM_SIZE (1024*1024*50)
 
 #define MAX_BLOB_SIZE (1024*1024*512) // 0.5 Gb

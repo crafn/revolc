@@ -2,7 +2,7 @@
 #define REVOLC_VISUAL_FONT_H
 
 #include "build.h"
-#include "core/json.h"
+#include "core/cson.h"
 #include "resources/resource.h"
 
 #include <stb/stb_truetype.h>
@@ -26,9 +26,6 @@ typedef struct Font {
 	V2i bitmap_reso;
 	F32 px_height;
 } PACKED Font;
-
-REVOLC_API WARN_UNUSED
-int json_font_to_blob(struct BlobBuf *buf, JsonTok j);
 
 REVOLC_API WARN_UNUSED
 Font *blobify_font(struct WArchive *ar, Cson c, bool *err);

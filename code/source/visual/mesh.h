@@ -5,7 +5,7 @@
 #include "core/color.h"
 #include "core/basic.h"
 #include "core/math.h"
-#include "core/json.h"
+#include "core/cson.h"
 #include "resources/resource.h"
 #include "core/gl.h"
 
@@ -55,9 +55,6 @@ typedef struct Mesh {
 
 REVOLC_API TriMeshVertex * mesh_vertices(const Mesh *m);
 REVOLC_API MeshIndexType * mesh_indices(const Mesh *m);
-
-REVOLC_API WARN_UNUSED int json_mesh_to_blob(struct BlobBuf *buf, JsonTok j);
-REVOLC_API void mesh_to_json(WJson *j, const Mesh *m);
 
 REVOLC_API WARN_UNUSED Mesh *blobify_mesh(struct WArchive *ar, Cson c, bool *err);
 REVOLC_API void deblobify_mesh(WCson *c, struct RArchive *ar);

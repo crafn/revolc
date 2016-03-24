@@ -3,7 +3,7 @@
 
 #include "build.h"
 #include "resources/resource.h"
-#include "core/json.h"
+#include "core/cson.h"
 
 struct World;
 struct Module;
@@ -60,9 +60,6 @@ typedef struct NodeType {
 } NodeType;
 
 REVOLC_API void init_nodetype(NodeType *node);
-
-REVOLC_API WARN_UNUSED
-int json_nodetype_to_blob(struct BlobBuf *buf, JsonTok j);
 
 REVOLC_API WARN_UNUSED
 NodeType *blobify_nodetype(struct WArchive *ar, Cson c, bool *err);

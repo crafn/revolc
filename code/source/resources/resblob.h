@@ -76,30 +76,4 @@ REVOLC_API void load_res_state(void *data);
 REVOLC_API Resource *blobify_res(WArchive *ar, Cson c, bool *err);
 REVOLC_API void deblobify_res(WCson *c, Resource *res);
 
-// @todo Remove BlobBuf when substituted by WArchive
-
-typedef struct BlobBuf {
-	void *data;
-	U32 offset;
-	U32 max_size;
-
-	// Carried along to allow querying for resources during blob making
-	BlobOffset *res_offsets;
-	U32 res_count;
-} BlobBuf;
-
-REVOLC_API
-void blob_write(BlobBuf *buf, const void *data, U32 byte_count);
-
-// Patches current offset to "offset_to_ptr" location in buf
-REVOLC_API
-void blob_patch_rel_ptr(BlobBuf *buf, U32 offset_to_ptr);
-
-// Gives ptr to resource created earlier during blob making
-// e.g. a Clip has to get the corresponding Armature by only a name
-REVOLC_API
-Resource * find_res_by_name_from_blobbuf(	const BlobBuf *buf,
-											ResType t,
-											const char *n);
-
 #endif // REVOLC_RESOURCES_RESBLOB_H

@@ -119,47 +119,6 @@ void deinit_module(Module *mod)
 	}
 }
 
-int json_module_to_blob(struct BlobBuf *buf, JsonTok j)
-{
-	JsonTok j_file = json_value_by_key(j, "extless_file");
-	JsonTok j_worldgen = json_value_by_key(j, "worldgen_func");
-	JsonTok j_init = json_value_by_key(j, "init_func");
-	JsonTok j_deinit = json_value_by_key(j, "deinit_func");
-	JsonTok j_upd = json_value_by_key(j, "upd_func");
-
-	if (json_is_null(j_file))
-		RES_ATTRIB_MISSING("extless_file");
-
-	Module m = {};
-	if (!json_is_null(j_worldgen)) {
-		fmt_str(m.worldgen_func_name, sizeof(m.worldgen_func_name),
-				"%s", json_str(j_worldgen));
-	}
-	if (!json_is_null(j_init)) {
-		fmt_str(m.init_func_name, sizeof(m.init_func_name),
-				"%s", json_str(j_init));
-	}
-	if (!json_is_null(j_deinit)) {
-		fmt_str(m.deinit_func_name, sizeof(m.deinit_func_name),
-				"%s", json_str(j_deinit));
-	}
-	if (!json_is_null(j_upd)) {
-		fmt_str(m.upd_func_name, sizeof(m.upd_func_name),
-				"%s", json_str(j_upd));
-	}
-
-	fmt_str(m.rel_extless_file, sizeof(m.rel_extless_file), "%s", json_str(j_file));
-	fmt_str(m.extless_file, sizeof(m.extless_file), "%s%s", j.json_dir, json_str(j_file));
-	if (!strcmp(json_str(json_value_by_key(j, "name")), "main_prog"))
-		m.is_main_prog_module = true;
-
-	blob_write(buf, &m, sizeof(m));
-
-	return 0;
-error:
-	return 1;
-}
-
 Module *blobify_module(struct WArchive *ar, Cson c, bool *err)
 {
 	Cson c_file = cson_key(c, "extless_file");

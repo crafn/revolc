@@ -3,7 +3,7 @@
 
 #include "build.h"
 #include "core/dll.h"
-#include "core/json.h"
+#include "core/cson.h"
 #include "global/cfg.h"
 #include "resources/resource.h"
 
@@ -42,9 +42,6 @@ REVOLC_API void upd_for_modules();
 // Module _resource_ init/deinit
 REVOLC_API void init_module(Module *mod);
 REVOLC_API void deinit_module(Module *mod);
-
-REVOLC_API WARN_UNUSED
-int json_module_to_blob(struct BlobBuf *buf, JsonTok j);
 
 REVOLC_API WARN_UNUSED
 Module *blobify_module(struct WArchive *ar, Cson c, bool *err);

@@ -3,7 +3,7 @@
 
 #include "build.h"
 #include "resources/resource.h"
-#include "core/json.h"
+#include "core/cson.h"
 #include "core/basic.h"
 
 typedef enum {
@@ -74,9 +74,6 @@ typedef struct NodeGroupDef {
 
 REVOLC_API void init_nodegroupdef(NodeGroupDef *def);
 REVOLC_API void deinit_nodegroupdef(NodeGroupDef *def);
-
-REVOLC_API WARN_UNUSED
-int json_nodegroupdef_to_blob(struct BlobBuf *buf, JsonTok j);
 
 REVOLC_API WARN_UNUSED
 NodeGroupDef *blobify_nodegroupdef(struct WArchive *ar, Cson c, bool *err);

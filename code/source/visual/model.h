@@ -2,7 +2,7 @@
 #define REVOLC_VISUAL_MODEL_H
 
 #include "build.h"
-#include "core/json.h"
+#include "core/cson.h"
 #include "resources/resource.h"
 #include "texture.h"
 #include "mesh.h"
@@ -18,9 +18,6 @@ typedef struct Model {
 
 REVOLC_API Texture* model_texture(const Model *model, U32 index);
 REVOLC_API Mesh* model_mesh(const Model *model);
-
-REVOLC_API WARN_UNUSED int json_model_to_blob(struct BlobBuf *buf, JsonTok j);
-REVOLC_API void model_to_json(WJson *j, const Model *m);
 
 REVOLC_API WARN_UNUSED Model *blobify_model(struct WArchive *ar, Cson c, bool *err);
 REVOLC_API void deblobify_model(WCson *c, struct RArchive *ar);
