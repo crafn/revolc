@@ -1,6 +1,7 @@
 #ifndef QC_AST_H
 #define QC_AST_H
 
+#include "config.h"
 #include "core.h"
 #include "tokenize.h"
 
@@ -89,7 +90,7 @@ typedef struct QC_AST_Type {
 
 	/* When adding members, remember to update type_node_equals! */
 } QC_AST_Type;
-QC_Bool type_node_equals(QC_AST_Type a, QC_AST_Type b);
+QC_API QC_Bool type_node_equals(QC_AST_Type a, QC_AST_Type b);
 
 typedef struct QC_Builtin_Type {
 	QC_Bool is_void;
@@ -110,7 +111,7 @@ typedef struct QC_Builtin_Type {
 
 	/* When adding members, remember to update builtin_type_equals! */
 } QC_Builtin_Type;
-QC_Bool builtin_type_equals(QC_Builtin_Type a, QC_Builtin_Type b);
+QC_API QC_Bool builtin_type_equals(QC_Builtin_Type a, QC_Builtin_Type b);
 
 /* Type declaration / definition */
 typedef struct QC_AST_Type_Decl {
@@ -177,7 +178,7 @@ typedef struct QC_AST_Literal {
 	struct QC_AST_Type_Decl *base_type_decl; /* Not owned. 'qc_expr_type' needs this. */
 } QC_AST_Literal;
 
-QC_Bool qc_is_literal_node(QC_AST_Node *node, QC_Literal_Type literal_type);
+QC_API QC_Bool qc_is_literal_node(QC_AST_Node *node, QC_Literal_Type literal_type);
 
 /* Binary operation */
 /* @todo Rename to QC_AST_Expr */
@@ -206,7 +207,7 @@ typedef struct QC_AST_Call {
 } QC_AST_Call;
 
 /* Returns NULL if call is not simple (e.g. foo[0](5) or (foo + 0)(5)) */
-QC_AST_Ident *qc_call_ident(QC_AST_Call *call);
+QC_API QC_AST_Ident *qc_call_ident(QC_AST_Call *call);
 
 /* Variable/array/member access */
 typedef struct QC_AST_Access {
@@ -284,7 +285,7 @@ typedef struct QC_AST_Parallel {
 } QC_AST_Parallel;
 
 
-const char *qc_node_type_str(QC_AST_Node_Type type);
+QC_API const char *qc_node_type_str(QC_AST_Node_Type type);
 
 
 /* Usage: QC_CASTED_NODE(QC_AST_Ident, ident, generic_node); printf("%c", ident->text_buf[0]); */
@@ -292,76 +293,76 @@ const char *qc_node_type_str(QC_AST_Node_Type type);
 	type *name = (type*)assign
 #define QC_AST_BASE(node) (&(node)->b)
 
-QC_AST_Scope *qc_create_ast();
-void qc_destroy_ast(QC_AST_Scope *node);
-QC_AST_Node *qc_copy_ast(QC_AST_Node *node);
-QC_AST_Node *qc_shallow_copy_ast(QC_AST_Node *node);
-void qc_move_ast(QC_AST_Scope *dst, QC_AST_Scope *src);
+QC_API QC_AST_Scope *qc_create_ast();
+QC_API void qc_destroy_ast(QC_AST_Scope *node);
+QC_API QC_AST_Node *qc_copy_ast(QC_AST_Node *node);
+QC_API QC_AST_Node *qc_shallow_copy_ast(QC_AST_Node *node);
+QC_API void qc_move_ast(QC_AST_Scope *dst, QC_AST_Scope *src);
 
-QC_AST_Node *qc_create_ast_node(QC_AST_Node_Type type);
-QC_AST_Scope *qc_create_scope_node();
-QC_AST_Ident *qc_create_ident_node();
-QC_AST_Type *qc_create_type_node();
-QC_AST_Type_Decl *qc_create_type_decl_node();
-QC_AST_Var_Decl *qc_create_var_decl_node();
-QC_AST_Func_Decl *qc_create_func_decl_node();
-QC_AST_Literal *qc_create_literal_node();
-QC_AST_Biop *qc_create_biop_node();
-QC_AST_Control *qc_create_control_node();
-QC_AST_Call *qc_create_call_node();
-QC_AST_Access *qc_create_access_node();
-QC_AST_Cond *qc_create_cond_node();
-QC_AST_Loop *qc_create_loop_node();
-QC_AST_Cast *qc_create_cast_node();
-QC_AST_Typedef *qc_create_typedef_node();
-QC_AST_Parallel *qc_create_parallel_node();
+QC_API QC_AST_Node *qc_create_ast_node(QC_AST_Node_Type type);
+QC_API QC_AST_Scope *qc_create_scope_node();
+QC_API QC_AST_Ident *qc_create_ident_node();
+QC_API QC_AST_Type *qc_create_type_node();
+QC_API QC_AST_Type_Decl *qc_create_type_decl_node();
+QC_API QC_AST_Var_Decl *qc_create_var_decl_node();
+QC_API QC_AST_Func_Decl *qc_create_func_decl_node();
+QC_API QC_AST_Literal *qc_create_literal_node();
+QC_API QC_AST_Biop *qc_create_biop_node();
+QC_API QC_AST_Control *qc_create_control_node();
+QC_API QC_AST_Call *qc_create_call_node();
+QC_API QC_AST_Access *qc_create_access_node();
+QC_API QC_AST_Cond *qc_create_cond_node();
+QC_API QC_AST_Loop *qc_create_loop_node();
+QC_API QC_AST_Cast *qc_create_cast_node();
+QC_API QC_AST_Typedef *qc_create_typedef_node();
+QC_API QC_AST_Parallel *qc_create_parallel_node();
 
 /* Copies only stuff in QC_AST_Node structure. Useful for copying comments to another node, for example. */
-void qc_copy_ast_node_base(QC_AST_Node *dst, QC_AST_Node *src);
+QC_API void qc_copy_ast_node_base(QC_AST_Node *dst, QC_AST_Node *src);
 /* Calls a specific qc_copy_*_node */
 /* 'subnodes' and 'refnodes' should contain same nodes as a specific qc_copy_*_node */
-void qc_copy_ast_node(QC_AST_Node *copy, QC_AST_Node *node, QC_AST_Node **subnodes, int subnode_count, QC_AST_Node **refnodes, int refnode_count);
-void qc_shallow_copy_ast_node(QC_AST_Node *copy, QC_AST_Node* node);
+QC_API void qc_copy_ast_node(QC_AST_Node *copy, QC_AST_Node *node, QC_AST_Node **subnodes, int subnode_count, QC_AST_Node **refnodes, int refnode_count);
+QC_API void qc_shallow_copy_ast_node(QC_AST_Node *copy, QC_AST_Node* node);
 /* Copy and source nodes can be the same in copying functions. This just updates the subnodes. */
 /* First param: destination
  * Second param: source
  * Subnode params: new subnodes for destination
  * Refnode params: new refnodes for destination */
-void qc_copy_scope_node(QC_AST_Scope *copy, QC_AST_Scope *scope, QC_AST_Node **subnodes, int subnode_count);
-void qc_copy_ident_node(QC_AST_Ident *copy, QC_AST_Ident *ident, QC_AST_Node *ref_to_decl);
-void qc_copy_type_node(QC_AST_Type *copy, QC_AST_Type *type, QC_AST_Node *ident, QC_AST_Node *ref_to_base_type_decl, QC_AST_Node *ref_to_base_typedef);
-void qc_copy_type_decl_node(QC_AST_Type_Decl *copy, QC_AST_Type_Decl *decl, QC_AST_Node *ident, QC_AST_Node *body, QC_AST_Node *builtin_sub_decl_ref, QC_AST_Node *backend_decl_ref);
-void qc_copy_var_decl_node(QC_AST_Var_Decl *copy, QC_AST_Var_Decl *decl, QC_AST_Node *type, QC_AST_Node *ident, QC_AST_Node *value);
-void qc_copy_func_decl_node(QC_AST_Func_Decl *copy, QC_AST_Func_Decl *decl, QC_AST_Node *type, QC_AST_Node *ident, QC_AST_Node *body, QC_AST_Node **params, int param_count, QC_AST_Node *backend_decl_ref);
-void qc_copy_literal_node(QC_AST_Literal *copy, QC_AST_Literal *literal, QC_AST_Node *comp_type, QC_AST_Node **comp_subs, int comp_sub_count, QC_AST_Node *type_decl_ref);
-void qc_copy_biop_node(QC_AST_Biop *copy, QC_AST_Biop *biop, QC_AST_Node *lhs, QC_AST_Node *rhs);
-void qc_copy_control_node(QC_AST_Control *copy, QC_AST_Control *control, QC_AST_Node *value);
-void qc_copy_call_node(QC_AST_Call *copy, QC_AST_Call *call, QC_AST_Node *base, QC_AST_Node **args, int arg_count);
-void qc_copy_access_node(QC_AST_Access *copy, QC_AST_Access *access, QC_AST_Node *base, QC_AST_Node **args, int arg_count);
-void qc_copy_cond_node(QC_AST_Cond *copy, QC_AST_Cond *cond, QC_AST_Node *expr, QC_AST_Node *body, QC_AST_Node *after_else);
-void qc_copy_loop_node(QC_AST_Loop *copy, QC_AST_Loop *loop, QC_AST_Node *init, QC_AST_Node *cond, QC_AST_Node *incr, QC_AST_Node *body);
-void qc_copy_cast_node(QC_AST_Cast *copy, QC_AST_Cast *cast, QC_AST_Node *type, QC_AST_Node *target);
-void qc_copy_typedef_node(QC_AST_Typedef *copy, QC_AST_Typedef *def, QC_AST_Node *type, QC_AST_Node *ident);
-void qc_copy_parallel_node(QC_AST_Parallel *copy, QC_AST_Parallel *parallel, QC_AST_Node *output, QC_AST_Node *input, QC_AST_Node *body);
+QC_API void qc_copy_scope_node(QC_AST_Scope *copy, QC_AST_Scope *scope, QC_AST_Node **subnodes, int subnode_count);
+QC_API void qc_copy_ident_node(QC_AST_Ident *copy, QC_AST_Ident *ident, QC_AST_Node *ref_to_decl);
+QC_API void qc_copy_type_node(QC_AST_Type *copy, QC_AST_Type *type, QC_AST_Node *ident, QC_AST_Node *ref_to_base_type_decl, QC_AST_Node *ref_to_base_typedef);
+QC_API void qc_copy_type_decl_node(QC_AST_Type_Decl *copy, QC_AST_Type_Decl *decl, QC_AST_Node *ident, QC_AST_Node *body, QC_AST_Node *builtin_sub_decl_ref, QC_AST_Node *backend_decl_ref);
+QC_API void qc_copy_var_decl_node(QC_AST_Var_Decl *copy, QC_AST_Var_Decl *decl, QC_AST_Node *type, QC_AST_Node *ident, QC_AST_Node *value);
+QC_API void qc_copy_func_decl_node(QC_AST_Func_Decl *copy, QC_AST_Func_Decl *decl, QC_AST_Node *type, QC_AST_Node *ident, QC_AST_Node *body, QC_AST_Node **params, int param_count, QC_AST_Node *backend_decl_ref);
+QC_API void qc_copy_literal_node(QC_AST_Literal *copy, QC_AST_Literal *literal, QC_AST_Node *comp_type, QC_AST_Node **comp_subs, int comp_sub_count, QC_AST_Node *type_decl_ref);
+QC_API void qc_copy_biop_node(QC_AST_Biop *copy, QC_AST_Biop *biop, QC_AST_Node *lhs, QC_AST_Node *rhs);
+QC_API void qc_copy_control_node(QC_AST_Control *copy, QC_AST_Control *control, QC_AST_Node *value);
+QC_API void qc_copy_call_node(QC_AST_Call *copy, QC_AST_Call *call, QC_AST_Node *base, QC_AST_Node **args, int arg_count);
+QC_API void qc_copy_access_node(QC_AST_Access *copy, QC_AST_Access *access, QC_AST_Node *base, QC_AST_Node **args, int arg_count);
+QC_API void qc_copy_cond_node(QC_AST_Cond *copy, QC_AST_Cond *cond, QC_AST_Node *expr, QC_AST_Node *body, QC_AST_Node *after_else);
+QC_API void qc_copy_loop_node(QC_AST_Loop *copy, QC_AST_Loop *loop, QC_AST_Node *init, QC_AST_Node *cond, QC_AST_Node *incr, QC_AST_Node *body);
+QC_API void qc_copy_cast_node(QC_AST_Cast *copy, QC_AST_Cast *cast, QC_AST_Node *type, QC_AST_Node *target);
+QC_API void qc_copy_typedef_node(QC_AST_Typedef *copy, QC_AST_Typedef *def, QC_AST_Node *type, QC_AST_Node *ident);
+QC_API void qc_copy_parallel_node(QC_AST_Parallel *copy, QC_AST_Parallel *parallel, QC_AST_Node *output, QC_AST_Node *input, QC_AST_Node *body);
 
 /* Recursive */
-void qc_destroy_node(QC_AST_Node *node);
+QC_API void qc_destroy_node(QC_AST_Node *node);
 /* Use this to destroy the original node after qc_shallow_copy_ast_node.
  * Doesn't destroy any owned nodes. */
-void qc_shallow_destroy_node(QC_AST_Node *node);
+QC_API void qc_shallow_destroy_node(QC_AST_Node *node);
 
 /* Evaluation */
 
 /* Don't destroy *ret, it's not constructed by qc_create_*, just container of data */
-QC_Bool qc_expr_type(QC_AST_Type *ret, QC_AST_Node *expr);
+QC_API QC_Bool qc_expr_type(QC_AST_Type *ret, QC_AST_Node *expr);
 /* Return value needs to be qc_destroy_node'd */
-QC_AST_Literal *qc_eval_const_expr(QC_AST_Node *expr);
+QC_API QC_AST_Literal *qc_eval_const_expr(QC_AST_Node *expr);
 
 /* @todo Move these near corresponding types */
-QC_Bool qc_is_decl(QC_AST_Node *node);
-QC_AST_Ident *qc_decl_ident(QC_AST_Node *node);
-QC_AST_Ident *qc_access_ident(QC_AST_Access *access);
-QC_AST_Ident *qc_unwrap_ident(QC_AST_Node *node);
+QC_API QC_Bool qc_is_decl(QC_AST_Node *node);
+QC_API QC_AST_Ident *qc_decl_ident(QC_AST_Node *node);
+QC_API QC_AST_Ident *qc_access_ident(QC_AST_Access *access);
+QC_API QC_AST_Ident *qc_unwrap_ident(QC_AST_Node *node);
 
 
 /* QC_AST traversing utils */
@@ -372,93 +373,93 @@ typedef struct QC_AST_Parent_Map {
 	/* @todo That ^ could maybe be removed. */
 } QC_AST_Parent_Map;
 
-QC_AST_Parent_Map qc_create_parent_map(QC_AST_Node *root);
-void qc_destroy_parent_map(QC_AST_Parent_Map *map);
-QC_AST_Node *qc_find_parent_node(QC_AST_Parent_Map *map, QC_AST_Node *node);
-void qc_set_parent_node(QC_AST_Parent_Map *map, QC_AST_Node *sub, QC_AST_Node *parent);
-int qc_find_in_scope(QC_AST_Scope *scope, QC_AST_Node *needle);
-QC_AST_Func_Decl *qc_find_enclosing_func(QC_AST_Parent_Map *map, QC_AST_Node *node);
-QC_Bool qc_is_subnode(QC_AST_Parent_Map *map, QC_AST_Node *parent, QC_AST_Node *sub);
+QC_API QC_AST_Parent_Map qc_create_parent_map(QC_AST_Node *root);
+QC_API void qc_destroy_parent_map(QC_AST_Parent_Map *map);
+QC_API QC_AST_Node *qc_find_parent_node(QC_AST_Parent_Map *map, QC_AST_Node *node);
+QC_API void qc_set_parent_node(QC_AST_Parent_Map *map, QC_AST_Node *sub, QC_AST_Node *parent);
+QC_API int qc_find_in_scope(QC_AST_Scope *scope, QC_AST_Node *needle);
+QC_API QC_AST_Func_Decl *qc_find_enclosing_func(QC_AST_Parent_Map *map, QC_AST_Node *node);
+QC_API QC_Bool qc_is_subnode(QC_AST_Parent_Map *map, QC_AST_Node *parent, QC_AST_Node *sub);
 
-QC_AST_Ident *qc_resolve_ident(QC_AST_Parent_Map *map, QC_AST_Ident *ident);
+QC_API QC_AST_Ident *qc_resolve_ident(QC_AST_Parent_Map *map, QC_AST_Ident *ident);
 /* Resolves call to specific overload */
-QC_AST_Call *qc_resolve_overloaded_call(QC_AST_Parent_Map *map, QC_AST_Call *call, QC_AST_Type *return_type_hint);
+QC_API QC_AST_Call *qc_resolve_overloaded_call(QC_AST_Parent_Map *map, QC_AST_Call *call, QC_AST_Type *return_type_hint);
 /* Resove all unresolved things in QC_AST. Call this after inserting unresolved nodes into QC_AST. */
-void qc_resolve_ast(QC_AST_Scope *root);
+QC_API void qc_resolve_ast(QC_AST_Scope *root);
 /* Break all resolved things. Call this when e.g. moving blocks of code around. */
-void qc_unresolve_ast(QC_AST_Node *node);
+QC_API void qc_unresolve_ast(QC_AST_Node *node);
 
 
-void qc_push_immediate_subnodes(QC_Array(QC_AST_Node_Ptr) *ret, QC_AST_Node *node);
+QC_API void qc_push_immediate_subnodes(QC_Array(QC_AST_Node_Ptr) *ret, QC_AST_Node *node);
 /* Gathers immediate referenced (not owned) nodes */
-void qc_push_immediate_refnodes(QC_Array(QC_AST_Node_Ptr) *ret, QC_AST_Node *node);
+QC_API void qc_push_immediate_refnodes(QC_Array(QC_AST_Node_Ptr) *ret, QC_AST_Node *node);
 /* Gathers the whole subnode tree to array */
-void qc_push_subnodes(QC_Array(QC_AST_Node_Ptr) *ret, QC_AST_Node *node, QC_Bool qc_push_before_recursing);
+QC_API void qc_push_subnodes(QC_Array(QC_AST_Node_Ptr) *ret, QC_AST_Node *node, QC_Bool qc_push_before_recursing);
 /* Rewrites nodes in tree, old_nodes[i] -> new_nodes[i]
  * Doesn't free or allocate any nodes.
  * Doesn't recurse into old_nodes. They can be dangling.
  * Is recursive, so if some new_nodes[i] contain old_nodes[k], it will also be replaced. */
-QC_AST_Node *qc_replace_nodes_in_ast(QC_AST_Node *node, QC_AST_Node **old_nodes, QC_AST_Node **new_nodes, int node_count);
+QC_API QC_AST_Node *qc_replace_nodes_in_ast(QC_AST_Node *node, QC_AST_Node **old_nodes, QC_AST_Node **new_nodes, int node_count);
 
 /* Innermost first */
-void qc_find_subnodes_of_type(QC_Array(QC_AST_Node_Ptr) *ret, QC_AST_Node_Type type, QC_AST_Node *node);
+QC_API void qc_find_subnodes_of_type(QC_Array(QC_AST_Node_Ptr) *ret, QC_AST_Node_Type type, QC_AST_Node *node);
 
 /* Debug */
-void qc_print_ast(QC_AST_Node *node, int indent);
+QC_API void qc_print_ast(QC_AST_Node *node, int indent);
 
 /* Convenience functions */
 
-QC_AST_Ident *qc_create_ident_with_text(QC_AST_Node *decl, const char *fmt, ...);
-QC_AST_Var_Decl *qc_create_simple_var_decl(QC_AST_Type_Decl *type_decl, const char *ident);
-QC_AST_Var_Decl *qc_create_var_decl(QC_AST_Type_Decl *type_decl, QC_AST_Ident *ident, QC_AST_Node *value);
-QC_AST_Type_Decl *qc_find_builtin_type_decl(QC_Builtin_Type bt, QC_AST_Scope *root);
-QC_AST_Literal *qc_create_integer_literal(int value, QC_AST_Scope *root);
-QC_AST_Literal *qc_create_floating_literal(double value, QC_AST_Scope *root);
-QC_AST_Literal *qc_create_boolean_literal(QC_Bool value, QC_AST_Scope *root);
-QC_AST_Literal *qc_create_string_literal(const char *value, QC_AST_Scope *root);
-QC_AST_Call *qc_create_call_1(QC_AST_Ident *ident, QC_AST_Node *arg);
-QC_AST_Call *qc_create_call_2(QC_AST_Ident *ident, QC_AST_Node *arg1, QC_AST_Node *arg2);
-QC_AST_Call *qc_create_call_3(QC_AST_Ident *ident, QC_AST_Node *arg1, QC_AST_Node *arg2, QC_AST_Node *arg3);
-QC_AST_Call *qc_create_call_4(QC_AST_Ident *ident, QC_AST_Node *arg1, QC_AST_Node *arg2, QC_AST_Node *arg3, QC_AST_Node *arg4);
-QC_AST_Control *qc_create_return(QC_AST_Node *expr);
-QC_AST_Biop *qc_create_sizeof(QC_AST_Node *expr);
-QC_AST_Biop *qc_create_deref(QC_AST_Node *expr);
-QC_AST_Biop *qc_create_addrof(QC_AST_Node *expr);
-QC_AST_Biop *qc_create_biop(QC_Token_Type type, QC_AST_Node *lhs, QC_AST_Node *rhs);
-QC_AST_Biop *qc_create_assign(QC_AST_Node *lhs, QC_AST_Node *rhs);
-QC_AST_Biop *qc_create_mul(QC_AST_Node *lhs, QC_AST_Node *rhs);
-QC_AST_Biop *qc_create_less_than(QC_AST_Node *lhs, QC_AST_Node *rhs);
-QC_AST_Biop *qc_create_equals(QC_AST_Node *lhs, QC_AST_Node *rhs);
-QC_AST_Biop *qc_create_and(QC_AST_Node *lhs, QC_AST_Node *rhs);
-QC_AST_Biop *qc_create_pre_increment(QC_AST_Node *expr);
-QC_AST_Cast *qc_create_cast(QC_AST_Type *type, QC_AST_Node *target);
-QC_AST_Type *qc_create_builtin_type(QC_Builtin_Type bt, int ptr_depth, QC_AST_Scope *root);
-QC_AST_Type *qc_copy_and_modify_type(QC_AST_Type *type, int delta_ptr_depth);
-QC_AST_Type *qc_create_simple_type(QC_AST_Type_Decl *type_decl);
-QC_AST_Loop *qc_create_for_loop(QC_AST_Var_Decl *index, QC_AST_Node *max_expr, QC_AST_Scope *body);
-QC_AST_Node *qc_try_create_access(QC_AST_Node *node);
-QC_AST_Access *qc_create_element_access_1(QC_AST_Node *base, QC_AST_Node *arg);
-QC_AST_Access *qc_create_simple_access(QC_AST_Var_Decl *var);
-QC_AST_Access *qc_create_simple_member_access(QC_AST_Var_Decl *base, QC_AST_Var_Decl *member);
-QC_AST_Scope *qc_create_scope_1(QC_AST_Node *expr);
-QC_AST_Cond *qc_create_if_1(QC_AST_Node *expr, QC_AST_Node *body_expr_1);
-QC_AST_Node *qc_create_full_deref(QC_AST_Node *expr);
+QC_API QC_AST_Ident *qc_create_ident_with_text(QC_AST_Node *decl, const char *fmt, ...);
+QC_API QC_AST_Var_Decl *qc_create_simple_var_decl(QC_AST_Type_Decl *type_decl, const char *ident);
+QC_API QC_AST_Var_Decl *qc_create_var_decl(QC_AST_Type_Decl *type_decl, QC_AST_Ident *ident, QC_AST_Node *value);
+QC_API QC_AST_Type_Decl *qc_find_builtin_type_decl(QC_Builtin_Type bt, QC_AST_Scope *root);
+QC_API QC_AST_Literal *qc_create_integer_literal(int value, QC_AST_Scope *root);
+QC_API QC_AST_Literal *qc_create_floating_literal(double value, QC_AST_Scope *root);
+QC_API QC_AST_Literal *qc_create_boolean_literal(QC_Bool value, QC_AST_Scope *root);
+QC_API QC_AST_Literal *qc_create_string_literal(const char *value, QC_AST_Scope *root);
+QC_API QC_AST_Call *qc_create_call_1(QC_AST_Ident *ident, QC_AST_Node *arg);
+QC_API QC_AST_Call *qc_create_call_2(QC_AST_Ident *ident, QC_AST_Node *arg1, QC_AST_Node *arg2);
+QC_API QC_AST_Call *qc_create_call_3(QC_AST_Ident *ident, QC_AST_Node *arg1, QC_AST_Node *arg2, QC_AST_Node *arg3);
+QC_API QC_AST_Call *qc_create_call_4(QC_AST_Ident *ident, QC_AST_Node *arg1, QC_AST_Node *arg2, QC_AST_Node *arg3, QC_AST_Node *arg4);
+QC_API QC_AST_Control *qc_create_return(QC_AST_Node *expr);
+QC_API QC_AST_Biop *qc_create_sizeof(QC_AST_Node *expr);
+QC_API QC_AST_Biop *qc_create_deref(QC_AST_Node *expr);
+QC_API QC_AST_Biop *qc_create_addrof(QC_AST_Node *expr);
+QC_API QC_AST_Biop *qc_create_biop(QC_Token_Type type, QC_AST_Node *lhs, QC_AST_Node *rhs);
+QC_API QC_AST_Biop *qc_create_assign(QC_AST_Node *lhs, QC_AST_Node *rhs);
+QC_API QC_AST_Biop *qc_create_mul(QC_AST_Node *lhs, QC_AST_Node *rhs);
+QC_API QC_AST_Biop *qc_create_less_than(QC_AST_Node *lhs, QC_AST_Node *rhs);
+QC_API QC_AST_Biop *qc_create_equals(QC_AST_Node *lhs, QC_AST_Node *rhs);
+QC_API QC_AST_Biop *qc_create_and(QC_AST_Node *lhs, QC_AST_Node *rhs);
+QC_API QC_AST_Biop *qc_create_pre_increment(QC_AST_Node *expr);
+QC_API QC_AST_Cast *qc_create_cast(QC_AST_Type *type, QC_AST_Node *target);
+QC_API QC_AST_Type *qc_create_builtin_type(QC_Builtin_Type bt, int ptr_depth, QC_AST_Scope *root);
+QC_API QC_AST_Type *qc_copy_and_modify_type(QC_AST_Type *type, int delta_ptr_depth);
+QC_API QC_AST_Type *qc_create_simple_type(QC_AST_Type_Decl *type_decl);
+QC_API QC_AST_Loop *qc_create_for_loop(QC_AST_Var_Decl *index, QC_AST_Node *max_expr, QC_AST_Scope *body);
+QC_API QC_AST_Node *qc_try_create_access(QC_AST_Node *node);
+QC_API QC_AST_Access *qc_create_element_access_1(QC_AST_Node *base, QC_AST_Node *arg);
+QC_API QC_AST_Access *qc_create_simple_access(QC_AST_Var_Decl *var);
+QC_API QC_AST_Access *qc_create_simple_member_access(QC_AST_Var_Decl *base, QC_AST_Var_Decl *member);
+QC_API QC_AST_Scope *qc_create_scope_1(QC_AST_Node *expr);
+QC_API QC_AST_Cond *qc_create_if_1(QC_AST_Node *expr, QC_AST_Node *body_expr_1);
+QC_API QC_AST_Node *qc_create_full_deref(QC_AST_Node *expr);
 
-QC_Builtin_Type qc_void_builtin_type();
+QC_API QC_Builtin_Type qc_void_builtin_type();
 /* @todo int -> integer + bitness and signedness flags */
-QC_Builtin_Type qc_int_builtin_type();
+QC_API QC_Builtin_Type qc_int_builtin_type();
 /* @todo float -> floating + bitness flag */
-QC_Builtin_Type qc_float_builtin_type();
-QC_Builtin_Type qc_boolean_builtin_type();
-QC_Builtin_Type qc_char_builtin_type();
+QC_API QC_Builtin_Type qc_float_builtin_type();
+QC_API QC_Builtin_Type qc_boolean_builtin_type();
+QC_API QC_Builtin_Type qc_char_builtin_type();
 
 /* elem[0] chainop elem[1] */
-QC_AST_Node *qc_create_chained_expr(QC_AST_Node **elems, int elem_count, QC_Token_Type chainop);
+QC_API QC_AST_Node *qc_create_chained_expr(QC_AST_Node **elems, int elem_count, QC_Token_Type chainop);
 
 /* (lhs[0] biop rhs[0]) chainop (lhs[1] biop rhs[1]) */
-QC_AST_Node *qc_create_chained_expr_2(QC_AST_Node **lhs_elems, QC_AST_Node **rhs_elems, int elem_count, QC_Token_Type biop, QC_Token_Type chainop);
+QC_API QC_AST_Node *qc_create_chained_expr_2(QC_AST_Node **lhs_elems, QC_AST_Node **rhs_elems, int elem_count, QC_Token_Type biop, QC_Token_Type chainop);
 
-void qc_add_parallel_id_init(QC_AST_Scope *root, QC_AST_Parallel *parallel, int ix, QC_AST_Node *value);
+QC_API void qc_add_parallel_id_init(QC_AST_Scope *root, QC_AST_Parallel *parallel, int ix, QC_AST_Node *value);
 
 
 /* Immediate-mode AST generation */
@@ -471,24 +472,24 @@ typedef struct QC_Write_Context {
 	QC_Array(QC_AST_Node_Ptr) loose_nodes;
 } QC_Write_Context;
 
-QC_Write_Context *qc_create_write_context();
-void qc_destroy_write_context(QC_Write_Context *ctx);
+QC_API QC_Write_Context *qc_create_write_context();
+QC_API void qc_destroy_write_context(QC_Write_Context *ctx);
 
 /* { ... } */
-void qc_begin_initializer(QC_Write_Context *ctx);
-void qc_end_initializer(QC_Write_Context *ctx);
+QC_API void qc_begin_initializer(QC_Write_Context *ctx);
+QC_API void qc_end_initializer(QC_Write_Context *ctx);
 
 /* (type_name) { ... } */
-void qc_begin_compound(QC_Write_Context *ctx, const char *type_name);
-void qc_end_compound(QC_Write_Context *ctx);
+QC_API void qc_begin_compound(QC_Write_Context *ctx, const char *type_name);
+QC_API void qc_end_compound(QC_Write_Context *ctx);
 
 /* .var_name = ... */
-void qc_add_designated(QC_Write_Context *ctx, const char *var_name);
+QC_API void qc_add_designated(QC_Write_Context *ctx, const char *var_name);
 
-void qc_add_string(QC_Write_Context *ctx, const char *str);
-void qc_add_integer(QC_Write_Context *ctx, int value);
-void qc_add_floating(QC_Write_Context *ctx, double value);
-void qc_add_boolean(QC_Write_Context *ctx, QC_Bool value);
+QC_API void qc_add_string(QC_Write_Context *ctx, const char *str);
+QC_API void qc_add_integer(QC_Write_Context *ctx, int value);
+QC_API void qc_add_floating(QC_Write_Context *ctx, double value);
+QC_API void qc_add_boolean(QC_Write_Context *ctx, QC_Bool value);
 
 
 #endif

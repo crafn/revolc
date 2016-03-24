@@ -10,6 +10,8 @@
 #include <stdarg.h>
 #include <stdint.h>
 
+#include "config.h"
+
 typedef uint32_t QC_U32;
 typedef uint64_t QC_U64;
 typedef void *QC_Void_Ptr; /* Just for some macro fiddling */
@@ -19,7 +21,7 @@ typedef void *QC_Void_Ptr; /* Just for some macro fiddling */
 #define QC_ASSERT(x) assert(x)
 
 #define QC_NONULL(x) qc_nonull_impl(x)
-void *qc_nonull_impl(void *ptr);
+QC_API void *qc_nonull_impl(void *ptr);
 
 #define QC_MIN(a, b) ((a) < (b) ? (a) : (b))
 #define QC_MAX(a, b) ((a) > (b) ? (a) : (b))
@@ -41,8 +43,8 @@ typedef struct QC_Buf_Str {
 	int len;
 } QC_Buf_Str;
 
-QC_Bool qc_buf_str_equals(QC_Buf_Str a, QC_Buf_Str b);
-QC_Buf_Str qc_c_str_to_buf_str(const char* str);
+QC_API QC_Bool qc_buf_str_equals(QC_Buf_Str a, QC_Buf_Str b);
+QC_API QC_Buf_Str qc_c_str_to_buf_str(const char* str);
 
 /* Args for printf %.*s specifier */
 #define QC_BUF_STR_ARGS(str) str.len, str.buf
@@ -70,15 +72,15 @@ typedef struct QC_Array(V) {\
 	int capacity;\
 } QC_Array(V);\
 \
-QC_Array(V) qc_create_array(V)(int init_capacity);\
-void qc_destroy_array(V)(QC_Array(V) *arr);\
-V *qc_release_array(V)(QC_Array(V) *arr);\
-void qc_push_array(V)(QC_Array(V) *arr, V value);\
-V qc_pop_array(V)(QC_Array(V) *arr);\
-void qc_insert_array(V)(QC_Array(V) *arr, int at_place, V *values, int value_count);\
-void qc_erase_array(V)(QC_Array(V) *arr, int at_place, int erase_count);\
-QC_Array(V) qc_copy_array(V)(QC_Array(V) *arr);\
-void qc_clear_array(V)(QC_Array(V) *arr);\
+QC_API QC_Array(V) qc_create_array(V)(int init_capacity);\
+QC_API void qc_destroy_array(V)(QC_Array(V) *arr);\
+QC_API V *qc_release_array(V)(QC_Array(V) *arr);\
+QC_API void qc_push_array(V)(QC_Array(V) *arr, V value);\
+QC_API V qc_pop_array(V)(QC_Array(V) *arr);\
+QC_API void qc_insert_array(V)(QC_Array(V) *arr, int at_place, V *values, int value_count);\
+QC_API void qc_erase_array(V)(QC_Array(V) *arr, int at_place, int erase_count);\
+QC_API QC_Array(V) qc_copy_array(V)(QC_Array(V) *arr);\
+QC_API void qc_clear_array(V)(QC_Array(V) *arr);\
 
 #define QC_DEFINE_ARRAY(V)\
 QC_Array(V) qc_create_array(V)(int init_capacity)\
@@ -201,11 +203,11 @@ typedef struct QC_Hash_Table_Entry(K, V) {\
 	V value;\
 } QC_Hash_Table_Entry(K, V);\
 \
-QC_Hash_Table(K, V) qc_create_tbl(K, V)(	K null_key, V null_value, int capacity);\
-void qc_destroy_tbl(K, V)(QC_Hash_Table(K, V) *tbl);\
+QC_API QC_Hash_Table(K, V) qc_create_tbl(K, V)(	K null_key, V null_value, int capacity);\
+QC_API void qc_destroy_tbl(K, V)(QC_Hash_Table(K, V) *tbl);\
 \
-V qc_get_tbl(K, V)(QC_Hash_Table(K, V) *tbl, K key);\
-void qc_set_tbl(K, V)(QC_Hash_Table(K, V) *tbl, K key, V value);\
+QC_API V qc_get_tbl(K, V)(QC_Hash_Table(K, V) *tbl, K key);\
+QC_API void qc_set_tbl(K, V)(QC_Hash_Table(K, V) *tbl, K key, V value);\
 
 #define DEFINE_HASH_TABLE(K, V)\
 QC_Hash_Table_Entry(K, V) qc_null_tbl_entry(K, V)(QC_Hash_Table(K, V) *tbl)\
@@ -320,7 +322,7 @@ QC_DECLARE_ARRAY(char)
 QC_DECLARE_ARRAY(int)
 
 /* @todo Make this safe.. */
-void qc_safe_vsprintf(QC_Array(char) *buf, const char *fmt, va_list args);
-void qc_append_str(QC_Array(char) *buf, const char *fmt, ...);
+QC_API void qc_safe_vsprintf(QC_Array(char) *buf, const char *fmt, va_list args);
+QC_API void qc_append_str(QC_Array(char) *buf, const char *fmt, ...);
 
 #endif

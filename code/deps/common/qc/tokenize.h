@@ -1,6 +1,7 @@
 #ifndef QC_TOKENIZE_H
 #define QC_TOKENIZE_H
 
+#include "config.h"
 #include "core.h"
 
 typedef enum {
@@ -76,8 +77,8 @@ typedef enum {
 	QC_Token_unknown
 } QC_Token_Type;
 
-const char* qc_tokentype_str(QC_Token_Type type);
-const char* qc_tokentype_codestr(QC_Token_Type type);
+QC_API const char* qc_tokentype_str(QC_Token_Type type);
+QC_API const char* qc_tokentype_codestr(QC_Token_Type type);
 
 typedef struct QC_Token {
 	QC_Token_Type type;
@@ -99,7 +100,7 @@ QC_DECLARE_ARRAY(QC_Token)
 /* QC_Tokens will be pointing to the 'src' string */
 QC_Array(QC_Token) qc_tokenize(const char* src, int src_size);
 
-void qc_print_tokens(QC_Token *tokens, int token_count);
+QC_API void qc_print_tokens(QC_Token *tokens, int token_count);
 
 
 #endif
