@@ -305,7 +305,7 @@ NodeGroupDef *blobify_nodegroupdef(struct WArchive *ar, Cson c, bool *err)
 			Cson c_default = cson_member(c_defaults, i);
 
 			const char *str = blobify_string(c_default, err);
-			debug_print("foo %i %s", i, str);
+			//debug_print("foo %i %s", i, str);
 			NodeGroupDef_Node_Defaults *defaults =
 				&node->defaults[node->defaults_count++];
 			fmt_str(defaults->str, sizeof(defaults->str), "%s", str);

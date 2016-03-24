@@ -8,6 +8,9 @@
 #	include "resources/resources.def"
 #undef HEADERS
 
+#ifndef CODEGEN
+#	include <qc/backend_c.h>
+#endif
 
 internal
 void init_res(Resource *res)
@@ -561,47 +564,54 @@ void realloc_res_member(Resource *res, RelPtr *member, U32 size, U32 old_size)
 	recache_ptrs_to(res);
 }
 
-#if 0
-
-// Mirror possibly modified resource to json
+// Mirror possibly modified resource to file
 internal
-void mirror_res(Resource *res)
+bool mirror_res(Resource *res)
 {
+	bool err = false;
+	ResBlob *blob = res->blob;
 	const char *res_file_path = res->blob->res_file_paths[res->res_file_index];
-	ParsedJsonFile file = parse_json_file(dev_ator(), res_file_path);
-	WJson *upd_file = wjson_create(JsonType_array);
-	for (U32 i = 0; i < json_member_count(file.root); ++i) {
-		JsonTok j_res = json_member(file.root, i);
-		JsonTok j_name = json_value_by_key(j_res, "name");
-		JsonTok j_type = json_value_by_key(j_res, "type");
+	WCson *cson = wcson_create();
 
-		WJson *upd_res = wjson_create(JsonType_object);
-		wjson_append(upd_file, upd_res);
-
-		if (json_is_null(j_name))
-			RES_ATTRIB_MISSING("name");
-		if (json_is_null(j_type))
-			RES_ATTRIB_MISSING("type");
-
-		if (	str_to_restype(json_str(j_type)) != res->type ||
-				strcmp(json_str(j_name), res->name))
+	wcson_begin_initializer(cson);
+	for (U32 i = 0; i < blob->res_count; ++i) {
+		Resource *blob_res = res_by_index(blob, i);
+		if (blob_res->res_file_index != res->res_file_index)
 			continue;
 
-		res_to_json(upd_res, res);
+		if (blob_res->substitute)
+			blob_res = blob_res->substitute;
+
+		deblobify_res(cson, blob_res);
+	}
+	wcson_end_initializer(cson);
+
+	{
+		FILE *file = fopen(res_file_path, "wb");
+		if (!file) {
+			critical_print("Writing resource file failed: '%s'", res_file_path);
+			goto error;
+		}
+		
+		debug_print("Writing resource file '%s'", res_file_path);
+
+		QC_Array(char) code = qc_create_array(char)(0);
+		qc_ast_to_c_str(&code, 0, QC_AST_BASE(cson->root));
+		fprintf(file, "%s", code.data);
+		qc_destroy_array(char)(&code);
+
+		fclose(file);
 	}
 
-	wjson_write_updated(res_file_path, file.root, upd_file);
-
 cleanup:
-	wjson_destroy(upd_file);
-	free_parsed_json_file(file);
-	return;
+	wcson_destroy(cson);
+	return err;
 
 error:
 	critical_print("Error at mirroring resources");
+	err = true;
 	goto cleanup;
 }
-#endif
 
 void resource_modified(Resource *res)
 {
@@ -613,9 +623,6 @@ void resource_modified(Resource *res)
 
 U32 mirror_blob_modifications(ResBlob *blob)
 {
-	fail("@todo mirror_blob_modifications");
-	return 0;
-#if 0
 	U32 count = 0;
 	RuntimeResource *rt_res = blob->first_runtime_res;
 	while (rt_res) {
@@ -624,16 +631,16 @@ U32 mirror_blob_modifications(ResBlob *blob)
 			// Reloading & writing json for every modified resource
 			// shouldn't be a problem, because typically few resources
 			// are modified at once
-			mirror_res(res);
 			debug_print("mirroring %s %s", restype_to_str(res->type), res->name);
-			rt_res->needs_saving = false;
+			bool err = mirror_res(res);
+			if (!err)
+				rt_res->needs_saving = false;
 			++count;
 		}
 		rt_res = rt_res->next;
 	}
 	debug_print("mirror_blob_modifications: %i", count);
 	return count;
-#endif
 }
 
 bool blob_has_modifications(const ResBlob *blob)
