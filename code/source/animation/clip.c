@@ -36,13 +36,26 @@ int clip_key_cmp(const void *a_, const void *b_)
 	return CMP(a->time, b->time);
 }
 
+// Call after modifying clip keys
 internal
-void sort_clip_keys(Clip_Key *keys, U32 key_count)
+U32 upd_clip_keys(Clip_Key *keys, U32 key_count)
 {
 	qsort(keys, key_count, sizeof(*keys), clip_key_cmp);
+
+	U32 joint_count = 0;
+	for (U32 i = 0; i < key_count; ++joint_count) {
+		const char *joint_name = keys[i].joint_name;
+
+		while (	i < key_count &&
+				!strcmp(keys[i].joint_name, joint_name)) {
+			keys[i].joint_ix = joint_count;
+			++i;
+		}
+	}
+	return joint_count;
 }
 
-// `keys` should be sorted with sort_clip_keys
+// `keys` should be sorted with upd_clip_keys
 internal
 void calc_samples_for_clip(	T3f *samples, U32 joint_count, U32 frame_count,
 							const Clip_Key *keys, U32 key_count,
@@ -240,18 +253,7 @@ Clip *blobify_clip(struct WArchive *ar, Cson c, bool *err)
 		}
 	}
 
-	sort_clip_keys(keys, total_key_count);
-
-	U32 joint_count = 0;
-	for (U32 i = 0; i < total_key_count; ++joint_count) {
-		const char *joint_name = keys[i].joint_name;
-
-		while (	i < total_key_count &&
-				!strcmp(keys[i].joint_name, joint_name)) {
-			keys[i].joint_ix = joint_count;
-			++i;
-		}
-	}
+	U32 joint_count = upd_clip_keys(keys, total_key_count);
 
 	U32 frame_count = floor(duration*fps + 0.5) + 1; // +1 for end lerp target
 	const U32 sample_count = joint_count*frame_count;
@@ -416,17 +418,39 @@ JointPoseArray calc_clip_pose(const Clip *c, F64 t)
 internal
 void add_rt_clip_key(Clip *c, Clip_Key key)
 {
-	fail("This crash is expected! @todo Update joint_count and realloc samples if joint_ix will be new");
+	bool is_new_joint = true;
+	for (U32 i = 0; i < c->key_count; ++i) {
+		Clip_Key *keys = clip_keys(c);
+		if (!strcmp(keys[i].joint_name, key.joint_name)) {
+			is_new_joint = false;
+			key.joint_ix = keys[i].joint_ix;
+			break;
+		}
+	}
 
-	const U32 old_count = c->key_count;
-	const U32 new_count = old_count + 1;
-
+	U32 old_count = c->key_count;
+	U32 new_count = old_count + 1;
 	realloc_res_member(&c->res, &c->keys, sizeof(Clip_Key)*new_count, sizeof(Clip_Key)*old_count);
+
+	U32 old_sample_count = c->joint_count*c->frame_count;
+	U32 new_sample_count = old_sample_count + is_new_joint*c->frame_count;
+	realloc_res_member(	&c->res, &c->local_samples,
+						sizeof(T3f)*new_sample_count, sizeof(T3f)*old_sample_count);
+
 	Clip_Key *keys = rel_ptr(&c->keys);
-
 	keys[old_count] = key;
-
 	c->key_count = new_count;
+
+	c->joint_count = upd_clip_keys(keys, c->key_count);
+	
+	if (is_new_joint) {
+		init_clip(c); // Reset joint_ix_to_id table
+	}
+
+	calc_samples_for_clip(	clip_local_samples(c),
+							c->joint_count, c->frame_count,
+							keys, c->key_count,
+							c->duration);
 
 	resource_modified(&c->res);
 }
@@ -437,25 +461,25 @@ void update_rt_clip_key(Clip *c, Clip_Key key)
 	for (U32 i = 0; i < c->key_count; ++i) {
 		Clip_Key *cmp = &clip_keys(c)[i];
 		if (	cmp->time == key.time &&
-				cmp->joint_ix == key.joint_ix &&
+				!strcmp(cmp->joint_name, key.joint_name) &&
 				cmp->type == key.type) {
 			edit_key = cmp;
 			break;
 		}
 	}
 
-	if (edit_key)
+	if (edit_key) {
 		*edit_key = key;
-	else
+		U32 joint_count = upd_clip_keys(clip_keys(c), c->key_count);
+		ensure(c->joint_count == joint_count);
+		calc_samples_for_clip(	clip_local_samples(c),
+								c->joint_count, c->frame_count,
+								clip_keys(c), c->key_count,
+								c->duration);
+		resource_modified(&c->res);
+	} else {
 		add_rt_clip_key(c, key);
-
-	sort_clip_keys(clip_keys(c), c->key_count);
-	calc_samples_for_clip(	clip_local_samples(c),
-							c->joint_count, c->frame_count,
-							clip_keys(c), c->key_count,
-							c->duration);
-
-	resource_modified(&c->res);
+	}
 }
 
 void delete_rt_clip_key(Clip *c, U32 del_i)
@@ -516,7 +540,8 @@ void move_rt_clip_keys(Clip *c, F64 from, F64 to)
 	}
 
 	// @todo These commands are repeated -- maybe some on_clip_edit_end() ?
-	sort_clip_keys(clip_keys(c), c->key_count);
+	U32 joint_count = upd_clip_keys(clip_keys(c), c->key_count);
+	ensure(joint_count == c->joint_count);
 	calc_samples_for_clip(	clip_local_samples(c),
 							c->joint_count, c->frame_count,
 							clip_keys(c), c->key_count,

@@ -558,6 +558,8 @@ void realloc_res_member(Resource *res, RelPtr *member, U32 size, U32 old_size)
 		fail("Too many simultaneous allocations for a resource");
 	}
 
+	res->size += (int)size - (int)old_size;
+
 	debug_print("recaching realloc %s", res->name);
 
 	// Update pointers pointing to the old/freed member
