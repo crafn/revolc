@@ -38,6 +38,7 @@ REVOLC_API CursorDeltaMode cursor_transform_delta_pixels(	T3f *out,
 															T3d coords);
 
 // Some common functionality, like scale/grab/rotate
+// @todo Grab etc. functionality should be in the gui lib. Then this can be substituted with simple gui_begin/end.
 REVOLC_API EditorBoxState gui_begin_editorbox(	GuiContext *ctx,
 												V2i *p, V2i *s,
 												const char *label,

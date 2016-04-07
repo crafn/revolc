@@ -170,6 +170,7 @@ EditorBoxState gui_begin_editorbox(	GuiContext *ctx,
 		if (	ui->dev.rmb.pressed &&
 				(ui->dev.grabbing || ui->dev.rotating || ui->dev.scaling)) {
 			// Cancel
+			// @todo Should be handled in client code -- they might need to reset further things
 			editor_revert_res_state();
 			ui->dev.grabbing = 0;
 			ui->dev.rotating = 0;

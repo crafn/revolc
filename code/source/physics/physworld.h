@@ -77,4 +77,8 @@ REVOLC_API U32 grid_material_fullness_in_circle(V2d center, F64 rad, U8 material
 REVOLC_API U32 set_grid_material_in_circle(V2d center, F64 rad, U8 material);
 REVOLC_API GridCell grid_cell(V2i vec);
 
+// Editor
+REVOLC_API void recache_ptrs_to_rigidbodydef(RigidBodyDef *def);
+REVOLC_API void recache_ptrs_to_rigidbodydefs();
+
 #endif // REVOLC_PHYSICS_PHYS_WORLD_H

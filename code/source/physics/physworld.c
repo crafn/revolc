@@ -339,24 +339,21 @@ U32 alloc_rigidbody_noinit()
 	while (w->bodies[w->next_body].allocated)
 		w->next_body = (w->next_body + 1) % MAX_RIGIDBODY_COUNT;
 
-	++w->body_count;
 	return w->next_body;
 }
 
 internal
-void set_rigidbody(U32 h, RigidBodyDef *def)
+void recache_rigidbody(RigidBody *b)
 {
-	PhysWorld *w = g_env.physworld;
-
-	ensure(h < MAX_RIGIDBODY_COUNT && w->bodies[h].cp_body == NULL);
-	RigidBody *b = &w->bodies[h];
-	strncpy(b->def_name, def->res.name, sizeof(b->def_name));
-	b->shape_changed = true;
-
+	RigidBodyDef *def = (RigidBodyDef*)res_by_name(
+							g_env.resblob,
+							ResType_RigidBodyDef,
+							b->def_name);
 	const PhysMat *mat =
 		(PhysMat*)res_by_name(	g_env.resblob,
 								ResType_PhysMat,
 								def->mat_name);
+	PhysWorld *w = g_env.physworld;
 
 	/// @todo Mass & moment could be precalculated to ResBlob
 	F64 total_mass = 0;
@@ -387,10 +384,14 @@ void set_rigidbody(U32 h, RigidBodyDef *def)
 	if (def->disable_rot)
 		total_moment = INFINITY;
 
-	b->cp_body = cp_create_body(w->cp_space, total_mass, total_moment, def->is_static);
-	b->cp_data.body = b;
-	cpBodySetUserData(b->cp_body, &b->cp_data);
-	b->is_static = def->is_static;
+	if (!b->cp_body) {
+		b->cp_body = cp_create_body(w->cp_space, total_mass, total_moment, def->is_static);
+	} else {
+		if (!def->is_static) {
+			cpBodySetMass(b->cp_body, total_mass);
+			cpBodySetMoment(b->cp_body, total_moment);
+		}
+	}
 
 	cpBodySetPosition(b->cp_body, to_cpv((V2d) {b->tf.pos.x, b->tf.pos.y}));
 	cpBodySetAngle(b->cp_body, rotation_z_qd(b->tf.rot));
@@ -415,7 +416,18 @@ void set_rigidbody(U32 h, RigidBodyDef *def)
 		memcpy(b->polys, polys, sizeof(*polys)*poly_count);
 	}
 
-	{ // Create physics shapes
+	b->shape_changed = true;
+	b->cp_data.body = b;
+	cpBodySetUserData(b->cp_body, &b->cp_data);
+	b->is_static = def->is_static;
+
+	{ // (Re)create physics shapes
+		for (U32 i = 0; i < b->cp_shape_count; ++i) {
+			cpSpaceRemoveShape(w->cp_space, b->cp_shapes[i]);
+			b->cp_shapes[i] = NULL;
+		}
+		b->cp_shape_count = 0;
+
 		for (U32 i = 0; i < circle_count; ++i) {
 			b->cp_shapes[b->cp_shape_count++] =
 				cpSpaceAddShape(
@@ -464,12 +476,9 @@ U32 resurrect_rigidbody(const RigidBody *dead)
 	w->bodies[h].cp_shape_count = 0;
 	w->bodies[h].is_in_grid = false;
 
-	set_rigidbody(
-			h,
-			(RigidBodyDef*)res_by_name(
-				g_env.resblob,
-				ResType_RigidBodyDef,
-				dead->def_name));
+	recache_rigidbody(&w->bodies[h]);
+	++w->body_count;
+
 	return h;
 }
 
@@ -1441,5 +1450,32 @@ GridCell grid_cell(V2i v)
 			v.y < 0 || v.y >= GRID_WIDTH_IN_CELLS)
 		return (GridCell) {};
 	return g_env.physworld->grid.cells[GRID_INDEX(v.x, v.y)];
+}
+
+void recache_ptrs_to_rigidbodydef(RigidBodyDef *def)
+{
+	PhysWorld *w = g_env.physworld;
+	for (U32 i = 0; i < MAX_RIGIDBODY_COUNT; ++i) {
+		RigidBody *b = &w->bodies[i];
+		if (!b->allocated)
+			continue;
+
+		if (strcmp(b->def_name, def->res.name))
+			continue;
+
+		recache_rigidbody(b);
+	}
+}
+
+void recache_ptrs_to_rigidbodydefs()
+{
+	PhysWorld *w = g_env.physworld;
+	for (U32 i = 0; i < MAX_RIGIDBODY_COUNT; ++i) {
+		RigidBody *b = &w->bodies[i];
+		if (!b->allocated)
+			continue;
+
+		recache_rigidbody(b);
+	}
 }
 

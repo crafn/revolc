@@ -803,6 +803,31 @@ void load_layout(GuiContext *ctx)
 
 	{
 		GuiElementLayout l = {0};
+		l.id = 2799190419;
+		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "editor_overlay_box");
+		l.on_same_row = 0;
+		l.has_offset = 0;
+		l.offset[0] = 0;
+		l.offset[1] = 0;
+		l.has_size = 1;
+		l.size[0] = 100;
+		l.size[1] = 20;
+		l.prevent_resizing = 0;
+		l.align_left = 1;
+		l.align_right = 1;
+		l.align_top = 1;
+		l.align_bottom = 1;
+		l.padding[0] = 0;
+		l.padding[1] = 0;
+		l.padding[2] = 0;
+		l.padding[3] = 0;
+		l.gap[0] = 0;
+		l.gap[1] = 0;
+		append_element_layout(ctx, l);
+	}
+
+	{
+		GuiElementLayout l = {0};
 		l.id = 2821238409;
 		GUI_FMT_STR(l.str, sizeof(l.str), "%s", "gui_treenode:node_list_item");
 		l.on_same_row = 0;

@@ -15,6 +15,8 @@
 #include "ui/gui.h"
 #include "ui/uicontext.h"
 #include "visual/renderer.h"
+#include "visual/ddraw.h"
+#include "visual/renderer.h"
 
 internal
 void editor_free_res_state()
@@ -24,10 +26,12 @@ void editor_free_res_state()
 	FREE(dev_ator(), e->mesh_state);
 	FREE(dev_ator(), e->armature_state);
 	FREE(dev_ator(), e->clip_state);
+	FREE(dev_ator(), e->bodydef_state);
 
 	e->mesh_state = NULL;
 	e->armature_state = NULL;
 	e->clip_state = NULL;
+	e->bodydef_state = NULL;
 }
 
 // Store currently selected resources for cancellation of edit
@@ -45,20 +49,28 @@ void editor_store_res_state()
 		e->mesh_state = save_res_state(&mesh->res);
 	}
 
-	if (e->ae_state.comp_h != NULL_HANDLE) {
-		CompEntity *c = get_compentity(e->ae_state.comp_h);
+	if (e->armature_editor.comp_h != NULL_HANDLE) {
+		CompEntity *c = get_compentity(e->armature_editor.comp_h);
 		Armature *a = c->armature;
 
 		e->armature_state = save_res_state(&a->res);
 	}
 
-	if (	!e->ae_state.clip_is_bind_pose &&
-			e->ae_state.clip_name[0] != '\0') {
+	if (	!e->armature_editor.clip_is_bind_pose &&
+			e->armature_editor.clip_name[0] != '\0') {
 		Clip *clip =
 				(Clip*)res_by_name(	g_env.resblob,
 									ResType_Clip,
-									e->ae_state.clip_name);
+									e->armature_editor.clip_name);
 		e->clip_state = save_res_state(&clip->res);
+	}
+
+	if (e->body_editor.body_h != NULL_HANDLE) {
+		RigidBody *b = get_rigidbody(e->body_editor.body_h);
+		RigidBodyDef *def = (RigidBodyDef*)substitute_res(res_by_name(
+			g_env.resblob, ResType_RigidBodyDef, b->def_name));
+
+		e->bodydef_state = save_res_state(&def->res);
 	}
 }
 
@@ -76,6 +88,9 @@ void editor_revert_res_state()
 
 	if (e->clip_state)
 		load_res_state(e->clip_state);
+
+	if (e->bodydef_state)
+		load_res_state(e->bodydef_state);
 }
 
 
@@ -83,7 +98,8 @@ void create_editor()
 {
 	Editor* e = ZERO_ALLOC(dev_ator(), sizeof(*e), "editor");
 	e->cur_model_h = NULL_HANDLE;
-	e->ae_state.comp_h = NULL_HANDLE;
+	e->armature_editor.comp_h = NULL_HANDLE;
+	e->body_editor.body_h = NULL_HANDLE;
 
 	g_env.editor = e;
 }
@@ -295,7 +311,7 @@ void upd_editor(F64 *world_dt)
 
 	if (g_env.device->key_pressed[KEY_ESC])
 		e->state = EditorState_invisible;
-	
+
 	// Prevent overwriting animation clip pose by other nodes
 	g_env.world->editor_disable_memcpy_cmds =
 		(e->state == EditorState_res && 
@@ -377,17 +393,19 @@ void upd_editor(F64 *world_dt)
 					e->cur_model_h == NULL_HANDLE)
 				e->is_edit_mode = false;
 			if (	e->res_state == EditorState_Res_armature &&
-					e->ae_state.comp_h == NULL_HANDLE)
+					e->armature_editor.comp_h == NULL_HANDLE)
 				e->is_edit_mode = false;
 		}
 
 		bool mesh_editor_active = e->state == EditorState_res && e->res_state == EditorState_Res_mesh;
 		bool armature_editor_active = e->state == EditorState_res && e->res_state == EditorState_Res_armature;
+		bool body_editor_active = e->state == EditorState_res && e->res_state == EditorState_Res_body;
 
 		do_mesh_editor(&e->cur_model_h, &e->is_edit_mode, mesh_editor_active);
-		do_armature_editor(	&e->ae_state,
+		do_armature_editor(	&e->armature_editor,
 							e->is_edit_mode,
 							armature_editor_active);
+		do_body_editor(&e->body_editor, e->is_edit_mode, body_editor_active);
 
 		if (e->state == EditorState_res) {
 
@@ -403,8 +421,8 @@ void upd_editor(F64 *world_dt)
 					e->res_state = EditorState_Res_mesh;
 				if (gui_radiobutton(ctx, "res_tool_elem+armature|Armature", e->res_state == EditorState_Res_armature))
 					e->res_state = EditorState_Res_armature;
-				if (gui_radiobutton(ctx, "res_tool_elem+shape|Shape", e->res_state == EditorState_Res_shape))
-					e->res_state = EditorState_Res_shape;
+				if (gui_radiobutton(ctx, "res_tool_elem+body|Body", e->res_state == EditorState_Res_body))
+					e->res_state = EditorState_Res_body;
 			gui_end_panel(ctx);
 		} else if (e->state == EditorState_world) {
 
@@ -664,3 +682,1055 @@ void upd_editor(F64 *world_dt)
 	if (e->edit_layout && e->state != EditorState_invisible)
 		gui_layout_editor(g_env.uicontext->gui, "../../code/source/ui/gen_layout.c");
 }
+
+
+//
+// Individual editor views
+//
+
+// Mesh editor
+
+internal
+V3d vertex_world_pos(ModelEntity *m, U32 i)
+{
+	TriMeshVertex *v = &m->vertices[i];
+	T3d v_t = identity_t3d();
+	v_t.pos = v3f_to_v3d(v->pos);
+
+	T3d t = mul_t3d(m->tf, v_t);
+	return t.pos;
+}
+
+internal
+V2i uv_to_pix(V2f uv, V2i pix_pos, V2i pix_size)
+{ return (V2i) {uv.x*pix_size.x + pix_pos.x, (1 - uv.y)*pix_size.y + pix_pos.y}; }
+
+internal
+V3d pix_to_uv(V2i p, V2i pix_pos, V2i pix_size)
+{ return (V3d) {(F64)(p.x - pix_pos.x)/pix_size.x,
+				1 - (F64)(p.y - pix_pos.y)/pix_size.y,
+				0.0};
+}
+
+internal
+void draw_mesh_vertex(V3d p, bool selected, S32 layer)
+{
+	const F64 v_size = editor_vertex_size();
+	V3d poly[4] = {
+		{-v_size + p.x, -v_size + p.y, p.z},
+		{-v_size + p.x, +v_size + p.y, p.z},
+		{+v_size + p.x, +v_size + p.y, p.z},
+		{+v_size + p.x, -v_size + p.y, p.z},
+	};
+
+	Color c = selected ?	(Color) {1.0, 0.7, 0.2, 0.9} :
+							(Color) {0.0, 0.0, 0.0, 0.9};
+	ddraw_poly(c, poly, 4, layer);
+}
+
+internal
+Mesh *editable_model_mesh(const char *name)
+{
+	Mesh *mesh = model_mesh((Model*)res_by_name(	g_env.resblob,
+													ResType_Model,
+													name));
+	mesh = (Mesh*)substitute_res(&mesh->res);
+	return mesh;
+}
+
+typedef enum {
+	MeshTransformType_pos,
+	MeshTransformType_uv,
+	MeshTransformType_outline_uv,
+} MeshTransformType;
+
+internal
+void transform_mesh(ModelEntity *m, T3f tf, MeshTransformType ttype)
+{
+	if (m->has_own_mesh) {
+		debug_print("@todo Modify unique mesh");
+		return;
+	}
+
+	Mesh *mesh = editable_model_mesh(m->model_name);
+
+	for (U32 i = 0; i < mesh->v_count; ++i) {
+		TriMeshVertex *v = &mesh_vertices(mesh)[i];
+		if (!v->selected)
+			continue;
+
+		if (ttype == MeshTransformType_pos) {
+			v->pos = transform_v3f(tf, v->pos);
+		} else if (ttype == MeshTransformType_uv) {
+			F32 uvz = v->uv.z;
+			v->uv = transform_v3f(tf, v->uv);
+			v->uv.x = CLAMP(v->uv.x, 0.0, 1.0);
+			v->uv.y = CLAMP(v->uv.y, 0.0, 1.0);
+			v->uv.z = uvz;
+		} else if (ttype == MeshTransformType_outline_uv) {
+			V3f uv = {v->outline_uv.x, v->outline_uv.y, 0.0};
+			v->outline_uv = v3f_to_v2f(transform_v3f(tf, uv));
+			v->outline_uv.x = CLAMP(v->outline_uv.x, 0.0, 1.0);
+			v->outline_uv.y = CLAMP(v->outline_uv.y, 0.0, 1.0);
+		}
+	}
+
+	resource_modified(&mesh->res);
+}
+
+internal
+void transform_poly(V2d *vertices, bool *selected, U32 count, T3f tf)
+{
+	for (U32 i = 0; i < count; ++i) {
+		if (!selected[i])
+			continue;
+
+		vertices[i] = v3d_to_v2d(transform_v3d(t3f_to_t3d(tf), v2d_to_v3d(vertices[i])));
+	}
+}
+
+internal
+void gui_uvbox(GuiContext *gui, ModelEntity *m, bool outline_uv)
+{
+	const char *box_label = "uvbox_box";
+	if (outline_uv)
+		box_label = gui_str(gui, "outline_uvbox_box");
+	UiContext *ctx = g_env.uicontext;
+
+	V2i pix_pos, pix_size;
+	EditorBoxState state = gui_begin_editorbox(gui, &pix_pos, &pix_size, box_label, false);
+
+	if (!m)
+		goto exit;
+
+	if (state.pressed) {
+		// Control vertex selection
+		F64 closest_dist = 0;
+		U32 closest_i = NULL_HANDLE;
+		for (U32 i = 0; i < m->mesh_v_count; ++i) {
+			TriMeshVertex *v = &m->vertices[i];
+			V2f uv = outline_uv ? v->outline_uv : v3f_to_v2f(v->uv);
+			V2i pos = uv_to_pix(uv, pix_pos, pix_size);
+
+			F64 dist = dist_sqr_v2i(pos, ctx->dev.cursor_pos);
+			if (	closest_i == NULL_HANDLE ||
+					dist < closest_dist) {
+				closest_i = i;
+				closest_dist = dist;
+			}
+		}
+
+		if (!ctx->dev.shift_down) {
+			for (U32 i = 0; i < m->mesh_v_count; ++i)
+				m->vertices[i].selected = false;
+		}
+
+		if (closest_dist < 100*100) {
+			ensure(closest_i != NULL_HANDLE);
+			toggle_bool(&m->vertices[closest_i].selected);
+		}
+	}
+
+	V2i padding = {20, 20};
+	pix_pos = add_v2i(pix_pos, padding);
+	pix_size = sub_v2i(pix_size, scaled_v2i(2, padding));
+
+	T3d coords = {
+		{pix_size.x, -pix_size.y, 1},
+		identity_qd(),
+		{	pix_pos.x,
+			pix_pos.y,
+			0.0} // @todo
+	};
+	T3f delta;
+	if (cursor_transform_delta_pixels(&delta, box_label, coords)) {
+		transform_mesh(m, delta, outline_uv ? MeshTransformType_outline_uv : MeshTransformType_uv);
+	}
+
+	if (!outline_uv)
+		drawcmd_px_model_image(pix_pos, pix_size, m, gui_layer(gui) + 1);
+
+	for (U32 i = 0; i < m->mesh_v_count; ++i) {
+		TriMeshVertex *v = &m->vertices[i];
+		V2f uv = outline_uv ? v->outline_uv : v3f_to_v2f(v->uv);
+
+		V2i pix_uv = uv_to_pix(uv, pix_pos, pix_size);
+		V2d p = screen_to_world_point(pix_uv);
+		draw_mesh_vertex(v2d_to_v3d(p), v->selected, gui_layer(gui) + 3);
+	}
+
+	Color fill_color = {0.6, 0.6, 0.8, 0.4};
+	V3d poly[3];
+	for (U32 i = 0; i < m->mesh_i_count; ++i) {
+		U32 v_i = m->indices[i];
+		TriMeshVertex *v = &m->vertices[v_i];
+		V2f uv = outline_uv ? v->outline_uv : v3f_to_v2f(v->uv);
+		V2i pix_uv = uv_to_pix(uv, pix_pos, pix_size);
+		V2d p = screen_to_world_point(pix_uv);
+		poly[i%3] = (V3d) {p.x, p.y, 0};
+
+		if (i % 3 == 2)
+			ddraw_poly(fill_color, poly, 3, gui_layer(gui) + 2);
+	}
+	
+exit:
+	gui_end_editorbox(gui);
+}
+
+// Mesh editing on world
+internal
+void gui_mesh_overlay(U32 *model_h, bool *is_edit_mode)
+{
+	UiContext *ctx = g_env.uicontext;
+	V3d cur_wp = v2d_to_v3d(screen_to_world_point(ctx->dev.cursor_pos));
+
+	const char *box_label = "editor_overlay_box";
+	EditorBoxState state = gui_begin_editorbox(ctx->gui, NULL, NULL, box_label, true);
+
+	if (!*is_edit_mode) { // Mesh select mode
+		if (state.down)
+			*model_h = find_modelentity_at_pixel(ctx->dev.cursor_pos);
+	}
+
+	ModelEntity *m = NULL;
+	if (*model_h != NULL_HANDLE)
+		m = get_modelentity(*model_h);
+	else
+		goto exit;
+
+	if (ctx->dev.toggle_select_all) {
+		if (*is_edit_mode) {
+			bool some_selected = false;
+			for (U32 i = 0; i < m->mesh_v_count; ++i) {
+				if (m->vertices[i].selected)
+					some_selected = true;
+			}
+			for (U32 i = 0; i < m->mesh_v_count; ++i) {
+				m->vertices[i].selected = !some_selected;
+			}
+		} else {
+			*model_h = NULL_HANDLE;
+			goto exit;
+		}
+	}
+
+	if (*is_edit_mode && g_env.device->key_pressed['e']) {
+		ctx->dev.grabbing = gui_id(box_label);
+		gui_set_active(ctx->gui, box_label);
+		editor_store_res_state();
+
+		// Extrude selected vertices
+		Mesh *mesh = editable_model_mesh(m->model_name);
+		U32 old_v_count = mesh->v_count;
+		for (U32 i = 0; i < old_v_count; ++i) {
+			TriMeshVertex v = mesh_vertices(mesh)[i];
+			if (!v.selected)
+				continue;
+			add_rt_mesh_vertex(mesh, v); // Duplicate selected vertices for extrude
+			mesh_vertices(mesh)[i].selected = false;
+		}
+
+		// @todo Create indices for extruded faces
+
+		recache_ptrs_to_meshes();
+	}
+
+	if (*is_edit_mode && g_env.device->key_pressed['f']) {
+		// Create face between three vertices
+		Mesh *mesh = editable_model_mesh(m->model_name);
+		U32 selected_count = 0;
+		MeshIndexType indices[3];
+		for (U32 i = 0; i < mesh->v_count; ++i) {
+			TriMeshVertex v = mesh_vertices(mesh)[i];
+			if (!v.selected)
+				continue;
+			if (selected_count < ARRAY_COUNT(indices))
+				indices[selected_count++] = i;
+		}
+		if (selected_count == 3) {
+			add_rt_mesh_index(mesh, indices[0]);
+			add_rt_mesh_index(mesh, indices[1]);
+			add_rt_mesh_index(mesh, indices[2]);
+		} else {
+			debug_print("Select 3 vertices to make a face");
+		}
+		recache_ptrs_to_meshes();
+	}
+
+	if (*is_edit_mode && g_env.device->key_pressed['x']) {
+		// Delete selected vertices (and corresponding faces)
+		Mesh *mesh = editable_model_mesh(m->model_name);
+		for (U32 i = 0; i < mesh->v_count;) {
+			TriMeshVertex v = mesh_vertices(mesh)[i];
+			if (v.selected)
+				remove_rt_mesh_vertex(mesh, i);
+			else
+				++i;
+		}
+		recache_ptrs_to_meshes();
+	}
+
+	T3f delta;
+	if (*is_edit_mode && cursor_transform_delta_world(&delta, box_label, m->tf)) {
+		transform_mesh(m, delta, MeshTransformType_pos);
+	}
+
+	if (*is_edit_mode && state.pressed) {
+		// Control vertex selection
+		F64 closest_dist = 0;
+		U32 closest_i = NULL_HANDLE;
+		for (U32 i = 0; i < m->mesh_v_count; ++i) {
+			V3d pos = vertex_world_pos(m, i);
+
+			F64 dist = dist_sqr_v3d(pos, cur_wp);
+			if (	closest_i == NULL_HANDLE ||
+					dist < closest_dist) {
+				closest_i = i;
+				closest_dist = dist;
+			}
+		}
+
+		if (!ctx->dev.shift_down) {
+			for (U32 i = 0; i < m->mesh_v_count; ++i)
+				m->vertices[i].selected = false;
+		}
+
+		if (closest_i != NULL_HANDLE && closest_dist < 2.0)
+			toggle_bool(&m->vertices[closest_i].selected);
+	}
+
+	// Draw vertices
+	if (*is_edit_mode) {
+		for (U32 i = 0; i < m->mesh_v_count; ++i) {
+			TriMeshVertex *v = &m->vertices[i];
+			V3d p = vertex_world_pos(m, i);
+			draw_mesh_vertex(p, v->selected, WORLD_DEBUG_VISUAL_LAYER + 1);
+		}
+	}
+	
+exit:
+	gui_end_editorbox(ctx->gui);
+}
+
+void do_mesh_editor(U32 *model_h, bool *is_edit_mode, bool active)
+{
+	GuiContext *ctx = g_env.uicontext->gui;
+	bool changed = false;
+
+	if (active) {
+		gui_mesh_overlay(model_h, is_edit_mode);
+
+		ModelEntity *m = NULL;
+		if (*model_h != NULL_HANDLE)
+			m = get_modelentity(*model_h);
+
+		gui_uvbox(g_env.uicontext->gui, m, false);
+		gui_uvbox(g_env.uicontext->gui, m, true);
+
+		gui_begin_panel(ctx, "model_settings");
+		if (m) {
+			Model *model = (Model*)substitute_res(res_by_name(g_env.resblob, ResType_Model, m->model_name));
+			Mesh *mesh = editable_model_mesh(m->model_name);
+
+			bool col_changed = false;
+			{ // Model settings
+				gui_label(ctx, "model_setting+l1|Model settings");
+				col_changed |= gui_slider(ctx, "model_setting+r|R", &model->color.r, 0.0, 1.0);
+				col_changed |= gui_slider(ctx, "model_setting+g|G", &model->color.g, 0.0, 1.0);
+				col_changed |= gui_slider(ctx, "model_setting+b|B", &model->color.b, 0.0, 1.0);
+				col_changed |= gui_slider(ctx, "model_setting+a|A", &model->color.a, 0.0, 1.0);
+
+				if (col_changed)
+					resource_modified(&model->res);
+			}
+
+			{ // Vertex attributes
+				V3f pos = {};
+				Color col = white_color();
+				Color outline_col = white_color();
+				F32 col_exp = 1.0;
+				F32 outline_exp = 1.0;
+				F32 outline_width = 1.0;
+				for (U32 i = 0; i < mesh->v_count; ++i) {
+					TriMeshVertex *v = &mesh_vertices(mesh)[i];
+					if (!v->selected)
+						continue;
+					pos = v->pos;
+					col = v->color;
+					outline_col = v->outline_color;
+					col_exp = v->color_exp;
+					outline_exp = v->outline_exp;
+					outline_width = v->outline_width;
+					break;
+				}
+
+				gui_label(ctx, "model_setting+l2|Vertex attributes");
+
+				bool v_x_changed = gui_slider(ctx, "model_setting+vx|X", &pos.x, -1.0, 1.0);
+				bool v_y_changed = gui_slider(ctx, "model_setting+vy|Y", &pos.y, -1.0, 1.0);
+				bool v_z_changed = gui_slider(ctx, "model_setting+vz|Z", &pos.z, -1.0, 1.0);
+
+				gui_label(ctx, "model_setting+l3|Color");
+				bool v_col_changed = false;
+				v_col_changed |= gui_slider(ctx, "model_setting+vr|R", &col.r, 0.0, 1.0);
+				v_col_changed |= gui_slider(ctx, "model_setting+vg|G", &col.g, 0.0, 1.0);
+				v_col_changed |= gui_slider(ctx, "model_setting+vb|B", &col.b, 0.0, 1.0);
+				v_col_changed |= gui_slider(ctx, "model_setting+va|A", &col.a, 0.0, 1.0);
+
+				bool col_exp_changed = gui_slider(ctx, "model_setting+vexp|Color exp", &col_exp, 0.0, 5.0);
+
+				gui_label(ctx, "model_setting+l4|Outline color");
+				bool v_out_col_changed = false;
+				v_out_col_changed |= gui_slider(ctx, "model_setting+vor|R", &outline_col.r, 0.0, 1.0);
+				v_out_col_changed |= gui_slider(ctx, "model_setting+vog|G", &outline_col.g, 0.0, 1.0);
+				v_out_col_changed |= gui_slider(ctx, "model_setting+vob|B", &outline_col.b, 0.0, 1.0);
+				v_out_col_changed |= gui_slider(ctx, "model_setting+voa|A", &outline_col.a, 0.0, 1.0);
+
+				bool outline_exp_changed = gui_slider(ctx, "model_setting+voe|Outline exp", &outline_exp, 0.0, 5.0);
+				bool outline_width_changed = gui_slider(ctx, "model_setting+vow|Outline width", &outline_width, 0.0, 50.0);
+
+				for (U32 i = 0; i < mesh->v_count; ++i) {
+					TriMeshVertex *v = &mesh_vertices(mesh)[i];
+					if (!v->selected)
+						continue;
+
+					if (v_x_changed)
+						v->pos.x = pos.x;
+					if (v_y_changed)
+						v->pos.y = pos.y;
+					if (v_z_changed)
+						v->pos.z = pos.z;
+					if (v_col_changed)
+						v->color = col;
+					if (v_out_col_changed)
+						v->outline_color = outline_col;
+					if (col_exp_changed)
+						v->color_exp = col_exp;
+					if (outline_exp_changed)
+						v->outline_exp = outline_exp;
+					if (outline_width_changed)
+						v->outline_width = outline_width;
+				}
+
+				changed |= col_changed || v_x_changed || v_y_changed || v_z_changed || v_col_changed || v_out_col_changed || col_exp_changed || outline_exp_changed || outline_width_changed;
+			}
+
+			if (changed) {
+				resource_modified(&mesh->res);
+				recache_ptrs_to_meshes();
+			}
+		}
+		gui_end_panel(ctx);
+	}
+
+	// Draw mesh
+	if (*model_h != NULL_HANDLE) {
+		ModelEntity	*m = get_modelentity(*model_h);
+		Color fill_color = {0.6, 0.6, 0.8, 0.4};
+		if (!*is_edit_mode)
+			fill_color = (Color) {1.0, 0.8, 0.5, 0.6};
+
+		Color poly_color = fill_color;
+		if (!active)
+			poly_color = inactive_color();
+
+		if (active)
+			ddraw_circle((Color) {1, 1, 1, 1}, m->tf.pos, editor_vertex_size()*0.5, WORLD_DEBUG_VISUAL_LAYER);
+
+		V3d poly[3];
+		for (U32 i = 0; i < m->mesh_i_count; ++i) {
+			U32 v_i = m->indices[i];
+			V3d p = vertex_world_pos(m, v_i);
+			poly[i%3] = p;
+
+			if (i % 3 == 2 && !changed)
+				ddraw_poly(poly_color, poly, 3, WORLD_DEBUG_VISUAL_LAYER);
+		}
+	}
+}
+
+// RigidBody editor
+
+internal V2d *rigidbody_vertices(U32 *count, RigidBody *body)
+{
+	V2d *v = ALLOC(frame_ator(), MAX_BODY_VERTICES*sizeof(*v), "body_vertices");
+	*count = 0;
+	RigidBodyDef *def =
+		(RigidBodyDef*)res_by_name(	g_env.resblob, ResType_RigidBodyDef, body->def_name);
+
+	for (U32 i = 0; i < def->poly_count; ++i) {
+		Poly p = def->polys[i];
+		for (U32 k = 0; k < p.v_count; ++k) {
+			v[(*count)++] = p.v[k];
+		}
+	}
+	for (U32 i = 0; i < def->circle_count; ++i) {
+		Circle c = def->circles[i];
+		V2d pos = c.pos;
+		v[(*count)++] = pos;
+		pos.x += c.rad;
+		v[(*count)++] = pos;
+	}
+
+	ensure(*count < MAX_BODY_VERTICES);
+
+	return v;
+}
+
+// Only moving vertices between rigidbody_vertices() and apply_rigidbody_vertices() is allowed
+internal void apply_rigidbody_vertices(RigidBody *body, V2d *vertices, U32 count)
+{
+	ensure(count < MAX_BODY_VERTICES);
+
+	RigidBodyDef *def =
+		(RigidBodyDef*)substitute_res(res_by_name(	g_env.resblob,
+													ResType_RigidBodyDef, body->def_name));
+
+	U32 v_ix = 0;
+	for (U32 i = 0; i < def->poly_count; ++i) {
+		Poly *p = &def->polys[i];
+		for (U32 k = 0; k < p->v_count; ++k) {
+			V2d pos = vertices[v_ix++];
+			p->v[k] = pos;
+		}
+	}
+	for (U32 i = 0; i < def->circle_count; ++i) {
+		Circle *c = &def->circles[i];
+		V2d pos = vertices[v_ix++];
+		V2d arc = vertices[v_ix++];
+		c->pos = pos;
+		c->rad = dist_v2d(pos, arc);
+	}
+
+	ensure(v_ix == count);
+
+	resource_modified(&def->res);
+	recache_ptrs_to_rigidbodydef(def); // Apply changes to physics world
+}
+
+void do_body_editor(BodyEditor *editor, bool is_edit_mode, bool active)
+{
+	if (active) {
+		UiContext *ctx = g_env.uicontext;
+
+		const char *box_label = "editor_overlay_box";
+		EditorBoxState state = gui_begin_editorbox(ctx->gui, NULL, NULL, box_label, true);
+
+		if (!is_edit_mode && state.down) { // Body select mode
+			V2d p = screen_to_world_point(ctx->dev.cursor_pos);
+			U32 count;
+			QueryInfo *q = query_bodies(&count, p, 0.0);
+			if (count > 0) {
+				Handle h = rigidbody_handle(q->body);
+				if (h != editor->body_h)
+					memset(editor->vertex_selected, 0, sizeof(editor->vertex_selected));
+
+				editor->body_h = h;
+			}
+		}
+
+		RigidBody *body = NULL;
+		if (editor->body_h != NULL_HANDLE)
+			body = get_rigidbody(editor->body_h);
+
+		if (is_edit_mode && body && state.pressed) {
+			// Control vertex selection
+			F64 closest_dist = 0;
+			U32 closest_i = NULL_HANDLE;
+			U32 vertex_count;
+			V2d *vertices = rigidbody_vertices(&vertex_count, body);
+			for (U32 i = 0; i < vertex_count; ++i) {
+				V2d pos = v3d_to_v2d(transform_v3d(body->tf, v2d_to_v3d(vertices[i])));
+				F64 dist = dist_sqr_v2d(pos, screen_to_world_point(ctx->dev.cursor_pos));
+				if (closest_i == NULL_HANDLE || dist < closest_dist) {
+					closest_i = i;
+					closest_dist = dist;
+				}
+			}
+
+			if (!ctx->dev.shift_down) {
+				for (U32 i = 0; i < vertex_count; ++i)
+					editor->vertex_selected[i] = false;
+			}
+
+			if (closest_dist < 100*100) {
+				ensure(closest_i != NULL_HANDLE);
+				toggle_bool(&editor->vertex_selected[closest_i]);
+			}
+		}
+
+		// Move vertices
+		if (is_edit_mode && body) {
+			T3f delta;
+			if (cursor_transform_delta_world(&delta, box_label, body->tf)) {
+				U32 count;
+				V2d *vertices = rigidbody_vertices(&count, body);
+				transform_poly(vertices, editor->vertex_selected, count, delta);
+				apply_rigidbody_vertices(body, vertices, count);
+			}
+		}
+
+		gui_end_editorbox(ctx->gui);
+	}
+
+	// Draw shapes and vertices
+	if (editor->body_h != NULL_HANDLE) {
+		RigidBody *body = get_rigidbody(editor->body_h);
+
+		Color fill_color = {0.6, 0.6, 0.8, 0.4};
+		if (!is_edit_mode)
+			fill_color = (Color) {1.0, 0.8, 0.5, 0.6};
+
+		Color poly_color = fill_color;
+		if (!active)
+			poly_color = inactive_color();
+
+		for (U32 i = 0; i < body->poly_count; ++i) {
+			Poly poly = body->polys[i];
+			V3d v[poly.v_count];
+			for (U32 k = 0; k < poly.v_count; ++k) {
+				v[k] = transform_v3d(body->tf, v2d_to_v3d(poly.v[k]));
+			}
+
+			ddraw_poly(poly_color, v, poly.v_count, WORLD_DEBUG_VISUAL_LAYER);
+		}
+
+		for (U32 i = 0; i < body->circle_count; ++i) {
+			Circle circle = body->circles[i];
+			V3d pos = transform_v3d(body->tf, v2d_to_v3d(circle.pos));
+			ddraw_circle(poly_color, pos, circle.rad, WORLD_DEBUG_VISUAL_LAYER);
+
+		}
+
+		if (is_edit_mode) {
+			U32 vertex_count;
+			V2d *vertices = rigidbody_vertices(&vertex_count, body);
+			ensure(vertex_count <= MAX_BODY_VERTICES);
+			for (U32 i = 0; i < vertex_count; ++i) {
+				V3d pos = transform_v3d(body->tf, v2d_to_v3d(vertices[i]));
+				draw_mesh_vertex(	pos, editor->vertex_selected[i],
+									WORLD_DEBUG_VISUAL_LAYER + 1);
+			}
+		}
+	}
+}
+
+
+// Armature editor
+
+internal
+Clip *get_modifiable_clip(const char *name)
+{
+	return (Clip*)substitute_res(res_by_name(	g_env.resblob,
+												ResType_Clip,
+												name));
+}
+
+// Armature editing on world
+// Returns true if editing is actively happening 
+internal
+bool gui_armature_overlay(ArmatureEditor *state, bool is_edit_mode)
+{
+	bool editing_happening = false;
+	UiContext *ctx = g_env.uicontext;
+	V3d cur_wp = v2d_to_v3d(screen_to_world_point(ctx->dev.cursor_pos));
+
+	const char *box_label = "editor_overlay_box";
+	EditorBoxState bstate =
+		gui_begin_editorbox(ctx->gui, NULL, NULL, box_label, true);
+
+	if (!is_edit_mode) {
+		if (bstate.down)
+			state->comp_h = find_compentity_at_pixel(ctx->dev.cursor_pos);
+	}
+	
+	CompEntity *entity = NULL;
+	if (state->comp_h != NULL_HANDLE)
+		entity = get_compentity(state->comp_h);
+	else
+		goto exit;
+	Armature *a = (Armature*)substitute_res(&entity->armature->res);
+	T3d global_pose[MAX_ARMATURE_JOINT_COUNT];
+	calc_global_pose(global_pose, entity);
+
+	if (ctx->dev.toggle_select_all) {
+		if (is_edit_mode) {
+			bool some_selected = false;
+			for (U32 i = 0; i < a->joint_count; ++i) {
+				if (a->joints[i].selected)
+					some_selected = true;
+			}
+			for (U32 i = 0; i < a->joint_count; ++i)
+				a->joints[i].selected = !some_selected;
+		} else {
+			state->comp_h = NULL_HANDLE;
+			goto exit;
+		}
+	}
+
+	if (is_edit_mode) {
+		for (U32 i = 0; i < a->joint_count; ++i) {
+			if (!a->joints[i].selected)
+				continue;
+
+			CursorDeltaMode m = cursor_delta_mode(box_label);
+			if (!m)
+				continue;
+
+			editing_happening = true;
+
+			if (state->clip_is_bind_pose) {
+				resource_modified(&a->res);
+				// Modify bind pose
+
+				T3d coords = entity->tf;
+				U32 super_i = a->joints[i].super_id;
+				if (super_i != NULL_JOINT_ID) {
+					coords = global_pose[super_i];
+					coords.pos = global_pose[i].pos; 
+				}
+
+				T3f delta;
+				cursor_transform_delta_world(&delta, box_label, coords);
+				V3f translation = delta.pos;
+				{ // `translation` from cur pose coords to bind pose coords
+					T3f to_bind = inv_t3f(entity->pose.tf[i]);
+					V3f a = transform_v3f(to_bind, (V3f) {0, 0, 0});
+					V3f b = transform_v3f(to_bind, translation);
+					translation = sub_v3f(b, a);
+				}
+				delta.pos = translation;
+
+				T3f *bind_tf = &a->joints[i].bind_pose;
+				bind_tf->pos = add_v3f(delta.pos, bind_tf->pos);
+				bind_tf->rot = mul_qf(delta.rot, bind_tf->rot);
+				bind_tf->scale = mul_v3f(delta.scale, bind_tf->scale);
+			} else {
+				// Modify/create keyframe
+
+				T3d coords = global_pose[i];
+				T3f delta;
+				cursor_transform_delta_world(&delta, box_label, coords);
+				V3f translation = delta.pos;
+				{ // Not sure what happens here. It's almost the same as bind pose modifying, but with inverse transform...
+					T3f from_bind = entity->pose.tf[i];
+					V3f a = transform_v3f(from_bind, (V3f) {0, 0, 0});
+					V3f b = transform_v3f(from_bind, translation);
+					translation = sub_v3f(b, a);
+				}
+				delta.pos = translation;
+
+				const T3f base = entity->pose.tf[i];
+
+				Clip_Key key = { .time = state->clip_time };
+				fmt_str(key.joint_name, sizeof(key.joint_name), "%s", a->joint_names[i]);
+
+				switch (m) {
+				case CursorDeltaMode_scale:
+					key.type = Clip_Key_Type_scale;
+					key.value.scale = mul_v3f(delta.scale, base.scale);
+					entity->pose.tf[i].scale = key.value.scale;
+				break;
+				case CursorDeltaMode_rotate:
+					key.type = Clip_Key_Type_rot;
+					key.value.rot = mul_qf(delta.rot, base.rot);
+					entity->pose.tf[i].rot = key.value.rot;
+				break;
+				case CursorDeltaMode_translate:
+					key.type = Clip_Key_Type_pos;
+					key.value.pos = add_v3f(delta.pos, base.pos);
+					entity->pose.tf[i].pos = key.value.pos;
+				break;
+				default: fail("Unknown CursorDeltaMode: %i", m);
+				}
+
+				Clip *clip = get_modifiable_clip(state->clip_name);
+				update_rt_clip_key(clip, key);
+			}
+		}
+	}
+
+	if (is_edit_mode && bstate.pressed) {
+		// Control joint selection
+		F64 closest_dist = 0;
+		U32 closest_i = NULL_HANDLE;
+		for (U32 i = 0; i < a->joint_count; ++i) {
+			V3d pos = global_pose[i].pos;
+
+			F64 dist = dist_sqr_v3d(pos, cur_wp);
+			if (	closest_i == NULL_HANDLE ||
+					dist < closest_dist) {
+				closest_i = i;
+				closest_dist = dist;
+			}
+		}
+
+		if (!ctx->dev.shift_down) {
+			for (U32 i = 0; i < a->joint_count; ++i)
+				a->joints[i].selected = false;
+		}
+
+		if (closest_dist < 2.0) {
+			ensure(closest_i != NULL_HANDLE);
+			toggle_bool(&a->joints[closest_i].selected);
+		}
+	}
+	
+exit:
+	gui_end_editorbox(ctx->gui);
+
+	return editing_happening;
+}
+
+void do_armature_editor(	ArmatureEditor *state,
+							bool is_edit_mode,
+							bool active)
+{
+	UiContext *ctx = g_env.uicontext;
+	GuiContext *gui = ctx->gui;
+
+	if (active) {
+		bool editing_happening = gui_armature_overlay(state, is_edit_mode);
+
+		CompEntity *entity = NULL;
+		Armature *a = NULL;
+		if (state->comp_h != NULL_HANDLE) {
+			entity = get_compentity(state->comp_h);
+			a = entity->armature;	
+		}
+
+		{ // Timeline box
+			gui_begin(gui, "timeline");
+			V2i px_pos, px_size;
+			gui_turtle_pos(gui, &px_pos.x, &px_pos.y);
+			gui_turtle_size(gui, &px_size.x, &px_size.y);
+
+			drawcmd_px_quad(px_pos, px_size, 0.0, panel_color(), outline_color(panel_color()), gui_layer(gui));
+
+			if (strlen(state->clip_name) == 0)
+				fmt_str(state->clip_name, RES_NAME_SIZE, "%s", "bind_pose");
+
+			U32 clip_count;
+			Clip **clips = (Clip **)all_res_by_type(&clip_count,
+													g_env.resblob,
+													ResType_Clip);
+
+			// Listbox containing all animation clips
+			if (gui_begin_combo(gui, gui_str(gui, "clip_button+list|Clip: %s", state->clip_name))) {
+				for (U32 i = 0; i < clip_count + 1; ++i) {
+					const char *name = "bind_pose";
+					if (i < clip_count)
+						name = clips[i]->res.name;
+					if (gui_combo_item(gui, name))
+						fmt_str(state->clip_name, RES_NAME_SIZE, "%s", name);
+				}
+				gui_end_combo(gui);
+			}
+
+			state->clip_is_bind_pose = !strcmp(state->clip_name, "bind_pose");
+
+			// "Make looping", "Delete" and "Play" -buttons
+			if (!state->clip_is_bind_pose) {
+				if (gui_button(gui, "clip_button+looping|Make looping")) {
+					Clip *clip = get_modifiable_clip(state->clip_name);
+					make_rt_clip_looping(clip);
+				}
+
+				if (	gui_button(gui, "clip_button+del|Delete key <x>")
+						|| ctx->dev.delete) {
+
+					Clip *clip = get_modifiable_clip(state->clip_name);
+
+					// Delete all keys of selected joints at current time
+					bool key_deleted;
+					do {
+						key_deleted = false;
+						for (U32 i = 0; i < clip->key_count; ++i) {
+							Clip_Key key = clip_keys(clip)[i];
+							if (	key.time == state->clip_time &&
+									a->joints[joint_id_by_name(a, key.joint_name)].selected) {
+								delete_rt_clip_key(clip, i);
+								key_deleted = true;
+								break;
+							}
+						}
+					} while (key_deleted);
+				}
+
+				if (	gui_button(gui,	gui_str(gui, "clip_button+play|%s",
+							state->is_playing ? "Pause <space>" : "Play <space>"))
+						|| ctx->dev.toggle_play)
+					toggle_bool(&state->is_playing);
+			}
+
+			// Selected joints
+			if (a && is_edit_mode) {
+				gui_label(gui, "clip_button+info| Selected joints: ");
+				int count = 0;
+				for (U32 i = 0; i < a->joint_count; ++i) {
+					if (!a->joints[i].selected)
+						continue;
+					if (count > 0)
+						gui_label(gui, gui_str(gui, "clip_button+info_%i|, ", i));
+					gui_label(gui, gui_str(gui, "clip_button+joint|%s", a->joint_names[i]));
+					++count;
+				}
+			}
+
+			// Interior of timeline
+			px_pos.x += 10;
+			px_pos.y += 27;
+			px_size.x -= 20;
+			px_size.y -= 27;
+			Color c = darken_color(panel_color());
+			drawcmd_px_quad(px_pos, px_size, 0.0, c, outline_color(c), gui_layer(gui) + 1);
+			const char *clip_timeline_label = "clip_timeline";
+			EditorBoxState bstate =
+				gui_begin_editorbox(g_env.uicontext->gui, NULL, NULL, clip_timeline_label, true);
+			if (entity && a) {
+				if (state->clip_is_bind_pose) {
+					entity->pose = identity_pose();
+					state->is_playing = false;
+				} else {
+					const Clip *clip =
+						(Clip*)substitute_res(res_by_name(	g_env.resblob,
+															ResType_Clip,
+															state->clip_name));
+
+					if (bstate.ldown) { // LMB
+						// Set time
+						F64 lerp = (F64)(g_env.uicontext->dev.cursor_pos.x -
+										px_pos.x)/px_size.x;
+						F64 t = lerp*clip->duration;
+						if (ctx->dev.snap_to_closest) {
+							F64 closest_t = -1000000;
+							for (U32 i = 0; i < clip->key_count; ++i) {
+								F64 key_t = clip_keys(clip)[i].time;
+								if (	ABS(t - key_t) <
+										ABS(t - closest_t))
+									closest_t = key_t;
+							}
+							t = closest_t;
+						}
+						state->clip_time = CLAMP(t, 0, clip->duration);
+					}
+
+					// Move keys
+					CursorDeltaMode m = cursor_delta_mode(clip_timeline_label);
+					if (m == CursorDeltaMode_translate) {
+						Clip *clip = get_modifiable_clip(state->clip_name);
+
+						T3d coords = {{1, 1, 1}, identity_qd(), {0, 0, 0}};
+						T3f delta;
+						cursor_transform_delta_pixels(	&delta,
+														clip_timeline_label,
+														coords);
+						const F64 dt = clip->duration*delta.pos.x/px_size.x;
+						const F64 target_t =
+							CLAMP(state->clip_time + dt, 0, clip->duration);
+						move_rt_clip_keys(clip, state->clip_time, target_t);
+						state->clip_time = target_t;
+					}
+
+					// Show keys
+					for (U32 key_i = 0; key_i < clip->key_count; ++key_i) {
+						Clip_Key key = clip_keys(clip)[key_i];
+						JointId joint_id = joint_id_by_name(a, key.joint_name);
+
+						F64 lerp_x = key.time/clip->duration;
+						F64 lerp_y = (F64)joint_id/clip->joint_count;
+						V2i pos = {
+							px_pos.x + px_size.x*lerp_x - 3,
+							px_pos.y + px_size.y*lerp_y - 6 + 4*key.type
+						};
+						V2i size = {6, 3};
+
+						Color color = (Color [4]) {
+							{}, // none
+							{1.0, 0.0, 0.0, 1.0}, // scale
+							{0.0, 1.0, 0.0, 1.0}, // rot
+							{0.0, 0.0, 1.0, 1.0}, // pos
+						}[key.type];
+						if (key.time == state->clip_time && a->joints[joint_id].selected) {
+							color = (Color) {1.0, 1.0, 1.0, 1.0};
+							size.y += 5;
+						}
+						drawcmd_px_quad(pos, size, 0.0, color, color, gui_layer(gui) + 2);
+					}
+
+					// Update animation to CompEntity when not actively editing
+					// This because calculated pose doesn't exactly match
+					// with keys (discretization error) and causes feedback loop
+					if (state->is_playing)
+						state->clip_time += g_env.device->dt;
+					while (state->clip_time > clip->duration)
+						state->clip_time -= clip->duration;
+					if (!editing_happening)
+						entity->pose = calc_clip_pose(clip, state->clip_time);
+
+					// Show timeline cursor
+					F64 lerp = state->clip_time/clip->duration;
+					V2i time_cursor_pos = {
+						px_pos.x + px_size.x*lerp - 1, px_pos.y
+					};
+					Color c = {1, 1, 0, 0.8};
+					drawcmd_px_quad(time_cursor_pos, (V2i){2, px_size.y}, 0.0,
+									c, c, gui_layer(gui) + 3);
+				}
+			}
+
+			gui_end_editorbox(gui);
+			gui_end(gui);
+		}
+	}
+
+	// Draw armature
+	if (state->comp_h != NULL_HANDLE){
+		CompEntity *entity = get_compentity(state->comp_h);
+		Armature *a = entity->armature;
+		T3d global_pose[MAX_ARMATURE_JOINT_COUNT];
+		calc_global_pose(global_pose, entity);
+
+		Color default_color = {0.6, 0.6, 0.8, 0.8};
+		Color selected_color = {1.0, 0.8, 0.5, 0.7};
+		Color line_color = {0.0, 0.0, 0.0, 1.0};
+		Color orientation_color = {1.0, 1.0, 1.0, 0.8};
+		if (!is_edit_mode)
+			line_color = selected_color;
+		if (!active) {
+			default_color = inactive_color();
+			selected_color = inactive_color();
+			line_color = inactive_color();
+		}
+
+		F64 rad = editor_vertex_size()*3;
+		for (U32 i = 0; i < a->joint_count; ++i) {
+			V3d p = global_pose[i].pos;
+
+			const U32 v_count = 15;
+			V3d v[v_count];
+			for (U32 i = 0; i < v_count; ++i) {
+				F64 a = i*3.141*2.0/v_count;
+				v[i].x = p.x + cos(a)*rad;
+				v[i].y = p.y + sin(a)*rad;
+				v[i].z = 0.0;
+			}
+
+			Color c = default_color;
+			if (a->joints[i].selected || !is_edit_mode)
+				c = selected_color;
+			ddraw_poly(c, v, v_count, WORLD_DEBUG_VISUAL_LAYER);
+
+			V3d end_p = transform_v3d(global_pose[i], (V3d) {rad, 0, 0});
+			ddraw_line(orientation_color, p, end_p, WORLD_DEBUG_VISUAL_LAYER);
+
+			if (a->joints[i].super_id != NULL_JOINT_ID) {
+				ddraw_line(	line_color,
+							p,
+							global_pose[a->joints[i].super_id].pos,
+							WORLD_DEBUG_VISUAL_LAYER);
+			}
+		}
+	}
+}
+
