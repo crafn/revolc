@@ -1,4 +1,3 @@
-#include "armature_editor.h"
 #include "core/basic.h"
 #include "core/device.h"
 #include "core/memory.h"
@@ -9,7 +8,6 @@
 #include "global/env.h"
 #include "global/module.h"
 #include "global/rtti.h"
-#include "mesh_editor.h"
 #include "physics/physworld.h"
 #include "physics/chipmunk_util.h"
 #include "ui/gui.h"
