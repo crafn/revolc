@@ -255,7 +255,25 @@ cpBody *cp_create_body(cpSpace *space, float mass, float moment, bool is_static)
 internal
 void cp_destroy_body(cpSpace *space, cpBody *body)
 {
+	PhysWorld *w = g_env.physworld;
+
 	cp_destroy_body_shapes(space, body);
+
+	// Possible bottleneck, because essentially O(n^2) when destroying world
+	for (U32 i = 0; i < w->existing_joints.size;) {
+		JointInfo info = w->existing_joints.data[i];
+		if (info.body_a == body || info.body_b == body)
+			fast_erase_array(JointInfo)(&w->existing_joints, i);
+		else
+			++i;
+	}
+	for (U32 i = 0; i < w->used_joints.size;) {
+		JointInfo info = w->used_joints.data[i];
+		if (info.body_a == body || info.body_b == body)
+			fast_erase_array(JointInfo)(&w->used_joints, i);
+		else
+			++i;
+	}
 	cpBodyEachConstraint(body, cp_remove_constraint, NULL);
 
 	cpSpaceRemoveBody(space, body);
@@ -277,6 +295,9 @@ void create_physworld()
 		.sizeof_grid = sizeof(w->grid.cells),
 	};
 
+	w->used_joints = create_array(JointInfo)(gen_ator(), MAX_JOINT_COUNT);
+	w->existing_joints = create_array(JointInfo)(gen_ator(), MAX_JOINT_COUNT);
+
 	w->cp_space = cpSpaceNew();
 	cpSpaceSetIterations(w->cp_space, 10);
 	cpSpaceSetGravity(w->cp_space, cpv(0, -25));
@@ -293,8 +314,6 @@ void create_physworld()
 		cpBodySetUserData(w->cp_ground_body, &w->ground_body.cp_data);
 	}
 
-	w->used_joints = create_array(JointInfo)(gen_ator(), MAX_JOINT_COUNT);
-	w->existing_joints = create_array(JointInfo)(gen_ator(), MAX_JOINT_COUNT);
 
 #ifdef USE_FLUID
 	{ // Fluid proto
@@ -316,16 +335,17 @@ void destroy_physworld()
 {
 	PhysWorld *w = g_env.physworld;
 	ensure(w);
-	g_env.physworld = NULL;
-
-	destroy_array(JointInfo)(&w->used_joints);
-	destroy_array(JointInfo)(&w->existing_joints);
 
 	cp_destroy_body(w->cp_space, w->cp_ground_body);
 
 	cpSpaceFree(w->cp_space);
 
+	destroy_array(JointInfo)(&w->used_joints);
+	destroy_array(JointInfo)(&w->existing_joints);
+
 	FREE(gen_ator(), w);
+
+	g_env.physworld = NULL;
 }
 
 internal
@@ -481,6 +501,13 @@ U32 resurrect_rigidbody(const RigidBody *dead)
 
 	return h;
 }
+
+#if 0
+// @todo Implement overwrite to stop destroying and recreating rigidbodies on world delta applying
+void overwrite_rigidbody(RigidBody *body, const RigidBody *dead)
+{
+}
+#endif
 
 void free_rigidbody(Handle h)
 {
@@ -679,11 +706,8 @@ void upd_physworld(F64 dt)
 				// Destroy joint
 				ensure(k < w->existing_joints.size);
 
-				// We must check existence of the joint, because body might've been destroyed and the joint with it.
-				if (cpSpaceContainsConstraint(w->cp_space, existing.cp_joint)) {
-					cpSpaceRemoveConstraint(w->cp_space, existing.cp_joint);
-					cpConstraintFree(existing.cp_joint);
-				}
+				cpSpaceRemoveConstraint(w->cp_space, existing.cp_joint);
+				cpConstraintFree(existing.cp_joint);
 
 				erase_array(JointInfo)(&w->existing_joints, k, 1);
 				++i;

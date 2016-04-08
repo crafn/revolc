@@ -474,6 +474,8 @@ void upd_editor(F64 *world_dt)
 					load_world_from_file(g_env.world, SAVEFILE_PATH);
 				}
 
+				gui_slider_double(ctx, "world_tool_elem+net_delta|Net delta interval", &g_env.netstate->delta_interval, 0.1, 5.0);
+
 			gui_end_panel(ctx);
 
 			if (world_has_input()) {

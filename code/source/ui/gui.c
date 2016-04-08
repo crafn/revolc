@@ -1426,6 +1426,15 @@ GUI_BOOL gui_slider(GuiContext *ctx, const char *label, float *value, float min,
 	return gui_slider_ex(ctx, label, value, min, max, 0.1f, GUI_FALSE, 0, GUI_TRUE);
 }
 
+GUI_BOOL gui_slider_double(GuiContext *ctx, const char *label, double *value, double min, double max)
+{
+	// @todo gui_slider_ex should use doubles instead of floats
+	float val = *value;
+	GUI_BOOL ret = gui_slider_ex(ctx, label, &val, min, max, 0.1f, GUI_FALSE, 0, GUI_TRUE);
+	*value = val;
+	return ret;
+}
+
 static GUI_BOOL gui_textfield_ex(GuiContext *ctx, const char *label, char *buf, int buf_size, GUI_BOOL int_only, GUI_BOOL *input_completed)
 {
 	GUI_BOOL content_changed = GUI_FALSE;

@@ -24,6 +24,7 @@ void * push_dyn_array(
 #define pop_array(V) JOIN3(pop_, V, _array)
 #define insert_array(V) JOIN3(insert_, V, _array)
 #define erase_array(V) JOIN3(erase_, V, _array)
+#define fast_erase_array(V) JOIN3(fast_erase_, V, _array)
 #define copy_array(V) JOIN3(copy_, V, _array)
 #define clear_array(V) JOIN3(clear_, V, _array)
 // Internal
@@ -44,6 +45,7 @@ REVOLC_API void push_array(V)(Array(V) *arr, V value);\
 REVOLC_API V pop_array(V)(Array(V) *arr);\
 REVOLC_API void insert_array(V)(Array(V) *arr, U32 at_place, V *values, U32 value_count);\
 REVOLC_API void erase_array(V)(Array(V) *arr, U32 at_place, U32 erase_count);\
+REVOLC_API void fast_erase_array(V)(Array(V) *arr, U32 at_place);\
 REVOLC_API Array(V) copy_array(V)(Array(V) *arr);\
 REVOLC_API void clear_array(V)(Array(V) *arr);\
 
@@ -104,6 +106,13 @@ void erase_array(V)(Array(V) *arr, U32 at_place, U32 erase_count)\
 	ensure(at_place + erase_count <= arr->size);\
 	memmove(arr->data + at_place, arr->data + at_place + erase_count, sizeof(*arr->data)*(arr->size - at_place - erase_count));\
 	arr->size -= erase_count;\
+}\
+void fast_erase_array(V)(Array(V) *arr, U32 at_place)\
+{\
+	ensure(arr);\
+	ensure(at_place < arr->size);\
+	memmove(arr->data + at_place, arr->data + arr->size - 1, sizeof(*arr->data));\
+	--arr->size;\
 }\
 V pop_array(V)(Array(V) *arr)\
 {\
