@@ -279,6 +279,9 @@ void upd_editor(F64 *world_dt)
 		}
 
 		if (g_env.device->key_pressed[KEY_F9]) {
+			bool tmp = g_env.os_allocs_forbidden;
+			g_env.os_allocs_forbidden = false;
+
 			system("cd ../../code && clbs debug mod");
 			make_main_blob(blob_path(g_env.game), g_env.game);
 
@@ -286,9 +289,14 @@ void upd_editor(F64 *world_dt)
 				critical_print("Current resblob has unsaved modifications -- not reloading");
 			else
 				reload_blob(&g_env.resblob, g_env.resblob, blob_path(g_env.game));
+
+			g_env.os_allocs_forbidden = tmp;
 		}
 
 		if (g_env.device->key_pressed[KEY_F12]) {
+			bool tmp = g_env.os_allocs_forbidden;
+			g_env.os_allocs_forbidden = false;
+
 			U32 count;
 			Module **modules = (Module**)all_res_by_type(&count,
 														g_env.resblob,
@@ -304,6 +312,8 @@ void upd_editor(F64 *world_dt)
 				critical_print("Current resblob has unsaved modifications -- not reloading");
 			else
 				reload_blob(&g_env.resblob, g_env.resblob, blob_path(g_env.game));
+
+			g_env.os_allocs_forbidden = tmp;
 		}
 	}
 

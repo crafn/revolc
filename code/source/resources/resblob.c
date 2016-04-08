@@ -25,6 +25,30 @@ void init_res(Resource *res)
 #undef RESOURCE
 }
 
+internal void recache_ptrs_to_all_resources()
+{
+#define RESOURCE(rtype, init, deinit, blobify, deblobify, recache) \
+	{ \
+		void (*fptr)() = recache; \
+		if (fptr) \
+			fptr();\
+	}
+#	include "resources/resources.def"
+#undef RESOURCE
+}
+
+internal void recache_ptrs_to(Resource *res)
+{
+#define RESOURCE(rtype, init, deinit, blobify, deblobify, recache) \
+	{ \
+		void (*fptr)() = recache; \
+		if (fptr && ResType_ ## rtype == res->type) \
+			fptr();\
+	}
+#	include "resources/resources.def"
+#undef RESOURCE
+}
+
 Resource * res_by_index(const ResBlob *blob, U32 index)
 {
 	ensure(index < blob->res_count);
@@ -125,8 +149,11 @@ void reload_blob(ResBlob **new_blob, ResBlob *old_blob, const char *path)
 	load_blob(new_blob, path);
 
 	{ // Update old res pointers to new blob
+		// @todo Remove these. The work should be done by recache functions.
 		renderer_on_res_reload();
 		world_on_res_reload(old_blob);
+
+		recache_ptrs_to_all_resources();
 	}
 
 	free_blob(old_blob);
@@ -483,18 +510,6 @@ bool inside_blob(const ResBlob *blob, void *ptr)
 	if ((U8*)ptr >= (U8*)blob && (U8*)ptr < (U8*)blob + blob->size)
 		return true;
 	return false;
-}
-
-internal void recache_ptrs_to(Resource *res)
-{
-#define RESOURCE(rtype, init, deinit, blobify, deblobify, recache) \
-	{ \
-		void (*fptr)() = recache; \
-		if (fptr && ResType_ ## rtype == res->type) \
-			fptr();\
-	}
-#	include "resources/resources.def"
-#undef RESOURCE
 }
 
 Resource *substitute_res(Resource *res)

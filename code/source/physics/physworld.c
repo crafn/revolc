@@ -606,8 +606,8 @@ void upd_physworld(F64 dt)
 {
 	PhysWorld *w = g_env.physworld;
 
-	//dt = 1.0/60.0;
-	dt = MIN(dt, 1.0/30.0);
+	if (dt > 0.0)
+		dt = MIN(dt, 1.0/30.0);
 
 	for (U32 i = 0; i < MAX_RIGIDBODY_COUNT; ++i) {
 		RigidBody *b = &w->bodies[i];
@@ -694,9 +694,18 @@ void upd_physworld(F64 dt)
 	}
 
 	/// @todo Accumulation
-	/// @todo Reset torques etc. only after all timesteps are done
-	cpSpaceStep(w->cp_space, dt*0.5);
-	cpSpaceStep(w->cp_space, dt*0.5);
+	if (dt > 0.0) {
+		cpSpaceStep(w->cp_space, dt);
+	} else {
+		// Reset forces manually to prevent force accumulation on pause
+		for (U32 i = 0; i < MAX_RIGIDBODY_COUNT; ++i) {
+			RigidBody *b = &w->bodies[i];
+			if (!b->allocated)
+				continue;
+
+			cpBodySetForce(b->cp_body, cpvzero);
+		}
+	}
 
 	for (U32 i = 0; i < MAX_RIGIDBODY_COUNT; ++i) {
 		RigidBody *b = &w->bodies[i];
