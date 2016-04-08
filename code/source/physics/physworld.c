@@ -628,8 +628,6 @@ void upd_physworld(F64 dt)
 	}
 
 	{ // Create/destroy joints
-		// @todo Remove joints which were used, but body was destroyed after (or delay rigid body destruction).
-		//       Now just crashes.
 		// @todo Multiple joints of same type on single pair of bodies
 		// ^ that is forbidden because sorted order is degenerate -> comparing two lists with for-loop can fail
 
@@ -678,11 +676,14 @@ void upd_physworld(F64 dt)
 				++i;
 				++k;
 			} else {
+				// Destroy joint
 				ensure(k < w->existing_joints.size);
 
-				// Destroy joint
-				cpSpaceRemoveConstraint(w->cp_space, existing.cp_joint);
-				cpConstraintFree(existing.cp_joint);
+				// We must check existence of the joint, because body might've been destroyed and the joint with it.
+				if (cpSpaceContainsConstraint(w->cp_space, existing.cp_joint)) {
+					cpSpaceRemoveConstraint(w->cp_space, existing.cp_joint);
+					cpConstraintFree(existing.cp_joint);
+				}
 
 				erase_array(JointInfo)(&w->existing_joints, k, 1);
 				++i;

@@ -48,6 +48,7 @@ void set_constraint_max_force(Constraint *c, F64 force)
 
 void remove_constraint(Constraint *c)
 {
+	debug_print("Removing constraint %p", c);
 	cpSpaceRemoveConstraint(g_env.physworld->cp_space, c);
 	cpConstraintFree(c);
 }

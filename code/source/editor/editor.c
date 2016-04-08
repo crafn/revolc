@@ -428,6 +428,15 @@ void upd_editor(F64 *world_dt)
 				gui_checkbox(ctx, "world_tool_elem+prog|Show program state", &e->show_prog_state);
 				gui_checkbox(ctx, "world_tool_elem+nodes|Show nodes", &e->show_node_list);
 				gui_checkbox(ctx, "world_tool_elem+nodegroupdefs|Create NodeGroup", &e->show_nodegroupdef_list);
+				if (gui_button(ctx, "world_tool_elem+delete_nodes|Delete selected nodes")) {
+					for (U32 i = 0; i < MAX_NODE_COUNT; ++i) {
+						NodeInfo *info = &g_env.world->nodes[i];
+						if (!info->allocated || !info->selected)
+							continue;
+
+						free_node(g_env.world, i);
+					}
+				}
 				gui_checkbox(ctx, "world_tool_elem+cmds|Show commands", &e->show_cmd_list);
 				gui_checkbox(ctx, "world_tool_elem+create_cmd|Create command", &e->show_create_cmd);
 				if (gui_button(ctx, "world_tool_elem+delete_cmds|Delete selected commands")) {
