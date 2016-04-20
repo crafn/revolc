@@ -47,9 +47,11 @@ typedef struct DeadCmd {
 
 typedef struct DeadNode {
 	char type_name[RES_NAME_SIZE];
+	char group_def_name[RES_NAME_SIZE];
 	Id node_id;
 	Id group_id;
 	U8 peer_id;
+	U8 node_ix_in_group;
 
 	void *packed_impl; // frame-allocated
 	U32 packed_impl_size;
@@ -692,8 +694,10 @@ void make_deadnode(DeadNode *dead_node, World *w, NodeInfo *node)
 		.node_id = node->node_id,
 		.group_id = node->group_id,
 		.peer_id = node->peer_id,
+		.node_ix_in_group = node->node_ix_in_group,
 	};
 	fmt_str(dead_node->type_name, sizeof(dead_node->type_name), "%s", node->type_name);
+	fmt_str(dead_node->group_def_name, sizeof(dead_node->group_def_name), "%s", node->group_def_name);
 
 	NodeType *node_type = (NodeType*)res_by_name(
 							g_env.resblob,
@@ -763,7 +767,9 @@ void resurrect_deadnode(World *w, const DeadNode *dead_node)
 				dead_node->type_name),
 			dead_node->node_id,
 			dead_node->group_id,
-			dead_node->peer_id);
+			dead_node->peer_id,
+			dead_node->group_def_name,
+			dead_node->node_ix_in_group);
 
 	resurrect_deadnode_impl(w, node_h, dead_node);
 }
@@ -887,7 +893,9 @@ void create_nodes(	World *w,
 													node_def->type_name),
 							w->next_node_id++,
 							group_id,
-							peer_id);
+							peer_id,
+							def->res.name,
+							node_i);
 		handles[node_i] = h;
 		NodeInfo *node = &w->nodes[h];
 
@@ -1204,7 +1212,7 @@ void resurrect_node_impl(World *w, NodeInfo *n, void *dead_impl_bytes)
 	}
 }
 
-U32 alloc_node_without_impl(World *w, NodeType *type, U64 node_id, U64 group_id, U8 peer_id)
+U32 alloc_node_without_impl(World *w, NodeType *type, U64 node_id, U64 group_id, U8 peer_id, const char *group_def_name, U8 node_ix_in_group)
 {
 	if (w->node_count == MAX_NODE_COUNT)
 		fail("Too many nodes");
@@ -1215,8 +1223,10 @@ U32 alloc_node_without_impl(World *w, NodeType *type, U64 node_id, U64 group_id,
 		.node_id = node_id,
 		.group_id = group_id,
 		.peer_id = peer_id,
+		.node_ix_in_group = node_ix_in_group,
 	};
 	fmt_str(info.type_name, sizeof(info.type_name), "%s", type->res.name);
+	fmt_str(info.group_def_name, sizeof(info.group_def_name), "%s", group_def_name);
 	for (U32 i = 0; i < MAX_NODE_ASSOC_CMD_COUNT; ++i)
 		info.assoc_cmds[i] = NULL_HANDLE;
 

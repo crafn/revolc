@@ -98,12 +98,14 @@ void create_editor()
 	e->cur_model_h = NULL_HANDLE;
 	e->armature_editor.comp_h = NULL_HANDLE;
 	e->body_editor.body_h = NULL_HANDLE;
+	e->world_node_editor.selected_groups = create_array(U64)(dev_ator(), 32);
 
 	g_env.editor = e;
 }
 
 void destroy_editor()
 {
+	destroy_array(U64)(&g_env.editor->world_node_editor.selected_groups);
 	editor_free_res_state();
 	FREE(dev_ator(), g_env.editor);
 	g_env.editor = NULL;
@@ -257,6 +259,141 @@ internal void spawn_entity(World *world, ResBlob *blob, V2d pos)
 	NodeGroupDef *def =
 		(NodeGroupDef*)res_by_name(blob, ResType_NodeGroupDef, "phys_prop");
 	create_nodes(world, def, WITH_ARRAY_COUNT(init_vals), g_env.world->next_entity_id++, AUTHORITY_PEER);
+}
+
+internal bool node_world_pos(World *w, V3d *pos, NodeInfo *node)
+{
+	*pos = (V3d) {};
+
+	StructRtti *type = rtti_struct(node->type_name);
+	for (U32 i = 0; i < type->member_count; ++i) {
+		MemberRtti member = type->members[i];
+		if (member.ptr_depth != 0 || member.array_depth != 0)
+			continue;
+
+		if (!strcmp(member.name, "tf")) {
+			if (!strcmp(member.base_type_name, "T3d")) {
+				T3d val;
+				memcpy(&val, (U8*)node_impl(w, NULL, node) + member.offset, sizeof(val));
+				*pos = val.pos;
+				return true;
+			}
+		} else if (!strcmp(member.name, "pos")) {
+			if (!strcmp(member.base_type_name, "V2d")) {
+				memcpy(pos, (U8*)node_impl(w, NULL, node) + member.offset, sizeof(V2d));
+				return true;
+			} else if (!strcmp(member.base_type_name, "V3d")) {
+				memcpy(pos, (U8*)node_impl(w, NULL, node) + member.offset, sizeof(V3d));
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+typedef struct GroupNode {
+	Id group_id;
+	NodeInfo *nodeinfo;
+} GroupNode;
+
+int group_node_cmp(const void *a, const void *b)
+{
+	return CMP(	((GroupNode*)a)->group_id,
+				((GroupNode*)b)->group_id);
+}
+
+internal void do_world_node_editor(WorldNodeEditor *e)
+{
+	// Find groups
+	GroupNode *nodes = ALLOC(frame_ator(), sizeof(*nodes)*MAX_NODE_COUNT, "nodes");
+	U32 node_count = 0;
+	for (U32 i = 0; i < MAX_NODE_COUNT; ++i) {
+		NodeInfo *node = &g_env.world->nodes[i];
+		if (!node->allocated)
+			continue;
+
+		nodes[node_count++] = (GroupNode) {
+			.group_id = node->group_id,
+			.nodeinfo = node,
+		};
+	}
+
+	qsort(nodes, node_count, sizeof(*nodes), group_node_cmp);
+
+	// Gui for nodegroups
+	Id cur_group_id = NULL_ID;
+	for (U32 i = 0; i < node_count; ++i) {
+		NodeInfo *node = nodes[i].nodeinfo;
+
+		V3d pos;
+		if (!node_world_pos(g_env.world, &pos, node))
+			continue;
+
+		// Take only 1 node from group
+		if (nodes[i].group_id == cur_group_id)
+			continue;
+		cur_group_id = nodes[i].group_id;
+
+		V2i screen_pos = world_to_screen_point(v3d_to_v2d(pos));
+		if (	screen_pos.x < -100 || screen_pos.x > g_env.device->win_size.x ||
+				screen_pos.y < -100 || screen_pos.y > g_env.device->win_size.y)
+			continue;
+
+		/*bool selected = false;
+		Handle selected_ix = NULL_HANDLE;
+		for (U32 k = 0; k < e->selected_groups.size; ++k) {
+			if (e->selected_groups.data[k] == cur_group_id) {
+				selected = true;
+				selected_ix = k;
+				break;
+			}
+		}*/
+
+		GuiContext *ctx = g_env.uicontext->gui;
+		ctx->allow_next_window_outside = true;
+		ctx->create_next_window_minimized = true;
+		gui_set_turtle_pos(ctx, screen_pos.x, screen_pos.y);
+		gui_begin_window(ctx, gui_str(ctx, "world_node_group_win_%i|%s", cur_group_id, node->group_def_name));
+
+		V2i win_pos;
+		gui_window_pos(ctx, &win_pos.x, &win_pos.y);
+		V3d win_pos_in_world = v2d_to_v3d(screen_to_world_point(win_pos));
+		ddraw_line(black_color(), pos, win_pos_in_world, WORLD_DEBUG_VISUAL_LAYER);
+
+/*
+		if (gui_checkbox(ctx, 	gui_str(ctx, "world_node_group+%i|Selected",
+										cur_group_id, node->group_def_name),
+								&selected)) {
+			if (selected_ix != NULL_HANDLE)
+				fast_erase_array(U64)(&e->selected_groups, selected_ix);
+			else
+				push_array(U64)(&e->selected_groups, cur_group_id);
+		}
+*/
+
+		// Show nodes of the group
+		{
+			U32 k = i;
+			while (k < node_count && nodes[k].group_id == cur_group_id) {
+				NodeInfo *info = nodes[k].nodeinfo;
+
+				NodeGroupDef *def = (NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, info->group_def_name);
+				if (gui_begin_tree(	ctx, gui_str(ctx, "world_node_list_item+%i|(%s) %s",
+									info->node_id, info->type_name, def->nodes[info->node_ix_in_group].name))) {
+					info->selected = true;
+					gui_data_tree(ctx, info->type_name, node_impl(g_env.world, NULL, info), gui_str(ctx, "node_%i", info->node_id), NULL);
+					gui_end_tree(ctx);
+				} else {
+					info->selected = false;
+				}
+
+				++k;
+			}
+		}
+
+		gui_end_window(ctx);
+		gui_set_turtle_pos(ctx, 0, 0);
+	}
 }
 
 void upd_editor(F64 *world_dt)
@@ -647,6 +784,7 @@ void upd_editor(F64 *world_dt)
 				gui_end_window(ctx);
 			}
 
+			do_world_node_editor(&e->world_node_editor);
 		} else if (e->state == EditorState_gui_test) {
 			GuiContext *ctx = g_env.uicontext->gui;
 

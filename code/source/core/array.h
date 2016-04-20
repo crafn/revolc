@@ -137,5 +137,7 @@ void clear_array(V)(Array(V) *arr)\
 	arr->size = 0;\
 }\
 
+DECLARE_ARRAY(U32)
+DECLARE_ARRAY(U64)
 
 #endif // REVOLC_CORE_ARRAY_H

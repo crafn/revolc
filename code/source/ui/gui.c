@@ -390,8 +390,10 @@ GuiContext_Window *gui_window(GuiContext *ctx)
 void gui_win_dimension(GuiContext *ctx, int pos[2], int size[2], GuiContext_Window *win)
 {
 	GuiElementLayout layout = element_layout(ctx, win->label);
-	GUI_ASSIGN_V2(pos, layout.offset);
+	GUI_ASSIGN_V2(pos, win->recorded_pos);
 	GUI_ASSIGN_V2(size, layout.size);
+	if (win->minimized)
+		size[1] = win->bar_height;
 }
 
 // @note Change of focus is delayed by one frame (similar to activation)
@@ -444,6 +446,9 @@ GUI_BOOL gui_is_inside_window(GuiContext *ctx, int size[2])
 	GuiContext_Window *win = gui_window(ctx);
 	if (!win)
 		return GUI_TRUE; // @todo Use background size
+
+	if (win->minimized)
+		return GUI_FALSE;
 
 	int win_pos[2];
 	int win_size[2];
@@ -841,9 +846,10 @@ static void gui_begin_ex(GuiContext *ctx, const char *label, GUI_BOOL detached)
 		}
 
 		// Padding (= minimum distance from parent edges)
-
-		GUI_V2(new_turtle.pos[c] = GUI_MAX(new_turtle.pos[c], prev->pos[c] + prev->padding[c]));
-		GUI_V2(new_turtle.size[c] = GUI_MIN(new_turtle.size[c], prev->pos[c] + prev_size[c] - new_turtle.pos[c] - prev->padding[c + 2]));
+		if (!detached) {
+			GUI_V2(new_turtle.pos[c] = GUI_MAX(new_turtle.pos[c], prev->pos[c] + prev->padding[c]));
+			GUI_V2(new_turtle.size[c] = GUI_MIN(new_turtle.size[c], prev->pos[c] + prev_size[c] - new_turtle.pos[c] - prev->padding[c + 2]));
+		}
 	}
 	GUI_ASSIGN_V2(new_turtle.start_pos, new_turtle.pos);
 	// Element will report how much space it took, regardless of turtle.size
@@ -1032,6 +1038,11 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, GUI_BOOL panel)
 	GuiElementLayout slider_layout = element_layout(ctx, "gui_slider");
 	GuiElementLayout bar_layout = element_layout(ctx, "gui_bar");
 
+	// Window position is offset to current turtle position.
+	// This makes it possible to move windows according to client logic while still having layouts.
+	int begin_pos[2];
+	GUI_ASSIGN_V2(begin_pos, gui_turtle(ctx)->pos);
+
 	gui_begin_detached(ctx, label);
 	int *pos = gui_turtle(ctx)->pos;
 	int *size = gui_turtle(ctx)->size;
@@ -1060,6 +1071,7 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, GUI_BOOL panel)
 			win->id = gui_id(label);
 			GUI_FMT_STR(win->label, sizeof(win->label), "%s", label);
 			win->has_bar = !panel;
+			win->minimized = ctx->create_next_window_minimized;
 			if (panel) {
 				// Panel will be behind every window
 				memmove(&ctx->window_order[1], &ctx->window_order[0], sizeof(*ctx->window_order)*ctx->window_count);
@@ -1082,19 +1094,22 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, GUI_BOOL panel)
 	gui_turtle(ctx)->window_ix = win_handle;
 	gui_turtle(ctx)->layer = ctx->base_layer + 1337 + gui_window_order(ctx, win_handle)*GUI_LAYERS_PER_WINDOW;
 	win->bar_height = win->has_bar ? bar_layout.size[1] : 0;
+	GUI_ASSIGN_V2(win->recorded_pos, pos);
 
-	{ // Ordinary gui element logic
+	GUI_BOOL minimized = win->minimized;
+	if (minimized)
+		size[1] = win->bar_height;
+
+	{ // Title bar logic
 		GUI_V2(win->client_size[c] = size[c] - c*win->bar_height);
 
-		// Title bar logic
 		char bar_label[MAX_GUI_LABEL_SIZE];
 		GUI_FMT_STR(bar_label, sizeof(bar_label), "gui_bar+win_%s", label);
 		GUI_BOOL went_down, down, hover;
-		GUI_DECL_V2(int, btn_size, size[0], win->bar_height);
+		GUI_DECL_V2(int, btn_size, size[0] - win->bar_height, win->bar_height);
 
 		gui_begin(ctx, bar_label);
 		gui_button_logic(ctx, bar_label, pos, btn_size, NULL, &went_down, &down, &hover);
-
 
 		if (ctx->active_win_ix == win_handle && !panel) {
 			// Lift window to top
@@ -1119,9 +1134,11 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, GUI_BOOL panel)
 		if (down && ctx->dragging)
 			GUI_V2(pos[c] = (int)ctx->drag_start_value[c] - ctx->drag_start_pos[c] + ctx->cursor_pos[c]);
 
-		const int margin = 20;
-		pos[0] = GUI_CLAMP(pos[0], margin - size[0], ctx->host_win_size[0] - margin);
-		pos[1] = GUI_CLAMP(pos[1], 0, ctx->host_win_size[1] - margin);
+		if (!ctx->allow_next_window_outside) {
+			const int margin = 20;
+			pos[0] = GUI_CLAMP(pos[0], margin - size[0], ctx->host_win_size[0] - margin);
+			pos[1] = GUI_CLAMP(pos[1], 0, ctx->host_win_size[1] - margin);
+		}
 
 		int px_pos[2], px_size[2];
 		pt_to_px(px_pos, pos, ctx->dpi_scale);
@@ -1132,6 +1149,22 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, GUI_BOOL panel)
 			px_size[1] = win->bar_height;
 			gui_draw(	ctx, GuiDrawInfo_title_bar, px_pos, px_size, GUI_FALSE, GUI_FALSE, gui_focused(ctx),
 						gui_label_text(label), gui_layer(ctx) + 1, gui_scissor(ctx));
+		}
+
+		{ // Minimize button
+			GUI_DECL_V2(int, px_pos, pos[0] + size[0] - win->bar_height, pos[1]);
+			GUI_DECL_V2(int, px_box_size, win->bar_height, win->bar_height);
+
+			char box_label[MAX_GUI_LABEL_SIZE];
+			GUI_BOOL went_up, down, hover;
+			GUI_FMT_STR(box_label, sizeof(box_label), "gui_minimize+win_%s", label);
+
+			gui_button_logic(ctx, box_label, px_pos, px_box_size, &went_up, NULL, &down, &hover);
+			if (went_up)
+				win->minimized = !win->minimized;
+
+			gui_draw(	ctx, GuiDrawInfo_button, px_pos, px_box_size, hover, down, false,
+						NULL, gui_layer(ctx) + 2, gui_scissor(ctx));
 		}
 
 		gui_enlarge_bounding(ctx, pos[0] + size[0], pos[1] + win->bar_height);
@@ -1149,10 +1182,10 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, GUI_BOOL panel)
 	int *c_size = gui_turtle(ctx)->size;
 	GUI_V2(c_size[c] = size[c] - c*win->bar_height - win->needs_scroll[!c]*slider_layout.size[!c]);
 
-	// Make clicking frame backgound change last active element, so that scrolling works
+	// Make clicking frame background change last active element, so that scrolling works
 	gui_button_logic(ctx, label, c_pos, c_size, NULL, NULL, NULL, NULL);
 
-	{ // Scrolling
+	if (!minimized) { // Scrolling
 		int max_scroll[2];
 		GUI_V2(max_scroll[c] = win->last_bounding_size[c] - c_size[c]);
 		GUI_V2(max_scroll[c] = GUI_MAX(max_scroll[c], 0));
@@ -1203,7 +1236,7 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, GUI_BOOL panel)
 	}
 
 	// Corner resize handle
-	if (!layout.prevent_resizing) {
+	if (!layout.prevent_resizing && !minimized) {
 		char resize_label[MAX_GUI_LABEL_SIZE];
 		GUI_FMT_STR(resize_label, sizeof(resize_label), "gui_slider+resize_%s", label);
 		gui_begin_detached(ctx, resize_label);
@@ -1241,7 +1274,7 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, GUI_BOOL panel)
 	scissor[3] = c_size[1];
 	memcpy(gui_turtle(ctx)->scissor, scissor, sizeof(scissor));
 
-	{
+	if (!minimized) {
 		// Scroll client area
 		int client_start_pos[2];
 		GUI_V2(client_start_pos[c] = c_pos[c] - win->scroll[c]);
@@ -1252,9 +1285,13 @@ void gui_begin_window_ex(GuiContext *ctx, const char *label, GUI_BOOL panel)
 	// Save window pos and size to layout
 	layout.has_offset = GUI_TRUE;
 	layout.has_size = GUI_TRUE;
-	GUI_ASSIGN_V2(layout.offset, pos);
-	GUI_ASSIGN_V2(layout.size, size);
+	GUI_V2(layout.offset[c] = pos[c] - begin_pos[c]);
+	if (!minimized)
+		GUI_ASSIGN_V2(layout.size, size);
 	update_element_layout(ctx, layout);
+
+	ctx->allow_next_window_outside = false;
+	ctx->create_next_window_minimized = false;
 }
 
 void gui_end_window_ex(GuiContext *ctx)
@@ -1295,6 +1332,12 @@ void gui_window_client_size(GuiContext *ctx, int *w, int *h)
 {
 	*w = gui_window(ctx)->client_size[0];
 	*h = gui_window(ctx)->client_size[1];
+}
+
+void gui_window_pos(GuiContext *ctx, int *x, int *y)
+{
+	*x = gui_window(ctx)->recorded_pos[0];
+	*y = gui_window(ctx)->recorded_pos[1];
 }
 
 void gui_begin_contextmenu(GuiContext *ctx, const char *label)
@@ -1687,24 +1730,6 @@ void gui_enlarge_bounding(GuiContext *ctx, int x, int y)
 	GUI_V2(turtle->bounding_max[c] = GUI_MAX(turtle->bounding_max[c], pos[c]));
 	GUI_ASSIGN_V2(turtle->last_bounding_max, pos);
 }
-
-/*
-void gui_ver_space(GuiContext *ctx)
-{
-	int pos[2];
-	GUI_ASSIGN_V2(pos, gui_turtle(ctx)->pos);
-	gui_enlarge_bounding(ctx, pos[0] + 25, pos[1]);
-	gui_next_col(ctx);
-}
-
-void gui_hor_space(GuiContext *ctx)
-{
-	int pos[2];
-	GUI_ASSIGN_V2(pos, gui_turtle(ctx)->pos);
-	gui_enlarge_bounding(ctx, pos[0], pos[1] + 25);
-	gui_next_row(ctx);
-}
-*/
 
 void gui_layout_editor(GuiContext *ctx, const char *save_path)
 {

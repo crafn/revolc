@@ -22,4 +22,8 @@ static
 Color white_color()
 { return (Color) {1, 1, 1, 1}; }
 
+static
+Color black_color()
+{ return (Color) {0, 0, 0, 1}; }
+
 #endif // REVOLC_CORE_COLOR_H

@@ -684,7 +684,7 @@ typedef struct M44f {
 
 REVOLC_API M44f mul_m44f(M44f a, M44f b);
 REVOLC_API M44f inverted_m44f(M44f m);
-
+REVOLC_API V3f mul_m44f_v3f(M44f m, V3f v);
 
 // Transforms
 

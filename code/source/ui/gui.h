@@ -40,7 +40,7 @@ Todo list
 
 #define MAX_GUI_LABEL_SIZE 256 // @todo Change to MAX_GUI_ID_SIZE which can be like 64
 #define MAX_GUI_STACK_SIZE 32 // @todo Remove limit
-#define MAX_GUI_WINDOW_COUNT 64 // @todo Remove limit
+#define MAX_GUI_WINDOW_COUNT 128 // @todo Remove limit
 #define GUI_FILENAME_SIZE MAX_PATH_SIZE // @todo Remove limit
 
 #ifndef GUI_API
@@ -130,9 +130,11 @@ typedef struct GuiContext_Window {
 	char label[MAX_GUI_LABEL_SIZE];
 	GUI_BOOL used;
 	GUI_BOOL used_in_last_frame;
+	GUI_BOOL minimized;
 
 	GUI_BOOL has_bar; // GUI_FALSE is equivalent to panel-type window
 	int bar_height;
+	int recorded_pos[2]; // Last position of upper left corner
 	// Size on screen, not taking account title bar or borders
 	// Depends on window size in layout
 	int client_size[2];
@@ -227,6 +229,8 @@ typedef struct GuiContext {
 	int mouse_scroll; // Typically +1 or -1
 	uint8_t key_state[GUI_KEY_COUNT];
 	int base_layer; // Smallest draw layer
+	GUI_BOOL allow_next_window_outside;
+	GUI_BOOL create_next_window_minimized;
 
 	// Internals
 
@@ -314,6 +318,7 @@ GUI_API void gui_scroll(GuiContext *ctx, int *x, int *y);
 GUI_API void gui_begin_window(GuiContext *ctx, const char *label);
 GUI_API void gui_end_window(GuiContext *ctx);
 GUI_API void gui_window_client_size(GuiContext *ctx, int *w, int *h);
+GUI_API void gui_window_pos(GuiContext *ctx, int *x, int *y);
 
 GUI_API void gui_begin_panel(GuiContext *ctx, const char *label);
 GUI_API void gui_end_panel(GuiContext *ctx);

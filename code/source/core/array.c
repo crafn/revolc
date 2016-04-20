@@ -2,6 +2,9 @@
 #include "debug.h"
 #include "basic.h"
 
+DEFINE_ARRAY(U32)
+DEFINE_ARRAY(U64)
+
 void * enlarge_array(void *array, U32 *old_c, U32 elem_size)
 {
 	if (!array) {

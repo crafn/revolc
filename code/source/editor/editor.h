@@ -41,10 +41,16 @@ typedef struct BodyEditor {
 	bool vertex_selected[MAX_BODY_VERTICES];
 } BodyEditor;
 
+typedef struct WorldNodeEditor {
+	Array(U64) selected_groups;
+} WorldNodeEditor;
+
 typedef struct Editor {
 	U32 cur_model_h;
 	ArmatureEditor armature_editor;
 	BodyEditor body_editor;
+
+	WorldNodeEditor world_node_editor;
 
 	// Undo states
 	void *mesh_state;

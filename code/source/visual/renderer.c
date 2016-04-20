@@ -1261,14 +1261,13 @@ V2d screen_to_world_size(V2i s)
 	return sub_v2d(b, a);
 }
 
-/*
 V2i world_to_screen_point(V2d p_)
 {
 	// Not tested
 	V3f p = {p_.x, p_.y, 0};
 	Renderer *r = g_env.renderer;
 	M44f m = cam_matrix(r->cam_pos, r->cam_fov);
-	p = mul_v3f_m44f(p, m);
+	p = mul_m44f_v3f(m, p);
 	
 	V2i scrn = {
 		(p.x + 1.0)/2.0*g_env.device->win_size.x,
@@ -1276,7 +1275,6 @@ V2i world_to_screen_point(V2d p_)
 	};
 	return scrn;
 }
-*/
 
 U32 find_modelentity_at_pixel(V2i p)
 {

@@ -65,7 +65,10 @@ typedef struct NodeInfo {
 	bool allocated; /// @todo Can be substituted by type ( == NULL)
 	bool remove;
 
-	bool selected; // Editor
+	// Editor stuff
+	char group_def_name[RES_NAME_SIZE];
+	U8 node_ix_in_group;
+	bool selected;
 } NodeInfo;
 
 typedef struct AutoNodeImplStorage {
@@ -142,7 +145,8 @@ REVOLC_API void free_cmd(World *w, U32 handle);
 // Not intended to be widely used
 REVOLC_API void * node_impl(World *w, U32 *size, NodeInfo *node);
 REVOLC_API void resurrect_node_impl(World *w, NodeInfo *n, void *dead_impl_bytes);
-REVOLC_API U32 alloc_node_without_impl(World *w, NodeType *n, U64 node_id, U64 group_id, U8 peer_id);
+REVOLC_API U32 alloc_node_without_impl(World *w, NodeType *n, U64 node_id, U64 group_id, U8 peer_id,
+										const char *group_def_name, U8 node_ix_in_group);
 
 void world_on_res_reload(struct ResBlob *old);
 

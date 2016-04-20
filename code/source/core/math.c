@@ -154,3 +154,13 @@ M44f inverted_m44f(M44f m)
 	return result;
 }
 
+V3f mul_m44f_v3f(M44f m, V3f v)
+{
+	V3f result;
+	result.x = m.e[0 + 4*0]*v.x + m.e[0 + 4*1]*v.y + m.e[0 + 4*2]*v.z + m.e[0 + 4*3];
+	result.y = m.e[1 + 4*0]*v.x + m.e[1 + 4*1]*v.y + m.e[1 + 4*2]*v.z + m.e[1 + 4*3];
+	result.z = m.e[2 + 4*0]*v.x + m.e[2 + 4*1]*v.y + m.e[2 + 4*2]*v.z + m.e[2 + 4*3];
+	F32 w =    m.e[3 + 4*0]*v.x + m.e[3 + 4*1]*v.y + m.e[3 + 4*2]*v.z + m.e[3 + 4*3];
+	return scaled_v3f(1/w, result);
+}
+
