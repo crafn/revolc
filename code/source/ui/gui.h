@@ -42,6 +42,7 @@ Todo list
 #define MAX_GUI_STACK_SIZE 32 // @todo Remove limit
 #define MAX_GUI_WINDOW_COUNT 128 // @todo Remove limit
 #define GUI_FILENAME_SIZE MAX_PATH_SIZE // @todo Remove limit
+#define MAX_LAYOUTS_PER_ELEMENT 8
 
 #ifndef GUI_API
 #	define GUI_API
@@ -94,7 +95,6 @@ void gui_sprintf_impl(char *buf, size_t count, const char *fmt, ...);
 #endif
 
 typedef uint32_t GuiId;
-typedef uint32_t LayoutId;
 
 typedef struct DragDropData {
 	const char *tag; // Receiver checks this 
@@ -191,6 +191,7 @@ typedef struct GuiContext_MemBucket {
 	int used;
 } GuiContext_MemBucket;
 
+#if 0
 typedef struct GuiElementLayout {
 	LayoutId id;
 	char str[MAX_GUI_LABEL_SIZE]; // For debugging only
@@ -213,6 +214,17 @@ typedef struct GuiElementLayout {
 	int padding[4]; // Left, top, right, bottom
 	int gap[2]; // Sub-element gap in horizontal and vertical dir
 } GuiElementLayout;
+#endif
+
+typedef struct GuiContext_LayoutProperty {
+	GuiId layout_id;
+	GuiId key_id;
+	int value;
+
+	// @todo These could be in separate arrays to minimize duplicated strings
+	char layout_name[MAX_GUI_LABEL_SIZE];
+	char key_name[MAX_GUI_LABEL_SIZE];
+} GuiContext_LayoutProperty;
 
 typedef struct GuiContext_Storage {
 	GuiId id;
@@ -269,10 +281,19 @@ typedef struct GuiContext {
 	int draw_info_capacity;
 	int draw_info_count;
 
+#if 0
 	GuiElementLayout *layouts;
 	int layout_capacity;
 	int layout_count;
 	GUI_BOOL layouts_need_sorting;
+	char layout_element_label[MAX_GUI_LABEL_SIZE];
+#endif
+
+	// @todo Consider using hashmap
+	GuiContext_LayoutProperty *layout_props;
+	int layout_props_capacity;
+	int layout_props_count;
+	GUI_BOOL layout_props_need_sorting;
 	char layout_element_label[MAX_GUI_LABEL_SIZE];
 
 	// Misc element state storage
@@ -314,13 +335,12 @@ GUI_API int gui_layer(GuiContext *ctx);
 GUI_API void gui_set_scroll(GuiContext *ctx, int scroll_x, int scroll_y); // Move window contents
 GUI_API void gui_scroll(GuiContext *ctx, int *x, int *y);
 
-// @todo Remove default size when layout is ready
-GUI_API void gui_begin_window(GuiContext *ctx, const char *label);
+GUI_API void gui_begin_window(GuiContext *ctx, const char *win_label, const char *client_label);
 GUI_API void gui_end_window(GuiContext *ctx);
 GUI_API void gui_window_client_size(GuiContext *ctx, int *w, int *h);
 GUI_API void gui_window_pos(GuiContext *ctx, int *x, int *y);
 
-GUI_API void gui_begin_panel(GuiContext *ctx, const char *label);
+GUI_API void gui_begin_panel(GuiContext *ctx, const char *win_label, const char *client_label);
 GUI_API void gui_end_panel(GuiContext *ctx);
 
 GUI_API void gui_begin_contextmenu(GuiContext *ctx, const char *label);
@@ -391,7 +411,11 @@ GUI_API void gui_enlarge_bounding(GuiContext *ctx, int x, int y);
 // Internal
 //
 
+#if 0
 void append_element_layout(GuiContext *ctx, GuiElementLayout layout);
+#endif
+
+void gui_append_layout_property(GuiContext *ctx, const char *label, const char *key, int value);
 
 #if __cplusplus
 }

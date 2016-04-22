@@ -335,8 +335,8 @@ internal void do_world_node_editor(WorldNodeEditor *e)
 		cur_group_id = nodes[i].group_id;
 
 		V2i screen_pos = world_to_screen_point(v3d_to_v2d(pos));
-		if (	screen_pos.x < -100 || screen_pos.x > g_env.device->win_size.x ||
-				screen_pos.y < -100 || screen_pos.y > g_env.device->win_size.y)
+		if (	screen_pos.x < -500 || screen_pos.x > g_env.device->win_size.x + 500 ||
+				screen_pos.y < -500 || screen_pos.y > g_env.device->win_size.y + 500)
 			continue;
 
 		/*bool selected = false;
@@ -353,7 +353,7 @@ internal void do_world_node_editor(WorldNodeEditor *e)
 		ctx->allow_next_window_outside = true;
 		ctx->create_next_window_minimized = true;
 		gui_set_turtle_pos(ctx, screen_pos.x, screen_pos.y);
-		gui_begin_window(ctx, gui_str(ctx, "world_node_group_win_%i|%s", cur_group_id, node->group_def_name));
+		gui_begin_window(ctx, gui_str(ctx, "world_node_group_win_%i|%s", cur_group_id, node->group_def_name), NULL);
 
 		V2i win_pos;
 		gui_window_pos(ctx, &win_pos.x, &win_pos.y);
@@ -554,7 +554,7 @@ void upd_editor(F64 *world_dt)
 
 		if (e->state == EditorState_res) {
 
-			gui_begin_panel(ctx, "res_tools|Resource tools");
+			gui_begin_panel(ctx, "res_tools|Resource tools", "res_tools_content");
 				// @todo Selected res names
 				/*const char *str = gui_str(	ctx, "Selected: %s: %s",
 											restype_to_str(t),
@@ -571,7 +571,7 @@ void upd_editor(F64 *world_dt)
 			gui_end_panel(ctx);
 		} else if (e->state == EditorState_world) {
 
-			gui_begin_panel(ctx, "world_tools|World tools");
+			gui_begin_panel(ctx, "world_tools|World tools", "world_tools_content");
 				gui_checkbox(ctx, "world_tool_elem+prog|Show program state", &e->show_prog_state);
 				gui_checkbox(ctx, "world_tool_elem+nodes|Show nodes", &e->show_node_list);
 				gui_checkbox(ctx, "world_tool_elem+nodegroupdefs|Create NodeGroup", &e->show_nodegroupdef_list);
@@ -648,13 +648,13 @@ void upd_editor(F64 *world_dt)
 			}
 
 			if (e->show_prog_state) {
-				gui_begin_window(ctx, "program_state|Program state");
+				gui_begin_window(ctx, "program_state|Program state", "program_state_content");
 				gui_data_tree(ctx, "Env", &g_env, "prog", NULL);
 				gui_end_window(ctx);
 			}
 
 			if (e->show_node_list) {
-				gui_begin_window(ctx, "node_list|Node list");
+				gui_begin_window(ctx, "node_list|Node list", "node_list_content");
 				for (U32 i = 0; i < MAX_NODE_COUNT; ++i) {
 					NodeInfo *info = &g_env.world->nodes[i];
 					if (!info->allocated)
@@ -673,7 +673,7 @@ void upd_editor(F64 *world_dt)
 			}
 
 			if (e->show_cmd_list) {
-				gui_begin_window(ctx, "cmd_list|Node command list");
+				gui_begin_window(ctx, "cmd_list|Node command list", "cmd_list_content");
 				for (U32 i = 0; i < MAX_NODE_CMD_COUNT; ++i) {
 					NodeCmd *cmd = &g_env.world->cmds[i];
 					if (!cmd->allocated)
@@ -695,7 +695,7 @@ void upd_editor(F64 *world_dt)
 				Resource **defs = all_res_by_type(	&count,
 													g_env.resblob,
 													ResType_NodeGroupDef);
-				gui_begin_window(ctx, "nodegroupdef_list|NodeGroupDef list");
+				gui_begin_window(ctx, "nodegroupdef_list|NodeGroupDef list", "nodegroupdef_list_content");
 				for (U32 i = 0; i < count; ++i) {
 					NodeGroupDef *def = (NodeGroupDef*)defs[i];
 
@@ -718,7 +718,7 @@ void upd_editor(F64 *world_dt)
 			}
 
 			if (e->show_create_cmd) {
-				gui_begin_window(ctx, "create_cmd|Create node command");
+				gui_begin_window(ctx, "create_cmd|Create node command", "create_cmd_content");
 
 				gui_begin(ctx, "create_cmd_list_1");
 					if (gui_selectable(ctx, "create_cmd_list_item+sel_src_btn|Select source", e->create_cmd.select_src))
@@ -788,13 +788,13 @@ void upd_editor(F64 *world_dt)
 		} else if (e->state == EditorState_gui_test) {
 			GuiContext *ctx = g_env.uicontext->gui;
 
-			gui_begin_window(ctx, "win");
+			gui_begin_window(ctx, "win", NULL);
 				for (U32 i = 0; i < 10; ++i) {
 					gui_button(ctx, gui_str(ctx, "btn_in_list+%i|button_%i", i, i));
 				}
 			gui_end_window(ctx);
 
-			gui_begin_window(ctx, "Gui components");
+			gui_begin_window(ctx, "Gui components", NULL);
 				local_persist int btn = 0;
 				local_persist F32 slider = 0;
 				local_persist char buf[128];
@@ -830,7 +830,7 @@ void upd_editor(F64 *world_dt)
 
 			gui_end_window(ctx);
 
-			gui_begin_panel(ctx, "panel");
+			gui_begin_panel(ctx, "panel", "panel_content");
 				gui_button(ctx, "button");
 			gui_end_panel(ctx);
 		}
@@ -1184,7 +1184,7 @@ void do_mesh_editor(U32 *model_h, bool *is_edit_mode, bool active)
 		gui_uvbox(g_env.uicontext->gui, m, false);
 		gui_uvbox(g_env.uicontext->gui, m, true);
 
-		gui_begin_panel(ctx, "model_settings");
+		gui_begin_panel(ctx, "model_settings", "model_settings_content");
 		if (m) {
 			Model *model = (Model*)substitute_res(res_by_name(g_env.resblob, ResType_Model, m->model_name));
 			Mesh *mesh = editable_model_mesh(m->model_name);

@@ -1,5 +1,6 @@
 void load_layout(GuiContext *ctx)
 {
+#if 0
 	ctx->layout_count = 0;
 	{
 		GuiElementLayout l = {0};
@@ -1475,5 +1476,6 @@ void load_layout(GuiContext *ctx)
 		l.gap[1] = 0;
 		append_element_layout(ctx, l);
 	}
+#endif
 
 }
