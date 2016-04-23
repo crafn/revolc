@@ -191,31 +191,6 @@ typedef struct GuiContext_MemBucket {
 	int used;
 } GuiContext_MemBucket;
 
-#if 0
-typedef struct GuiElementLayout {
-	LayoutId id;
-	char str[MAX_GUI_LABEL_SIZE]; // For debugging only
-
-	// Settings order is so that below can override above
-
-	GUI_BOOL on_same_row; // Same row as previous element
-
-	GUI_BOOL has_offset;
-	int offset[2];
-
-	GUI_BOOL has_size;
-	int size[2];
-
-	GUI_BOOL prevent_resizing;
-
-	// @todo To array
-	GUI_BOOL align_left, align_right, align_top, align_bottom;
-
-	int padding[4]; // Left, top, right, bottom
-	int gap[2]; // Sub-element gap in horizontal and vertical dir
-} GuiElementLayout;
-#endif
-
 typedef struct GuiContext_LayoutProperty {
 	GuiId layout_id;
 	GuiId key_id;
@@ -282,14 +257,6 @@ typedef struct GuiContext {
 	GuiDrawInfo *draw_infos;
 	int draw_info_capacity;
 	int draw_info_count;
-
-#if 0
-	GuiElementLayout *layouts;
-	int layout_capacity;
-	int layout_count;
-	GUI_BOOL layouts_need_sorting;
-	char layout_element_label[MAX_GUI_LABEL_SIZE];
-#endif
 
 	// @todo Consider using hashmap
 	GuiContext_LayoutProperty *layout_props;
@@ -359,6 +326,7 @@ GUI_API GUI_BOOL gui_radiobutton(GuiContext *ctx, const char *label, GUI_BOOL va
 GUI_API GUI_BOOL gui_slider(GuiContext *ctx, const char *label, float *value, float min, float max);
 GUI_API GUI_BOOL gui_slider_double(GuiContext *ctx, const char *label, double *value, double min, double max);
 GUI_API GUI_BOOL gui_textfield(GuiContext *ctx, const char *label, char *buf, int buf_size);
+// @todo Rename gui_property_int etc.
 GUI_API GUI_BOOL gui_intfield(GuiContext *ctx, const char *label, int *value);
 GUI_API GUI_BOOL gui_doublefield(GuiContext *ctx, const char *label, double *value);
 GUI_API GUI_BOOL gui_floatfield(GuiContext *ctx, const char *label, float *value);
@@ -412,10 +380,6 @@ GUI_API void gui_enlarge_bounding(GuiContext *ctx, int x, int y);
 //
 // Internal
 //
-
-#if 0
-void append_element_layout(GuiContext *ctx, GuiElementLayout layout);
-#endif
 
 void gui_update_layout_property(GuiContext *ctx, const char *label, const char *key, int value);
 void gui_append_layout_property(GuiContext *ctx, const char *label, const char *key, int value);

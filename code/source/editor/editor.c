@@ -1501,7 +1501,7 @@ bool gui_armature_overlay(ArmatureEditor *state, bool is_edit_mode)
 		if (bstate.down)
 			state->comp_h = find_compentity_at_pixel(ctx->dev.cursor_pos);
 	}
-	
+
 	CompEntity *entity = NULL;
 	if (state->comp_h != NULL_HANDLE)
 		entity = get_compentity(state->comp_h);

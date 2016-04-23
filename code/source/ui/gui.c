@@ -248,94 +248,6 @@ void gui_append_layout_property(GuiContext *ctx, const char *label, const char *
 	ctx->layout_props_need_sorting = GUI_TRUE;
 }
 
-#if 0
-// "foo:bar:id_calculated_from_this+123|Label"
-/*static LayoutId layout_id(const char *label)
-{
-	int begin = 0;
-	int end = 0;
-	while (	label[end] &&
-			label[end] != '+' && label[end] != '|') {
-		if (label[end] == ':')
-			begin = end + 1;
-		++end;
-	}
-	return gui_hash(label + begin, end - begin);
-}*/
-
-static LayoutId layout_id(const char *label)
-{
-	int layout_size = 0;
-	while (	label[layout_size] &&
-			label[layout_size] != '+' && label[layout_size] != '|')
-		++layout_size;
-	return gui_hash(label, layout_size);
-}
-
-static int layout_cmp(const void *void_a, const void *void_b)
-{
-	const GuiElementLayout *a = (const GuiElementLayout*)void_a;
-	const GuiElementLayout *b = (const GuiElementLayout*)void_b;
-	return (a->id > b->id) - (a->id < b->id);
-}
-
-static GuiElementLayout element_layout(GuiContext *ctx, const char *label)
-{
-	if (ctx->layouts_need_sorting) {
-		qsort(ctx->layouts, ctx->layout_count, sizeof(*ctx->layouts), layout_cmp);
-		ctx->layouts_need_sorting = GUI_FALSE;
-	}
-
-	// @todo Consider using hashmap
-	GuiElementLayout key;
-	key.id = layout_id(label);
-	GuiElementLayout *found =
-		(GuiElementLayout*)bsearch(&key, ctx->layouts, ctx->layout_count, sizeof(*ctx->layouts), layout_cmp);
-	if (found)
-		return *found;
-
-	// Default layout
-	GuiElementLayout def;
-	GUI_ZERO(def);
-	def.id = layout_id(label);
-	def.on_same_row = GUI_FALSE;
-	def.has_size = GUI_TRUE;
-	// @todo Different defaults for different element types
-	def.size[0] = 100;
-	def.size[1] = 20;
-	GUI_FMT_STR(def.str, sizeof(def.str), "%s", label);
-	return def;
-}
-
-void append_element_layout(GuiContext *ctx, GuiElementLayout layout)
-{
-	if (ctx->layout_count == ctx->layout_capacity) {
-		// Need more space
-		ctx->layout_capacity *= 2;
-		ctx->layouts = (GuiElementLayout*)GUI_REALLOC(ctx->layouts, sizeof(*ctx->layouts)*ctx->layout_capacity);
-	}
-
-	ctx->layouts[ctx->layout_count++] = layout;
-	ctx->layouts_need_sorting = GUI_TRUE;
-}
-
-static void update_element_layout(GuiContext *ctx, GuiElementLayout layout)
-{
-	// This is rare/dev-only operation, so linear search is ok
-	for (int i = 0; i < ctx->layout_count; ++i) {
-		GuiElementLayout l = ctx->layouts[i];
-		if (l.id != layout.id)
-			continue;
-		ctx->layouts[i] = layout;
-		return;
-	}
-
-	// New layout, append and mark unsorted
-	append_element_layout(ctx, layout);
-}
-
-#endif
-
 // Return index to found, or index where should be inserted
 static int storage_bsearch(GuiContext *ctx, GuiId id)
 {
@@ -411,60 +323,6 @@ static void save_layout(GuiContext *ctx, const char *path)
 	fprintf(file, "}\n");
 	fclose(file);
 }
-
-#if 0
-static void save_layout(GuiContext *ctx, const char *path)
-{
-	FILE *file = fopen(path, "wb");
-	if (!file) {
-		GUI_PRINTF("save_layout: can't open file '%s'\n", path);
-		return;
-	}
-	fprintf(file, "void load_layout(GuiContext *ctx)\n");
-	fprintf(file, "{\n");
-	fprintf(file, "\tctx->layout_count = 0;\n");
-
-	for (int i = 0; i < ctx->layout_count; ++i) {
-		GuiElementLayout l = ctx->layouts[i];
-
-		fprintf(file, "\t{\n");
-		fprintf(file, "\t\tGuiElementLayout l = {0};\n");
-		fprintf(file, "\t\tl.id = %u;\n", l.id);
-		fprintf(file, "\t\tGUI_FMT_STR(l.str, sizeof(l.str), \"%%s\", \"%s\");\n",
-			l.str);
-
-		fprintf(file, "\t\tl.on_same_row = %i;\n", l.on_same_row);
-
-		fprintf(file, "\t\tl.has_offset = %i;\n", l.has_offset);
-		fprintf(file, "\t\tl.offset[0] = %i;\n", l.offset[0]);
-		fprintf(file, "\t\tl.offset[1] = %i;\n", l.offset[1]);
-
-		fprintf(file, "\t\tl.has_size = %i;\n", l.has_size);
-		fprintf(file, "\t\tl.size[0] = %i;\n", l.size[0]);
-		fprintf(file, "\t\tl.size[1] = %i;\n", l.size[1]);
-
-		fprintf(file, "\t\tl.prevent_resizing = %i;\n", l.prevent_resizing);
-
-		fprintf(file, "\t\tl.align_left = %i;\n", l.align_left);
-		fprintf(file, "\t\tl.align_right = %i;\n", l.align_right);
-		fprintf(file, "\t\tl.align_top = %i;\n", l.align_top);
-		fprintf(file, "\t\tl.align_bottom = %i;\n", l.align_bottom);
-
-		for (int k = 0; k < 4; ++k)
-			fprintf(file, "\t\tl.padding[%i] = %i;\n", k, l.padding[k]);
-
-		for (int k = 0; k < 2; ++k)
-			fprintf(file, "\t\tl.gap[%i] = %i;\n", k, l.gap[k]);
-
-		fprintf(file, "\t\tappend_element_layout(ctx, l);\n");
-
-		fprintf(file, "\t}\n\n");
-	}
-
-	fprintf(file, "}\n");
-	fclose(file);
-}
-#endif
 
 static GuiContext_Turtle *gui_turtle(GuiContext *ctx)
 {
@@ -800,11 +658,6 @@ GuiContext *create_gui(CalcTextSizeFunc calc_text, void *user_data_for_calc_text
 
 	ctx->draw_info_capacity = 64;
 
-#if 0
-	ctx->layout_capacity = 64;
-	ctx->layouts = (GuiElementLayout*)gui_check_ptr(GUI_MALLOC(sizeof(*ctx->layouts)*ctx->layout_capacity));
-#endif
-
 	ctx->layout_props_capacity = 64;
 	ctx->layout_props = (GuiContext_LayoutProperty*)gui_check_ptr(
 		GUI_MALLOC(sizeof(*ctx->layout_props)*ctx->layout_props_capacity));
@@ -870,75 +723,6 @@ GuiContext *create_gui(CalcTextSizeFunc calc_text, void *user_data_for_calc_text
 		gui_update_layout_property(ctx, "gui_client", "gap_y", 4);
 	}
 
-#if 0
-	{ // Default layout
-		{
-			GuiElementLayout l = element_layout(ctx, "gui_slider");
-			l.has_size = GUI_TRUE;
-			l.size[0] = 15;
-			l.size[1] = 15;
-			update_element_layout(ctx, l);
-		}
-
-		{
-			GuiElementLayout l = element_layout(ctx, "gui_bar");
-			l.has_size = GUI_TRUE;
-			l.size[0] = 0;
-			l.size[1] = 25;
-			update_element_layout(ctx, l);
-		}
-
-		{
-			GuiElementLayout l = element_layout(ctx, "gui_layoutwin");
-			l.has_size = GUI_TRUE;
-			l.size[0] = 200;
-			l.size[1] = 500;
-			update_element_layout(ctx, l);
-		}
-
-		{
-			GuiElementLayout layout = element_layout(ctx, "gui_layout_list");
-			layout.align_left = GUI_TRUE;
-			layout.align_right = GUI_TRUE;
-			update_element_layout(ctx, layout);
-		}
-
-		{
-			GuiElementLayout l = element_layout(ctx, "gui_client:gui_layoutwin");
-			l.padding[0] = 10;
-			l.padding[1] = 5;
-			l.padding[2] = 10;
-			l.padding[3] = 5;
-			l.gap[0] = 0;
-			l.gap[1] = 4;
-			update_element_layout(ctx, l);
-		}
-
-		{
-			GuiElementLayout l = element_layout(ctx, "gui_layoutwin");
-			l.has_size = 1;
-			l.size[0] = 400;
-			l.size[1] = 700;
-			update_element_layout(ctx, l);
-		}
-
-		{
-			GuiElementLayout l = element_layout(ctx, "gui_layout_list");
-			l.align_left = GUI_TRUE;
-			l.align_right = GUI_TRUE;
-			l.align_top = GUI_FALSE;
-			l.align_bottom = GUI_FALSE;
-			l.padding[0] = 5;
-			l.padding[1] = 0;
-			l.padding[2] = 5;
-			l.padding[3] = 1;
-			l.gap[0] = 0;
-			l.gap[1] = 0;
-			update_element_layout(ctx, l);
-		}
-	}
-#endif
-
 	return ctx;
 }
 
@@ -949,9 +733,6 @@ void destroy_gui(GuiContext *ctx)
 			GUI_FREE(ctx->framemem_buckets[i].data);
 		GUI_FREE(ctx->framemem_buckets);
 
-#if 0
-		GUI_FREE(ctx->layouts);
-#endif
 		GUI_FREE(ctx->layout_props);
 		GUI_FREE(ctx->storage);
 
@@ -2134,56 +1915,6 @@ void gui_layout_editor(GuiContext *ctx, const char *save_path)
 			save_layout(ctx, save_path);
 		}
 
-#if 0
-		GUI_BOOL changed = GUI_FALSE;
-
-		changed |= gui_checkbox(ctx, "gui_layout_list+on_same_row|on_same_row", &layout.on_same_row);
-
-		changed |= gui_checkbox(ctx, "gui_layout_list+has_offset|has_offset", &layout.has_offset);
-		changed |= gui_intfield(ctx, "gui_layout_list+offset[0]|x", &layout.offset[0]); 
-		changed |= gui_intfield(ctx, "gui_layout_list+offset[1]|y", &layout.offset[1]); 
-
-		changed |= gui_checkbox(ctx, "gui_layout_list+b_size|has_size", &layout.has_size);
-		changed |= gui_intfield(ctx, "gui_layout_list+size[0]|width", &layout.size[0]);
-		changed |= gui_intfield(ctx, "gui_layout_list+size[1]|height", &layout.size[1]);
-
-		changed |= gui_checkbox(ctx, "gui_layout_list+b_resize|prevent_resizing", &layout.prevent_resizing);
-
-		changed |= gui_checkbox(ctx, "gui_layout_list+left|align_left", &layout.align_left);
-		changed |= gui_checkbox(ctx, "gui_layout_list+right|align_right", &layout.align_right);
-		changed |= gui_checkbox(ctx, "gui_layout_list+top|align_top", &layout.align_top);
-		changed |= gui_checkbox(ctx, "gui_layout_list+bottom|align_bottom", &layout.align_bottom);
-
-		changed |= gui_intfield(ctx, "gui_layout_list+pad0|padding_left", &layout.padding[0]);
-		changed |= gui_intfield(ctx, "gui_layout_list+pad1|padding_top", &layout.padding[1]);
-		changed |= gui_intfield(ctx, "gui_layout_list+pad2|padding_right", &layout.padding[2]);
-		changed |= gui_intfield(ctx, "gui_layout_list+pad3|padding_bottom", &layout.padding[3]);
-
-		changed |= gui_intfield(ctx, "gui_layout_list+gap0|gap.x", &layout.gap[0]);
-		changed |= gui_intfield(ctx, "gui_layout_list+gap1|gap.y", &layout.gap[1]);
-
-		if (gui_button(ctx, "gui_layout_list+save|Save layout")) {
-			save_layout(ctx, save_path);
-		}
-
-		gui_label(ctx, "gui_layout_list+listlabel|All layouts");
-
-		gui_begin_listbox(ctx, "gui_layout_list+list");
-		for (int i = 0; i < ctx->layout_count; ++i) {
-			GuiElementLayout l = ctx->layouts[i];
-			const char *label = gui_str(ctx, "gui_layout_list+%i|%s", i, l.str);
-			if (gui_selectable(ctx, label, l.id == layout.id)) {
-				GUI_FMT_STR(ctx->layout_element_label,
-							sizeof(ctx->layout_element_label),
-							"%s", l.str);
-			}
-		}
-		gui_end_listbox(ctx);
-
-		if (changed) {
-			update_element_layout(ctx, layout);
-		}
-#endif
 	gui_end_window(ctx); }
 }
 
