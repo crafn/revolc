@@ -173,7 +173,7 @@ static GUI_BOOL has_layout_property(GuiContext *ctx, const char *label, const ch
 static GUI_BOOL has_own_layout_property(GuiContext *ctx, const char *label, const char *key)
 { return find_layout_property(ctx, label, key, GUI_TRUE) != NULL; }
 
-static void update_layout_property(GuiContext *ctx, const char *label, const char *key, int value)
+void gui_update_layout_property(GuiContext *ctx, const char *label, const char *key, int value)
 {
 	GuiContext_LayoutProperty *found = find_layout_property(ctx, label, key, GUI_TRUE);
 
@@ -195,6 +195,13 @@ static void remove_layout_property(GuiContext *ctx, const char *label, const cha
 	--ctx->layout_props_count;
 
 	ctx->layout_props_need_sorting = GUI_TRUE;
+}
+
+static void set_layout_property_saved(GuiContext *ctx, const char *label, const char *key, GUI_BOOL saved)
+{
+	GuiContext_LayoutProperty *found = find_layout_property(ctx, label, key, GUI_TRUE);
+	if (found)
+		found->dont_save = !saved;
 }
 
 static void most_specific_layout(const char **str, int *size, const char *label)
@@ -228,6 +235,7 @@ void gui_append_layout_property(GuiContext *ctx, const char *label, const char *
 	GUI_FMT_STR(prop.key_name, sizeof(prop.key_name), "%s", key);
 	GUI_FMT_STR(prop.layout_name, sizeof(prop.layout_name), "%.*s", layout_name_size, layout_name);
 	prop.value = value;
+	prop.dont_save = GUI_FALSE;
 
 	ctx->layout_props[ctx->layout_props_count++] = prop;
 	ctx->layout_props_need_sorting = GUI_TRUE;
@@ -369,7 +377,33 @@ static void set_element_storage_bool(GuiContext *ctx, const char *label, GUI_BOO
 	ctx->storage[ix].bool_value = value;
 }
 
-static void save_layout(GuiContext *ctx, const char *path);
+static void save_layout(GuiContext *ctx, const char *path)
+{
+	FILE *file = fopen(path, "wb");
+	if (!file) {
+		GUI_PRINTF("save_layout: can't open file '%s'\n", path);
+		return;
+	}
+	fprintf(file, "void load_layout(GuiContext *ctx)\n");
+	fprintf(file, "{\n");
+	//fprintf(file, "\tctx->layout_props_count = 0;\n\n");
+	GuiContext_LayoutProperty last = {0};
+	for (int i = 0; i < ctx->layout_props_count; ++i) {
+		GuiContext_LayoutProperty prop = ctx->layout_props[i];
+		if (prop.dont_save)
+			continue;
+
+		if (i > 0 && strcmp(prop.layout_name, last.layout_name))
+			fprintf(file, "\n");
+
+		fprintf(file,	"\tgui_update_layout_property(ctx, \"%s\", \"%s\", %i);\n",
+						prop.layout_name, prop.key_name, prop.value);
+
+		last = prop;
+	}
+	fprintf(file, "}\n");
+	fclose(file);
+}
 
 #if 0
 static void save_layout(GuiContext *ctx, const char *path)
@@ -778,41 +812,50 @@ GuiContext *create_gui(CalcTextSizeFunc calc_text, void *user_data_for_calc_text
 	ctx->framemem_buckets[0].used = 0;
 
 	{ // Default layouts
-		update_layout_property(ctx, "gui_slider", "size_x", 15);
-		update_layout_property(ctx, "gui_slider", "size_y", 15);
+		gui_update_layout_property(ctx, "gui_slider", "size_x", 15);
+		gui_update_layout_property(ctx, "gui_slider", "size_y", 15);
+		gui_update_layout_property(ctx, "gui_slider", "gap_x", 4);
+		gui_update_layout_property(ctx, "gui_slider", "gap_y", 4);
 
-		update_layout_property(ctx, "gui_bar", "size_x", 0);
-		update_layout_property(ctx, "gui_bar", "size_y", 25);
+		gui_update_layout_property(ctx, "gui_bar", "size_y", 25);
 
-		update_layout_property(ctx, "gui_checkbox", "size_x", 15);
-		update_layout_property(ctx, "gui_checkbox", "size_y", 15);
+		gui_update_layout_property(ctx, "gui_checkbox", "size_x", 22);
+		gui_update_layout_property(ctx, "gui_checkbox", "size_y", 22);
+		gui_update_layout_property(ctx, "gui_checkbox", "gap_x", 4);
 
-		update_layout_property(ctx, "gui_layoutwin", "size_x", 400);
-		update_layout_property(ctx, "gui_layoutwin", "size_y", 700);
+		gui_update_layout_property(ctx, "gui_textfield", "size_y", 22);
+		gui_update_layout_property(ctx, "gui_textfield", "gap_x", 4);
 
-		update_layout_property(ctx, "gui_layout_list", "align_left", GUI_TRUE);
-		update_layout_property(ctx, "gui_layout_list", "align_right", GUI_TRUE);
-		update_layout_property(ctx, "gui_layout_list", "padding_left", 5);
-		update_layout_property(ctx, "gui_layout_list", "padding_right", 0);
-		update_layout_property(ctx, "gui_layout_list", "padding_top", 5);
-		update_layout_property(ctx, "gui_layout_list", "padding_bottom", 1);
-		update_layout_property(ctx, "gui_layout_list_own", "padding_left", 5);
-		update_layout_property(ctx, "gui_layout_list_own", "padding_right", 0);
-		update_layout_property(ctx, "gui_layout_list_own", "padding_top", 5);
-		update_layout_property(ctx, "gui_layout_list_own", "padding_bottom", 1);
-		update_layout_property(ctx, "gui_layout_list_prop", "on_same_row", GUI_TRUE);
-		update_layout_property(ctx, "gui_layout_list_prop", "size_x", 300);
+		gui_update_layout_property(ctx, "gui_button", "padding_left", 5);
+		gui_update_layout_property(ctx, "gui_button", "padding_top", 2);
+		gui_update_layout_property(ctx, "gui_button", "padding_right", 5);
+		gui_update_layout_property(ctx, "gui_button", "padding_bottom", 4);
 
-		update_layout_property(ctx, "gui_client", "offset_x", 0);
-		update_layout_property(ctx, "gui_client", "offset_y", 0);
-		update_layout_property(ctx, "gui_client", "padding_left", 10);
-		update_layout_property(ctx, "gui_client", "padding_right", 5);
-		update_layout_property(ctx, "gui_client", "padding_top", 10);
-		update_layout_property(ctx, "gui_client", "padding_bottom", 5);
-		update_layout_property(ctx, "gui_client", "align_left", GUI_TRUE);
-		update_layout_property(ctx, "gui_client", "align_right", GUI_TRUE);
-		update_layout_property(ctx, "gui_client", "gap_x", 0);
-		update_layout_property(ctx, "gui_client", "gap_y", 4);
+		gui_update_layout_property(ctx, "gui_treenode", "padding_left", 20);
+		gui_update_layout_property(ctx, "gui_treenode", "gap_y", 2);
+
+		gui_update_layout_property(ctx, "gui_layoutwin", "size_x", 400);
+		gui_update_layout_property(ctx, "gui_layoutwin", "size_y", 700);
+
+		gui_update_layout_property(ctx, "gui_layout_list", "align_left", GUI_TRUE);
+		gui_update_layout_property(ctx, "gui_layout_list", "align_right", GUI_TRUE);
+		gui_update_layout_property(ctx, "gui_layout_list", "gap_x", 3);
+		gui_update_layout_property(ctx, "gui_layout_list_prop", "on_same_row", GUI_TRUE);
+		gui_update_layout_property(ctx, "gui_layout_list_prop", "size_x", 300);
+
+		gui_update_layout_property(ctx, "gui_window", "size_x", 100);
+		gui_update_layout_property(ctx, "gui_window", "size_y", 100);
+
+		gui_update_layout_property(ctx, "gui_client", "offset_x", 0);
+		gui_update_layout_property(ctx, "gui_client", "offset_y", 0);
+		gui_update_layout_property(ctx, "gui_client", "padding_left", 10);
+		gui_update_layout_property(ctx, "gui_client", "padding_top", 5);
+		gui_update_layout_property(ctx, "gui_client", "padding_right", 10);
+		gui_update_layout_property(ctx, "gui_client", "padding_bottom", 5);
+		gui_update_layout_property(ctx, "gui_client", "align_left", GUI_TRUE);
+		gui_update_layout_property(ctx, "gui_client", "align_right", GUI_TRUE);
+		gui_update_layout_property(ctx, "gui_client", "gap_x", 0);
+		gui_update_layout_property(ctx, "gui_client", "gap_y", 4);
 	}
 
 #if 0
@@ -1072,10 +1115,11 @@ static void gui_begin_ex(GuiContext *ctx, const char *label, GUI_BOOL detached)
 		if (layout_property(ctx, label, "align_right")) {
 			if (layout_property(ctx, label, "align_left")) {
 				// Stretch
-				new_turtle.size[0] = prev_size[0];
+				new_turtle.size[0] = prev_size[0] - (prev->padding[0] + prev->padding[2]);
 			} else {
 				// Move
-				new_turtle.pos[0] = prev->pos[0] + prev_size[0] - new_turtle.size[0];
+				// @todo Make work with elements which change their size after begin()
+				new_turtle.pos[0] = prev->pos[0] + prev_size[0] - new_turtle.size[0] - prev->padding[2];
 			}
 		}
 
@@ -1087,14 +1131,15 @@ static void gui_begin_ex(GuiContext *ctx, const char *label, GUI_BOOL detached)
 				new_turtle.size[1] = prev_size[1];
 			} else {
 				// Move
-				new_turtle.pos[1] = prev->pos[1] + prev_size[1] - new_turtle.size[1];
+				new_turtle.pos[1] = prev->pos[1] + prev_size[1] - new_turtle.size[1] - prev->padding[3];
 			}
 		}
 
 		// Padding (= minimum distance from parent edges)
 		if (!detached) {
 			GUI_V2(new_turtle.pos[c] = GUI_MAX(new_turtle.pos[c], prev->pos[c] + prev->padding[c]));
-			GUI_V2(new_turtle.size[c] = GUI_MIN(new_turtle.size[c], prev->pos[c] + prev_size[c] - new_turtle.pos[c] - prev->padding[c + 2]));
+			// Padding shouldn't modify size... @todo Remove below
+			//GUI_V2(new_turtle.size[c] = GUI_MIN(new_turtle.size[c], prev->pos[c] + prev_size[c] - new_turtle.pos[c] - prev->padding[c + 2]));
 		}
 	}
 	GUI_ASSIGN_V2(new_turtle.start_pos, new_turtle.pos);
@@ -1184,6 +1229,7 @@ GUI_BOOL gui_slider_ex(GuiContext *ctx, const char *label, float *value, float m
 	int *pos = gui_turtle(ctx)->pos;
 	int *size = gui_turtle(ctx)->size;
 	int *padding = gui_turtle(ctx)->padding;
+	int *gap = gui_turtle(ctx)->gap;
 
 	if (length > 0)
 		size[v] = length;
@@ -1193,73 +1239,77 @@ GUI_BOOL gui_slider_ex(GuiContext *ctx, const char *label, float *value, float m
 		ctx->calc_text_size(text_size, ctx->calc_text_size_user_data, gui_label_text(label));
 		GUI_V2(size[c] = GUI_MAX((int)text_size[c] + padding[c] + padding[c + 2], size[c]));
 	}
+	// @todo Correct padding[0] behavior
 	int bar_size[2];
-	GUI_V2(bar_size[c] = size[c] - (!c)*(text_size[c] + padding[0] + padding[2]));
+	GUI_BOOL has_text = (text_size[0] > 0);
+	GUI_V2(bar_size[c] = size[c] - (!c)*(text_size[c] + gap[c]*has_text + padding[2]));
 
 	const int scroll_handle_height = GUI_MAX((int)(handle_rel_size*bar_size[v]), 10);
 
-	GUI_BOOL went_down, down, hover;
-	gui_button_logic(ctx, label, pos, bar_size, NULL, &went_down, &down, &hover);
+	GUI_BOOL went_down = GUI_FALSE, down = GUI_FALSE, hover = GUI_FALSE;
+	if (gui_is_inside_window(ctx, size)) {
+		gui_button_logic(ctx, label, pos, bar_size, NULL, &went_down, &down, &hover);
 
-	if (went_down) {
-		GUI_DECL_V2(float, tmp, *value, 0);
-		gui_start_dragging(ctx, tmp);
-	}
-
-	if (down && ctx->dragging) {
-		int px_delta = ctx->cursor_pos[v] - ctx->drag_start_pos[v];
-		*value = ctx->drag_start_value[0] + 1.f*px_delta / (bar_size[v] - scroll_handle_height) *(max - min);
-		ret = GUI_TRUE;
-	}
-	*value = GUI_CLAMP(*value, min, max);
-
-	{ // Draw
-		{ // Bg
-			int px_pos[2], px_size[2];
-			pt_to_px(px_pos, pos, ctx->dpi_scale);
-			pt_to_px(px_size, bar_size, ctx->dpi_scale);
-			gui_draw(	ctx, GuiDrawInfo_slider, px_pos, px_size, GUI_FALSE, GUI_FALSE, GUI_FALSE,
-						NULL, gui_layer(ctx), gui_scissor(ctx));
+		if (went_down) {
+			GUI_DECL_V2(float, tmp, *value, 0);
+			gui_start_dragging(ctx, tmp);
 		}
 
-		{ // Handle
-			float rel_scroll = (*value - min) / (max - min);
-			int handle_pos[2];
-			GUI_ASSIGN_V2(handle_pos, pos);
-			handle_pos[v] += (int)(rel_scroll*(bar_size[v] - scroll_handle_height));
-			int handle_size[2];
-			GUI_ASSIGN_V2(handle_size, bar_size);
-			handle_size[v] = scroll_handle_height;
-
-			int px_pos[2], px_size[2];
-			pt_to_px(px_pos, handle_pos, ctx->dpi_scale);
-			pt_to_px(px_size, handle_size, ctx->dpi_scale);
-			gui_draw(	ctx, GuiDrawInfo_slider_handle, px_pos, px_size, hover, down, GUI_FALSE,
-						NULL, gui_layer(ctx) + 1, gui_scissor(ctx));
+		if (down && ctx->dragging) {
+			int px_delta = ctx->cursor_pos[v] - ctx->drag_start_pos[v];
+			*value = ctx->drag_start_value[0] + 1.f*px_delta / (bar_size[v] - scroll_handle_height) *(max - min);
+			ret = GUI_TRUE;
 		}
+		*value = GUI_CLAMP(*value, min, max);
 
-		if (show_text) { // Label
-			int text_pos[2];
-			text_pos[0] = pos[0] + bar_size[0] + padding[0];
-			text_pos[1] = pos[1] + padding[1];
-			int px_pos[2];
-			pt_to_px(px_pos, text_pos, ctx->dpi_scale);
-			gui_draw(	ctx, GuiDrawInfo_text, px_pos, px_pos, GUI_FALSE, GUI_FALSE, GUI_FALSE,
-						gui_label_text(label), gui_layer(ctx) + 2, gui_scissor(ctx));
-		}
+		{ // Draw
+			{ // Bg
+				int px_pos[2], px_size[2];
+				pt_to_px(px_pos, pos, ctx->dpi_scale);
+				pt_to_px(px_size, bar_size, ctx->dpi_scale);
+				gui_draw(	ctx, GuiDrawInfo_slider, px_pos, px_size, GUI_FALSE, GUI_FALSE, GUI_FALSE,
+							NULL, gui_layer(ctx), gui_scissor(ctx));
+			}
 
-		if (show_text) { // Value
-			int value_text_pos[2], value_text_size[2];
-			const char *value_text = gui_str(ctx, "%.3f", *value);
-			ctx->calc_text_size(value_text_size, ctx->calc_text_size_user_data, value_text);
-			value_text_pos[0] = pos[0] + (bar_size[0] - value_text_size[0])/2;
-			value_text_pos[1] = pos[1];
+			{ // Handle
+				float rel_scroll = (*value - min) / (max - min);
+				int handle_pos[2];
+				GUI_ASSIGN_V2(handle_pos, pos);
+				handle_pos[v] += (int)(rel_scroll*(bar_size[v] - scroll_handle_height));
+				int handle_size[2];
+				GUI_ASSIGN_V2(handle_size, bar_size);
+				handle_size[v] = scroll_handle_height;
 
-			int px_pos[2], px_size[2];
-			pt_to_px(px_pos, value_text_pos, ctx->dpi_scale);
-			pt_to_px(px_size, value_text_size, ctx->dpi_scale);
-			gui_draw(	ctx, GuiDrawInfo_text, px_pos, px_size, GUI_FALSE, GUI_FALSE, GUI_FALSE,
-						value_text, gui_layer(ctx) + 2, gui_scissor(ctx));
+				int px_pos[2], px_size[2];
+				pt_to_px(px_pos, handle_pos, ctx->dpi_scale);
+				pt_to_px(px_size, handle_size, ctx->dpi_scale);
+				gui_draw(	ctx, GuiDrawInfo_slider_handle, px_pos, px_size, hover, down, GUI_FALSE,
+							NULL, gui_layer(ctx) + 1, gui_scissor(ctx));
+			}
+
+			if (show_text) { // Label
+				int text_pos[2];
+				text_pos[0] = pos[0] + bar_size[0] + gap[0];
+				text_pos[1] = pos[1] + padding[1];
+				int px_pos[2];
+				pt_to_px(px_pos, text_pos, ctx->dpi_scale);
+				gui_draw(	ctx, GuiDrawInfo_text, px_pos, px_pos, GUI_FALSE, GUI_FALSE, GUI_FALSE,
+							gui_label_text(label), gui_layer(ctx) + 2, gui_scissor(ctx));
+			}
+
+			if (show_text) { // Value
+				int value_text_pos[2], value_text_size[2];
+				const char *value_text = gui_str(ctx, "%.3f", *value);
+				ctx->calc_text_size(value_text_size, ctx->calc_text_size_user_data, value_text);
+				value_text_pos[0] = pos[0] + (bar_size[0] - value_text_size[0])/2;
+				value_text_pos[1] = pos[1];
+
+				int px_pos[2], px_size[2];
+				pt_to_px(px_pos, value_text_pos, ctx->dpi_scale);
+				pt_to_px(px_size, value_text_size, ctx->dpi_scale);
+				gui_draw(	ctx, GuiDrawInfo_text, px_pos, px_size, GUI_FALSE, GUI_FALSE, GUI_FALSE,
+							value_text, gui_layer(ctx) + 2, gui_scissor(ctx));
+			}
 		}
 	}
 
@@ -1421,7 +1471,6 @@ void gui_begin_window_ex(GuiContext *ctx, const char *win_label, const char *cli
 	// Client-area content
 	//
 
-	client_label = gui_prepend_layout(ctx, "gui_client", client_label);
 	gui_begin(ctx, client_label);
 
 	int *c_pos = gui_turtle(ctx)->pos;
@@ -1531,15 +1580,21 @@ void gui_begin_window_ex(GuiContext *ctx, const char *win_label, const char *cli
 	}
 
 	// Save window pos and size to layout
-	update_layout_property(ctx, win_label, "offset_x", pos[0] - begin_pos[0]);
-	update_layout_property(ctx, win_label, "offset_y", pos[1] - begin_pos[1]);
+	gui_update_layout_property(ctx, win_label, "offset_x", pos[0] - begin_pos[0]);
+	gui_update_layout_property(ctx, win_label, "offset_y", pos[1] - begin_pos[1]);
 	if (!minimized) {
-		update_layout_property(ctx, win_label, "size_x", size[0]);
-		update_layout_property(ctx, win_label, "size_y", size[1]);
+		gui_update_layout_property(ctx, win_label, "size_x", size[0]);
+		gui_update_layout_property(ctx, win_label, "size_y", size[1]);
 	}
 
-	ctx->allow_next_window_outside = false;
-	ctx->create_next_window_minimized = false;
+	set_layout_property_saved(ctx, win_label, "offset_x", !ctx->dont_save_next_window_layout);
+	set_layout_property_saved(ctx, win_label, "offset_y", !ctx->dont_save_next_window_layout);
+	set_layout_property_saved(ctx, win_label, "size_x", !ctx->dont_save_next_window_layout);
+	set_layout_property_saved(ctx, win_label, "size_y", !ctx->dont_save_next_window_layout);
+
+	ctx->allow_next_window_outside = GUI_FALSE;
+	ctx->create_next_window_minimized = GUI_FALSE;
+	ctx->dont_save_next_window_layout = GUI_FALSE;
 }
 
 void gui_end_window_ex(GuiContext *ctx)
@@ -1558,7 +1613,8 @@ void gui_end_window_ex(GuiContext *ctx)
 
 void gui_begin_window(GuiContext *ctx, const char *win_label, const char *client_label)
 {
-	gui_begin_window_ex(ctx, win_label, client_label, GUI_FALSE);
+	gui_begin_window_ex(ctx,	gui_prepend_layout(ctx, "gui_window", win_label),
+								gui_prepend_layout(ctx, "gui_client", client_label), GUI_FALSE);
 }
 
 void gui_end_window(GuiContext *ctx)
@@ -1568,7 +1624,8 @@ void gui_end_window(GuiContext *ctx)
 
 void gui_begin_panel(GuiContext *ctx, const char *win_label, const char *client_label)
 {
-	gui_begin_window_ex(ctx, win_label, client_label, GUI_TRUE);
+	gui_begin_window_ex(ctx,	gui_prepend_layout(ctx, "gui_window", win_label),
+								gui_prepend_layout(ctx, "gui_client", client_label), GUI_TRUE);
 }
 
 void gui_end_panel(GuiContext *ctx)
@@ -1652,10 +1709,10 @@ GUI_BOOL gui_button_ex(GuiContext *ctx, const char *label, GUI_BOOL force_down)
 }
 
 GUI_BOOL gui_button(GuiContext *ctx, const char *label)
-{ return gui_button_ex(ctx, label, GUI_FALSE); }
+{ return gui_button_ex(ctx, gui_prepend_layout(ctx, "gui_button", label), GUI_FALSE); }
 
 GUI_BOOL gui_selectable(GuiContext *ctx, const char *label, GUI_BOOL selected)
-{ return gui_button_ex(ctx, label, selected); }
+{ return gui_button_ex(ctx, gui_prepend_layout(ctx, "gui_button", label), selected); }
 
 GUI_BOOL gui_checkbox_ex(GuiContext *ctx, const char *label, GUI_BOOL *value, GUI_BOOL radio_button_visual)
 {
@@ -1664,6 +1721,7 @@ GUI_BOOL gui_checkbox_ex(GuiContext *ctx, const char *label, GUI_BOOL *value, GU
 	int *pos = gui_turtle(ctx)->pos;
 	int *size = gui_turtle(ctx)->size;
 	int *padding = gui_turtle(ctx)->padding;
+	int *gap = gui_turtle(ctx)->gap;
 
 	int text_size[2];
 	ctx->calc_text_size(text_size, ctx->calc_text_size_user_data, gui_label_text(label));
@@ -1674,6 +1732,8 @@ GUI_BOOL gui_checkbox_ex(GuiContext *ctx, const char *label, GUI_BOOL *value, GU
 		int px_padding[4];
 		pt_to_px(&px_padding[0], &padding[0], ctx->dpi_scale);
 		pt_to_px(&px_padding[2], &padding[2], ctx->dpi_scale);
+		int px_gap[2];
+		pt_to_px(px_gap, gap, ctx->dpi_scale);
 		GUI_DECL_V2(int, box_size, size[1], size[1]);
 		int px_box_size[2];
 		pt_to_px(px_box_size, box_size, ctx->dpi_scale);
@@ -1689,8 +1749,9 @@ GUI_BOOL gui_checkbox_ex(GuiContext *ctx, const char *label, GUI_BOOL *value, GU
 		else
 			gui_draw(	ctx, GuiDrawInfo_checkbox, px_pos, px_box_size, hover, down, *value,
 						NULL, gui_layer(ctx), gui_scissor(ctx));
-		
-		px_pos[0] += px_box_size[0] + px_padding[0];
+
+		// @todo Correct padding[0] behavior
+		px_pos[0] += px_box_size[0] + px_gap[0];
 		px_pos[1] += px_padding[1];
 		gui_draw(	ctx, GuiDrawInfo_text, px_pos, px_box_size, GUI_FALSE, GUI_FALSE, GUI_FALSE,
 					gui_label_text(label), gui_layer(ctx) + 1, gui_scissor(ctx));
@@ -1715,14 +1776,14 @@ GUI_BOOL gui_radiobutton(GuiContext *ctx, const char *label, GUI_BOOL value)
 
 GUI_BOOL gui_slider(GuiContext *ctx, const char *label, float *value, float min, float max)
 {
-	return gui_slider_ex(ctx, label, value, min, max, 0.1f, GUI_FALSE, 0, GUI_TRUE);
+	return gui_slider_ex(ctx, gui_prepend_layout(ctx, "gui_slider", label), value, min, max, 0.1f, GUI_FALSE, 0, GUI_TRUE);
 }
 
 GUI_BOOL gui_slider_double(GuiContext *ctx, const char *label, double *value, double min, double max)
 {
 	// @todo gui_slider_ex should use doubles instead of floats
 	float val = *value;
-	GUI_BOOL ret = gui_slider_ex(ctx, label, &val, min, max, 0.1f, GUI_FALSE, 0, GUI_TRUE);
+	GUI_BOOL ret = gui_slider_ex(ctx, gui_prepend_layout(ctx, "gui_slider", label), &val, min, max, 0.1f, GUI_FALSE, 0, GUI_TRUE);
 	*value = val;
 	return ret;
 }
@@ -1739,15 +1800,17 @@ static GUI_BOOL gui_textfield_ex(GuiContext *ctx, const char *label, char *buf, 
 	int *pos = gui_turtle(ctx)->pos;
 	int *size = gui_turtle(ctx)->size;
 	int *padding = gui_turtle(ctx)->padding;
+	int *gap = gui_turtle(ctx)->gap;
 	GUI_BOOL has_label = (strlen(gui_label_text(label)) > 0);
 	if (has_label) {
 		ctx->calc_text_size(label_size, ctx->calc_text_size_user_data, gui_label_text(label));
 
+		// @todo Correct padding[0] behavior
 		const int min_box_size[2] = {20, 0};
 		GUI_V2(size[c] = GUI_MAX(size[c], min_box_size[c] + label_size[c] + padding[c] + padding[c + 2]));
 		label_pos[0] = pos[0] + size[0] - (label_size[0] + padding[2]);
 		label_pos[1] = pos[1] + padding[1];
-		box_size[0] = size[0] - (label_size[0] + padding[0] + padding[2]);
+		box_size[0] = size[0] - (label_size[0] + padding[0] + padding[2] + gap[0]);
 		box_size[1] = size[1];
 	} else {
 		GUI_ASSIGN_V2(label_pos, pos);
@@ -1823,15 +1886,18 @@ static GUI_BOOL gui_textfield_ex(GuiContext *ctx, const char *label, char *buf, 
 }
 
 GUI_BOOL gui_textfield(GuiContext *ctx, const char *label, char *buf, int buf_size)
-{ return gui_textfield_ex(ctx, label, buf, buf_size, GUI_FALSE, NULL); }
+{ return gui_textfield_ex(ctx, gui_prepend_layout(ctx, "gui_textfield", label), buf, buf_size, GUI_FALSE, NULL); }
 
 GUI_BOOL gui_intfield(GuiContext *ctx, const char *label, int *value)
 {
+	label = gui_prepend_layout(ctx, "gui_textfield", label);
+
 	char local_buf[GUI_TEXTFIELD_BUF_SIZE] = {0};
 	if (ctx->textfield_buf_owner != gui_id(label))
 		GUI_FMT_STR(local_buf, sizeof(local_buf), "%i", *value);
 	else
 		GUI_FMT_STR(local_buf, sizeof(local_buf), "%s", ctx->textfield_buf);
+
 
 	GUI_BOOL completed;
 	GUI_BOOL ret = gui_textfield_ex(ctx, label, local_buf, sizeof(local_buf), GUI_TRUE, &completed);
@@ -1853,6 +1919,8 @@ GUI_BOOL gui_intfield(GuiContext *ctx, const char *label, int *value)
 
 GUI_BOOL gui_doublefield(GuiContext *ctx, const char *label, double *value)
 {
+	label = gui_prepend_layout(ctx, "gui_textfield", label);
+
 	char local_buf[GUI_TEXTFIELD_BUF_SIZE] = {0};
 	if (ctx->textfield_buf_owner != gui_id(label))
 		GUI_FMT_STR(local_buf, sizeof(local_buf), "%f", *value);
@@ -1879,6 +1947,8 @@ GUI_BOOL gui_doublefield(GuiContext *ctx, const char *label, double *value)
 
 GUI_BOOL gui_floatfield(GuiContext *ctx, const char *label, float *value)
 {
+	label = gui_prepend_layout(ctx, "gui_textfield", label);
+
 	double v = *value;
 	GUI_BOOL ret = gui_doublefield(ctx, label, &v);
 	*value = (float)v;
@@ -1957,8 +2027,7 @@ GUI_BOOL gui_begin_tree(GuiContext *ctx, const char *label)
 	}
 
 	if (open) {
-		gui_begin(ctx, gui_str(ctx, "gui_treenode:%s", label));
-		gui_turtle(ctx)->pos[0] += 20; // @todo Layout
+		gui_begin(ctx, gui_prepend_layout(ctx, "gui_treenode", label));
 		return GUI_TRUE;
 	} else {
 		return GUI_FALSE;
@@ -2003,6 +2072,7 @@ void gui_layout_editor(GuiContext *ctx, const char *save_path)
 			"on_same_row",
 			"offset_x", "offset_y",
 			"size_x", "size_y",
+			"prevent_resizing",
 			"align_left", "align_right", "align_top", "align_bottom",
 			"padding_left", "padding_top", "padding_right", "padding_bottom",
 			"gap_x", "gap_y",
@@ -2012,6 +2082,7 @@ void gui_layout_editor(GuiContext *ctx, const char *save_path)
 			GUI_TRUE,
 			GUI_FALSE, GUI_FALSE,
 			GUI_FALSE, GUI_FALSE,
+			GUI_TRUE,
 			GUI_TRUE, GUI_TRUE, GUI_TRUE, GUI_TRUE,
 			GUI_FALSE, GUI_FALSE, GUI_FALSE, GUI_FALSE,
 			GUI_FALSE, GUI_FALSE,
@@ -2029,7 +2100,7 @@ void gui_layout_editor(GuiContext *ctx, const char *save_path)
 			GUI_BOOL own = has_own_layout_property(ctx, layout_name, prop);
 			if (gui_checkbox(ctx, gui_str(ctx, "gui_layout_list_own+%s|", prop), &own)) {
 				if (own)
-					update_layout_property(ctx, layout_name, prop, layout_property(ctx, layout_name, prop));
+					gui_update_layout_property(ctx, layout_name, prop, layout_property(ctx, layout_name, prop));
 				else
 					remove_layout_property(ctx, layout_name, prop);
 			}
@@ -2037,15 +2108,20 @@ void gui_layout_editor(GuiContext *ctx, const char *save_path)
 			if (prop_is_bool[i]) {
 				GUI_BOOL value = layout_property(ctx, ctx->layout_element_label, prop);
 				if (gui_checkbox(ctx, gui_str(ctx, "gui_layout_list_prop+%s|%s", prop, prop), &value))
-					update_layout_property(ctx, ctx->layout_element_label, prop, value);
+					gui_update_layout_property(ctx, ctx->layout_element_label, prop, value);
 			} else {
 				int value = layout_property(ctx, ctx->layout_element_label, prop);
 				if (gui_intfield(ctx, gui_str(ctx, "gui_layout_list_prop+%s|%s", prop, prop), &value))
-					update_layout_property(ctx, ctx->layout_element_label, prop, value);
+					gui_update_layout_property(ctx, ctx->layout_element_label, prop, value);
 			}
 
 			gui_end(ctx);
 		}
+
+		if (gui_button(ctx, "gui_layout_list+save|Save layout")) {
+			save_layout(ctx, save_path);
+		}
+
 #if 0
 		GUI_BOOL changed = GUI_FALSE;
 

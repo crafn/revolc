@@ -352,6 +352,7 @@ internal void do_world_node_editor(WorldNodeEditor *e)
 		GuiContext *ctx = g_env.uicontext->gui;
 		ctx->allow_next_window_outside = true;
 		ctx->create_next_window_minimized = true;
+		ctx->dont_save_next_window_layout = true;
 		gui_set_turtle_pos(ctx, screen_pos.x, screen_pos.y);
 		gui_begin_window(ctx, gui_str(ctx, "world_node_group_win_%i|%s", cur_group_id, node->group_def_name), NULL);
 

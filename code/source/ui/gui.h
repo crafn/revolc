@@ -220,6 +220,7 @@ typedef struct GuiContext_LayoutProperty {
 	GuiId layout_id;
 	GuiId key_id;
 	int value;
+	GUI_BOOL dont_save;
 
 	// @todo These could be in separate arrays to minimize duplicated strings
 	char layout_name[MAX_GUI_LABEL_SIZE];
@@ -243,6 +244,7 @@ typedef struct GuiContext {
 	int base_layer; // Smallest draw layer
 	GUI_BOOL allow_next_window_outside;
 	GUI_BOOL create_next_window_minimized;
+	GUI_BOOL dont_save_next_window_layout;
 
 	// Internals
 
@@ -415,6 +417,7 @@ GUI_API void gui_enlarge_bounding(GuiContext *ctx, int x, int y);
 void append_element_layout(GuiContext *ctx, GuiElementLayout layout);
 #endif
 
+void gui_update_layout_property(GuiContext *ctx, const char *label, const char *key, int value);
 void gui_append_layout_property(GuiContext *ctx, const char *label, const char *key, int value);
 
 #if __cplusplus
