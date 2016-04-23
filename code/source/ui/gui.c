@@ -67,11 +67,18 @@ static GuiId gui_hash(const char *buf, int size)
 
 GuiId gui_id(const char *label)
 {
-	int id_size = 0;
-	// gui_id("foo_button|Press this") == gui_id("foo_button|Don't press this")
-	while (label[id_size] && label[id_size] != '|')
-		++id_size;
-	return gui_hash(label, id_size);
+	int begin = 0;
+	int end = 0;
+	GUI_BOOL id_token_reached = GUI_FALSE;
+	// gui_id("layout:foo_button+1|Press this") == gui_id("layout2:foo_button+1|Don't press this")
+	while (label[end] && label[end] != '|') {
+		if (label[end] == ':' && !id_token_reached)
+			begin = end + 1;
+		if (label[end] == '+')
+			id_token_reached = GUI_TRUE;
+		++end;
+	}
+	return gui_hash(label + begin, end - begin);
 }
 
 static int layout_prop_cmp(const void *void_a, const void *void_b)
@@ -833,6 +840,11 @@ GuiContext *create_gui(CalcTextSizeFunc calc_text, void *user_data_for_calc_text
 
 		gui_update_layout_property(ctx, "gui_treenode", "padding_left", 20);
 		gui_update_layout_property(ctx, "gui_treenode", "gap_y", 2);
+
+		gui_update_layout_property(ctx, "gui_bg_window", "align_left", GUI_TRUE);
+		gui_update_layout_property(ctx, "gui_bg_window", "align_top", GUI_TRUE);
+		gui_update_layout_property(ctx, "gui_bg_window", "align_right", GUI_TRUE);
+		gui_update_layout_property(ctx, "gui_bg_window", "align_bottom", GUI_TRUE);
 
 		gui_update_layout_property(ctx, "gui_layoutwin", "size_x", 400);
 		gui_update_layout_property(ctx, "gui_layoutwin", "size_y", 700);

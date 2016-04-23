@@ -20,11 +20,12 @@ void load_layout(GuiContext *ctx)
 	gui_update_layout_property(ctx, "world_node_list_item", "align_right", 1);
 	gui_update_layout_property(ctx, "world_node_list_item", "align_left", 1);
 
-	gui_update_layout_property(ctx, "model_settings", "size_x", 213);
-	gui_update_layout_property(ctx, "model_settings", "size_y", 274);
+	gui_update_layout_property(ctx, "model_settings", "size_x", 243);
+	gui_update_layout_property(ctx, "model_settings", "size_y", 492);
 	gui_update_layout_property(ctx, "model_settings", "offset_x", 0);
-	gui_update_layout_property(ctx, "model_settings", "offset_y", 467);
+	gui_update_layout_property(ctx, "model_settings", "offset_y", 249);
 	gui_update_layout_property(ctx, "model_settings", "align_bottom", 1);
+	gui_update_layout_property(ctx, "model_settings", "prevent_resizing", 1);
 	gui_update_layout_property(ctx, "model_settings", "align_left", 1);
 
 	gui_update_layout_property(ctx, "win", "size_x", 133);
@@ -58,6 +59,11 @@ void load_layout(GuiContext *ctx)
 	gui_update_layout_property(ctx, "gui_window", "size_x", 100);
 	gui_update_layout_property(ctx, "gui_window", "size_y", 100);
 
+	gui_update_layout_property(ctx, "outline_uvbox_box", "align_right", 1);
+	gui_update_layout_property(ctx, "outline_uvbox_box", "size_x", 100);
+	gui_update_layout_property(ctx, "outline_uvbox_box", "size_y", 100);
+	gui_update_layout_property(ctx, "outline_uvbox_box", "align_bottom", 1);
+
 	gui_update_layout_property(ctx, "gui_treenode", "padding_left", 20);
 	gui_update_layout_property(ctx, "gui_treenode", "gap_y", 2);
 
@@ -66,11 +72,21 @@ void load_layout(GuiContext *ctx)
 	gui_update_layout_property(ctx, "cmd_list", "offset_x", 640);
 	gui_update_layout_property(ctx, "cmd_list", "offset_y", 102);
 
+	gui_update_layout_property(ctx, "clip_button", "on_same_row", 1);
+
+	gui_update_layout_property(ctx, "model_setting", "align_right", 1);
+	gui_update_layout_property(ctx, "model_setting", "align_left", 1);
+
 	gui_update_layout_property(ctx, "gui_layout_list_prop", "size_x", 300);
 	gui_update_layout_property(ctx, "gui_layout_list_prop", "on_same_row", 1);
 
 	gui_update_layout_property(ctx, "node_list_item", "align_right", 1);
 	gui_update_layout_property(ctx, "node_list_item", "align_left", 1);
+
+	gui_update_layout_property(ctx, "editor_overlay_box", "align_right", 1);
+	gui_update_layout_property(ctx, "editor_overlay_box", "align_bottom", 1);
+	gui_update_layout_property(ctx, "editor_overlay_box", "align_top", 1);
+	gui_update_layout_property(ctx, "editor_overlay_box", "align_left", 1);
 
 	gui_update_layout_property(ctx, "gui_client", "padding_bottom", 5);
 	gui_update_layout_property(ctx, "gui_client", "align_right", 1);
@@ -102,6 +118,13 @@ void load_layout(GuiContext *ctx)
 	gui_update_layout_property(ctx, "node_list", "offset_x", 227);
 	gui_update_layout_property(ctx, "node_list", "offset_y", 9);
 
+	gui_update_layout_property(ctx, "timeline", "align_right", 1);
+	gui_update_layout_property(ctx, "timeline", "size_y", 150);
+	gui_update_layout_property(ctx, "timeline", "align_bottom", 1);
+	gui_update_layout_property(ctx, "timeline", "align_left", 1);
+	gui_update_layout_property(ctx, "timeline", "padding_left", 10);
+	gui_update_layout_property(ctx, "timeline", "gap_x", 2);
+
 	gui_update_layout_property(ctx, "nodegroupdef_list_item", "align_right", 1);
 	gui_update_layout_property(ctx, "nodegroupdef_list_item", "align_left", 1);
 
@@ -117,6 +140,11 @@ void load_layout(GuiContext *ctx)
 	gui_update_layout_property(ctx, "res_tools", "offset_y", 0);
 	gui_update_layout_property(ctx, "res_tools", "prevent_resizing", 1);
 
+	gui_update_layout_property(ctx, "gui_bg_window", "align_right", 1);
+	gui_update_layout_property(ctx, "gui_bg_window", "align_bottom", 1);
+	gui_update_layout_property(ctx, "gui_bg_window", "align_top", 1);
+	gui_update_layout_property(ctx, "gui_bg_window", "align_left", 1);
+
 	gui_update_layout_property(ctx, "Textfield", "align_right", 1);
 	gui_update_layout_property(ctx, "Textfield", "align_left", 1);
 
@@ -130,10 +158,20 @@ void load_layout(GuiContext *ctx)
 	gui_update_layout_property(ctx, "program_state", "offset_x", 330);
 	gui_update_layout_property(ctx, "program_state", "offset_y", 61);
 
+	gui_update_layout_property(ctx, "clip_timeline", "align_right", 1);
+	gui_update_layout_property(ctx, "clip_timeline", "size_y", 130);
+	gui_update_layout_property(ctx, "clip_timeline", "align_bottom", 1);
+	gui_update_layout_property(ctx, "clip_timeline", "align_left", 1);
+
 	gui_update_layout_property(ctx, "Gui components", "size_x", 280);
 	gui_update_layout_property(ctx, "Gui components", "size_y", 463);
 	gui_update_layout_property(ctx, "Gui components", "offset_x", 277);
 	gui_update_layout_property(ctx, "Gui components", "offset_y", 84);
+
+	gui_update_layout_property(ctx, "uvbox_box", "align_right", 1);
+	gui_update_layout_property(ctx, "uvbox_box", "size_x", 300);
+	gui_update_layout_property(ctx, "uvbox_box", "size_y", 300);
+	gui_update_layout_property(ctx, "uvbox_box", "align_top", 1);
 
 	gui_update_layout_property(ctx, "cmd_list_item", "align_right", 1);
 	gui_update_layout_property(ctx, "cmd_list_item", "align_left", 1);
