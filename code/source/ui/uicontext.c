@@ -49,28 +49,28 @@ internal void limit_by_scissor(int pos[2], int size[2], int s_pos[2], int s_size
 
 internal void draw_text(int x, int y, const char *text, int layer, int s_pos[2], int s_size[2])
 {
+	const Font *font = gui_font();
 	const U32 max_quad_count = strlen(text);
 	const U32 max_vert_count = 4*max_quad_count;
 	const U32 max_ind_count = 6*max_quad_count;
 	TriMeshVertex *verts = frame_alloc(sizeof(*verts)*max_vert_count);
 	MeshIndexType *inds = frame_alloc(sizeof(*inds)*max_ind_count);
 	V2i size;
-	U32 quad_count = text_mesh(&size, verts, inds, gui_font(), text);
+	U32 quad_count = text_mesh(&size, verts, inds, font, text);
 	const U32 v_count = 4*quad_count;
 	const U32 i_count = 6*quad_count;
 
  	// Clip text to scissor rect
 	if (s_pos && s_size) {
 		for (U32 i = 0; i < v_count; ++i) {
-			// @todo Handle uv coords
+			V3f p = verts[i].pos;
+			V3f orig_p = p;
+			p.x = CLAMP(p.x + x, s_pos[0], s_pos[0] + s_size[0]) - x;
+			p.y = CLAMP(p.y + y, s_pos[1], s_pos[1] + s_size[1]) - y;
 
-			verts[i].pos.x += x;
-			verts[i].pos.x = CLAMP(verts[i].pos.x, s_pos[0], s_pos[0] + s_size[0]);
-			verts[i].pos.x -= x;
-
-			verts[i].pos.y += y;
-			verts[i].pos.y = CLAMP(verts[i].pos.y, s_pos[1], s_pos[1] + s_size[1]);
-			verts[i].pos.y -= y;
+			verts[i].pos = p;
+			verts[i].uv.x += (p.x - orig_p.x)/font->bitmap_reso.x;
+			verts[i].uv.y += (p.y - orig_p.y)/font->bitmap_reso.y;
 		}
 	}
 

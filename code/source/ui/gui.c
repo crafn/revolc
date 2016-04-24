@@ -1737,9 +1737,9 @@ static GUI_BOOL gui_textfield_ex(GuiContext *ctx, const char *label, char *buf, 
 			// @todo down --> active
 			gui_draw(	ctx, GuiDrawInfo_textbox, px_pos, px_size, hover, GUI_FALSE, active,
 						NULL, gui_layer(ctx), gui_scissor(ctx));
-			px_pos[0] += 2; // @todo To layout
 			int scissor[4] = {px_pos[0], px_pos[1], px_size[0], px_size[1]};
 			gui_combine_scissor(scissor, gui_scissor(ctx));
+			px_pos[0] += 2; // @todo To layout
 			gui_draw(	ctx, GuiDrawInfo_text, px_pos, px_size, GUI_FALSE, GUI_FALSE, GUI_FALSE,
 						buf, gui_layer(ctx) + 1, scissor);
 		}
