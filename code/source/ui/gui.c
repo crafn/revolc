@@ -683,6 +683,14 @@ GuiContext *create_gui(CalcTextSizeFunc calc_text, void *user_data_for_calc_text
 		gui_update_layout_property(ctx, "gui_checkbox", "size_y", 22);
 		gui_update_layout_property(ctx, "gui_checkbox", "gap_x", 4);
 
+		gui_update_layout_property(ctx, "gui_contextmenu", "size_x", 100);
+		gui_update_layout_property(ctx, "gui_contextmenu", "size_y", 200);
+		gui_update_layout_property(ctx, "gui_contextmenu", "prevent_resizing", GUI_TRUE);
+		gui_update_layout_property(ctx, "gui_contextmenu_client", "align_left", GUI_TRUE);
+		gui_update_layout_property(ctx, "gui_contextmenu_client", "align_right", GUI_TRUE);
+		gui_update_layout_property(ctx, "gui_contextmenu_item", "align_left", GUI_TRUE);
+		gui_update_layout_property(ctx, "gui_contextmenu_item", "align_right", GUI_TRUE);
+
 		gui_update_layout_property(ctx, "gui_textfield", "size_y", 22);
 		gui_update_layout_property(ctx, "gui_textfield", "gap_x", 4);
 
@@ -834,6 +842,7 @@ void gui_button_logic(GuiContext *ctx, const char *label, int pos[2], int size[2
 		// For layout editor
 		if (ctx->key_state[GUI_KEY_MMB] & GUI_KEYSTATE_RELEASED_BIT)
 			gui_set_inactive(ctx, gui_id(label));
+
 	} else if (gui_is_hot(ctx, label)) {
 		if (ctx->key_state[GUI_KEY_LMB] & GUI_KEYSTATE_PRESSED_BIT) {
 			if (down) *down = GUI_TRUE;
@@ -1125,7 +1134,23 @@ void gui_scroll(GuiContext *ctx, int *x, int *y)
 	*y = gui_window(ctx)->scroll[1];
 }
 
-void gui_begin_window_ex(GuiContext *ctx, const char *win_label, const char *client_label, GUI_BOOL panel)
+static void gui_lift_window_to_top(GuiContext *ctx, int win_handle)
+{
+	GUI_BOOL found = GUI_FALSE;
+	for (int i = 0; i < ctx->window_count; ++i) {
+		if (!found) {
+			if (ctx->window_order[i] == win_handle)
+				found = GUI_TRUE;
+		} else {
+			ctx->window_order[i - 1] = ctx->window_order[i];
+		}
+	}
+	ctx->window_order[ctx->window_count - 1] = win_handle;
+}
+
+// order_style: -1 behind all, 0 normal, 1 in front of all
+void gui_begin_window_ex(	GuiContext *ctx, const char *win_label, const char *client_label,
+							GUI_BOOL has_bar, int order_style)
 {
 	// Window position is offset to current turtle position.
 	// This makes it possible to move windows according to client logic while still having layouts.
@@ -1136,7 +1161,7 @@ void gui_begin_window_ex(GuiContext *ctx, const char *win_label, const char *cli
 	int *pos = gui_turtle(ctx)->pos;
 	int *size = gui_turtle(ctx)->size;
 
-	int min_size = panel ? 10 : 80;
+	int min_size = has_bar ? 80 : 10;
 
 	GUI_V2(size[c] = GUI_MAX(size[c], min_size));
 
@@ -1159,10 +1184,10 @@ void gui_begin_window_ex(GuiContext *ctx, const char *win_label, const char *cli
 			GuiContext_Window *win = &ctx->windows[free_handle];
 			win->id = gui_id(win_label);
 			GUI_FMT_STR(win->label, sizeof(win->label), "%s", win_label);
-			win->has_bar = !panel;
+			win->has_bar = has_bar;
 			win->minimized = ctx->create_next_window_minimized;
-			if (panel) {
-				// Panel will be behind every window
+			if (order_style == -1) {
+				// e.g. panels are created behind every window
 				memmove(&ctx->window_order[1], &ctx->window_order[0], sizeof(*ctx->window_order)*ctx->window_count);
 				ctx->window_order[0] = free_handle;
 				++ctx->window_count;
@@ -1171,6 +1196,9 @@ void gui_begin_window_ex(GuiContext *ctx, const char *win_label, const char *cli
 			}
 
 			win_handle = free_handle;
+		} else {
+			if (order_style == 1)
+				gui_lift_window_to_top(ctx, win_handle);
 		}
 	}
 	assert(win_handle >= 0);
@@ -1200,19 +1228,8 @@ void gui_begin_window_ex(GuiContext *ctx, const char *win_label, const char *cli
 		gui_begin(ctx, bar_label);
 		gui_button_logic(ctx, bar_label, pos, btn_size, NULL, &went_down, &down, &hover);
 
-		if (ctx->active_win_ix == win_handle && !panel) {
-			// Lift window to top
-			GUI_BOOL found = GUI_FALSE;
-			for (int i = 0; i < ctx->window_count; ++i) {
-				if (!found) {
-					if (ctx->window_order[i] == win_handle)
-						found = GUI_TRUE;
-				} else {
-					ctx->window_order[i - 1] = ctx->window_order[i];
-				}
-			}
-			ctx->window_order[ctx->window_count - 1] = win_handle;
-		}
+		if (ctx->active_win_ix == win_handle && order_style >= 0)
+			gui_lift_window_to_top(ctx, win_handle);
 
 		if (went_down) {
 			float v[2];
@@ -1234,7 +1251,7 @@ void gui_begin_window_ex(GuiContext *ctx, const char *win_label, const char *cli
 		pt_to_px(px_size, size, ctx->dpi_scale);
 		gui_draw(	ctx, GuiDrawInfo_panel, px_pos, px_size, GUI_FALSE, GUI_FALSE, gui_focused(ctx),
 					NULL, gui_layer(ctx), gui_scissor(ctx));
-		if (!panel) {
+		if (has_bar) {
 			px_size[1] = win->bar_height;
 			gui_draw(	ctx, GuiDrawInfo_title_bar, px_pos, px_size, GUI_FALSE, GUI_FALSE, gui_focused(ctx),
 						gui_label_text(win_label), gui_layer(ctx) + 1, gui_scissor(ctx));
@@ -1407,7 +1424,7 @@ void gui_end_window_ex(GuiContext *ctx)
 void gui_begin_window(GuiContext *ctx, const char *win_label, const char *client_label)
 {
 	gui_begin_window_ex(ctx,	gui_prepend_layout(ctx, "gui_window", win_label),
-								gui_prepend_layout(ctx, "gui_client", client_label), GUI_FALSE);
+								gui_prepend_layout(ctx, "gui_client", client_label), GUI_TRUE, 0);
 }
 
 void gui_end_window(GuiContext *ctx)
@@ -1418,7 +1435,7 @@ void gui_end_window(GuiContext *ctx)
 void gui_begin_panel(GuiContext *ctx, const char *win_label, const char *client_label)
 {
 	gui_begin_window_ex(ctx,	gui_prepend_layout(ctx, "gui_window", win_label),
-								gui_prepend_layout(ctx, "gui_client", client_label), GUI_TRUE);
+								gui_prepend_layout(ctx, "gui_client", client_label), GUI_FALSE, -1);
 }
 
 void gui_end_panel(GuiContext *ctx)
@@ -1438,35 +1455,7 @@ void gui_window_pos(GuiContext *ctx, int *x, int *y)
 	*y = gui_window(ctx)->recorded_pos[1];
 }
 
-void gui_begin_contextmenu(GuiContext *ctx, const char *label)
-{
-	gui_begin_window_ex(ctx, label, NULL, GUI_FALSE);
-}
-
-void gui_end_contextmenu(GuiContext *ctx)
-{
-	gui_end_window_ex(ctx);
-}
-
-GUI_BOOL gui_contextmenu_item(GuiContext *ctx, const char *label)
-{
-	GUI_BOOL ret = gui_button(ctx, label);
-	return ret;
-}
-
-void gui_begin_dragdrop_src(GuiContext *ctx, DragDropData data)
-{
-	assert(gui_turtle(ctx)->inactive_dragdropdata.tag == NULL && "Nested dragdrop areas in single gui element not supported");
-	gui_turtle(ctx)->inactive_dragdropdata = data;
-}
-
-void gui_end_dragdrop_src(GuiContext *ctx)
-{
-	assert(gui_turtle(ctx)->inactive_dragdropdata.tag);
-	GUI_ZERO(gui_turtle(ctx)->inactive_dragdropdata);
-}
-
-GUI_BOOL gui_button_ex(GuiContext *ctx, const char *label, GUI_BOOL force_down)
+static GUI_BOOL gui_button_ex(GuiContext *ctx, const char *label, GUI_BOOL force_down)
 {
 	gui_begin(ctx, label);
 	int *pos = gui_turtle(ctx)->pos;
@@ -1499,6 +1488,50 @@ GUI_BOOL gui_button_ex(GuiContext *ctx, const char *label, GUI_BOOL force_down)
 	gui_end(ctx);
 
 	return went_up && hover;
+}
+
+GUI_BOOL gui_begin_contextmenu(GuiContext *ctx, const char *label, GuiId element_id)
+{
+	if (	ctx->last_hot_id == element_id &&
+			(ctx->key_state[GUI_KEY_RMB] & GUI_KEYSTATE_PRESSED_BIT)) {
+		ctx->open_contextmenu_id = gui_id(label);
+		gui_update_layout_property(ctx, label, "offset_x", ctx->cursor_pos[0]);
+		gui_update_layout_property(ctx, label, "offset_y", ctx->cursor_pos[1]);
+	}
+
+	if (ctx->open_contextmenu_id == gui_id(label)) {
+		// User calls gui_end_contextmenu
+		ctx->dont_save_next_window_layout = GUI_TRUE;
+		gui_begin_window_ex(ctx,	gui_prepend_layout(ctx, "gui_contextmenu", label),
+									"gui_contextmenu_client", GUI_FALSE, 1);
+		if (!gui_focused(ctx))
+			ctx->open_contextmenu_id = 0;
+
+		return GUI_TRUE;
+	}
+
+	return GUI_FALSE;
+}
+
+void gui_end_contextmenu(GuiContext *ctx)
+{ gui_end_window_ex(ctx); }
+
+void gui_close_contextmenu(GuiContext *ctx)
+{ ctx->open_contextmenu_id = 0; }
+
+GUI_BOOL gui_contextmenu_item(GuiContext *ctx, const char *label)
+{ return gui_button_ex(ctx, gui_prepend_layout(ctx, "gui_button:gui_contextmenu_item", label), GUI_FALSE); }
+
+void gui_begin_dragdrop_src(GuiContext *ctx, DragDropData data)
+{
+	assert(gui_turtle(ctx)->inactive_dragdropdata.tag == NULL && "Nested dragdrop areas in single gui element not supported");
+	gui_turtle(ctx)->inactive_dragdropdata = data;
+}
+
+void gui_end_dragdrop_src(GuiContext *ctx)
+{
+	assert(gui_turtle(ctx)->inactive_dragdropdata.tag);
+	GUI_ZERO(gui_turtle(ctx)->inactive_dragdropdata);
 }
 
 GUI_BOOL gui_button(GuiContext *ctx, const char *label)

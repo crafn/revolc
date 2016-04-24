@@ -23,11 +23,9 @@ The library is designed to make zero memory allocations during normal runtime. I
    because gui layout is meant to be adjusted & saved before shipping.
 
 Todo list
- - multiple layout support
  - C99 -> C89 (while keeping C++ compat)
  - header-only
- - simple example
- - advanced example
+ - gui demo
  - custom element example
  - name for the library
  - check/rename functions (prefix gui_)
@@ -250,6 +248,7 @@ typedef struct GuiContext {
 
 	GUI_BOOL has_input; // Writing in textfield or something
 	GuiId open_combo_id;
+	GuiId open_contextmenu_id;
 
 	CalcTextSizeFunc calc_text_size;
 	void *calc_text_size_user_data;
@@ -283,8 +282,6 @@ GUI_API const char *gui_label_text(const char *label);
 GUI_API const char *gui_str(GuiContext *ctx, const char *fmt, ...); // Temporary string. These are cheap to make. Valid only this frame.
 
 // Startup and shutdown of GUI
-// @todo Size should be defined in gui_begin_window()
-// @note skin_source_file contents is not copied
 GUI_API GuiContext *create_gui(CalcTextSizeFunc calc_text, void *user_data_for_calc_text);
 GUI_API void destroy_gui(GuiContext *ctx);
 GUI_API void gui_pre_frame(GuiContext *ctx);
@@ -312,8 +309,9 @@ GUI_API void gui_window_pos(GuiContext *ctx, int *x, int *y);
 GUI_API void gui_begin_panel(GuiContext *ctx, const char *win_label, const char *client_label);
 GUI_API void gui_end_panel(GuiContext *ctx);
 
-GUI_API void gui_begin_contextmenu(GuiContext *ctx, const char *label);
+GUI_API GUI_BOOL gui_begin_contextmenu(GuiContext *ctx, const char *label, GuiId element_id);
 GUI_API void gui_end_contextmenu(GuiContext *ctx);
+GUI_API void gui_close_contextmenu(GuiContext *ctx);
 GUI_API GUI_BOOL gui_contextmenu_item(GuiContext *ctx, const char *label);
 
 GUI_API void gui_begin_dragdrop_src(GuiContext *ctx, DragDropData data);

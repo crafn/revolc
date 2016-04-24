@@ -831,6 +831,29 @@ void upd_editor(F64 *world_dt)
 
 			gui_end_window(ctx);
 
+			if (gui_begin_contextmenu(ctx, "contextmenu1", gui_id("sub menu thing"))) {
+				bool clicked = false;
+				clicked |= gui_contextmenu_item(ctx, "Foo");
+				clicked |= gui_contextmenu_item(ctx, "Bar");
+				gui_end_contextmenu(ctx);
+
+				if (clicked)
+					gui_close_contextmenu(ctx);
+			}
+
+			if (gui_begin_contextmenu(ctx, "contextmenu2", gui_id("sub menu thing 2"))) {
+				bool clicked = false;
+				clicked |= gui_contextmenu_item(ctx, "Foo");
+				clicked |= gui_contextmenu_item(ctx, "Bar");
+				clicked |= gui_contextmenu_item(ctx, "Jorma");
+				static float f;
+				gui_slider(ctx, "gui_contextmenu_item:asd", &f, 0, 1);
+				gui_end_contextmenu(ctx);
+
+				if (clicked)
+					gui_close_contextmenu(ctx);
+			}
+
 			gui_begin_panel(ctx, "panel", "panel_content");
 				gui_button(ctx, "button");
 			gui_end_panel(ctx);
