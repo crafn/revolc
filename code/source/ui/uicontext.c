@@ -47,7 +47,7 @@ internal void limit_by_scissor(int pos[2], int size[2], int s_pos[2], int s_size
 	size[1] = MAX(p2[1] - p1[1], 0);
 }
 
-internal void draw_text(int x, int y, const char *text, int layer)
+internal void draw_text(int x, int y, const char *text, int layer, int s_pos[2], int s_size[2])
 {
 	const U32 max_quad_count = strlen(text);
 	const U32 max_vert_count = 4*max_quad_count;
@@ -58,6 +58,21 @@ internal void draw_text(int x, int y, const char *text, int layer)
 	U32 quad_count = text_mesh(&size, verts, inds, gui_font(), text);
 	const U32 v_count = 4*quad_count;
 	const U32 i_count = 6*quad_count;
+
+ 	// Clip text to scissor rect
+	if (s_pos && s_size) {
+		for (U32 i = 0; i < v_count; ++i) {
+			// @todo Handle uv coords
+
+			verts[i].pos.x += x;
+			verts[i].pos.x = CLAMP(verts[i].pos.x, s_pos[0], s_pos[0] + s_size[0]);
+			verts[i].pos.x -= x;
+
+			verts[i].pos.y += y;
+			verts[i].pos.y = CLAMP(verts[i].pos.y, s_pos[1], s_pos[1] + s_size[1]);
+			verts[i].pos.y -= y;
+		}
+	}
 
 	drawcmd(px_tf((V2i) {x, y}, (V2i) {1, 1}),
 			verts, v_count,
@@ -230,13 +245,13 @@ void end_ui_frame()
 		} break;
 
 		case GuiDrawInfo_text: {
-			draw_text(d.pos[0], d.pos[1], d.text, d.layer);
+			draw_text(d.pos[0], d.pos[1], d.text, d.layer, d.scissor_pos, d.scissor_size);
 		} break;
 
 		case GuiDrawInfo_title_bar: {
 			Color bg_color = darken_color(panel_color());
 			drawcmd_px_quad(p, s, 0.0, bg_color, outline_color(bg_color), d.layer);
-			draw_text(p.x + 5, p.y + 2, d.text, d.layer + 1);
+			draw_text(p.x + 5, p.y + 2, d.text, d.layer + 1, NULL, NULL);
 		} break;
 
 		default: fail("Unknown GuiDrawInfo: %i", d.type);

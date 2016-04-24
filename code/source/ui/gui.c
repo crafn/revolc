@@ -523,6 +523,20 @@ void gui_parent_turtle_start_pos(GuiContext *ctx, int pos[2])
 	}
 }
 
+internal void gui_combine_scissor(int dst[4], int src[4])
+{
+	int dp[4] = {dst[0], dst[1], dst[0] + dst[2], dst[1] + dst[3]};
+	int sp[4] = {src[0], src[1], src[0] + src[2], src[1] + src[3]};
+
+	GUI_V2(dp[c] = MAX(dp[c], sp[c]));
+	GUI_V2(dp[c + 2] = MIN(dp[c + 2], sp[c + 2]));
+
+	dst[0] = dp[0];
+	dst[1] = dp[1];
+	dst[2] = dp[2] - dp[0];
+	dst[3] = dp[3] - dp[1];
+}
+
 int *gui_scissor(GuiContext *ctx)
 {
 	int *s = gui_turtle(ctx)->scissor;
@@ -1724,8 +1738,10 @@ static GUI_BOOL gui_textfield_ex(GuiContext *ctx, const char *label, char *buf, 
 			gui_draw(	ctx, GuiDrawInfo_textbox, px_pos, px_size, hover, GUI_FALSE, active,
 						NULL, gui_layer(ctx), gui_scissor(ctx));
 			px_pos[0] += 2; // @todo To layout
+			int scissor[4] = {px_pos[0], px_pos[1], px_size[0], px_size[1]};
+			gui_combine_scissor(scissor, gui_scissor(ctx));
 			gui_draw(	ctx, GuiDrawInfo_text, px_pos, px_size, GUI_FALSE, GUI_FALSE, GUI_FALSE,
-						buf, gui_layer(ctx) + 1, gui_scissor(ctx));
+						buf, gui_layer(ctx) + 1, scissor);
 		}
 
 	}
