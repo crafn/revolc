@@ -1,5 +1,8 @@
 void load_layout(GuiContext *ctx)
 {
+	gui_update_layout_property(ctx, "gui_contextmenu_client", "align_right", 1);
+	gui_update_layout_property(ctx, "gui_contextmenu_client", "align_left", 1);
+
 	gui_update_layout_property(ctx, "gui_button", "padding_bottom", 4);
 	gui_update_layout_property(ctx, "gui_button", "padding_right", 5);
 	gui_update_layout_property(ctx, "gui_button", "padding_left", 5);
@@ -35,8 +38,8 @@ void load_layout(GuiContext *ctx)
 
 	gui_update_layout_property(ctx, "create_cmd", "size_x", 566);
 	gui_update_layout_property(ctx, "create_cmd", "size_y", 363);
-	gui_update_layout_property(ctx, "create_cmd", "offset_x", 572);
-	gui_update_layout_property(ctx, "create_cmd", "offset_y", 105);
+	gui_update_layout_property(ctx, "create_cmd", "offset_x", 132);
+	gui_update_layout_property(ctx, "create_cmd", "offset_y", 263);
 
 	gui_update_layout_property(ctx, "gui_layout_list", "align_right", 1);
 	gui_update_layout_property(ctx, "gui_layout_list", "align_left", 1);
@@ -56,6 +59,11 @@ void load_layout(GuiContext *ctx)
 	gui_update_layout_property(ctx, "gui_layoutwin", "offset_x", 607);
 	gui_update_layout_property(ctx, "gui_layoutwin", "offset_y", 21);
 
+	gui_update_layout_property(ctx, "gui_contextmenu_item", "align_right", 1);
+	gui_update_layout_property(ctx, "gui_contextmenu_item", "align_left", 1);
+
+	gui_update_layout_property(ctx, "create_cmd_list_2", "on_same_row", 1);
+
 	gui_update_layout_property(ctx, "gui_window", "size_x", 100);
 	gui_update_layout_property(ctx, "gui_window", "size_y", 100);
 
@@ -63,6 +71,10 @@ void load_layout(GuiContext *ctx)
 	gui_update_layout_property(ctx, "outline_uvbox_box", "size_x", 100);
 	gui_update_layout_property(ctx, "outline_uvbox_box", "size_y", 100);
 	gui_update_layout_property(ctx, "outline_uvbox_box", "align_bottom", 1);
+
+	gui_update_layout_property(ctx, "gui_contextmenu", "size_x", 100);
+	gui_update_layout_property(ctx, "gui_contextmenu", "size_y", 200);
+	gui_update_layout_property(ctx, "gui_contextmenu", "prevent_resizing", 1);
 
 	gui_update_layout_property(ctx, "gui_treenode", "padding_left", 20);
 	gui_update_layout_property(ctx, "gui_treenode", "gap_y", 2);

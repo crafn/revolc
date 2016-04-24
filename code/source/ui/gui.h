@@ -246,6 +246,8 @@ typedef struct GuiContext {
 	char active_label[MAX_GUI_LABEL_SIZE];
 	int active_win_ix;
 
+	GuiId interacted_id; // Set for one frame on button release etc.
+
 	GUI_BOOL has_input; // Writing in textfield or something
 	GuiId open_combo_id;
 	GuiId open_contextmenu_id;
@@ -313,6 +315,10 @@ GUI_API GUI_BOOL gui_begin_contextmenu(GuiContext *ctx, const char *label, GuiId
 GUI_API void gui_end_contextmenu(GuiContext *ctx);
 GUI_API void gui_close_contextmenu(GuiContext *ctx);
 GUI_API GUI_BOOL gui_contextmenu_item(GuiContext *ctx, const char *label);
+
+// Secondary way to detect interactions with preceeding gui elements. True on button release etc.
+// @todo Implement for all elements and/or think of stricter semantics
+GUI_API GUI_BOOL gui_interacted(GuiContext *ctx, GuiId element_id);
 
 GUI_API void gui_begin_dragdrop_src(GuiContext *ctx, DragDropData data);
 GUI_API void gui_end_dragdrop_src(GuiContext *ctx);

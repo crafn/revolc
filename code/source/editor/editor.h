@@ -19,10 +19,10 @@ typedef enum {
 typedef struct CreateCmdEditor {
 	bool select_src;
 	bool select_dst;
-	Id src_node;
+	Id src_node; // Initialize to NULL_ID
 	U32 src_offset;
 	U32 src_size;
-	Id dst_node;
+	Id dst_node; // Initialize to NULL_ID
 	U32 dst_offset;
 	U32 dst_size;
 } CreateCmdEditor;
@@ -72,6 +72,7 @@ typedef struct Editor {
 	U32 selected_nodegroupdef;
 
 	bool show_create_cmd;
+	// @todo Rename to cmd_editor
 	CreateCmdEditor create_cmd;
 
 	F32 world_time_mul;

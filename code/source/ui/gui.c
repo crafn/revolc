@@ -765,6 +765,8 @@ void gui_pre_frame(GuiContext *ctx)
 		(GuiDrawInfo*)gui_frame_alloc(ctx, sizeof(*ctx->draw_infos)*ctx->draw_info_capacity);
 	ctx->draw_info_count = 0;
 
+	ctx->interacted_id = 0;
+
 	// "Null" turtle
 	GUI_ZERO(*gui_turtle(ctx));
 	gui_turtle(ctx)->window_ix = GUI_BG_WINDOW_IX;
@@ -829,29 +831,43 @@ void gui_button_logic(GuiContext *ctx, const char *label, int pos[2], int size[2
 	if (down) *down = GUI_FALSE;
 	if (hover) *hover = GUI_FALSE;
 
+	uint8_t lmb_state = ctx->key_state[GUI_KEY_LMB];
+	uint8_t mmb_state = ctx->key_state[GUI_KEY_MMB];
+	uint8_t rmb_state = ctx->key_state[GUI_KEY_RMB];
+
 	GUI_BOOL was_released = GUI_FALSE;
 	if (gui_is_active(ctx, label)) {
-		if (ctx->key_state[GUI_KEY_LMB] & GUI_KEYSTATE_DOWN_BIT) {
+		if (lmb_state & GUI_KEYSTATE_DOWN_BIT) {
 			if (down) *down = GUI_TRUE;
-		} else if (ctx->key_state[GUI_KEY_LMB] & GUI_KEYSTATE_RELEASED_BIT) {
+		} else if (lmb_state & GUI_KEYSTATE_RELEASED_BIT) {
 			if (went_up) *went_up = GUI_TRUE;
 			gui_set_inactive(ctx, gui_id(label));
 			was_released = GUI_TRUE;
 		}
+		
+		// Rmb should bring window to top
+		if (rmb_state & GUI_KEYSTATE_RELEASED_BIT) {
+			gui_set_inactive(ctx, gui_id(label));
+		}
 
 		// For layout editor
-		if (ctx->key_state[GUI_KEY_MMB] & GUI_KEYSTATE_RELEASED_BIT)
+		if (mmb_state & GUI_KEYSTATE_RELEASED_BIT)
 			gui_set_inactive(ctx, gui_id(label));
 
 	} else if (gui_is_hot(ctx, label)) {
-		if (ctx->key_state[GUI_KEY_LMB] & GUI_KEYSTATE_PRESSED_BIT) {
+		if (lmb_state & GUI_KEYSTATE_PRESSED_BIT) {
 			if (down) *down = GUI_TRUE;
 			if (went_down) *went_down = GUI_TRUE;
 			gui_set_active(ctx, label);
 		}
 
+		// Rmb should bring window to top
+		if (rmb_state & GUI_KEYSTATE_PRESSED_BIT) {
+			gui_set_active(ctx, label);
+		}
+
 		// For layout editor
-		if (ctx->key_state[GUI_KEY_MMB] & GUI_KEYSTATE_PRESSED_BIT)
+		if (mmb_state & GUI_KEYSTATE_PRESSED_BIT)
 			gui_set_active(ctx, label);
 	}
 
@@ -1203,7 +1219,10 @@ void gui_begin_window_ex(	GuiContext *ctx, const char *win_label, const char *cl
 	}
 	assert(win_handle >= 0);
 	GuiContext_Window *win = &ctx->windows[win_handle];
-	assert(!win->used && "Same window used twice in a frame");
+	if (win->used) {
+		GUI_PRINTF("Same window used twice in a frame: %s\n", win_label);
+		assert(0 && "See printed error message");
+	}
 	win->used = GUI_TRUE;
 	if (!win->used_in_last_frame && ctx->focused_win_ix != GUI_BG_WINDOW_IX)
 		ctx->focused_win_ix = win_handle; // Appearing window will be focused
@@ -1471,6 +1490,9 @@ static GUI_BOOL gui_button_ex(GuiContext *ctx, const char *label, GUI_BOOL force
 	if (gui_is_inside_window(ctx, size)) {
 		gui_button_logic(ctx, label, pos, size, &went_up, NULL, &down, &hover);
 
+		if (went_up)
+			ctx->interacted_id = gui_id(label);
+
 		int px_pos[2], px_size[2];
 		pt_to_px(px_pos, pos, ctx->dpi_scale);
 		pt_to_px(px_size, size, ctx->dpi_scale);
@@ -1521,6 +1543,9 @@ void gui_close_contextmenu(GuiContext *ctx)
 
 GUI_BOOL gui_contextmenu_item(GuiContext *ctx, const char *label)
 { return gui_button_ex(ctx, gui_prepend_layout(ctx, "gui_button:gui_contextmenu_item", label), GUI_FALSE); }
+
+GUI_BOOL gui_interacted(GuiContext *ctx, GuiId element_id)
+{ return ctx->interacted_id == element_id; }
 
 void gui_begin_dragdrop_src(GuiContext *ctx, DragDropData data)
 {
