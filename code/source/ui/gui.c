@@ -697,11 +697,6 @@ GuiContext *create_gui(CalcTextSizeFunc calc_text, void *user_data_for_calc_text
 	ctx->framemem_buckets[0].used = 0;
 
 	{ // Default layouts
-		gui_update_layout_property(ctx, "gui_slider", "size_x", 15);
-		gui_update_layout_property(ctx, "gui_slider", "size_y", 15);
-		gui_update_layout_property(ctx, "gui_slider", "gap_x", 4);
-		gui_update_layout_property(ctx, "gui_slider", "gap_y", 4);
-
 		gui_update_layout_property(ctx, "gui_bar", "size_y", 25);
 
 		gui_update_layout_property(ctx, "gui_checkbox", "size_x", 22);
@@ -709,7 +704,8 @@ GuiContext *create_gui(CalcTextSizeFunc calc_text, void *user_data_for_calc_text
 		gui_update_layout_property(ctx, "gui_checkbox", "gap_x", 4);
 
 		gui_update_layout_property(ctx, "gui_contextmenu", "prevent_resizing", GUI_TRUE);
-		gui_update_layout_property(ctx, "gui_contextmenu", "resize_to_min", GUI_TRUE);
+		gui_update_layout_property(ctx, "gui_contextmenu", "resize_to_min_x", GUI_TRUE);
+		gui_update_layout_property(ctx, "gui_contextmenu", "resize_to_min_y", GUI_TRUE);
 		gui_update_layout_property(ctx, "gui_contextmenu_client", "align_left", GUI_TRUE);
 		gui_update_layout_property(ctx, "gui_contextmenu_client", "align_right", GUI_TRUE);
 		gui_update_layout_property(ctx, "gui_contextmenu_item", "align_left", GUI_TRUE);
@@ -722,6 +718,19 @@ GuiContext *create_gui(CalcTextSizeFunc calc_text, void *user_data_for_calc_text
 		gui_update_layout_property(ctx, "gui_button", "padding_top", 2);
 		gui_update_layout_property(ctx, "gui_button", "padding_right", 5);
 		gui_update_layout_property(ctx, "gui_button", "padding_bottom", 4);
+
+		gui_update_layout_property(ctx, "gui_slider_x", "size_y", 25);
+		gui_update_layout_property(ctx, "gui_slider_x", "gap_x", 4);
+		gui_update_layout_property(ctx, "gui_slider_x", "padding_left", 0);
+		gui_update_layout_property(ctx, "gui_slider_x", "padding_top", 2);
+		gui_update_layout_property(ctx, "gui_slider_x", "padding_right", 0);
+		gui_update_layout_property(ctx, "gui_slider_x", "padding_bottom", 2);
+
+		gui_update_layout_property(ctx, "gui_slider_y", "size_x", 25);
+		gui_update_layout_property(ctx, "gui_slider_y", "gap_y", 4);
+
+		gui_update_layout_property(ctx, "gui_win_slider_x", "size_y", 15);
+		gui_update_layout_property(ctx, "gui_win_slider_y", "size_x", 15);
 
 		gui_update_layout_property(ctx, "gui_treenode", "padding_left", 20);
 		gui_update_layout_property(ctx, "gui_treenode", "gap_y", 2);
@@ -944,13 +953,14 @@ static void gui_begin_ex(GuiContext *ctx, const char *label, GUI_BOOL detached)
 		if (has_layout_property(ctx, label, "offset_y"))
 			new_turtle.pos[1] += layout_property(ctx, label, "offset_y");
 
-		GUI_BOOL resize_to_min = layout_property(ctx, label, "resize_to_min");
-		if (has_layout_property(ctx, label, "size_x") && !resize_to_min) {
+		if (	has_layout_property(ctx, label, "size_x") &&
+				!layout_property(ctx, label, "resize_to_min_x")) {
 			new_turtle.size[0] = layout_property(ctx, label, "size_x");
 		} else {
 			new_turtle.size[0] = layout_property(ctx, label, "min_size_x");
 		}
-		if (has_layout_property(ctx, label, "size_y") && !resize_to_min) {
+		if (	has_layout_property(ctx, label, "size_y") &&
+				!layout_property(ctx, label, "resize_to_min_y")) {
 			new_turtle.size[1] = layout_property(ctx, label, "size_y");
 		} else {
 			new_turtle.size[1] = layout_property(ctx, label, "min_size_y");
@@ -1082,12 +1092,18 @@ GUI_BOOL gui_slider_ex(GuiContext *ctx, const char *label, float *value, float m
 	int text_size[2] = {};
 	if (show_text && strlen(gui_label_text(label)) > 0) {
 		ctx->calc_text_size(text_size, ctx->calc_text_size_user_data, gui_label_text(label));
-		GUI_V2(size[c] = GUI_MAX((int)text_size[c] + padding[c] + padding[c + 2], size[c]));
+		GUI_V2(size[c] = GUI_MAX(text_size[c] + padding[c] + (!c)*gap[0] + padding[c + 2], size[c]));
 	}
 	// @todo Correct padding[0] behavior
 	int bar_size[2];
 	GUI_BOOL has_text = (text_size[0] > 0);
-	GUI_V2(bar_size[c] = size[c] - (!c)*(text_size[c] + gap[c]*has_text + padding[2]));
+	GUI_V2(bar_size[c] = size[c] - (!c)*(text_size[0] + gap[0] + padding[2])*has_text);
+
+	// @todo Correct min_size[1]
+	int min_size[2];
+	GUI_V2(min_size[c] = (!c)*(text_size[0] + gap[0] + padding[0])*has_text + (!c)*50);
+	gui_set_min_size(ctx, label, min_size);
+	GUI_V2(size[c] = GUI_MAX(size[c], min_size[c]));
 
 	const int scroll_handle_height = GUI_MAX((int)(handle_rel_size*bar_size[v]), 10);
 
@@ -1205,7 +1221,6 @@ void gui_begin_window_ex(	GuiContext *ctx, const char *win_label, const char *cl
 	int *size = gui_turtle(ctx)->size;
 
 	int min_size = has_bar ? 80 : 10;
-
 	GUI_V2(size[c] = GUI_MAX(size[c], min_size));
 
 	int win_handle = -1;
@@ -1331,8 +1346,8 @@ void gui_begin_window_ex(	GuiContext *ctx, const char *win_label, const char *cl
 
 	int *c_pos = gui_turtle(ctx)->pos;
 	int *c_size = gui_turtle(ctx)->size;
-	GUI_DECL_V2(int, slider_size,	layout_property(ctx, "gui_slider", "size_x"),
-									layout_property(ctx, "gui_slider", "size_y"));
+	GUI_DECL_V2(int, slider_size,	layout_property(ctx, "gui_win_slider_y", "size_x"),
+									layout_property(ctx, "gui_win_slider_x", "size_y"));
 	GUI_ASSIGN_V2(win->slider_width, slider_size);
 	GUI_V2(c_size[c] = size[c] - c*win->bar_height - win->needs_scroll[!c]*slider_size[!c]);
 
@@ -1351,7 +1366,8 @@ void gui_begin_window_ex(	GuiContext *ctx, const char *win_label, const char *cl
 			gui_turtle(ctx)->layer += GUI_LAYERS_PER_WINDOW/2; // Make topmost in window @todo Then should move this to end_window
 			if (win->needs_scroll[d]) {
 				char scroll_label[MAX_GUI_LABEL_SIZE];
-				GUI_FMT_STR(scroll_label, sizeof(scroll_label), "gui_slider+%i+%s", d, win_label);
+				GUI_FMT_STR(scroll_label, sizeof(scroll_label), "gui_win_slider_%c+%i+%s",
+																d ? 'y' : 'x', d, win_label);
 				GUI_ASSIGN_V2(gui_turtle(ctx)->pos, c_pos);
 				gui_turtle(ctx)->pos[!d] = pos[!d] + size[!d] - slider_size[!d];
 
@@ -1667,14 +1683,14 @@ GUI_BOOL gui_radiobutton(GuiContext *ctx, const char *label, GUI_BOOL value)
 
 GUI_BOOL gui_slider(GuiContext *ctx, const char *label, float *value, float min, float max)
 {
-	return gui_slider_ex(ctx, gui_prepend_layout(ctx, "gui_slider", label), value, min, max, 0.1f, GUI_FALSE, 0, GUI_TRUE);
+	return gui_slider_ex(ctx, gui_prepend_layout(ctx, "gui_slider_x", label), value, min, max, 0.1f, GUI_FALSE, 0, GUI_TRUE);
 }
 
 GUI_BOOL gui_slider_double(GuiContext *ctx, const char *label, double *value, double min, double max)
 {
 	// @todo gui_slider_ex should use doubles instead of floats
 	float val = *value;
-	GUI_BOOL ret = gui_slider_ex(ctx, gui_prepend_layout(ctx, "gui_slider", label), &val, min, max, 0.1f, GUI_FALSE, 0, GUI_TRUE);
+	GUI_BOOL ret = gui_slider_ex(ctx, gui_prepend_layout(ctx, "gui_slider_x", label), &val, min, max, 0.1f, GUI_FALSE, 0, GUI_TRUE);
 	*value = val;
 	return ret;
 }
@@ -1966,7 +1982,7 @@ void gui_layout_editor(GuiContext *ctx, const char *save_path)
 			"offset_x", "offset_y",
 			"size_x", "size_y",
 			"prevent_resizing",
-			"resize_to_min",
+			"resize_to_min_x", "resize_to_min_y",
 			"align_left", "align_right", "align_top", "align_bottom",
 			"padding_left", "padding_top", "padding_right", "padding_bottom",
 			"gap_x", "gap_y",
@@ -1977,7 +1993,7 @@ void gui_layout_editor(GuiContext *ctx, const char *save_path)
 			GUI_FALSE, GUI_FALSE,
 			GUI_FALSE, GUI_FALSE,
 			GUI_TRUE,
-			GUI_TRUE,
+			GUI_TRUE, GUI_TRUE,
 			GUI_TRUE, GUI_TRUE, GUI_TRUE, GUI_TRUE,
 			GUI_FALSE, GUI_FALSE, GUI_FALSE, GUI_FALSE,
 			GUI_FALSE, GUI_FALSE,
