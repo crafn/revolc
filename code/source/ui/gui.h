@@ -137,8 +137,9 @@ typedef struct GuiContext_Window {
 	// Depends on window size in layout
 	int client_size[2];
 
+	int slider_width[2];
 	GUI_BOOL needs_scroll[2];
-	int last_bounding_size[2]; // @todo Rename to content size
+	int last_bounding_size[2]; // @todo This is probably redundant, substitute with min_size layout property
 	int scroll[2]; // Translation in pt. Cannot be relative, because adding content shouldn't cause translation to change.
 } GuiContext_Window;
 

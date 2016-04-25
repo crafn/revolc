@@ -1,5 +1,6 @@
 void load_layout(GuiContext *ctx)
 {
+
 	gui_update_layout_property(ctx, "gui_contextmenu_client", "align_right", 1);
 	gui_update_layout_property(ctx, "gui_contextmenu_client", "align_left", 1);
 
@@ -72,8 +73,7 @@ void load_layout(GuiContext *ctx)
 	gui_update_layout_property(ctx, "outline_uvbox_box", "size_y", 100);
 	gui_update_layout_property(ctx, "outline_uvbox_box", "align_bottom", 1);
 
-	gui_update_layout_property(ctx, "gui_contextmenu", "size_x", 100);
-	gui_update_layout_property(ctx, "gui_contextmenu", "size_y", 200);
+	gui_update_layout_property(ctx, "gui_contextmenu", "resize_to_min", 1);
 	gui_update_layout_property(ctx, "gui_contextmenu", "prevent_resizing", 1);
 
 	gui_update_layout_property(ctx, "gui_treenode", "padding_left", 20);

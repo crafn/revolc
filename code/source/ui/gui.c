@@ -329,6 +329,17 @@ static GuiContext_Turtle *gui_turtle(GuiContext *ctx)
 	return &ctx->turtles[ctx->turtle_ix];
 }
 
+// Minimum size is a smallest size when all contained stuff fits inside the element.
+// E.g. windows can often be smaller than their min size
+internal void gui_set_min_size(GuiContext *ctx, const char *label, int size[2])
+{
+	gui_update_layout_property(ctx, label, "min_size_x", size[0]);
+	gui_update_layout_property(ctx, label, "min_size_y", size[1]);
+	set_layout_property_saved(ctx, label, "min_size_x", GUI_FALSE);
+	set_layout_property_saved(ctx, label, "min_size_y", GUI_FALSE);
+}
+
+
 void gui_set_hot(GuiContext *ctx, const char *label)
 {
 	if (ctx->active_id == 0) {
@@ -697,9 +708,8 @@ GuiContext *create_gui(CalcTextSizeFunc calc_text, void *user_data_for_calc_text
 		gui_update_layout_property(ctx, "gui_checkbox", "size_y", 22);
 		gui_update_layout_property(ctx, "gui_checkbox", "gap_x", 4);
 
-		gui_update_layout_property(ctx, "gui_contextmenu", "size_x", 100);
-		gui_update_layout_property(ctx, "gui_contextmenu", "size_y", 200);
 		gui_update_layout_property(ctx, "gui_contextmenu", "prevent_resizing", GUI_TRUE);
+		gui_update_layout_property(ctx, "gui_contextmenu", "resize_to_min", GUI_TRUE);
 		gui_update_layout_property(ctx, "gui_contextmenu_client", "align_left", GUI_TRUE);
 		gui_update_layout_property(ctx, "gui_contextmenu_client", "align_right", GUI_TRUE);
 		gui_update_layout_property(ctx, "gui_contextmenu_item", "align_left", GUI_TRUE);
@@ -934,10 +944,17 @@ static void gui_begin_ex(GuiContext *ctx, const char *label, GUI_BOOL detached)
 		if (has_layout_property(ctx, label, "offset_y"))
 			new_turtle.pos[1] += layout_property(ctx, label, "offset_y");
 
-		if (has_layout_property(ctx, label, "size_x"))
+		GUI_BOOL resize_to_min = layout_property(ctx, label, "resize_to_min");
+		if (has_layout_property(ctx, label, "size_x") && !resize_to_min) {
 			new_turtle.size[0] = layout_property(ctx, label, "size_x");
-		if (has_layout_property(ctx, label, "size_y"))
+		} else {
+			new_turtle.size[0] = layout_property(ctx, label, "min_size_x");
+		}
+		if (has_layout_property(ctx, label, "size_y") && !resize_to_min) {
 			new_turtle.size[1] = layout_property(ctx, label, "size_y");
+		} else {
+			new_turtle.size[1] = layout_property(ctx, label, "min_size_y");
+		}
 
 		// Alignment
 		// @todo Take previous elements in current turtle account, like two buttons in a row, latter stretched
@@ -1000,14 +1017,10 @@ void gui_begin_detached(GuiContext *ctx, const char *label)
 { gui_begin_ex(ctx, label, GUI_TRUE); }
 
 void gui_end(GuiContext *ctx)
-{
-	gui_end_ex(ctx, NULL);
-}
+{ gui_end_ex(ctx, NULL); }
 
 void gui_end_droppable(GuiContext *ctx, DragDropData *dropdata)
-{
-	gui_end_ex(ctx, dropdata);
-}
+{ gui_end_ex(ctx, dropdata); }
 
 void gui_end_ex(GuiContext *ctx, DragDropData *dropdata)
 {
@@ -1320,6 +1333,7 @@ void gui_begin_window_ex(	GuiContext *ctx, const char *win_label, const char *cl
 	int *c_size = gui_turtle(ctx)->size;
 	GUI_DECL_V2(int, slider_size,	layout_property(ctx, "gui_slider", "size_x"),
 									layout_property(ctx, "gui_slider", "size_y"));
+	GUI_ASSIGN_V2(win->slider_width, slider_size);
 	GUI_V2(c_size[c] = size[c] - c*win->bar_height - win->needs_scroll[!c]*slider_size[!c]);
 
 	// Make clicking frame background change last active element, so that scrolling works
@@ -1442,14 +1456,21 @@ void gui_begin_window_ex(	GuiContext *ctx, const char *win_label, const char *cl
 
 void gui_end_window_ex(GuiContext *ctx)
 {
-	GuiContext_Turtle *turtle = gui_turtle(ctx);
+	GuiContext_Turtle *client_turtle = gui_turtle(ctx);
 	GuiContext_Window *win = gui_window(ctx);
 
 	// Add right and bottom paddings to bounding
 	GUI_V2(gui_turtle(ctx)->bounding_max[c] += gui_turtle(ctx)->padding[c + 2]);
 
-	GUI_V2(win->last_bounding_size[c] = turtle->bounding_max[c] - turtle->start_pos[c]);
-	GUI_V2(win->needs_scroll[c] = turtle->size[c] < win->last_bounding_size[c]);
+	GUI_V2(win->last_bounding_size[c] = client_turtle->bounding_max[c] - client_turtle->start_pos[c]);
+
+	int min_size[2];
+	GUI_V2(min_size[c] = win->last_bounding_size[c] + c*win->has_bar*win->bar_height);
+	gui_set_min_size(ctx, win->label, min_size);
+
+	GUI_V2(win->needs_scroll[c] =
+		client_turtle->size[c] + win->needs_scroll[!c]*win->slider_width[c]
+		< win->last_bounding_size[c]);
 	gui_end(ctx); // client area
 	gui_end(ctx); // window area
 }
@@ -1498,7 +1519,12 @@ static GUI_BOOL gui_button_ex(GuiContext *ctx, const char *label, GUI_BOOL force
 	// @todo Recalc size only when text changes
 	int text_size[2] = {0};
 	ctx->calc_text_size(text_size, ctx->calc_text_size_user_data, gui_label_text(label));
-	GUI_V2(size[c] = GUI_MAX((int)text_size[c] + padding[c] + padding[c + 2], size[c]));
+
+	int min_size[2];
+	GUI_V2(min_size[c] = (int)text_size[c] + padding[c] + padding[c + 2]);
+	gui_set_min_size(ctx, label, min_size);
+
+	GUI_V2(size[c] = GUI_MAX(size[c], min_size[c]));
 
 	GUI_BOOL went_up = GUI_FALSE, hover = GUI_FALSE, down = GUI_FALSE;
 	if (gui_is_inside_window(ctx, size)) {
@@ -1940,6 +1966,7 @@ void gui_layout_editor(GuiContext *ctx, const char *save_path)
 			"offset_x", "offset_y",
 			"size_x", "size_y",
 			"prevent_resizing",
+			"resize_to_min",
 			"align_left", "align_right", "align_top", "align_bottom",
 			"padding_left", "padding_top", "padding_right", "padding_bottom",
 			"gap_x", "gap_y",
@@ -1949,6 +1976,7 @@ void gui_layout_editor(GuiContext *ctx, const char *save_path)
 			GUI_TRUE,
 			GUI_FALSE, GUI_FALSE,
 			GUI_FALSE, GUI_FALSE,
+			GUI_TRUE,
 			GUI_TRUE,
 			GUI_TRUE, GUI_TRUE, GUI_TRUE, GUI_TRUE,
 			GUI_FALSE, GUI_FALSE, GUI_FALSE, GUI_FALSE,
