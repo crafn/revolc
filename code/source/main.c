@@ -29,7 +29,7 @@ int main(int argc, const char **argv)
 	init_env(argc, argv);
 	g_env.game = game;
 
-	Device *d = plat_init(frame_str("Revolc engine - %s", game), (V2i) {1024, 768});
+	Device *d = plat_init(frame_str("Revolc engine - %s", game), (V2i) {1280, 1024});
 
 	if (!file_exists(blob_path(game)))
 		make_main_blob(blob_path(game), game);

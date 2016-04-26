@@ -333,6 +333,17 @@ internal void try_create_cmd(CreateCmdEditor *e)
 	init_createcmdeditor(e);
 }
 
+internal const char *node_label(NodeInfo *node, Id local_group_id)
+{
+	NodeGroupDef *def = (NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, node->group_def_name);
+	if (node->group_id == local_group_id) {
+		return def->nodes[node->node_ix_in_group].name;
+	} else {
+		return gui_str(g_env.uicontext->gui,	"%s.%s",
+												node->group_def_name, def->nodes[node->node_ix_in_group].name);
+	}
+}
+
 internal void do_world_node_editor(WorldNodeEditor *e, CreateCmdEditor *cmd_editor)
 {
 	// Find groups
@@ -416,9 +427,9 @@ internal void do_world_node_editor(WorldNodeEditor *e, CreateCmdEditor *cmd_edit
 		// Show nodes of the group
 		Array(DataTreeInfo) tree_infos = create_array(DataTreeInfo)(dev_ator(), 64);
 		{
-			U32 k = i;
-			while (k < node_count && nodes[k].group_id == cur_group_id) {
-				NodeInfo *info = nodes[k].nodeinfo;
+			gui_label(ctx, gui_str(ctx, "world_node_list_item+%i_label_nodes|Nodes", i));
+			for (GroupNode *g = cur_group_begin; g < cur_group_end; ++g) {
+				NodeInfo *info = g->nodeinfo;
 
 				NodeGroupDef *def = (NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, info->group_def_name);
 				if (gui_begin_tree(	ctx, gui_str(ctx, "world_node_list_item+%i|(%s) %s",
@@ -430,9 +441,63 @@ internal void do_world_node_editor(WorldNodeEditor *e, CreateCmdEditor *cmd_edit
 				} else {
 					info->selected = false;
 				}
-
-				++k;
 			}
+		}
+
+		{ // Show commands associated with the group nodes
+			gui_label(ctx, gui_str(ctx, "world_node_list_item+%i_label_cmds|Commands", i));
+			Array(U32) shown_cmds = create_array(U32)(dev_ator(), 8);
+			for (GroupNode *g = cur_group_begin; g < cur_group_end; ++g) {
+				NodeInfo *info = g->nodeinfo;
+
+				for (U32 k = 0; k < MAX_NODE_ASSOC_CMD_COUNT; ++k) {
+					Handle cmd_handle = info->assoc_cmds[k];
+					if (cmd_handle == NULL_HANDLE)
+						continue;
+
+					bool already_shown = false;
+					for (U32 m = 0; m < shown_cmds.size; ++m) {
+						if (cmd_handle == shown_cmds.data[m]) {
+							already_shown = true;
+							break;
+						}
+					}
+					if (already_shown)
+						continue;
+					push_array(U32)(&shown_cmds, cmd_handle);
+
+					NodeCmd *cmd = &g_env.world->cmds[cmd_handle];
+
+					const char *label = "none";
+					if (cmd->type == CmdType_memcpy) {
+						NodeCmd_Memcpy cpy = cmd->memcpy;
+						NodeInfo *src = &g_env.world->nodes[cpy.src_node];
+						NodeInfo *dst = &g_env.world->nodes[cpy.dst_node];
+						label = gui_str(ctx, "memcpy(%s, %s)",
+										node_label(dst, cur_group_id), node_label(src, cur_group_id));
+					} else if (cmd->type == CmdType_call) {
+						NodeCmd_Call call = cmd->call;
+						label = gui_str(ctx, "%s(", rtti_sym_name(call.fptr));
+						for (U32 m = 0; m < call.p_node_count; ++m) {
+							NodeInfo *param = &g_env.world->nodes[call.p_nodes[m]];
+							label = gui_str(ctx, "%s%s%s", label, node_label(param, cur_group_id), 
+								m + 1!= call.p_node_count ? ", " : "");
+						}
+						label = gui_str(ctx, "%s)", label);
+					}
+
+					if (gui_begin_tree(ctx, gui_str(ctx,	"world_node_list_item+cmd_%i|%s",
+															cmd->cmd_id, label))) {
+						cmd->selected = true;
+						gui_datatree(	ctx, NULL, "NodeCmd", cmd,
+										gui_str(ctx, "world_node_list_item+cmd_data_%i", cmd->cmd_id), true);
+						gui_end_tree(ctx);
+					} else {
+						cmd->selected = false;
+					}
+				}
+			}
+			destroy_array(U32)(&shown_cmds);
 		}
 
 		gui_end_window(ctx);
@@ -468,7 +533,6 @@ internal void do_world_node_editor(WorldNodeEditor *e, CreateCmdEditor *cmd_edit
 						cmd_editor->dst_offset = tree_info.member_offset;
 						cmd_editor->dst_size = tree_info.member_size;
 
-						debug_print("Creating CMD");
 						try_create_cmd(cmd_editor);
 
 						gui_close_contextmenu(ctx);

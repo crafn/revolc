@@ -299,7 +299,7 @@ void create_physworld()
 	w->existing_joints = create_array(JointInfo)(gen_ator(), MAX_JOINT_COUNT);
 
 	w->cp_space = cpSpaceNew();
-	cpSpaceSetIterations(w->cp_space, 10);
+	cpSpaceSetIterations(w->cp_space, 20);
 	cpSpaceSetGravity(w->cp_space, cpv(0, -25));
 	cpSpaceSetDamping(w->cp_space, 0.95);
 
