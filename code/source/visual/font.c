@@ -23,7 +23,7 @@ Font *blobify_font(struct WArchive *ar, Cson c, bool *err)
 	bitmap = malloc(reso*reso);
 	Font font = {
 		.bitmap_reso = {reso, reso},
-		.px_height = 13*16.0/12.0,
+		.px_height = 13,
 	};
 	fmt_str(font.rel_file, sizeof(font.rel_file), "%s", rel_path);
 
