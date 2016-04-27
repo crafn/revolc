@@ -11,6 +11,7 @@ typedef struct SaveHeader {
 	bool delta;
 
 	// For non-delta
+	Id next_entity_id;
 	Id next_node_id;
 	Id next_cmd_id;
 } PACKED SaveHeader;
@@ -344,6 +345,7 @@ void save_world(WArchive *ar, World *w)
 		.node_count = 0, // Patch afterwards
 		.cmd_count = 0,
 		.delta = false,
+		.next_entity_id = w->next_entity_id,
 		.next_node_id = w->next_node_id,
 		.next_cmd_id = w->next_cmd_id,
 	};
@@ -389,6 +391,7 @@ void load_world(RArchive *ar, World *w)
 
 	SaveHeader header;
 	unpack_buf(ar, &header, sizeof(header));
+	w->next_entity_id = header.next_entity_id;
 	w->next_node_id = header.next_node_id;
 	w->next_cmd_id = header.next_cmd_id;
 

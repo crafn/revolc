@@ -536,6 +536,9 @@ void gui_parent_turtle_start_pos(GuiContext *ctx, int pos[2])
 
 internal void gui_combine_scissor(int dst[4], int src[4])
 {
+	if (!src)
+		return;
+
 	int dp[4] = {dst[0], dst[1], dst[0] + dst[2], dst[1] + dst[3]};
 	int sp[4] = {src[0], src[1], src[0] + src[2], src[1] + src[3]};
 
