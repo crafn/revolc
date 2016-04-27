@@ -432,7 +432,7 @@ internal void do_world_node_editor(WorldNodeEditor *e, CreateCmdEditor *cmd_edit
 				NodeInfo *info = g->nodeinfo;
 
 				NodeGroupDef *def = (NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, info->group_def_name);
-				if (gui_begin_tree(	ctx, gui_str(ctx, "world_node_list_item+%i|(%s) %s",
+				if (gui_begin_tree(	ctx, gui_str(ctx, "world_node_list_item+node_%i|(%s) %s",
 									info->node_id, info->type_name, def->nodes[info->node_ix_in_group].name))) {
 					info->selected = true;
 					gui_datatree(	ctx, &tree_infos, info->type_name, node_impl(g_env.world, NULL, info),
@@ -444,9 +444,9 @@ internal void do_world_node_editor(WorldNodeEditor *e, CreateCmdEditor *cmd_edit
 			}
 		}
 
+		Array(U32) shown_cmds = create_array(U32)(dev_ator(), 8);
 		{ // Show commands associated with the group nodes
 			gui_label(ctx, gui_str(ctx, "world_node_list_item+%i_label_cmds|Commands", i));
-			Array(U32) shown_cmds = create_array(U32)(dev_ator(), 8);
 			for (GroupNode *g = cur_group_begin; g < cur_group_end; ++g) {
 				NodeInfo *info = g->nodeinfo;
 
@@ -497,11 +497,37 @@ internal void do_world_node_editor(WorldNodeEditor *e, CreateCmdEditor *cmd_edit
 					}
 				}
 			}
-			destroy_array(U32)(&shown_cmds);
 		}
 
 		gui_end_window(ctx);
 		gui_set_turtle_pos(ctx, 0, 0);
+
+		// Context menu for nodes
+		for (GroupNode *g = cur_group_begin; g < cur_group_end; ++g) {
+			NodeInfo *info = g->nodeinfo;
+			if (gui_begin_contextmenu(ctx, gui_str(ctx, "node_contextmenu+%i", info->node_id),
+									gui_id(gui_str(ctx, "world_node_list_item+node_%i", info->node_id)))) {
+				if (gui_contextmenu_item(ctx, "node_contextmenu_item+delete|Delete node")) {
+					free_node(g_env.world, node_id_to_handle(g_env.world, info->node_id));
+					gui_close_contextmenu(ctx);
+				}
+				gui_end_contextmenu(ctx);
+			}
+		}
+
+		// Context menu for cmds
+		for (U32 k = 0; k < shown_cmds.size; ++k) {
+			Handle cmd_handle = shown_cmds.data[k];
+			NodeCmd *cmd = &g_env.world->cmds[cmd_handle];
+			if (gui_begin_contextmenu(ctx, gui_str(ctx, "cmd_contextmenu+%i", cmd->cmd_id),
+									gui_id(gui_str(ctx, "world_node_list_item+cmd_%i", cmd->cmd_id)))) {
+				if (gui_contextmenu_item(ctx, "cmd_contextmenu_item+delete|Delete command")) {
+					free_cmd(g_env.world, cmd_handle);
+					gui_close_contextmenu(ctx);
+				}
+				gui_end_contextmenu(ctx);
+			}
+		}
 
 		// Context menu for node members
 		for (U32 k = 0; k < tree_infos.size; ++k) {
@@ -543,6 +569,7 @@ internal void do_world_node_editor(WorldNodeEditor *e, CreateCmdEditor *cmd_edit
 			}
 		}
 
+		destroy_array(U32)(&shown_cmds);
 		destroy_array(DataTreeInfo)(&tree_infos);
 	}
 }

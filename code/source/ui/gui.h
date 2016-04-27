@@ -128,6 +128,7 @@ typedef struct GuiContext_Window {
 	char label[MAX_GUI_LABEL_SIZE];
 	GUI_BOOL used;
 	GUI_BOOL used_in_last_frame;
+	GUI_BOOL remove_when_not_used;
 	GUI_BOOL minimized;
 
 	GUI_BOOL has_bar; // GUI_FALSE is equivalent to panel-type window

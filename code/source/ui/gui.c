@@ -389,6 +389,9 @@ GUI_BOOL gui_is_active(GuiContext *ctx, const char *label)
 
 static void destroy_window(GuiContext *ctx, int handle)
 {
+	// @todo Destroy layout properties associated with the window, if win->remove_when_not_used.
+	//       Currently "leaks" memory if windows are destroyed and new ones are introduced with different ids
+
 	GUI_BOOL found = GUI_FALSE;
 	for (int i = 0; i < ctx->window_count; ++i) {
 		if (!found) {
@@ -400,9 +403,12 @@ static void destroy_window(GuiContext *ctx, int handle)
 	}
 	--ctx->window_count;
 
-	GuiContext_Window *win = &ctx->windows[handle];
+	GUI_ZERO(ctx->windows[handle]);
 
-	GUI_ZERO(*win);
+	if (ctx->focused_win_ix == handle)
+		ctx->focused_win_ix = -1;
+	if (ctx->active_win_ix == handle)
+		ctx->active_win_ix = GUI_NONE_WINDOW_IX;
 }
 
 int gui_window_order(GuiContext *ctx, int handle)
@@ -485,7 +491,7 @@ GuiContext_Window *gui_window(GuiContext *ctx)
 	if (gui_turtle(ctx)->window_ix == GUI_NONE_WINDOW_IX ||
 		gui_turtle(ctx)->window_ix == GUI_BG_WINDOW_IX)
 		return NULL;
-	assert(gui_turtle(ctx)->window_ix < ctx->window_count);
+	assert(gui_turtle(ctx)->window_ix < MAX_GUI_WINDOW_COUNT);
 	return gui_turtle(ctx)->window_ix >= 0 ? &ctx->windows[gui_turtle(ctx)->window_ix] : NULL;
 }
 
@@ -780,7 +786,7 @@ void destroy_gui(GuiContext *ctx)
 		GUI_FREE(ctx->layout_props);
 		GUI_FREE(ctx->storage);
 
-		for (int i = MAX_GUI_WINDOW_COUNT - 1; i >= 0; --i) {
+		for (int i = 0; i < MAX_GUI_WINDOW_COUNT; ++i) {
 			if (ctx->windows[i].id)
 				destroy_window(ctx, i);
 		}
@@ -823,12 +829,15 @@ void gui_post_frame(GuiContext *ctx)
 			continue;
 
 		if (!ctx->windows[i].used) {
-			// Hide closed windows - don't destroy. Position etc. must be preserved.
-			//destroy_window(ctx, i);
-
 			if (ctx->active_win_ix == i) {
 				// Stop interacting with an element in hidden window
 				gui_set_inactive(ctx, ctx->active_id);
+			}
+
+			if (ctx->windows[i].remove_when_not_used) {
+				// Position etc. is not preserved if the window appears again
+				destroy_window(ctx, i);
+				continue;
 			}
 		}
 
@@ -1269,6 +1278,7 @@ void gui_begin_window_ex(	GuiContext *ctx, const char *win_label, const char *cl
 		assert(0 && "See printed error message");
 	}
 	win->used = GUI_TRUE;
+	win->remove_when_not_used = ctx->dont_save_next_window_layout;
 	if (!win->used_in_last_frame && ctx->focused_win_ix != GUI_BG_WINDOW_IX)
 		ctx->focused_win_ix = win_handle; // Appearing window will be focused
 
