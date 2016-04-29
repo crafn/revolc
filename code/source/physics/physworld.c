@@ -300,7 +300,7 @@ void create_physworld()
 	w->simulation_dt = 1.0/60.0/3;
 	w->max_simulation_steps = 6;
 	w->cp_space = cpSpaceNew();
-	cpSpaceSetIterations(w->cp_space, 20);
+	cpSpaceSetIterations(w->cp_space, 10);
 	cpSpaceSetGravity(w->cp_space, cpv(0, -10));
 	cpSpaceSetDamping(w->cp_space, 1);
 
@@ -742,31 +742,44 @@ void upd_physworld(F64 dt)
 
 	}
 
-	// Simulate world always with a constant timestep
-	w->dt_accum += dt;
-	U32 steps = 0;
-	while (w->dt_accum >= w->simulation_dt && ++steps <= w->max_simulation_steps) {
-		cpSpaceStep(w->cp_space, w->simulation_dt);
-		w->dt_accum -= w->simulation_dt;
-	}
-	cpSpaceClearForces(w->cp_space);
+	{ // Simulate world with a constant timestep
+		w->dt_accum += dt;
 
+		w->simulation_occurred = false;
+		if (w->dt_accum >= w->simulation_dt) {
+			for (U32 i = 0; i < MAX_RIGIDBODY_COUNT; ++i) {
+				RigidBody *b = &w->bodies[i];
+				b->prev_tf = b->tf;
+			}
+			w->simulation_occurred = true;
+		}
+
+		U32 steps = 0;
+		while (w->dt_accum >= w->simulation_dt && ++steps <= w->max_simulation_steps) {
+			cpSpaceStep(w->cp_space, w->simulation_dt);
+			w->dt_accum -= w->simulation_dt;
+		}
+		cpSpaceClearForces(w->cp_space);
+	}
+
+	F64 relative_time = w->dt_accum/w->simulation_dt;
 	for (U32 i = 0; i < MAX_RIGIDBODY_COUNT; ++i) {
 		RigidBody *b = &w->bodies[i];
 		if (!b->allocated)
 			continue;
 
-		cpVect p = cpBodyGetPosition(b->cp_body);
-		cpVect r = cpBodyGetRotation(b->cp_body);
-		b->tf.pos.x = p.x;
-		b->tf.pos.y = p.y;
-		b->tf.rot = qd_by_xy_rot_matrix(r.x, r.y);
-		b->velocity = from_cpv(cpBodyGetVelocity(b->cp_body));
+		if (w->simulation_occurred) {
+			cpVect p = cpBodyGetPosition(b->cp_body);
+			cpVect r = cpBodyGetRotation(b->cp_body);
+			b->tf.pos.x = p.x;
+			b->tf.pos.y = p.y;
+			b->tf.rot = qd_by_xy_rot_matrix(r.x, r.y);
+			b->velocity = from_cpv(cpBodyGetVelocity(b->cp_body));
+			b->tf_changed = !equals_v3d(b->prev_tf.pos, b->tf.pos) ||
+							!equals_qd(b->prev_tf.rot, b->tf.rot);
+		}
 
-
-
-		b->tf_changed = !equals_v3d(b->prev_tf.pos, b->tf.pos) ||
-						!equals_qd(b->prev_tf.rot, b->tf.rot);
+		b->smoothed_tf = lerp_t3d(b->prev_tf, b->tf, (w->smooth_offset + 1)*0.5 + relative_time);
 	}
 }
 
@@ -1221,38 +1234,39 @@ void post_upd_physworld()
 {
 	PhysWorld *w = g_env.physworld;
 
-	for (U32 i = 0; i < MAX_RIGIDBODY_COUNT; ++i) {
-		RigidBody *b = &w->bodies[i];
-		if (!b->allocated)
-			continue;
+	if (w->simulation_occurred) {
+		for (U32 i = 0; i < MAX_RIGIDBODY_COUNT; ++i) {
+			RigidBody *b = &w->bodies[i];
+			if (!b->allocated)
+				continue;
 
-		// Update changes to grid
-		if (b->tf_changed || !b->is_in_grid) {
-			if (cpBodyGetType(b->cp_body) == CP_BODY_TYPE_STATIC) {
-				// Notify physics about static body repositioning
-				cpSpaceReindexShapesForBody(w->cp_space, b->cp_body);
-			}
+			// Update changes to grid
+			if (b->tf_changed || !b->is_in_grid) {
+				if (cpBodyGetType(b->cp_body) == CP_BODY_TYPE_STATIC) {
+					// Notify physics about static body repositioning
+					cpSpaceReindexShapesForBody(w->cp_space, b->cp_body);
+				}
 
-			if (b->is_in_grid) {
+				if (b->is_in_grid) {
+					modify_grid_with_shapes(
+							cpBodyGetType(b->cp_body) == CP_BODY_TYPE_DYNAMIC,
+							-1,
+							b->polys, b->poly_count,
+							b->circles, b->circle_count,
+							v3d_to_v2d(b->prev_tf.pos), b->prev_tf.rot);
+				}
 				modify_grid_with_shapes(
 						cpBodyGetType(b->cp_body) == CP_BODY_TYPE_DYNAMIC,
-						-1,
+						1,
 						b->polys, b->poly_count,
 						b->circles, b->circle_count,
-						v3d_to_v2d(b->prev_tf.pos), b->prev_tf.rot);
+						v3d_to_v2d(b->tf.pos), b->tf.rot);
 			}
-			modify_grid_with_shapes(
-					cpBodyGetType(b->cp_body) == CP_BODY_TYPE_DYNAMIC,
-					1,
-					b->polys, b->poly_count,
-					b->circles, b->circle_count,
-					v3d_to_v2d(b->tf.pos), b->tf.rot);
-		}
 
-		b->is_in_grid = true;
-		b->shape_changed = false;
-		b->tf_changed = false;
-		b->prev_tf = b->tf;
+			b->is_in_grid = true;
+			b->shape_changed = false;
+			b->tf_changed = false;
+		}
 	}
 
 	if (w->grid.modified) {

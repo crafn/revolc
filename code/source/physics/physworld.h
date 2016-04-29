@@ -37,6 +37,8 @@ typedef struct PhysWorld {
 	F64 dt_accum;
 	F64 simulation_dt;
 	U32 max_simulation_steps;
+	F64 smooth_offset; // -1: interpolation, 1: extrapolation
+	bool simulation_occurred; // Updated every frame
 
 	RigidBody bodies[MAX_RIGIDBODY_COUNT];
 	U32 next_body, body_count;

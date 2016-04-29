@@ -158,6 +158,7 @@ void upd_playerch(PlayerCh *p, RigidBody *body)
 		rigidbody_set_velocity(body, vel_after_jump);
 
 		if (ground_body) { // @todo fix ground_body is NULL if we have already detached
+			// @todo Transmit impulses over net game
 			apply_impulse_at(	ground_body,
 								scaled_v2d(rigidbody_mass(body), vel_dif),
 								p->last_ground_contact_point);
@@ -172,7 +173,7 @@ void upd_playerch(PlayerCh *p, RigidBody *body)
 		apply_velocity_target(body, target_vel, p->walk_dir ? 40 : 10);
 	}
 
-	p->tf.pos = add_v3d(body->tf.pos, (V3d) {0, 0.25, 0});
+	p->tf.pos = add_v3d(body->smoothed_tf.pos, (V3d) {0, 0.25, 0});
 	p->tf.pos.y -= leg_space;
 
 	F64 dif_to_target_v = (p->walk_dir*walking_speed - body->velocity.x)*0.2;

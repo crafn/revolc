@@ -17,14 +17,16 @@ typedef struct RigidBodyCpData {
 } RigidBodyCpData;
 
 typedef struct RigidBody {
-	/// @todo Mechanism for separating input variables
-	char def_name[RES_NAME_SIZE]; // in
+	char def_name[RES_NAME_SIZE];
+	/// @todo These should be set through joints and/or functions which apply forces
 	V2d input_force; // in, set every frame
 	V2d target_velocity; // in
 	F64 max_target_force; // in, set every frame
 
+	// @todo T3d -> T2d
 	T3d tf;
-	T3d prev_tf;
+	T3d prev_tf; // Last simulated pos
+	T3d smoothed_tf; // Smoothed through inter- or extrapolation
 	V2d velocity;
 	/// @todo Bit fields
 	bool allocated;
@@ -34,7 +36,7 @@ typedef struct RigidBody {
 	bool tf_changed;
 	bool has_own_shape; // Ignores shape of def_name
 
-	// @todo Shapes to own arrays
+	// @todo Shapes to separate arrays. Perf, but also removes the need for hard limits.
 	Poly polys[MAX_SHAPES_PER_BODY];
 	Circle circles[MAX_SHAPES_PER_BODY];
 	U8 poly_count;
@@ -42,7 +44,6 @@ typedef struct RigidBody {
 
 	RigidBodyCpData cp_data;
 
-	// @todo Could store these in separate array for perf
 	// Cached
 	cpShape *cp_shapes[MAX_SHAPES_PER_BODY];
 	cpBody *cp_body;
