@@ -49,9 +49,22 @@ void ddraw_poly(Color c, V3d *poly, U32 count, S32 layer)
 				true);
 }
 
-void ddraw_line(Color c, V3d a, V3d b, S32 layer)
+void ddraw_circle(Color c, V3d p, F64 rad, S32 layer)
 {
-	F64 scale = screen_to_world_size((V2i) {1, 0}).x;
+	const U32 v_count = 15;
+	V3d v[v_count];
+	for (U32 i = 0; i < v_count; ++i) {
+		F64 a = i*3.141*2.0/v_count;
+		v[i].x = p.x + cos(a)*rad;
+		v[i].y = p.y + sin(a)*rad;
+		v[i].z = 0.0;
+	}
+	ddraw_poly(c, v, v_count, layer);
+}
+
+void ddraw_line(Color c, V3d a, V3d b, F64 w, S32 layer)
+{
+	F64 scale = screen_to_world_size((V2i) {1, 0}).x*w;
 	F64 rot = atan2(a.y - b.y, a.x - b.x);
 	F64 c1 = cos(rot - PI/2)*scale;
 	F64 s1 = sin(rot - PI/2)*scale;
@@ -66,16 +79,14 @@ void ddraw_line(Color c, V3d a, V3d b, S32 layer)
 	ddraw_poly(c, quad, 4, layer);
 }
 
-void ddraw_circle(Color c, V3d p, F32 rad, S32 layer)
+void ddraw_dot(Color c, V3d p, F64 w, S32 layer)
 {
-	const U32 v_count = 15;
-	V3d v[v_count];
-	for (U32 i = 0; i < v_count; ++i) {
-		F64 a = i*3.141*2.0/v_count;
-		v[i].x = p.x + cos(a)*rad;
-		v[i].y = p.y + sin(a)*rad;
-		v[i].z = 0.0;
-	}
-	ddraw_poly(c, v, v_count, layer);
+	F64 rad = 0.5*screen_to_world_size((V2i) {1, 0}).x*w;
+	V3d quad[4] = {
+		{p.x - rad, p.y - rad},
+		{p.x + rad, p.y - rad},
+		{p.x + rad, p.y + rad},
+		{p.x - rad, p.y + rad},
+	};
+	ddraw_poly(c, quad, 4, layer);
 }
-

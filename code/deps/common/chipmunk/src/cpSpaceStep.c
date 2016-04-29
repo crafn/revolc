@@ -443,3 +443,15 @@ cpSpaceStep(cpSpace *space, cpFloat dt)
 		}
 	} cpSpaceUnlock(space, cpTrue);
 }
+
+void cpSpaceClearForces(cpSpace *space)
+{
+	cpArray *bodies = space->dynamicBodies;
+	cpSpaceLock(space); {
+		for(int i=0; i<bodies->num; i++){
+			cpBody *body = (cpBody *)bodies->arr[i];
+			body->f = cpvzero;
+			body->t = 0.0f;
+		}
+	} cpSpaceUnlock(space, cpTrue);
+}

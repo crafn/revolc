@@ -501,9 +501,10 @@ cpBodyUpdateVelocity(cpBody *body, cpVect gravity, cpFloat damping, cpFloat dt)
 	body->v = cpvadd(cpvmult(body->v, damping), cpvmult(cpvadd(gravity, cpvmult(body->f, body->m_inv)), dt));
 	body->w = body->w*damping + body->t*body->i_inv*dt;
 	
-	// Reset forces.
-	body->f = cpvzero;
-	body->t = 0.0f;
+	// CLOVER EDIT
+	// Reset forces in cpSpaceClearForces
+	//body->f = cpvzero;
+	//body->t = 0.0f;
 	
 	cpAssertSaneBody(body);
 }

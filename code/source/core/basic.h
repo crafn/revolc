@@ -77,6 +77,7 @@ typedef void (*VoidFunc)();
 #define NULL_HANDLE ((U32)-1)
 #define NULL_ID ((U64)-1)
 #define CMP(a, b) (((a) > (b)) - ((b) > (a)))
+#define SWAP(type, x, y) do { type temp = x; x = y; y = temp; } while(0)
 
 #define SET_ERROR_FLAG(ptr_to_bool) do { if (ptr_to_bool) *ptr_to_bool = true; } while(0)
 
@@ -156,5 +157,42 @@ REVOLC_API void file_printf(FILE *f, const char *fmt, ...);
 
 REVOLC_API void copy_file(const char *dst, const char *src);
 REVOLC_API void delete_file(const char *file);
+
+// Be careful with the arguments. Don't call functions in the arguments.
+#define MERGE_SORT(type, data, tmp_space, count, CMP_MACRO)\
+do {\
+	U32 div_size = 1;\
+	type *src_buf = data;\
+	type *dst_buf = tmp_space;\
+	while (div_size < count) {\
+		U32 div;\
+		for (div = 0; div + div_size < count; div += 2*div_size) {\
+			type *dst = dst_buf + div;\
+			type *l = src_buf + div, *le = src_buf + div + div_size;\
+			type *r = le,            *re = MIN(le + div_size, src_buf + count);\
+\
+			while (l != le && r != re) {\
+				if (CMP_MACRO(*l, *r) > 0)\
+					*dst++ = *r++;\
+				else\
+					*dst++ = *l++;\
+			}\
+\
+			if (l != le)\
+				memcpy(dst, l, sizeof(type)*(le - l));\
+			if (r != re)\
+				memcpy(dst, r, sizeof(type)*(re - r));\
+		}\
+		if (div < count)\
+			memcpy(dst_buf + div, src_buf + div, sizeof(type)*(count - div));\
+\
+		div_size *= 2;\
+		SWAP(type *, src_buf, dst_buf);\
+	}\
+	if (src_buf == tmp_space)\
+		memcpy(data, tmp_space, sizeof(type)*count);\
+} while (0)
+
+REVOLC_API void test_merge_sort();
 
 #endif // REVOLC_PLATFORM_STDLIB_H

@@ -411,7 +411,7 @@ internal void do_world_node_editor(WorldNodeEditor *e, CreateCmdEditor *cmd_edit
 		V2i win_pos;
 		gui_window_pos(ctx, &win_pos.x, &win_pos.y);
 		V3d win_pos_in_world = v2d_to_v3d(screen_to_world_point(win_pos));
-		ddraw_line(black_color(), pos, win_pos_in_world, WORLD_DEBUG_VISUAL_LAYER);
+		ddraw_line(black_color(), pos, win_pos_in_world, 1, WORLD_DEBUG_VISUAL_LAYER);
 
 /*
 		if (gui_checkbox(ctx, 	gui_str(ctx, "world_node_group+%i|Selected",
@@ -579,6 +579,9 @@ void upd_editor(F64 *world_dt)
 	Editor *e = g_env.editor;
 	GuiContext *ctx = g_env.uicontext->gui;
 
+	bool request_reblob = false;
+	bool request_recompilation = false;
+
 	{ // F-keys
 		if (g_env.device->key_pressed[KEY_F1])
 			e->state = EditorState_res;
@@ -593,43 +596,11 @@ void upd_editor(F64 *world_dt)
 				delete_file(blob_path(g_env.game)); // Force make_blob at restart
 		}
 
-		if (g_env.device->key_pressed[KEY_F9]) {
-			bool tmp = g_env.os_allocs_forbidden;
-			g_env.os_allocs_forbidden = false;
+		if (g_env.device->key_pressed[KEY_F9])
+			request_reblob = true;
 
-			system("cd ../../code && clbs debug mod");
-			make_main_blob(blob_path(g_env.game), g_env.game);
-
-			if (!g_env.device->key_down[KEY_LSHIFT] && blob_has_modifications(g_env.resblob))
-				critical_print("Current resblob has unsaved modifications -- not reloading");
-			else
-				reload_blob(&g_env.resblob, g_env.resblob, blob_path(g_env.game));
-
-			g_env.os_allocs_forbidden = tmp;
-		}
-
-		if (g_env.device->key_pressed[KEY_F12]) {
-			bool tmp = g_env.os_allocs_forbidden;
-			g_env.os_allocs_forbidden = false;
-
-			U32 count;
-			Module **modules = (Module**)all_res_by_type(&count,
-														g_env.resblob,
-														ResType_Module);
-			for (U32 i = 0; i < count; ++i)
-				system(frame_str("cd ../../code && clbs debug %s", count[modules]->res.name));
-
-			if (!file_exists(blob_path(g_env.game)))
-				make_main_blob(blob_path(g_env.game), g_env.game);
-
-			/// @todo Reload only modules
-			if (!g_env.device->key_down[KEY_LSHIFT] && blob_has_modifications(g_env.resblob))
-				critical_print("Current resblob has unsaved modifications -- not reloading");
-			else
-				reload_blob(&g_env.resblob, g_env.resblob, blob_path(g_env.game));
-
-			g_env.os_allocs_forbidden = tmp;
-		}
+		if (g_env.device->key_pressed[KEY_F12])
+			request_recompilation = true;
 	}
 
 	if (g_env.device->key_pressed[KEY_ESC])
@@ -790,6 +761,11 @@ void upd_editor(F64 *world_dt)
 				}
 
 				gui_slider_double(ctx, "world_tool_elem+net_delta|Net delta interval", &g_env.netstate->delta_interval, 0.1, 5.0);
+				if (gui_button(ctx, "world_tool_elem+reblob|Reload resources"))
+					request_reblob = true;
+
+				if (gui_button(ctx, "world_tool_elem+recompile|Recompile code"))
+					request_recompilation = true;
 
 			gui_end_panel(ctx);
 
@@ -1034,6 +1010,35 @@ void upd_editor(F64 *world_dt)
 				gui_button(ctx, "button");
 			gui_end_panel(ctx);
 		}
+	}
+
+	if (request_reblob) {
+		bool tmp = g_env.os_allocs_forbidden;
+		g_env.os_allocs_forbidden = false;
+
+		make_main_blob(blob_path(g_env.game), g_env.game);
+
+		if (!g_env.device->key_down[KEY_LSHIFT] && blob_has_modifications(g_env.resblob))
+			critical_print("Current resblob has unsaved modifications -- not reloading");
+		else
+			reload_blob(&g_env.resblob, g_env.resblob, blob_path(g_env.game));
+
+		g_env.os_allocs_forbidden = tmp;
+	}
+
+	if (request_recompilation) {
+		bool tmp = g_env.os_allocs_forbidden;
+		g_env.os_allocs_forbidden = false;
+
+		system(frame_str("cd ../../code && clbs debug %s", g_env.game));
+		make_main_blob(blob_path(g_env.game), g_env.game);
+
+		if (!g_env.device->key_down[KEY_LSHIFT] && blob_has_modifications(g_env.resblob))
+			critical_print("Current resblob has unsaved modifications -- not reloading");
+		else
+			reload_blob(&g_env.resblob, g_env.resblob, blob_path(g_env.game));
+
+		g_env.os_allocs_forbidden = tmp;
 	}
 
 	if (e->edit_layout && e->state != EditorState_invisible)
@@ -2079,12 +2084,13 @@ void do_armature_editor(	ArmatureEditor *state,
 			ddraw_poly(c, v, v_count, WORLD_DEBUG_VISUAL_LAYER);
 
 			V3d end_p = transform_v3d(global_pose[i], (V3d) {rad, 0, 0});
-			ddraw_line(orientation_color, p, end_p, WORLD_DEBUG_VISUAL_LAYER);
+			ddraw_line(orientation_color, p, end_p, 1, WORLD_DEBUG_VISUAL_LAYER);
 
 			if (a->joints[i].super_id != NULL_JOINT_ID) {
 				ddraw_line(	line_color,
 							p,
 							global_pose[a->joints[i].super_id].pos,
+							1,
 							WORLD_DEBUG_VISUAL_LAYER);
 			}
 		}

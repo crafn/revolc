@@ -78,6 +78,27 @@ void apply_groove_joint(RigidBody *body, V2d ground_p_1, V2d ground_p_2)
 	push_array(JointInfo)(&g_env.physworld->used_joints, info);
 }
 
+internal V2d world_to_local_rigidbody(RigidBody *body, V2d world_point)
+{
+	return from_cpv(cpBodyWorldToLocal(body->cp_body, to_cpv(world_point)));
+}
+
+void apply_spring_joint(	RigidBody *a, RigidBody *b, V2d a_p, V2d b_p,
+							F64 length, F64 stiffness, F64 damping)
+{
+	JointInfo info = {
+		.type = JointType_spring,
+		.body_a = a->cp_body,
+		.body_b = b->cp_body,
+		.anchor_a_1 = world_to_local_rigidbody(a, a_p),
+		.anchor_b = world_to_local_rigidbody(b, b_p),
+		.length = length,
+		.stiffness = stiffness,
+		.damping = damping,
+	};
+	push_array(JointInfo)(&g_env.physworld->used_joints, info);
+}
+
 V2d apply_velocity_target(RigidBody *b, V2d velocity, F64 max_force)
 {
 	V2d dif = sub_v2d(velocity, b->velocity);

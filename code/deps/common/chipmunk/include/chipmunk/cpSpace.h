@@ -253,7 +253,7 @@ void cpSpaceUseSpatialHash(cpSpace *space, cpFloat dim, int count);
 
 /// Step the space forward in time by @c dt.
 void cpSpaceStep(cpSpace *space, cpFloat dt);
-
+void cpSpaceClearForces(cpSpace *space); // CLOVER EDIT
 
 //MARK: Debug API
 

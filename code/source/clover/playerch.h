@@ -9,7 +9,11 @@ typedef struct PlayerCh {
 	F64 idle_run_lerp;
 	F64 clip_time;
 	F64 fake_dif;
+
 	F64 on_ground_timer;
+	V2d target_position_on_ground;
+	V2d last_velocity_on_ground;
+
 	V2d last_ground_velocity;
 	V2d last_ground_contact_point;
 	F64 time_from_jump;

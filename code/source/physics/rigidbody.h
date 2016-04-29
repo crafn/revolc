@@ -72,10 +72,12 @@ REVOLC_API void set_constraint_max_force(Constraint *c, F64 force);
 REVOLC_API void remove_constraint(Constraint *c);
 
 
-// Immediate-mode joints
+// Immediate-mode joints. Anchor points in world coordinates.
 
 REVOLC_API void apply_slide_joint(RigidBody *body, V2d body_p, V2d ground_p, F64 min, F64 max);
 REVOLC_API void apply_groove_joint(RigidBody *body, V2d ground_p_1, V2d ground_p_2);
+REVOLC_API void apply_spring_joint(	RigidBody *a, RigidBody *b, V2d a_p, V2d b_p,
+									F64 length, F64 stiffness, F64 damping);
 
 // Returns applied force
 REVOLC_API V2d apply_velocity_target(RigidBody *b, V2d velocity, F64 max_force);

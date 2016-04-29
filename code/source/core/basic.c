@@ -165,3 +165,17 @@ error:
 
 void delete_file(const char *file)
 { remove(file); }
+
+void test_merge_sort()
+{
+	U32 count = 10000;
+	int buf[count];
+	int tmp[count];
+	for (U32 i = 0; i < count; ++i)
+		buf[i] = rand() % 100000;
+	MERGE_SORT(int, buf, tmp, count, CMP);
+	for (U32 i = 0; i < count; ++i) {
+		if (i > 0)
+			ensure(buf[i - 1] <= buf[i]);
+	}
+}

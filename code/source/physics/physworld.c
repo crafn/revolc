@@ -11,7 +11,6 @@ typedef struct PolyCell {
 	U8 fill;
 } PolyCell;
 #define EPSILOND 0.000000000001
-#define SWAP(type, x, y) do { type temp = x; x = y; y = temp; } while(0)
 
 internal
 PolyCell* rasterized_poly(V2i *rect_ll, V2i *rect_size, const Poly *poly)
@@ -298,10 +297,12 @@ void create_physworld()
 	w->used_joints = create_array(JointInfo)(gen_ator(), MAX_JOINT_COUNT);
 	w->existing_joints = create_array(JointInfo)(gen_ator(), MAX_JOINT_COUNT);
 
+	w->simulation_dt = 1.0/60.0/3;
+	w->max_simulation_steps = 6;
 	w->cp_space = cpSpaceNew();
 	cpSpaceSetIterations(w->cp_space, 20);
-	cpSpaceSetGravity(w->cp_space, cpv(0, -25));
-	cpSpaceSetDamping(w->cp_space, 0.95);
+	cpSpaceSetGravity(w->cp_space, cpv(0, -10));
+	cpSpaceSetDamping(w->cp_space, 1);
 
 	{ // Create static "ground" body
 		w->cp_ground_body = cp_create_body(w->cp_space, 0, 0, true);
@@ -573,7 +574,7 @@ void phys_draw_circle(
 	v[0].x = v[0].x*0.9 + pos.x*0.1;
 	v[0].y = v[0].y*0.9 + pos.y*0.1;
 
-	Color c = {0.4, 0.7, 1.0, 0.5};
+	Color c = {0.4, 0.7, 1.0, 0.7};
 	ddraw_poly(c, v, v_count, WORLD_DEBUG_VISUAL_LAYER);
 }
 
@@ -590,51 +591,46 @@ void phys_draw_poly(
 		v[i].z = 0.0;
 	}
 
-	Color c = {0.4, 0.7, 1.0, 0.5};
+	Color c = {0.4, 0.7, 1.0, 0.7};
 	ddraw_poly(c, v, count, WORLD_DEBUG_VISUAL_LAYER);
 }
 
-int jointinfo_cmp(const void *void_a, const void *void_b)
+internal
+void phys_draw_segment(cpVect a, cpVect b, cpSpaceDebugColor color, cpDataPointer data)
 {
-	const JointInfo *a = void_a;
-	const JointInfo *b = void_b;
-	if (a->type != b->type)
-		return CMP(a->type, b->type);
-	if (a->body_a != b->body_a)
-		return CMP(a->body_a, b->body_a);
-	if (a->body_b != b->body_b)
-		return CMP(a->body_b, b->body_b);
+	Color c = {0.4, 1.0, 0.7, 0.7};
+	ddraw_line(c, v2d_to_v3d(from_cpv(a)), v2d_to_v3d(from_cpv(b)), 1, WORLD_DEBUG_VISUAL_LAYER);
+}
 
-	// Compare by joint params to propagate changes in them
-	// @todo Update parameters without recreating joints
-	if (a->anchor_a_1.x != b->anchor_a_1.x)
-		return CMP(a->anchor_a_1.x, b->anchor_a_1.x);
-	if (a->anchor_a_1.y != b->anchor_a_1.y)
-		return CMP(a->anchor_a_1.y, b->anchor_a_1.y);
+internal
+void phys_draw_fat_segment(cpVect a, cpVect b, cpFloat radius, cpSpaceDebugColor outlineColor, cpSpaceDebugColor fillColor, cpDataPointer data)
+{
+	Color c = {0.4, 1.0, 0.7, 0.7};
+	ddraw_line(c, v2d_to_v3d(from_cpv(a)), v2d_to_v3d(from_cpv(b)), radius*2, WORLD_DEBUG_VISUAL_LAYER);
+}
 
-	if (a->anchor_a_2.x != b->anchor_a_2.x)
-		return CMP(a->anchor_a_2.x, b->anchor_a_2.x);
-	if (a->anchor_a_2.y != b->anchor_a_2.y)
-		return CMP(a->anchor_a_2.y, b->anchor_a_2.y);
+internal
+void phys_draw_dot(cpFloat size, cpVect pos, cpSpaceDebugColor color, cpDataPointer data)
+{
+	Color c = {1.0, 0.0, 0.0, 0.7};
+	ddraw_dot(c, v2d_to_v3d(from_cpv(pos)), size, WORLD_DEBUG_VISUAL_LAYER);
+}
 
-	if (a->anchor_b.x != b->anchor_b.x)
-		return CMP(a->anchor_b.x, b->anchor_b.x);
-	if (a->anchor_b.y != b->anchor_b.y)
-		return CMP(a->anchor_b.y, b->anchor_b.y);
+int jointinfo_cmp(JointInfo a, JointInfo b)
+{
+	if (a.type != b.type)
+		return CMP(a.type, b.type);
+	if (a.body_a != b.body_a)
+		return CMP(a.body_a, b.body_a);
+	if (a.body_b != b.body_b)
+		return CMP(a.body_b, b.body_b);
 
-	if (a->min != b->min)
-		return CMP(a->min, b->min);
-	if (a->max != b->max)
-		return CMP(a->max, b->max);
 	return 0;
 }
 
 void upd_physworld(F64 dt)
 {
 	PhysWorld *w = g_env.physworld;
-
-	if (dt > 0.0)
-		dt = MIN(dt, 1.0/30.0);
 
 	for (U32 i = 0; i < MAX_RIGIDBODY_COUNT; ++i) {
 		RigidBody *b = &w->bodies[i];
@@ -655,10 +651,9 @@ void upd_physworld(F64 dt)
 	}
 
 	{ // Create/destroy joints
-		// @todo Multiple joints of same type on single pair of bodies
-		// ^ that is forbidden because sorted order is degenerate -> comparing two lists with for-loop can fail
+		JointInfo *tmp = ALLOC(frame_ator(), sizeof(*tmp)*w->used_joints.size, "tmp_sort_space");
+		MERGE_SORT(JointInfo, w->used_joints.data, tmp, w->used_joints.size, jointinfo_cmp);
 
-		qsort(w->used_joints.data, w->used_joints.size, sizeof(*w->used_joints.data), jointinfo_cmp);
 		for (U32 i = 0, k = 0; i < w->used_joints.size || k < w->existing_joints.size;) {
 			JointInfo used = i < w->used_joints.size ?
 								w->used_joints.data[i] :
@@ -668,7 +663,7 @@ void upd_physworld(F64 dt)
 									(JointInfo) { .type = JointType_none };
 			ensure(!(used.type == JointType_none && existing.type == JointType_none));
 
-			int cmp = jointinfo_cmp(&used, &existing);
+			int cmp = jointinfo_cmp(used, existing);
 			if (used.type == JointType_none)
 				cmp = 1; // Destroy joint
 			if (existing.type == JointType_none)
@@ -678,6 +673,30 @@ void upd_physworld(F64 dt)
 				// Maintain joint
 				++i;
 				++k;
+
+				cpConstraint *cp_joint = existing.cp_joint;
+				switch (existing.type) {
+				case JointType_slide: {
+					cpSlideJointSetAnchorA(cp_joint, to_cpv(used.anchor_a_1));
+					cpSlideJointSetAnchorB(cp_joint, to_cpv(used.anchor_b));
+					cpSlideJointSetMin(cp_joint, used.min);
+					cpSlideJointSetMax(cp_joint, used.max);
+				} break;
+				case JointType_groove: {
+					cpGrooveJointSetGrooveA(cp_joint, to_cpv(used.anchor_a_1));
+					cpGrooveJointSetGrooveB(cp_joint, to_cpv(used.anchor_a_2));
+					cpGrooveJointSetAnchorB(cp_joint, to_cpv(used.anchor_b));
+				} break;
+				case JointType_spring: {
+					// @todo Detect change and modify only then
+					cpDampedSpringSetAnchorA(cp_joint, to_cpv(used.anchor_a_1));
+					cpDampedSpringSetAnchorB(cp_joint, to_cpv(used.anchor_b));
+					cpDampedSpringSetRestLength(cp_joint, used.length);
+					cpDampedSpringSetStiffness(cp_joint, used.stiffness);
+					cpDampedSpringSetDamping(cp_joint, used.damping);
+				} break;
+				default:;
+				}
 			} else if (cmp < 0) {
 				// New joint
 				ensure(k <= w->existing_joints.size);
@@ -694,6 +713,12 @@ void upd_physworld(F64 dt)
 						cpGrooveJointNew(	used.body_a, used.body_b,
 											to_cpv(used.anchor_a_1), to_cpv(used.anchor_a_2),
 											to_cpv(used.anchor_b));
+				} break;
+				case JointType_spring: {
+					used.cp_joint =
+						cpDampedSpringNew(	used.body_a, used.body_b,
+											to_cpv(used.anchor_a_1), to_cpv(used.anchor_b),
+											used.length, used.stiffness, used.damping);
 				} break;
 				default: fail("Unknown joint type: %i", used.type);
 				}
@@ -717,19 +742,14 @@ void upd_physworld(F64 dt)
 
 	}
 
-	/// @todo Accumulation
-	if (dt > 0.0) {
-		cpSpaceStep(w->cp_space, dt);
-	} else {
-		// Reset forces manually to prevent force accumulation on pause
-		for (U32 i = 0; i < MAX_RIGIDBODY_COUNT; ++i) {
-			RigidBody *b = &w->bodies[i];
-			if (!b->allocated)
-				continue;
-
-			cpBodySetForce(b->cp_body, cpvzero);
-		}
+	// Simulate world always with a constant timestep
+	w->dt_accum += dt;
+	U32 steps = 0;
+	while (w->dt_accum >= w->simulation_dt && ++steps <= w->max_simulation_steps) {
+		cpSpaceStep(w->cp_space, w->simulation_dt);
+		w->dt_accum -= w->simulation_dt;
 	}
+	cpSpaceClearForces(w->cp_space);
 
 	for (U32 i = 0; i < MAX_RIGIDBODY_COUNT; ++i) {
 		RigidBody *b = &w->bodies[i];
@@ -1388,7 +1408,10 @@ void upd_phys_rendering()
 	cpSpaceDebugDrawOptions options = {
 		.drawCircle = phys_draw_circle,
 		.drawPolygon = phys_draw_poly,
-		.flags = CP_SPACE_DEBUG_DRAW_SHAPES,
+		.drawSegment = phys_draw_segment,
+		.drawFatSegment = phys_draw_fat_segment,
+		.drawDot = phys_draw_dot,
+		.flags = CP_SPACE_DEBUG_DRAW_SHAPES | CP_SPACE_DEBUG_DRAW_CONSTRAINTS,
 	};
 	cpSpaceDebugDraw(w->cp_space, &options);
 

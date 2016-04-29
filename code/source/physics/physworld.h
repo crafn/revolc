@@ -13,6 +13,7 @@ typedef enum JointType {
 	JointType_none,
 	JointType_slide,
 	JointType_groove,
+	JointType_spring,
 } JointType;
 
 typedef struct JointInfo {
@@ -24,6 +25,7 @@ typedef struct JointInfo {
 	V2d anchor_b;
 	F64 min;
 	F64 max;
+	F64 length, stiffness, damping;
 
 	cpConstraint *cp_joint;
 } JointInfo;
@@ -32,6 +34,9 @@ DECLARE_ARRAY(JointInfo)
 
 typedef struct PhysWorld {
 	bool debug_draw;
+	F64 dt_accum;
+	F64 simulation_dt;
+	U32 max_simulation_steps;
 
 	RigidBody bodies[MAX_RIGIDBODY_COUNT];
 	U32 next_body, body_count;

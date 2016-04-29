@@ -138,7 +138,7 @@ cpSpaceDebugDrawConstraint(cpConstraint *constraint, cpSpaceDebugDrawOptions *op
 		cpVect delta = cpvsub(b, a);
 		cpFloat cos = delta.x;
 		cpFloat sin = delta.y;
-		cpFloat s = 1.0f/cpvlength(delta);
+		cpFloat s = 0.02f/cpvlength(delta);
 		
 		cpVect r1 = cpv(cos, -sin*s);
 		cpVect r2 = cpv(sin,  cos*s);
