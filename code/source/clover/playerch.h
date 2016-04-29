@@ -11,10 +11,11 @@ typedef struct PlayerCh {
 	F64 fake_dif;
 
 	F64 on_ground_timer;
-	V2d target_position_on_ground;
-	V2d last_velocity_on_ground;
+	//V2d target_position_on_ground;
+	//V2d last_velocity_on_ground;
 
 	V2d last_ground_velocity;
+	//V2d smoothed_ground_velocity;
 	V2d last_ground_contact_point;
 	F64 time_from_jump;
 	F64 dig_timer;

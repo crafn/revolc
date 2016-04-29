@@ -86,6 +86,8 @@ internal V2d world_to_local_rigidbody(RigidBody *body, V2d world_point)
 void apply_spring_joint(	RigidBody *a, RigidBody *b, V2d a_p, V2d b_p,
 							F64 length, F64 stiffness, F64 damping)
 {
+	if (a == b)
+		return;
 	JointInfo info = {
 		.type = JointType_spring,
 		.body_a = a->cp_body,
@@ -98,6 +100,10 @@ void apply_spring_joint(	RigidBody *a, RigidBody *b, V2d a_p, V2d b_p,
 	};
 	push_array(JointInfo)(&g_env.physworld->used_joints, info);
 }
+
+REVOLC_API void apply_spring_joint_single(	RigidBody *body, V2d body_p, V2d ground_p,
+											F64 length, F64 stiffness, F64 damping)
+{ apply_spring_joint(body, &g_env.physworld->ground_body, body_p, ground_p, length, stiffness, damping); }
 
 V2d apply_velocity_target(RigidBody *b, V2d velocity, F64 max_force)
 {

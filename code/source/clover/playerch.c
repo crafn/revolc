@@ -47,8 +47,6 @@ void playerch_ray_callback(RigidBody *body, V2d point, V2d normal, F64 fraction,
 void upd_playerch(PlayerCh *p, RigidBody *body)
 {
 	F64 dt = g_env.world->dt;
-	if (dt == 0.0)
-		return;
 	V2d cursor_on_world = screen_to_world_point(g_env.device->cursor_pos);
 	V2d cursor_p = screen_to_world_point(g_env.device->cursor_pos);
 
@@ -99,57 +97,53 @@ void upd_playerch(PlayerCh *p, RigidBody *body)
 			a, b, 0.0,
 			playerch_ray_callback, &result);
 
-		//F64 leg_space = leg_height*result.ray_fraction;
+		F64 leg_space = leg_height*result.ray_fraction;
+		ground_body = result.ground_body;
 
-		if (result.ground_body && p->time_from_jump > 0.2 && !jump) {
+		if (ground_body && p->time_from_jump > 0.2 && !jump) {
 			p->on_ground_timer = on_ground_timer_start;
 			p->last_ground_velocity = result.ground_velocity;
 			p->last_ground_contact_point = result.ground_contact_point;
-			ground_body = result.ground_body;
 
-			//const F64 max_force = 200;
-			//F64 yforce = (leg_height - leg_space)*300;
-			//if (ABS(yforce) > max_force)
-				//yforce = SIGN(yforce)*max_force;
+			const F64 max_force = 100;
+			F64 yforce = (leg_height - leg_space)*100;
+			if (ABS(yforce) > max_force)
+				yforce = SIGN(yforce)*max_force;
 
 			// Damping
-			//V2d vel = body->velocity;
-			//yforce -= vel.y*50.0;
+			V2d vel = body->velocity;
+			yforce -= vel.y*20.0;
 
-			//V2d force = (V2d) {0, yforce};
-			//apply_force(body, force);
+			V2d force = (V2d) {0, yforce};
+			apply_force(body, force);
 
 			if (ground_body)
-				apply_spring_joint(	body, ground_body,
-									a, add_v2d(p->last_ground_contact_point, (V2d) {p->walk_dir*0.2, -0.01}),
-									dist_v2d(a, b)*1.2, 35, 15);
+				apply_spring_joint_single(	ground_body,
+											p->last_ground_contact_point,
+											add_v2d(p->last_ground_contact_point,
+													(V2d) {0, -1.0 - (leg_height - leg_space)}),
+											0, 20, 5);
 		}
 	}
 
 	const F64 walking_speed = 6;
 	if (p->on_ground_timer > 0.0) { // Walking
-		/*V2d ground_vel = p->last_ground_velocity;
+		//V2d ground_vel = p->last_ground_velocity;
+		//p->smoothed_ground_velocity.x = exp_drive(p->smoothed_ground_velocity.x, ground_vel.x, dt*10);
+		//p->smoothed_ground_velocity.y = exp_drive(p->smoothed_ground_velocity.y, ground_vel.y, dt*10);
 		V2d target_vel = {
-			walking_speed*p->walk_dir + ground_vel.x,
-			body->velocity.y + ground_vel.y
+			walking_speed*p->walk_dir, //+ p->smoothed_ground_velocity.x,
+			body->velocity.y //+ p->smoothed_ground_velocity.y
 		};
-		V2d force = apply_velocity_target(	body,
+		/*V2d force = */apply_velocity_target(	body,
 											target_vel,
-											100.0);
+											50.0);
 		if (ground_body)
-			apply_force_at(	ground_body,
-							scaled_v2d(-1, force),
-							p->last_ground_contact_point);
-		*/
-		p->target_position_on_ground.y = p->last_ground_contact_point.y;
-		if (p->walk_dir)
-			p->target_position_on_ground.x = body->tf.pos.x + p->walk_dir;
-
-		p->last_velocity_on_ground = body->velocity;
-		if (ground_body)
-			apply_spring_joint(	body, ground_body,
-								p->last_ground_contact_point, p->target_position_on_ground,
-								0, 70, 10);
+			apply_spring_joint_single(	ground_body,
+										p->last_ground_contact_point,
+										add_v2d(p->last_ground_contact_point,
+												(V2d) {-p->walk_dir, 0}),
+										0, 15, 5);
 	}
 
 	if (jump && p->on_ground_timer > 0.0) {
@@ -158,20 +152,21 @@ void upd_playerch(PlayerCh *p, RigidBody *body)
 
 		V2d vel_after_jump = {
 			body->velocity.x,
-			p->last_ground_velocity.y + 7,
+			p->last_ground_velocity.y + 5,
 		};
 		V2d vel_dif = sub_v2d(body->velocity, vel_after_jump);
 		rigidbody_set_velocity(body, vel_after_jump);
 
-		if (ground_body) // @todo fix ground_body is NULL if we have already detached
+		if (ground_body) { // @todo fix ground_body is NULL if we have already detached
 			apply_impulse_at(	ground_body,
 								scaled_v2d(rigidbody_mass(body), vel_dif),
 								p->last_ground_contact_point);
+		}
 	}
 
-	if (p->on_ground_timer < 0.0 && 0) { // Air control
+	if (p->on_ground_timer < 0.0) { // Air control
 		V2d target_vel = {
-			p->last_velocity_on_ground.x + p->walk_dir*walking_speed*1.1,
+			/*p->last_ground_velocity.x + */p->walk_dir*walking_speed*1.1,
 			body->velocity.y,
 		};
 		apply_velocity_target(body, target_vel, p->walk_dir ? 40 : 10);
@@ -187,8 +182,8 @@ void upd_playerch(PlayerCh *p, RigidBody *body)
 
 	if (in_control && in_control_of_camera) { // Camera
 		V2d target_pos = {
-			p->tf.pos.x, // + cursor_p.x*0.5,
-			p->tf.pos.y, // + cursor_p.y*0.5,
+			p->tf.pos.x*0.5 + cursor_on_world.x*0.5,
+			p->tf.pos.y*0.5 + cursor_on_world.y*0.5,
 		};
 
 		V3d cam_pos = g_env.renderer->cam_pos;
