@@ -406,7 +406,7 @@ internal void do_world_node_editor(WorldNodeEditor *e, CreateCmdEditor *cmd_edit
 		ctx->create_next_window_minimized = true;
 		ctx->dont_save_next_window_layout = true;
 		gui_set_turtle_pos(ctx, screen_pos.x, screen_pos.y);
-		gui_begin_window(ctx, gui_str(ctx, "world_node_group_win_%i|%s %i", cur_group_id, main_node->group_def_name, cur_group_id), NULL);
+		gui_begin_window(ctx, gui_str(ctx, "world_node_group_win_%i|%s %i", cur_group_id, main_node->group_def_name, cur_group_id));
 
 		V2i win_pos;
 		gui_window_pos(ctx, &win_pos.x, &win_pos.y);
@@ -424,76 +424,77 @@ internal void do_world_node_editor(WorldNodeEditor *e, CreateCmdEditor *cmd_edit
 		}
 */
 
-		// Show nodes of the group
 		Array(DataTreeInfo) tree_infos = create_array(DataTreeInfo)(dev_ator(), 64);
-		{
-			gui_label(ctx, gui_str(ctx, "world_node_list_item+%i_label_nodes|Nodes", i));
-			for (GroupNode *g = cur_group_begin; g < cur_group_end; ++g) {
-				NodeInfo *info = g->nodeinfo;
-
-				NodeGroupDef *def = (NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, info->group_def_name);
-				if (gui_begin_tree(	ctx, gui_str(ctx, "world_node_list_item+node_%i|(%s) %s",
-									info->node_id, info->type_name, def->nodes[info->node_ix_in_group].name))) {
-					info->selected = true;
-					gui_datatree(	ctx, &tree_infos, info->type_name, node_impl(g_env.world, NULL, info),
-									gui_str(ctx, "node_%i", info->node_id), true);
-					gui_end_tree(ctx);
-				} else {
-					info->selected = false;
-				}
-			}
-		}
-
 		Array(U32) shown_cmds = create_array(U32)(dev_ator(), 8);
-		{ // Show commands associated with the group nodes
-			gui_label(ctx, gui_str(ctx, "world_node_list_item+%i_label_cmds|Commands", i));
-			for (GroupNode *g = cur_group_begin; g < cur_group_end; ++g) {
-				NodeInfo *info = g->nodeinfo;
+		if (gui_is_window_open(ctx)) {
+			{ // Show nodes of the group
+				gui_label(ctx, gui_str(ctx, "world_node_list_item+%i_label_nodes|Nodes", i));
+				for (GroupNode *g = cur_group_begin; g < cur_group_end; ++g) {
+					NodeInfo *info = g->nodeinfo;
 
-				for (U32 k = 0; k < MAX_NODE_ASSOC_CMD_COUNT; ++k) {
-					Handle cmd_handle = info->assoc_cmds[k];
-					if (cmd_handle == NULL_HANDLE)
-						continue;
-
-					bool already_shown = false;
-					for (U32 m = 0; m < shown_cmds.size; ++m) {
-						if (cmd_handle == shown_cmds.data[m]) {
-							already_shown = true;
-							break;
-						}
-					}
-					if (already_shown)
-						continue;
-					push_array(U32)(&shown_cmds, cmd_handle);
-
-					NodeCmd *cmd = &g_env.world->cmds[cmd_handle];
-
-					const char *label = "none";
-					if (cmd->type == CmdType_memcpy) {
-						NodeCmd_Memcpy cpy = cmd->memcpy;
-						NodeInfo *src = &g_env.world->nodes[cpy.src_node];
-						NodeInfo *dst = &g_env.world->nodes[cpy.dst_node];
-						label = gui_str(ctx, "memcpy(%s, %s)",
-										node_label(dst, cur_group_id), node_label(src, cur_group_id));
-					} else if (cmd->type == CmdType_call) {
-						NodeCmd_Call call = cmd->call;
-						label = gui_str(ctx, "%s(", rtti_sym_name(call.fptr));
-						for (U32 m = 0; m < call.p_node_count; ++m) {
-							NodeInfo *param = &g_env.world->nodes[call.p_nodes[m]];
-							label = gui_str(ctx, "%s%s%s", label, node_label(param, cur_group_id), 
-								m + 1!= call.p_node_count ? ", " : "");
-						}
-						label = gui_str(ctx, "%s)", label);
-					}
-
-					if (gui_begin_tree(ctx, gui_str(ctx,	"world_node_list_item+cmd_%i|%s",
-															cmd->cmd_id, label))) {
-						cmd->selected = true;
-						gui_datatree(	ctx, NULL, "NodeCmd", cmd,
-										gui_str(ctx, "world_node_list_item+cmd_data_%i", cmd->cmd_id), true);
+					NodeGroupDef *def = (NodeGroupDef*)res_by_name(g_env.resblob, ResType_NodeGroupDef, info->group_def_name);
+					if (gui_begin_tree(	ctx, gui_str(ctx, "world_node_list_item+node_%i|(%s) %s",
+										info->node_id, info->type_name, def->nodes[info->node_ix_in_group].name))) {
+						info->selected = true;
+						gui_datatree(	ctx, &tree_infos, info->type_name, node_impl(g_env.world, NULL, info),
+										gui_str(ctx, "node_%i", info->node_id), true);
 						gui_end_tree(ctx);
 					} else {
-						cmd->selected = false;
+						info->selected = false;
+					}
+				}
+			}
+
+			{ // Show commands associated with the group nodes
+				gui_label(ctx, gui_str(ctx, "world_node_list_item+%i_label_cmds|Commands", i));
+				for (GroupNode *g = cur_group_begin; g < cur_group_end; ++g) {
+					NodeInfo *info = g->nodeinfo;
+
+					for (U32 k = 0; k < MAX_NODE_ASSOC_CMD_COUNT; ++k) {
+						Handle cmd_handle = info->assoc_cmds[k];
+						if (cmd_handle == NULL_HANDLE)
+							continue;
+
+						bool already_shown = false;
+						for (U32 m = 0; m < shown_cmds.size; ++m) {
+							if (cmd_handle == shown_cmds.data[m]) {
+								already_shown = true;
+								break;
+							}
+						}
+						if (already_shown)
+							continue;
+						push_array(U32)(&shown_cmds, cmd_handle);
+
+						NodeCmd *cmd = &g_env.world->cmds[cmd_handle];
+
+						const char *label = "none";
+						if (cmd->type == CmdType_memcpy) {
+							NodeCmd_Memcpy cpy = cmd->memcpy;
+							NodeInfo *src = &g_env.world->nodes[cpy.src_node];
+							NodeInfo *dst = &g_env.world->nodes[cpy.dst_node];
+							label = gui_str(ctx, "memcpy(%s, %s)",
+											node_label(dst, cur_group_id), node_label(src, cur_group_id));
+						} else if (cmd->type == CmdType_call) {
+							NodeCmd_Call call = cmd->call;
+							label = gui_str(ctx, "%s(", rtti_sym_name(call.fptr));
+							for (U32 m = 0; m < call.p_node_count; ++m) {
+								NodeInfo *param = &g_env.world->nodes[call.p_nodes[m]];
+								label = gui_str(ctx, "%s%s%s", label, node_label(param, cur_group_id), 
+									m + 1!= call.p_node_count ? ", " : "");
+							}
+							label = gui_str(ctx, "%s)", label);
+						}
+
+						if (gui_begin_tree(ctx, gui_str(ctx,	"world_node_list_item+cmd_%i|%s",
+																cmd->cmd_id, label))) {
+							cmd->selected = true;
+							gui_datatree(	ctx, NULL, "NodeCmd", cmd,
+											gui_str(ctx, "world_node_list_item+cmd_data_%i", cmd->cmd_id), true);
+							gui_end_tree(ctx);
+						} else {
+							cmd->selected = false;
+						}
 					}
 				}
 			}
@@ -703,7 +704,7 @@ void upd_editor(F64 *world_dt)
 
 		if (e->state == EditorState_res) {
 
-			gui_begin_panel(ctx, "res_tools|Resource tools", "res_tools_content");
+			gui_begin_panel(ctx, "res_tools|Resource tools");
 				// @todo Selected res names
 				/*const char *str = gui_str(	ctx, "Selected: %s: %s",
 											restype_to_str(t),
@@ -720,7 +721,7 @@ void upd_editor(F64 *world_dt)
 			gui_end_panel(ctx);
 		} else if (e->state == EditorState_world) {
 
-			gui_begin_panel(ctx, "world_tools|World tools", "world_tools_content");
+			gui_begin_panel(ctx, "world_tools|World tools");
 				gui_checkbox(ctx, "world_tool_elem+prog|Show program state", &e->show_prog_state);
 				gui_checkbox(ctx, "world_tool_elem+nodes|Show nodes", &e->show_node_list);
 				gui_checkbox(ctx, "world_tool_elem+nodegroupdefs|Create NodeGroup", &e->show_nodegroupdef_list);
@@ -802,13 +803,13 @@ void upd_editor(F64 *world_dt)
 			}
 
 			if (e->show_prog_state) {
-				gui_begin_window(ctx, "program_state|Program state", "program_state_content");
+				gui_begin_window(ctx, "program_state|Program state");
 				gui_datatree(ctx, NULL, "Env", &g_env, "prog", true);
 				gui_end_window(ctx);
 			}
 
 			if (e->show_node_list) {
-				gui_begin_window(ctx, "node_list|Node list", "node_list_content");
+				gui_begin_window(ctx, "node_list|Node list");
 				for (U32 i = 0; i < MAX_NODE_COUNT; ++i) {
 					NodeInfo *info = &g_env.world->nodes[i];
 					if (!info->allocated)
@@ -828,7 +829,7 @@ void upd_editor(F64 *world_dt)
 			}
 
 			if (e->show_cmd_list) {
-				gui_begin_window(ctx, "cmd_list|Node command list", "cmd_list_content");
+				gui_begin_window(ctx, "cmd_list|Node command list");
 				for (U32 i = 0; i < MAX_NODE_CMD_COUNT; ++i) {
 					NodeCmd *cmd = &g_env.world->cmds[i];
 					if (!cmd->allocated)
@@ -850,7 +851,7 @@ void upd_editor(F64 *world_dt)
 				Resource **defs = all_res_by_type(	&count,
 													g_env.resblob,
 													ResType_NodeGroupDef);
-				gui_begin_window(ctx, "nodegroupdef_list|NodeGroupDef list", "nodegroupdef_list_content");
+				gui_begin_window(ctx, "nodegroupdef_list|NodeGroupDef list");
 				for (U32 i = 0; i < count; ++i) {
 					NodeGroupDef *def = (NodeGroupDef*)defs[i];
 
@@ -873,7 +874,7 @@ void upd_editor(F64 *world_dt)
 			}
 
 			if (e->show_create_cmd) {
-				gui_begin_window(ctx, "create_cmd|Create node command", "create_cmd_content");
+				gui_begin_window(ctx, "create_cmd|Create node command");
 
 				gui_begin(ctx, "create_cmd_list_1");
 					if (gui_selectable(ctx, "create_cmd_list_item+sel_src_btn|Select source", e->create_cmd.select_src))
@@ -941,13 +942,13 @@ void upd_editor(F64 *world_dt)
 		} else if (e->state == EditorState_gui_test) {
 			GuiContext *ctx = g_env.uicontext->gui;
 
-			gui_begin_window(ctx, "win", NULL);
+			gui_begin_window(ctx, "win");
 				for (U32 i = 0; i < 10; ++i) {
 					gui_button(ctx, gui_str(ctx, "btn_in_list+%i|button_%i", i, i));
 				}
 			gui_end_window(ctx);
 
-			gui_begin_window(ctx, "Gui components", NULL);
+			gui_begin_window(ctx, "Gui components");
 				local_persist int btn = 0;
 				local_persist F32 slider = 0;
 				local_persist char buf[128];
@@ -1006,7 +1007,7 @@ void upd_editor(F64 *world_dt)
 					gui_close_contextmenu(ctx);
 			}
 
-			gui_begin_panel(ctx, "panel", "panel_content");
+			gui_begin_panel(ctx, "panel");
 				gui_button(ctx, "button");
 			gui_end_panel(ctx);
 		}
@@ -1389,7 +1390,7 @@ void do_mesh_editor(U32 *model_h, bool *is_edit_mode, bool active)
 		gui_uvbox(g_env.uicontext->gui, m, false);
 		gui_uvbox(g_env.uicontext->gui, m, true);
 
-		gui_begin_panel(ctx, "model_settings", "model_settings_content");
+		gui_begin_panel(ctx, "model_settings");
 		if (m) {
 			Model *model = (Model*)substitute_res(res_by_name(g_env.resblob, ResType_Model, m->model_name));
 			Mesh *mesh = editable_model_mesh(m->model_name);

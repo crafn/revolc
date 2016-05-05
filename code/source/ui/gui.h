@@ -18,7 +18,8 @@ Common voluntary options to be defined before including this file, or in this fi
 The library is designed to make zero memory allocations during normal runtime. It will allocate more memory in the following cases:
  - The number of gui elements increase -- this can be prevented by increasing
    GUI_DEFAULT_FRAME_MEMORY (temp memory used for e.g. strings) or
-   GUI_DEFAULT_STORAGE_SIZE (persistent memory used for e.g. tree open/closed state)
+   GUI_DEFAULT_STORAGE_CAPACITY (persistent memory used for e.g. tree open/closed state) or
+   GUI_DEFAULT_ELEMENT_CAPACITY (number of elements per frame)
  - New layout rules are added. This usually is not a problem,
    because gui layout is meant to be adjusted & saved before shipping.
 
@@ -34,9 +35,10 @@ Todo list
 */
 
 #define GUI_DEFAULT_FRAME_MEMORY (1024*5)
-#define GUI_DEFAULT_STORAGE_SIZE (128)
+#define GUI_DEFAULT_STORAGE_CAPACITY (128)
+#define GUI_DEFAULT_ELEMENT_CAPACITY (128)
 
-#define MAX_GUI_LABEL_SIZE 256 // @todo Change to MAX_GUI_ID_SIZE which can be like 64
+#define MAX_GUI_LABEL_SIZE 256 // @todo Remove limit. Use single buffer for all stored strings.
 #define MAX_GUI_STACK_SIZE 32 // @todo Remove limit
 #define MAX_GUI_WINDOW_COUNT 128 // @todo Remove limit
 #define GUI_FILENAME_SIZE MAX_PATH_SIZE // @todo Remove limit
@@ -102,19 +104,24 @@ typedef struct DragDropData {
 // Arrays like scissor[4] are indexed as [0] == x, [1] == y, [2] == w, [3] == h
 // or like padding[4] as [0] == left, [1] == top, [2] == right, [3] == bottom
 
-// @todo Rename to GuiLayer or something
+// @todo Rename to GuiContext_Frame or something
 typedef struct GuiContext_Turtle {
-	int pos[2]; // Output "cursor"
-	int size[2]; // Forecasted size from layout (can be modified by the element)
-	int start_pos[2]; // @todo Could maybe be removed
-	int bounding_max[2]; // @todo Could maybe be removed (use size)
-	int last_bounding_max[2]; // Most recently added gui element
+	int manual_offset[2]; // Manual offset of child elements
+	int pos[2]; // Copied from layout
+	int size[2]; // Copied from layout
+#if 0
+	//int start_pos[2]; // @todo Could maybe be removed
+	//int bounding_max[2]; // @todo Could maybe be removed (use size)
+	//int last_bounding_max[2]; // Most recently added gui element
 	GUI_BOOL non_empty;
+#endif
 	char label[MAX_GUI_LABEL_SIZE]; // Label of the gui_begin
 	int window_ix;
 	int layer; // Graphical layer
+#if 0
 	GUI_BOOL detached; // If true, moving of this turtle doesn't affect parent bounding boxes etc.
 	DragDropData inactive_dragdropdata; // This is copied to gui context when actual dragging and dropping within this turtle starts
+#endif
 	int scissor[4]; // Depends on window/panel/whatever pos and sizes. Given to draw commands. Zero == unused.
 
 	int padding[4]; // Copied from layout
@@ -134,13 +141,16 @@ typedef struct GuiContext_Window {
 	GUI_BOOL has_bar; // GUI_FALSE is equivalent to panel-type window
 	int bar_height;
 	int recorded_pos[2]; // Last position of upper left corner
+	int recorded_content_size[2];
 	// Size on screen, not taking account title bar or borders
 	// Depends on window size in layout
 	int client_size[2];
 
 	int slider_width[2];
 	GUI_BOOL needs_scroll[2];
+#if 0
 	int last_bounding_size[2]; // @todo This is probably redundant, substitute with min_size layout property
+#endif
 	int scroll[2]; // Translation in pt. Cannot be relative, because adding content shouldn't cause translation to change.
 } GuiContext_Window;
 
@@ -209,6 +219,19 @@ typedef struct GuiContext_Storage {
 
 typedef void (*CalcTextSizeFunc)(int ret[2], void *user_data, const char *text);
 
+// Record of elements for post-frame layout solving
+typedef struct GuiContext_Element {
+	char label[MAX_GUI_LABEL_SIZE]; // @todo To separate array to minimize duplicated strings
+	int manual_offset[2]; // Set by client code. Manual offset of this element.
+	int depth;
+	GUI_BOOL detached; // Doesn't affect parent size
+
+	// Solver state
+	GUI_BOOL solved;
+	int solved_min_pos[2];
+	int solved_min_size[2];
+} GuiContext_Element;
+
 // Handles the gui state
 typedef struct GuiContext {
 	// Write to these to make gui work
@@ -226,7 +249,9 @@ typedef struct GuiContext {
 	int drag_start_pos[2]; // Pixel coordinates
 	GUI_BOOL dragging;
 	float drag_start_value[2]; // Knob value, or xy position, or ...
+#if 0
 	DragDropData dragdropdata; // Data from gui component which is currently dragged
+#endif
 
 	char written_text_buf[GUI_WRITTEN_TEXT_BUF_SIZE]; // Modified by gui_write_char
 	int written_char_count;
@@ -268,6 +293,10 @@ typedef struct GuiContext {
 	GUI_BOOL layout_props_need_sorting;
 	char layout_element_label[MAX_GUI_LABEL_SIZE];
 
+	GuiContext_Element *elements;
+	int element_capacity;
+	int element_count;
+
 	// Misc element state storage
 	GuiContext_Storage *storage; // Kept in order
 	int storage_capacity;
@@ -305,12 +334,13 @@ GUI_API int gui_layer(GuiContext *ctx);
 GUI_API void gui_set_scroll(GuiContext *ctx, int scroll_x, int scroll_y); // Move window contents
 GUI_API void gui_scroll(GuiContext *ctx, int *x, int *y);
 
-GUI_API void gui_begin_window(GuiContext *ctx, const char *win_label, const char *client_label);
+GUI_API void gui_begin_window(GuiContext *ctx, const char *win_label);
 GUI_API void gui_end_window(GuiContext *ctx);
 GUI_API void gui_window_client_size(GuiContext *ctx, int *w, int *h);
 GUI_API void gui_window_pos(GuiContext *ctx, int *x, int *y);
+GUI_API GUI_BOOL gui_is_window_open(GuiContext *ctx);
 
-GUI_API void gui_begin_panel(GuiContext *ctx, const char *win_label, const char *client_label);
+GUI_API void gui_begin_panel(GuiContext *ctx, const char *win_label);
 GUI_API void gui_end_panel(GuiContext *ctx);
 
 GUI_API GUI_BOOL gui_begin_contextmenu(GuiContext *ctx, const char *label, GuiId element_id);
@@ -322,8 +352,10 @@ GUI_API GUI_BOOL gui_contextmenu_item(GuiContext *ctx, const char *label);
 // @todo Implement for all elements and/or think of stricter semantics
 GUI_API GUI_BOOL gui_interacted(GuiContext *ctx, GuiId element_id);
 
+#if 0
 GUI_API void gui_begin_dragdrop_src(GuiContext *ctx, DragDropData data);
 GUI_API void gui_end_dragdrop_src(GuiContext *ctx);
+#endif
 
 GUI_API GUI_BOOL gui_button(GuiContext *ctx, const char *label);
 GUI_API GUI_BOOL gui_selectable(GuiContext *ctx, const char *label, GUI_BOOL selected);
@@ -368,27 +400,29 @@ GUI_API void gui_end(GuiContext *ctx);
 GUI_API void gui_end_droppable(GuiContext *ctx, DragDropData *dropped);
 GUI_API void gui_end_ex(GuiContext *ctx, DragDropData *dropped);
 
-GuiId gui_id(const char *label);
+GUI_API GuiId gui_id(const char *label);
 
-void gui_set_hot(GuiContext *ctx, const char *label);
-GUI_BOOL gui_is_hot(GuiContext *ctx, const char *label);
+GUI_API void gui_set_hot(GuiContext *ctx, const char *label);
+GUI_API GUI_BOOL gui_is_hot(GuiContext *ctx, const char *label);
 GUI_API void gui_set_active(GuiContext *ctx, const char *label);
 GUI_API void gui_set_inactive(GuiContext *ctx, GuiId id);
 GUI_API GUI_BOOL gui_is_active(GuiContext *ctx, const char *label);
 
-GUI_API void gui_set_turtle_pos(GuiContext *ctx, int x, int y);
+GUI_API void gui_set_turtle_pos(GuiContext *ctx, int x, int y); // @todo rename
 GUI_API void gui_turtle_pos(GuiContext *ctx, int *x, int *y);
 GUI_API void gui_turtle_size(GuiContext *ctx, int *x, int *y);
 GUI_API int gui_turtle_layer(GuiContext *ctx);
 GUI_API void gui_turtle_add_layer(GuiContext *ctx, int delta);
+#if 0
 GUI_API void gui_enlarge_bounding(GuiContext *ctx, int x, int y);
+#endif
 
 //
 // Internal
 //
 
 void gui_update_layout_property(GuiContext *ctx, const char *label, const char *key, int value);
-void gui_append_layout_property(GuiContext *ctx, const char *label, const char *key, int value);
+void gui_append_layout_property(GuiContext *ctx, const char *label, const char *key, int value, GUI_BOOL saved);
 
 #if __cplusplus
 }
