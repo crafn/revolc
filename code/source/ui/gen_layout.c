@@ -6,9 +6,12 @@ void load_layout(GuiContext *ctx)
 
 	gui_update_layout_property(ctx, "gui_button", "padding_bottom", 4);
 	gui_update_layout_property(ctx, "gui_button", "padding_right", 5);
-	gui_update_layout_property(ctx, "gui_button", "size_y", 15);
+	gui_update_layout_property(ctx, "gui_button", "size_y", 18);
 	gui_update_layout_property(ctx, "gui_button", "padding_left", 5);
-	gui_update_layout_property(ctx, "gui_button", "padding_top", 1);
+	gui_update_layout_property(ctx, "gui_button", "padding_top", 0);
+
+	gui_update_layout_property(ctx, "btn_in_list", "align_right", 1);
+	gui_update_layout_property(ctx, "btn_in_list", "align_left", 1);
 
 	gui_update_layout_property(ctx, "gui_textfield", "size_y", 18);
 	gui_update_layout_property(ctx, "gui_textfield", "gap_x", 4);
@@ -33,10 +36,10 @@ void load_layout(GuiContext *ctx)
 	gui_update_layout_property(ctx, "model_settings", "prevent_resizing", 1);
 	gui_update_layout_property(ctx, "model_settings", "align_left", 1);
 
-	gui_update_layout_property(ctx, "win", "size_x", 133);
-	gui_update_layout_property(ctx, "win", "size_y", 479);
-	gui_update_layout_property(ctx, "win", "offset_x", 120);
-	gui_update_layout_property(ctx, "win", "offset_y", 151);
+	gui_update_layout_property(ctx, "win", "size_x", 105);
+	gui_update_layout_property(ctx, "win", "size_y", 491);
+	gui_update_layout_property(ctx, "win", "offset_x", 185);
+	gui_update_layout_property(ctx, "win", "offset_y", 182);
 
 	gui_update_layout_property(ctx, "create_cmd", "size_x", 566);
 	gui_update_layout_property(ctx, "create_cmd", "size_y", 363);
@@ -56,8 +59,8 @@ void load_layout(GuiContext *ctx)
 	gui_update_layout_property(ctx, "world_tools", "align_top", 1);
 	gui_update_layout_property(ctx, "world_tools", "align_left", 0);
 
-	gui_update_layout_property(ctx, "gui_layoutwin", "size_x", 400);
-	gui_update_layout_property(ctx, "gui_layoutwin", "size_y", 700);
+	gui_update_layout_property(ctx, "gui_layoutwin", "size_x", 260);
+	gui_update_layout_property(ctx, "gui_layoutwin", "size_y", 679);
 	gui_update_layout_property(ctx, "gui_layoutwin", "offset_x", 811);
 	gui_update_layout_property(ctx, "gui_layoutwin", "offset_y", 15);
 
@@ -75,6 +78,12 @@ void load_layout(GuiContext *ctx)
 
 	gui_update_layout_property(ctx, "gui_contextmenu_item", "align_right", 1);
 	gui_update_layout_property(ctx, "gui_contextmenu_item", "align_left", 1);
+
+	gui_update_layout_property(ctx, "contextmenu2", "offset_x", 486);
+	gui_update_layout_property(ctx, "contextmenu2", "offset_y", 450);
+
+	gui_update_layout_property(ctx, "contextmenu1", "offset_x", 463);
+	gui_update_layout_property(ctx, "contextmenu1", "offset_y", 429);
 
 	gui_update_layout_property(ctx, "create_cmd_list_2", "on_same_row", 1);
 
@@ -103,7 +112,8 @@ void load_layout(GuiContext *ctx)
 	gui_update_layout_property(ctx, "model_setting", "align_right", 1);
 	gui_update_layout_property(ctx, "model_setting", "align_left", 1);
 
-	gui_update_layout_property(ctx, "gui_layout_list_prop", "size_x", 300);
+	gui_update_layout_property(ctx, "gui_layout_list_prop", "align_right", 1);
+	gui_update_layout_property(ctx, "gui_layout_list_prop", "align_left", 1);
 	gui_update_layout_property(ctx, "gui_layout_list_prop", "on_same_row", 1);
 
 	gui_update_layout_property(ctx, "node_list_item", "align_right", 1);
@@ -119,6 +129,8 @@ void load_layout(GuiContext *ctx)
 	gui_update_layout_property(ctx, "gui_client", "padding_right", 6);
 	gui_update_layout_property(ctx, "gui_client", "offset_x", 0);
 	gui_update_layout_property(ctx, "gui_client", "offset_y", 0);
+	gui_update_layout_property(ctx, "gui_client", "align_bottom", 1);
+	gui_update_layout_property(ctx, "gui_client", "align_top", 1);
 	gui_update_layout_property(ctx, "gui_client", "align_left", 1);
 	gui_update_layout_property(ctx, "gui_client", "padding_left", 6);
 	gui_update_layout_property(ctx, "gui_client", "padding_top", 5);
@@ -164,6 +176,10 @@ void load_layout(GuiContext *ctx)
 
 	gui_update_layout_property(ctx, "gui_win_slider_x", "size_y", 15);
 
+	gui_update_layout_property(ctx, "button", "align_right", 1);
+	gui_update_layout_property(ctx, "button", "align_bottom", 1);
+	gui_update_layout_property(ctx, "button", "align_left", 1);
+
 	gui_update_layout_property(ctx, "res_tools", "size_x", 88);
 	gui_update_layout_property(ctx, "res_tools", "size_y", 71);
 	gui_update_layout_property(ctx, "res_tools", "offset_x", 0);
@@ -188,10 +204,10 @@ void load_layout(GuiContext *ctx)
 	gui_update_layout_property(ctx, "clip_timeline", "align_bottom", 1);
 	gui_update_layout_property(ctx, "clip_timeline", "align_left", 1);
 
-	gui_update_layout_property(ctx, "Gui components", "size_x", 280);
-	gui_update_layout_property(ctx, "Gui components", "size_y", 463);
-	gui_update_layout_property(ctx, "Gui components", "offset_x", 287);
-	gui_update_layout_property(ctx, "Gui components", "offset_y", 66);
+	gui_update_layout_property(ctx, "Gui components", "size_x", 200);
+	gui_update_layout_property(ctx, "Gui components", "size_y", 418);
+	gui_update_layout_property(ctx, "Gui components", "offset_x", 384);
+	gui_update_layout_property(ctx, "Gui components", "offset_y", 161);
 
 	gui_update_layout_property(ctx, "uvbox_box", "align_right", 1);
 	gui_update_layout_property(ctx, "uvbox_box", "size_x", 300);

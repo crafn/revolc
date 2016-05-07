@@ -227,9 +227,13 @@ typedef struct GuiContext_Element {
 	GUI_BOOL detached; // Doesn't affect parent size
 
 	// Solver state
-	GUI_BOOL solved;
+	GUI_BOOL min_solved;
 	int solved_min_pos[2];
 	int solved_min_size[2];
+
+	GUI_BOOL final_solved;
+	int solved_pos[2];
+	int solved_size[2];
 } GuiContext_Element;
 
 // Handles the gui state
