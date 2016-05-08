@@ -140,18 +140,18 @@ typedef struct GuiContext_Window {
 
 	GUI_BOOL has_bar; // GUI_FALSE is equivalent to panel-type window
 	int bar_height;
-	int recorded_pos[2]; // Last position of upper left corner
-	int recorded_content_size[2];
+	int recorded_pos[2]; // Last position of upper left corner @todo Redundant
+	int recorded_content_size[2]; // @todo Redundant
 	// Size on screen, not taking account title bar or borders or scroll bars
 	// Depends on window size in layout
 	int client_size[2];
 
 	int slider_width[2];
-	GUI_BOOL needs_scroll[2];
 #if 0
+	GUI_BOOL needs_scroll[2];
 	int last_bounding_size[2]; // @todo This is probably redundant, substitute with min_size layout property
-#endif
 	int scroll[2]; // Translation in pt. Cannot be relative, because adding content shouldn't cause translation to change.
+#endif
 } GuiContext_Window;
 
 // @todo Maybe we should require only up/down status of buttons from the client?

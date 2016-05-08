@@ -172,10 +172,6 @@ void load_layout(GuiContext *ctx)
 	gui_update_layout_property(ctx, "world_tool_elem", "align_right", 1);
 	gui_update_layout_property(ctx, "world_tool_elem", "align_left", 1);
 
-	gui_update_layout_property(ctx, "gui_win_slider_y", "size_x", 15);
-
-	gui_update_layout_property(ctx, "gui_win_slider_x", "size_y", 15);
-
 	gui_update_layout_property(ctx, "button", "align_right", 1);
 	gui_update_layout_property(ctx, "button", "align_bottom", 1);
 	gui_update_layout_property(ctx, "button", "align_left", 1);
