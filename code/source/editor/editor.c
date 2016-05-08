@@ -198,7 +198,7 @@ internal void gui_datatree(GuiContext *ctx, Array(DataTreeInfo) *infos, const ch
 		//const char *value_str = gui_value_str(ctx, m.base_type_name, deref_ptr, m.ptr_depth, m.array_depth, member_ptr);
 		const char stars[] = "**********";
 		ensure(sizeof(stars) > m.ptr_depth);
-		const char *label = gui_str(ctx, "datatree+%s_%s_%s|(%s) %s%s%s",
+		const char *label = gui_str(ctx, "datatree+%s_%s_%s|(%s%s) %s%s",
 			tag, m.base_type_name, m.name,
 			m.base_type_name,
 			&stars[sizeof(stars) - m.ptr_depth - 1],

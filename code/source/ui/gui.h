@@ -142,7 +142,7 @@ typedef struct GuiContext_Window {
 	int bar_height;
 	int recorded_pos[2]; // Last position of upper left corner
 	int recorded_content_size[2];
-	// Size on screen, not taking account title bar or borders
+	// Size on screen, not taking account title bar or borders or scroll bars
 	// Depends on window size in layout
 	int client_size[2];
 
@@ -159,7 +159,7 @@ typedef struct GuiContext_Window {
 #define GUI_KEYSTATE_PRESSED_BIT 0x2
 #define GUI_KEYSTATE_RELEASED_BIT 0x4
 
-#define GUI_WRITTEN_TEXT_BUF_SIZE 32
+#define GUI_WRITTEN_TEXT_BUF_SIZE 32 // Max keypresses per frame
 #define GUI_TEXTFIELD_BUF_SIZE 64 // For integer and float edit
 
 #define GUI_KEY_COUNT 256
