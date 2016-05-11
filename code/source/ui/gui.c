@@ -752,8 +752,12 @@ GuiContext *create_gui(CalcTextSizeFunc calc_text, void *user_data_for_calc_text
 		gui_update_layout_property(ctx, "gui_contextmenu", "prevent_resizing", GUI_TRUE);
 		gui_update_layout_property(ctx, "gui_contextmenu", "resize_to_min_x", GUI_TRUE);
 		gui_update_layout_property(ctx, "gui_contextmenu", "resize_to_min_y", GUI_TRUE);
-		gui_update_layout_property(ctx, "gui_contextmenu_client", "align_left", GUI_TRUE);
-		gui_update_layout_property(ctx, "gui_contextmenu_client", "align_right", GUI_TRUE);
+		gui_update_layout_property(ctx, "gui_contextmenu", "padding_left", 0);
+		gui_update_layout_property(ctx, "gui_contextmenu", "padding_top", 0);
+		gui_update_layout_property(ctx, "gui_contextmenu", "padding_right", 0);
+		gui_update_layout_property(ctx, "gui_contextmenu", "padding_bottom", 0);
+		gui_update_layout_property(ctx, "gui_contextmenu", "gap_x", 0);
+		gui_update_layout_property(ctx, "gui_contextmenu", "gap_y", 0);
 		gui_update_layout_property(ctx, "gui_contextmenu_item", "align_left", GUI_TRUE);
 		gui_update_layout_property(ctx, "gui_contextmenu_item", "align_right", GUI_TRUE);
 
@@ -1062,7 +1066,9 @@ void gui_post_frame(GuiContext *ctx)
 			i += gui_solve_element_tree_final_layout(ctx, i, pos, ctx->host_win_size, padding, offset);
 		}
 
-#if 0
+#define PRINT_TREE 0
+
+#if PRINT_TREE
 		GUI_PRINTF("ELEMENTS\n");
 #endif
 		for (i = 0; i < ctx->element_count; ++i) {
@@ -1070,7 +1076,7 @@ void gui_post_frame(GuiContext *ctx)
 			assert(elem->min_solved);
 			assert(elem->final_solved);
 
-#if 0
+#if PRINT_TREE
 			if (i < 100) {
 				for (int k = 0; k < elem->depth; ++k)
 					GUI_PRINTF(" ");
