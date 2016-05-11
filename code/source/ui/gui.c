@@ -48,7 +48,7 @@ static void *gui_check_ptr(void *ptr)
 }
 
 #define GUI_DECL_V2(type, name, x, y) type name[2]; name[0] = x; name[1] = y;
-#define GUI_V2(stmt) do { int c = 0; stmt; c = 1; stmt; } while(0)
+#define GUI_V2(stmt) do { int c = 0; { stmt; } c = 1; { stmt; } } while(0)
 #define GUI_ASSIGN_V2(a, b) GUI_V2((a)[c] = (b)[c])
 #define GUI_EQUALS_V2(a, b) ((a)[0] == (b)[0] && (a)[1] == (b)[1])
 #define GUI_ZERO(var) memset(&var, 0, sizeof(var))
@@ -123,10 +123,11 @@ static void split_layout_str(	const char *strs[MAX_LAYOUTS_PER_ELEMENT],
 	sizes[*count] = 0;
 	++(*count);
 
+	GUI_BOOL plus_found = GUI_FALSE;
 	int begin = 0;
 	int end = 0;
 	while (label[end] && label[end] != '|') {
-		if (label[end] == ':' || label[end] == '+') {
+		if (!plus_found && (label[end] == ':' || label[end] == '+')) {
 			assert(*count < MAX_LAYOUTS_PER_ELEMENT);
 			strs[*count] = label + begin;
 			sizes[*count] = end - begin;
@@ -134,6 +135,8 @@ static void split_layout_str(	const char *strs[MAX_LAYOUTS_PER_ELEMENT],
 
 			if (label[end] != '+')
 				begin = end + 1;
+			else
+				plus_found = GUI_TRUE;
 		}
 		++end;
 	}
@@ -381,25 +384,6 @@ static void gui_set_min_size(GuiContext *ctx, const char *label, int size[2])
 	gui_update_layout_property_ex(ctx, label, "min_size_x", size[0], GUI_FALSE);
 	gui_update_layout_property_ex(ctx, label, "min_size_y", size[1], GUI_FALSE);
 }
-
-static void gui_set_solved_pos(GuiContext *ctx, const char *label, int pos[2])
-{
-	gui_update_layout_property_ex(ctx, label, "solved_pos_x", pos[0], GUI_FALSE);
-	gui_update_layout_property_ex(ctx, label, "solved_pos_y", pos[1], GUI_FALSE);
-}
-
-static void gui_set_solved_size(GuiContext *ctx, const char *label, int size[2])
-{
-	gui_update_layout_property_ex(ctx, label, "solved_size_x", size[0], GUI_FALSE);
-	gui_update_layout_property_ex(ctx, label, "solved_size_y", size[1], GUI_FALSE);
-}
-
-static void gui_set_solved_min_size(GuiContext *ctx, const char *label, int size[2])
-{
-	gui_update_layout_property_ex(ctx, label, "solved_min_size_x", size[0], GUI_FALSE);
-	gui_update_layout_property_ex(ctx, label, "solved_min_size_y", size[1], GUI_FALSE);
-}
-
 
 void gui_set_hot(GuiContext *ctx, const char *label)
 {
@@ -810,14 +794,20 @@ GuiContext *create_gui(CalcTextSizeFunc calc_text, void *user_data_for_calc_text
 		gui_update_layout_property(ctx, "gui_slider_y", "gap_y", 4);
 
 		gui_update_layout_property(ctx, "gui_content_slider_x", "size_y", 15);
+		gui_update_layout_property(ctx, "gui_content_slider_x", "align_left", GUI_TRUE);
+		gui_update_layout_property(ctx, "gui_content_slider_x", "align_right", GUI_TRUE);
 		gui_update_layout_property(ctx, "gui_content_slider_x", "align_bottom", GUI_TRUE);
+
 		gui_update_layout_property(ctx, "gui_content_slider_y", "size_x", 15);
+		gui_update_layout_property(ctx, "gui_content_slider_y", "align_top", GUI_TRUE);
+		gui_update_layout_property(ctx, "gui_content_slider_y", "align_bottom", GUI_TRUE);
 		gui_update_layout_property(ctx, "gui_content_slider_y", "align_right", GUI_TRUE);
 
 		gui_update_layout_property(ctx, "gui_scroll_panel", "align_left", GUI_TRUE);
 		gui_update_layout_property(ctx, "gui_scroll_panel", "align_top", GUI_TRUE);
 		gui_update_layout_property(ctx, "gui_scroll_panel", "align_right", GUI_TRUE);
 		gui_update_layout_property(ctx, "gui_scroll_panel", "align_bottom", GUI_TRUE);
+		gui_update_layout_property(ctx, "gui_scroll_panel", "use_parent_size_instead_of_content_size", GUI_TRUE);
 
 		gui_update_layout_property(ctx, "gui_treenode", "padding_left", 20);
 		gui_update_layout_property(ctx, "gui_treenode", "gap_y", 2);
@@ -850,6 +840,8 @@ GuiContext *create_gui(CalcTextSizeFunc calc_text, void *user_data_for_calc_text
 		gui_update_layout_property(ctx, "gui_client", "align_right", GUI_TRUE);
 		gui_update_layout_property(ctx, "gui_client", "align_top", GUI_TRUE);
 		gui_update_layout_property(ctx, "gui_client", "align_bottom", GUI_TRUE);
+		gui_update_layout_property(ctx, "gui_client", "size_x", 0); // Make minimum size zero
+		gui_update_layout_property(ctx, "gui_client", "size_y", 0);
 		gui_update_layout_property(ctx, "gui_client", "gap_x", 0);
 		gui_update_layout_property(ctx, "gui_client", "gap_y", 4);
 		gui_update_layout_property(ctx, "gui_client", "scrollable", GUI_TRUE);
@@ -929,19 +921,19 @@ static int gui_solve_element_tree_min_layout(GuiContext *ctx, int ix, const int 
 	GUI_V2(bounding_begin[c] += elem->manual_offset[c] + layout_property(ctx, elem->label, offset_str[c]));
 
 	const char *padding_str[4] = { "padding_left", "padding_top", "padding_right", "padding_bottom" };
-	int content_begin[2] = {bounding_begin[0], bounding_begin[1]};
-	GUI_V2(content_begin[c] += layout_property(ctx, elem->label, padding_str[c]));
-	int content_end[2] = {content_begin[0], content_begin[1]};
+	int padded_content_begin[2] = { bounding_begin[0], bounding_begin[1] };
+	GUI_V2(padded_content_begin[c] += layout_property(ctx, elem->label, padding_str[c]));
+	int padded_content_end[2] = { padded_content_begin[0], padded_content_begin[1] };
 
 	// Single pass is sufficient for solving the layout where every element is minimum-size.
-	// Note that some elements can be forced to be smaller than obvious minimum, e.g. windows.
+	// Note that some elements can be forced to be smaller than content minimum, e.g. windows.
 	int sub_i = ix + 1;
 	int sub_depth = elem->depth + 1;
 	GuiContext_Element *last_sub = NULL;
 	while (sub_i < ctx->element_count && ctx->elements[sub_i].depth == sub_depth) {
 		GuiContext_Element *sub = &ctx->elements[sub_i];
 
-		int sub_pos[2] = {content_begin[0], content_begin[1]};
+		int sub_pos[2] = { padded_content_begin[0], padded_content_begin[1] };
 		if (last_sub) {
 			GUI_BOOL comp = !layout_property(ctx, sub->label, "on_same_row");
 			sub_pos[comp] = last_sub->solved_min_pos[comp] + last_sub->solved_min_size[comp];
@@ -950,9 +942,13 @@ static int gui_solve_element_tree_min_layout(GuiContext *ctx, int ix, const int 
 			sub_pos[comp] += layout_property(ctx, elem->label, gap_str[comp]);
 		}
 
+		if (sub->detached) {
+			GUI_V2(sub_pos[c] = bounding_begin[c]);
+		}
+
 		int next_i = sub_i + gui_solve_element_tree_min_layout(ctx, sub_i, sub_pos);
 		if (!sub->detached) {
-			GUI_V2(content_end[c] = MAX(content_end[c], sub->solved_min_pos[c] + sub->solved_min_size[c]));
+			GUI_V2(padded_content_end[c] = MAX(padded_content_end[c], sub->solved_min_pos[c] + sub->solved_min_size[c]));
 			last_sub = sub;
 		}
 
@@ -960,7 +956,7 @@ static int gui_solve_element_tree_min_layout(GuiContext *ctx, int ix, const int 
 	}
 
 	int bounding_end[2];
-	GUI_V2(bounding_end[c] = content_end[c]);
+	GUI_V2(bounding_end[c] = padded_content_end[c]);
 	GUI_V2(bounding_end[c] += layout_property(ctx, elem->label, padding_str[c + 2]));
 
 	const char *min_size_str[2] = { "min_size_x", "min_size_y" };
@@ -968,30 +964,32 @@ static int gui_solve_element_tree_min_layout(GuiContext *ctx, int ix, const int 
 			MAX(bounding_end[c],
 				bounding_begin[c] + layout_property(ctx, elem->label, min_size_str[c])));
 
+	GUI_V2(elem->solved_min_pos[c] = bounding_begin[c]);
+	GUI_V2(elem->solved_min_size[c] = bounding_end[c] - bounding_begin[c]);
+	GUI_V2(elem->solved_min_content_size[c] = bounding_end[c] - bounding_begin[c]);
+
+	// Explicit size overrides calculated minimum size
 	const char *size_str[2] = { "size_x", "size_y" };
 	const char *resize_to_min_str[2] = { "resize_to_min_x", "resize_to_min_y" };
 	GUI_V2(
 		if (has_layout_property(ctx, elem->label, size_str[c]) &&
 			!layout_property(ctx, elem->label, resize_to_min_str[c])) {
-			// Explicit size overrides minimum size
-			bounding_end[c] = bounding_begin[c] + layout_property(ctx, elem->label, size_str[c]);
+			elem->solved_min_size[c] = layout_property(ctx, elem->label, size_str[c]);
 		}
 	);
 
-	if (!elem->min_solved) {
-		GUI_V2(elem->solved_min_pos[c] = bounding_begin[c]);
-		GUI_V2(elem->solved_min_size[c] = bounding_end[c] - bounding_begin[c]);
-	}
 	elem->min_solved = GUI_TRUE;
 
 	return sub_i - ix;
 }
 
+// Apply weaker layout conditions, those which don't affect minimum size calculations
 static int gui_solve_element_tree_final_layout(GuiContext *ctx, int ix,
 		int *parent_pos, int *parent_size, int *parent_padding,
 		const int *offset_)
 {
 	GuiContext_Element *elem = &ctx->elements[ix];
+	GUI_BOOL detached = elem->detached;
 	int offset[2] = {offset_[0], offset_[1]};
 	assert(elem->min_solved == GUI_TRUE);
 
@@ -1000,24 +998,28 @@ static int gui_solve_element_tree_final_layout(GuiContext *ctx, int ix,
 
 	const char *align_str[4] = { "align_left", "align_top", "align_right", "align_bottom" };
 	GUI_V2(
-		if (layout_property(ctx, elem->label, align_str[c + 2])) {
-			int pad = parent_padding[c] + parent_padding[c + 2];
-			if (layout_property(ctx, elem->label, align_str[c])) {
+		GUI_BOOL align_min = layout_property(ctx, elem->label, align_str[c]);
+		GUI_BOOL align_max = layout_property(ctx, elem->label, align_str[c + 2]);
+		if (align_max) {
+			if (align_min) {
 				// Stretch, take account previous elements on same row/column
 				int free_space =	parent_pos[c] + parent_size[c]
 									- (elem->solved_pos[c] + elem->solved_size[c])
-									- parent_padding[c + 2];
+									- parent_padding[c + 2]*(!detached);
 				elem->solved_size[c] += MAX(free_space, 0);
-				//new_turtle.size[0] = prev_size[0] - (prev->padding[0] + prev->padding[2]);
 			} else {
 				// Move
-				int dif = parent_size[c] - elem->solved_size[c] - pad;
-				elem->solved_pos[c] += dif;
+				int target = 	parent_pos[c] + parent_size[c]
+								- elem->solved_size[c]
+								- parent_padding[c + 2]*(!detached);
+				int dif = target - elem->solved_pos[c];
+				elem->solved_pos[c] = target;
 				offset[c] = dif;
-				//new_turtle.pos[0] = prev->pos[0] + prev_size[0] - new_turtle.size[0] - prev->padding[2];
 			}
 		}
 	);
+
+	GUI_V2(elem->solved_content_size[c] = elem->solved_min_content_size[c]);
 
 	int elem_padding[4] = {
 		layout_property(ctx, elem->label, "padding_left"),
@@ -1037,6 +1039,12 @@ static int gui_solve_element_tree_final_layout(GuiContext *ctx, int ix,
 	}
 #endif
 
+	// @todo Don't requery for every element
+	GUI_DECL_V2(int, slider_size,	layout_property(ctx, "gui_content_slider_y", "size_x"),
+									layout_property(ctx, "gui_content_slider_x", "size_y"));
+	const char *needs_scroll_str[2] = { "needs_scroll_x", "needs_scroll_y" };
+	GUI_BOOL needs_scroll[2];
+	GUI_V2(needs_scroll[c] = layout_property(ctx, elem->label, needs_scroll_str[c]));
 
 	int sub_i = ix + 1;
 	int sub_depth = elem->depth + 1;
@@ -1045,8 +1053,28 @@ static int gui_solve_element_tree_final_layout(GuiContext *ctx, int ix,
 		int sub_offset[2] = {0};
 		if (!sub->detached)
 			GUI_V2(sub_offset[c] = offset[c] - content_scroll[c]);
+
+		int pos[2];
+		GUI_V2(pos[c] = elem->solved_pos[c] + sub_offset[c]);
+
+		int size[2];
+		if (layout_property(ctx, sub->label, "use_parent_size_instead_of_content_size")) {
+			GUI_V2(size[c] = elem->solved_size[c]);
+		} else {
+			GUI_V2(size[c] = MAX(elem->solved_content_size[c], elem->solved_size[c]));
+			GUI_V2(size[c] = size[c] - needs_scroll[!c]*slider_size[c]);
+			GUI_V2(size[c] = MAX(size[c], elem->solved_min_content_size[c]));
+		}
+
 		sub_i += gui_solve_element_tree_final_layout(ctx, sub_i,
-					elem->solved_pos, elem->solved_size, elem_padding, sub_offset);
+					pos, size, elem_padding, sub_offset);
+	}
+
+	if (layout_property(ctx, elem->label, "scrollable")) {
+		GUI_V2(elem->solved_needs_scroll[c] =	elem->solved_min_content_size[c] >
+												elem->solved_size[c] - needs_scroll[!c]*slider_size[c]);
+	} else {
+		GUI_V2(elem->solved_needs_scroll[c] = GUI_FALSE);
 	}
 
 	elem->final_solved = GUI_TRUE;
@@ -1077,33 +1105,41 @@ void gui_post_frame(GuiContext *ctx)
 			i += gui_solve_element_tree_final_layout(ctx, i, pos, ctx->host_win_size, padding, offset);
 		}
 
-		//GUI_PRINTF("ELEMENTS\n");
+#if 0
+		GUI_PRINTF("ELEMENTS\n");
+#endif
 		for (i = 0; i < ctx->element_count; ++i) {
 			GuiContext_Element *elem = &ctx->elements[i];
 			assert(elem->min_solved);
 			assert(elem->final_solved);
+
 #if 0
 			if (i < 100) {
 				for (int k = 0; k < elem->depth; ++k)
 					GUI_PRINTF(" ");
-				GUI_PRINTF("%s  %i, %i\n", elem->label, elem->solved_min_size[0], elem->solved_min_size[1]);
+				GUI_PRINTF("%s mc(%i, %i) s(%i, %i) scroll(%i, %i)\n", elem->label,
+							elem->solved_min_content_size[0], elem->solved_min_content_size[1],
+							elem->solved_size[0], elem->solved_size[1],
+							elem->solved_needs_scroll[0], elem->solved_needs_scroll[1]);
 			}
 #endif
+			const char *solved_pos_str[2] = { "solved_pos_x", "solved_pos_y" };
+			const char *solved_size_str[2] = { "solved_size_x", "solved_size_y" };
+			const char *solved_min_size_str[2] = { "solved_min_size_x", "solved_min_size_y" };
+			const char *solved_content_size_str[2] = { "solved_content_size_x", "solved_content_size_y" };
+			const char *needs_scroll_str[2] = { "needs_scroll_x", "needs_scroll_y" };
 
-			//int size[2];
-			//GUI_V2(size[c] = elem->solved_min_size[c]);
-
-			gui_set_solved_pos(ctx, elem->label, elem->solved_pos);
-			gui_set_solved_min_size(ctx, elem->label, elem->solved_min_size);
-			gui_set_solved_size(ctx, elem->label, elem->solved_size);
+			GUI_V2(gui_update_layout_property_ex(	ctx, elem->label, solved_pos_str[c],
+													elem->solved_pos[c], GUI_FALSE));
+			GUI_V2(gui_update_layout_property_ex(	ctx, elem->label, solved_size_str[c],
+													elem->solved_size[c], GUI_FALSE));
+			GUI_V2(gui_update_layout_property_ex(	ctx, elem->label, solved_min_size_str[c],
+													elem->solved_min_size[c], GUI_FALSE));
+			GUI_V2(gui_update_layout_property_ex(	ctx, elem->label, solved_content_size_str[c],
+													elem->solved_content_size[c], GUI_FALSE));
+			GUI_V2(gui_update_layout_property_ex(	ctx, elem->label, needs_scroll_str[c],
+													elem->solved_needs_scroll[c], GUI_FALSE));
 		}
-
-#if 0
-		for (i = 0; i < ctx->element_count; ++i) {
-			GuiContext_Element *elem = &ctx->elements[i];
-			assert(layout_property(ctx, elem->label, "solved_pos_y") == elem->solved_min_pos[1]);
-		}
-#endif
 	}
 
 	for (int i = 0; i < MAX_GUI_WINDOW_COUNT; ++i) {
@@ -1209,13 +1245,13 @@ void gui_button_logic(GuiContext *ctx, const char *label, int pos[2], int size[2
 	}
 }
 
+GUI_BOOL gui_slider_ex(GuiContext *ctx, const char *label, float *value, float min, float max, float handle_rel_size, GUI_BOOL v, int length, GUI_BOOL show_text);
+
 static void gui_begin_ex(GuiContext *ctx, const char *label, GUI_BOOL detached)
 {
 	assert(ctx->turtle_ix < MAX_GUI_STACK_SIZE);
 	if (ctx->turtle_ix >= MAX_GUI_STACK_SIZE)
 		ctx->turtle_ix = 0; // Failsafe
-
-	//GuiContext_Window *win = gui_window(ctx);
 
 	GuiContext_Turtle *prev = &ctx->turtles[ctx->turtle_ix];
 	GuiContext_Turtle *cur = &ctx->turtles[++ctx->turtle_ix];
@@ -1331,6 +1367,77 @@ static void gui_begin_ex(GuiContext *ctx, const char *label, GUI_BOOL detached)
 		elem.depth = ctx->turtle_ix;
 		elem.detached = detached;
 		gui_append_element(ctx, elem);
+	}
+
+	if (layout_property(ctx, label, "scrollable")) { // Scrolling
+		const char *needs_scroll_str[2] = { "needs_scroll_x", "needs_scroll_y" };
+		GUI_BOOL needs_scroll[2];
+		GUI_V2(needs_scroll[c] = layout_property(ctx, label, needs_scroll_str[c]));
+
+		const char *scroll_str[2] = { "scroll_x", "scroll_y" };
+		int scroll[2];
+		GUI_V2(scroll[c] = layout_property(ctx, label, scroll_str[c]));
+
+		const char *solved_content_size_str[2] = { "solved_content_size_x", "solved_content_size_y" };
+		int content_size[2];
+		GUI_V2(content_size[c] = layout_property(ctx, label, solved_content_size_str[c]));
+
+		GUI_DECL_V2(int, slider_size,	layout_property(ctx, "gui_content_slider_y", "size_x"),
+										layout_property(ctx, "gui_content_slider_x", "size_y"));
+
+		int size[2];
+		GUI_V2(size[c] = new_turtle.size[c]);
+
+		int slider_cut[2];
+		GUI_V2(slider_cut[c] = needs_scroll[!c]*slider_size[c]);
+
+		int max_scroll[2];
+		GUI_V2(max_scroll[c] = content_size[c] - size[c] + slider_cut[c]);
+		GUI_V2(max_scroll[c] = GUI_MAX(max_scroll[c], 0));
+
+		for (int d = 0; d < 2; ++d) {
+			char scroll_panel_label[MAX_GUI_LABEL_SIZE];
+			GUI_FMT_STR(scroll_panel_label, sizeof(scroll_panel_label), "gui_scroll_panel+%i+%s", d, label);
+			gui_begin_detached(ctx, scroll_panel_label);
+
+			if (needs_scroll[d]) {
+				gui_turtle(ctx)->layer += GUI_LAYERS_PER_WINDOW/2; // Make topmost in window @todo Then should move this to end_window
+				char scroll_label[MAX_GUI_LABEL_SIZE];
+				GUI_FMT_STR(scroll_label, sizeof(scroll_label), "gui_content_slider_%c+%i+%s",
+																d ? 'y' : 'x', d, label);
+				if (	d == 1 && // Vertical
+						gui_focused(ctx) &&
+						ctx->mouse_scroll != 0 && // Scrolling mouse wheel
+						!(ctx->key_state[GUI_KEY_LCTRL] & GUI_KEYSTATE_DOWN_BIT)) // Not holding ctrl
+					scroll[d] -= ctx->mouse_scroll*64;
+
+				// Scroll by dragging
+				if (	gui_turtle(ctx)->window_ix == ctx->active_win_ix &&
+						(ctx->key_state[GUI_KEY_LCTRL] & GUI_KEYSTATE_DOWN_BIT) &&
+						(ctx->key_state[GUI_KEY_LMB] & GUI_KEYSTATE_DOWN_BIT)) {
+					if (!ctx->dragging) {
+						float v[2];
+						GUI_V2(v[c] = (float)scroll[c]);
+						gui_start_dragging(ctx, v);
+					} else {
+						int v[2];
+						GUI_V2(v[c] = (int)ctx->drag_start_value[c]);
+						scroll[d] = v[d] + ctx->drag_start_pos[d] - ctx->cursor_pos[d];
+					}
+				}
+
+				float scroll_v = 1.f*scroll[d];
+				float rel_shown_area = 1.f*(size[d] - slider_cut[d])/content_size[d];
+				float max_comp_scroll = 1.f*max_scroll[d];
+				gui_slider_ex(	ctx, scroll_label, &scroll_v, 0, max_comp_scroll, rel_shown_area, !!d,
+								size[d] - slider_size[d], GUI_FALSE);
+				scroll[d] = (int)scroll_v;
+			}
+			gui_end(ctx);
+		}
+
+		GUI_V2(scroll[c] = GUI_CLAMP(scroll[c], 0, max_scroll[c]));
+		GUI_V2(gui_update_layout_property(ctx, label, scroll_str[c], scroll[c]));
 	}
 }
 
@@ -1605,9 +1712,6 @@ void gui_begin_window_ex(GuiContext *ctx, const char *base_label, GUI_BOOL has_b
 	const char *solved_pos_str[2] = { "solved_pos_x", "solved_pos_y" };
 	const char *solved_size_str[2] = { "solved_size_x", "solved_size_y" };
 	const char *solved_min_size_str[2] = { "solved_min_size_x", "solved_min_size_y" };
-	const char *has_scroll_str[2] = { "has_scroll_x", "has_scroll_y" };
-	GUI_BOOL has_scroll[2];
-	GUI_V2(has_scroll[c] = layout_property(ctx, win->label, has_scroll_str[c]));
 	// Client are size on screen - not content size which can go outside window
 	int c_pos[2];
 	int c_size[2];
@@ -1618,7 +1722,7 @@ void gui_begin_window_ex(GuiContext *ctx, const char *base_label, GUI_BOOL has_b
 									layout_property(ctx, "gui_content_slider_x", "size_y"));
 	GUI_ASSIGN_V2(win->slider_width, slider_size);
 	c_pos[1] += win->has_bar*win->bar_height;
-	GUI_V2(c_size[c] = size[c] - c*win->bar_height - has_scroll[!c]*slider_size[!c]);
+	GUI_V2(c_size[c] = size[c] - c*win->bar_height);
 	GUI_V2(win->client_size[c] = c_size[c]);
 
 	GUI_V2(win->recorded_pos[c] = pos[c]);
@@ -1633,7 +1737,6 @@ void gui_begin_window_ex(GuiContext *ctx, const char *base_label, GUI_BOOL has_b
 	}
 
 	if (win->has_bar) { // Title bar logic
-
 		char bar_label[MAX_GUI_LABEL_SIZE];
 		gui_modified_id_label(bar_label, gui_prepend_layout(ctx, "gui_bar", base_label), "_bar");
 		GUI_BOOL went_down, down, hover;
@@ -1689,62 +1792,6 @@ void gui_begin_window_ex(GuiContext *ctx, const char *base_label, GUI_BOOL has_b
 		gui_enlarge_bounding(ctx, pos[0] + size[0], pos[1] + win->bar_height);
 #endif
 		gui_end(ctx);
-	}
-
-	if (!minimized) { // Scrolling
-		const char *scroll_str[2] = { "scroll_x", "scroll_y" };
-		int scroll[2] = {0};
-		GUI_V2(scroll[c] = layout_property(ctx, win->label, scroll_str[c]));
-
-		int max_scroll[2];
-		GUI_V2(max_scroll[c] = win->recorded_content_size[c] - c_size[c]);
-		GUI_V2(max_scroll[c] = GUI_MAX(max_scroll[c], 0));
-
-		char scroll_panel_label[MAX_GUI_LABEL_SIZE];
-		gui_modified_id_label(scroll_panel_label, 	gui_prepend_layout(ctx, "gui_scroll_panel", base_label),
-													"_scroll_panel");
-		for (int d = 0; d < 2; ++d) {
-			if (has_scroll[d]) {
-				gui_begin_detached(ctx, scroll_panel_label);
-				gui_turtle(ctx)->layer += GUI_LAYERS_PER_WINDOW/2; // Make topmost in window @todo Then should move this to end_window
-				char scroll_label[MAX_GUI_LABEL_SIZE];
-				GUI_FMT_STR(scroll_label, sizeof(scroll_label), "gui_content_slider_%c+%i+%s",
-																d ? 'y' : 'x', d, base_label);
-				GUI_ASSIGN_V2(gui_turtle(ctx)->pos, c_pos);
-				gui_turtle(ctx)->pos[!d] = pos[!d] + size[!d] - slider_size[!d];
-
-				if (	d == 1 && // Vertical
-						gui_focused(ctx) &&
-						ctx->mouse_scroll != 0 && // Scrolling mouse wheel
-						!(ctx->key_state[GUI_KEY_LCTRL] & GUI_KEYSTATE_DOWN_BIT)) // Not holding ctrl
-					scroll[d] -= ctx->mouse_scroll*64;
-
-				// Scroll by dragging
-				if (	gui_turtle(ctx)->window_ix == ctx->active_win_ix &&
-						(ctx->key_state[GUI_KEY_LCTRL] & GUI_KEYSTATE_DOWN_BIT) &&
-						(ctx->key_state[GUI_KEY_LMB] & GUI_KEYSTATE_DOWN_BIT)) {
-					if (!ctx->dragging) {
-						float v[2];
-						GUI_V2(v[c] = (float)scroll[c]);
-						gui_start_dragging(ctx, v);
-					} else {
-						int v[2];
-						GUI_V2(v[c] = (int)ctx->drag_start_value[c]);
-						scroll[d] = v[d] + ctx->drag_start_pos[d] - ctx->cursor_pos[d];
-					}
-				}
-
-				float scroll_v = 1.f*scroll[d];
-				float rel_shown_area = 1.f*c_size[d]/win->recorded_content_size[d];
-				float max_comp_scroll = 1.f*max_scroll[d];
-				gui_slider_ex(	ctx, scroll_label, &scroll_v, 0, max_comp_scroll, rel_shown_area, !!d,
-								size[d] - slider_size[d] - d*win->bar_height, GUI_FALSE);
-				scroll[d] = (int)scroll_v;
-				gui_end(ctx);
-			}
-		}
-		GUI_V2(scroll[c] = GUI_CLAMP(scroll[c], 0, max_scroll[c]));
-		GUI_V2(gui_update_layout_property(ctx, win->label, scroll_str[c], scroll[c]));
 	}
 
 	// Corner resize handle
@@ -1815,14 +1862,6 @@ void gui_begin_window_ex(GuiContext *ctx, const char *base_label, GUI_BOOL has_b
 
 void gui_end_window_ex(GuiContext *ctx)
 {
-	GuiContext_Window *win = gui_window(ctx);
-
-	const char *solved_min_size_str[2] = { "solved_min_size_x", "solved_min_size_y" };
-	const char *has_scroll_str[2] = { "has_scroll_x", "has_scroll_y" };
-	int content_size[2];
-	GUI_V2(content_size[c] = layout_property(ctx, gui_turtle(ctx)->label, solved_min_size_str[c]));
-	GUI_V2(gui_update_layout_property_ex(ctx, win->label, has_scroll_str[c], content_size[c] > win->client_size[c], GUI_FALSE));
-
 	gui_end(ctx); // client area
 	gui_end(ctx); // window area
 }
@@ -2328,8 +2367,10 @@ void gui_layout_editor(GuiContext *ctx, const char *save_path)
 			"prevent_resizing",
 			"resize_to_min_x", "resize_to_min_y",
 			"align_left", "align_right", "align_top", "align_bottom",
+			"use_parent_size_instead_of_content_size",
 			"padding_left", "padding_top", "padding_right", "padding_bottom",
 			"gap_x", "gap_y",
+			"scrollable",
 		};
 
 		GUI_BOOL prop_is_bool[] = {
@@ -2339,8 +2380,10 @@ void gui_layout_editor(GuiContext *ctx, const char *save_path)
 			GUI_TRUE,
 			GUI_TRUE, GUI_TRUE,
 			GUI_TRUE, GUI_TRUE, GUI_TRUE, GUI_TRUE,
+			GUI_TRUE,
 			GUI_FALSE, GUI_FALSE, GUI_FALSE, GUI_FALSE,
 			GUI_FALSE, GUI_FALSE,
+			GUI_TRUE,
 		};
 
 		int prop_count = sizeof(props)/sizeof(*props);

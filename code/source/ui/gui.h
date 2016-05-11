@@ -230,10 +230,13 @@ typedef struct GuiContext_Element {
 	GUI_BOOL min_solved;
 	int solved_min_pos[2];
 	int solved_min_size[2];
+	int solved_min_content_size[2]; // Same as min_size if element is not forced to be smaller than content
 
 	GUI_BOOL final_solved;
 	int solved_pos[2];
 	int solved_size[2];
+	int solved_content_size[2]; // Can be smaller or larger than solved_size
+	GUI_BOOL solved_needs_scroll[2];
 } GuiContext_Element;
 
 // Handles the gui state

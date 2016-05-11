@@ -64,8 +64,6 @@ void load_layout(GuiContext *ctx)
 	gui_update_layout_property(ctx, "gui_layoutwin", "offset_x", 811);
 	gui_update_layout_property(ctx, "gui_layoutwin", "offset_y", 15);
 
-	gui_update_layout_property(ctx, "asd", "padding_right", 5);
-
 	gui_update_layout_property(ctx, "gui_slider_x", "padding_bottom", 2);
 	gui_update_layout_property(ctx, "gui_slider_x", "padding_right", 0);
 	gui_update_layout_property(ctx, "gui_slider_x", "size_y", 18);
