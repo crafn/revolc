@@ -109,19 +109,9 @@ typedef struct GuiContext_Turtle {
 	int manual_offset[2]; // Manual offset of child elements
 	int pos[2]; // Copied from layout
 	int size[2]; // Copied from layout
-#if 0
-	//int start_pos[2]; // @todo Could maybe be removed
-	//int bounding_max[2]; // @todo Could maybe be removed (use size)
-	//int last_bounding_max[2]; // Most recently added gui element
-	GUI_BOOL non_empty;
-#endif
 	char label[MAX_GUI_LABEL_SIZE]; // Label of the gui_begin
 	int window_ix;
 	int layer; // Graphical layer
-#if 0
-	GUI_BOOL detached; // If true, moving of this turtle doesn't affect parent bounding boxes etc.
-	DragDropData inactive_dragdropdata; // This is copied to gui context when actual dragging and dropping within this turtle starts
-#endif
 	int scissor[4]; // Depends on window/panel/whatever pos and sizes. Given to draw commands. Zero == unused.
 
 	int padding[4]; // Copied from layout
@@ -141,17 +131,11 @@ typedef struct GuiContext_Window {
 	GUI_BOOL has_bar; // GUI_FALSE is equivalent to panel-type window
 	int bar_height;
 	int recorded_pos[2]; // Last position of upper left corner @todo Redundant
-	int recorded_content_size[2]; // @todo Redundant
 	// Size on screen, not taking account title bar or borders or scroll bars
 	// Depends on window size in layout
 	int client_size[2];
 
 	int slider_width[2];
-#if 0
-	GUI_BOOL needs_scroll[2];
-	int last_bounding_size[2]; // @todo This is probably redundant, substitute with min_size layout property
-	int scroll[2]; // Translation in pt. Cannot be relative, because adding content shouldn't cause translation to change.
-#endif
 } GuiContext_Window;
 
 // @todo Maybe we should require only up/down status of buttons from the client?
@@ -256,9 +240,6 @@ typedef struct GuiContext {
 	int drag_start_pos[2]; // Pixel coordinates
 	GUI_BOOL dragging;
 	float drag_start_value[2]; // Knob value, or xy position, or ...
-#if 0
-	DragDropData dragdropdata; // Data from gui component which is currently dragged
-#endif
 
 	char written_text_buf[GUI_WRITTEN_TEXT_BUF_SIZE]; // Modified by gui_write_char
 	int written_char_count;
@@ -359,11 +340,6 @@ GUI_API GUI_BOOL gui_contextmenu_item(GuiContext *ctx, const char *label);
 // @todo Implement for all elements and/or think of stricter semantics
 GUI_API GUI_BOOL gui_interacted(GuiContext *ctx, GuiId element_id);
 
-#if 0
-GUI_API void gui_begin_dragdrop_src(GuiContext *ctx, DragDropData data);
-GUI_API void gui_end_dragdrop_src(GuiContext *ctx);
-#endif
-
 GUI_API GUI_BOOL gui_button(GuiContext *ctx, const char *label);
 GUI_API GUI_BOOL gui_selectable(GuiContext *ctx, const char *label, GUI_BOOL selected);
 GUI_API GUI_BOOL gui_checkbox(GuiContext *ctx, const char *label, GUI_BOOL *value);
@@ -420,9 +396,6 @@ GUI_API void gui_turtle_pos(GuiContext *ctx, int *x, int *y);
 GUI_API void gui_turtle_size(GuiContext *ctx, int *x, int *y);
 GUI_API int gui_turtle_layer(GuiContext *ctx);
 GUI_API void gui_turtle_add_layer(GuiContext *ctx, int delta);
-#if 0
-GUI_API void gui_enlarge_bounding(GuiContext *ctx, int x, int y);
-#endif
 
 //
 // Internal

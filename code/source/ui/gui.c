@@ -528,9 +528,6 @@ void gui_set_turtle_pos(GuiContext *ctx, int x, int y)
 {
 	ctx->turtles[ctx->turtle_ix].manual_offset[0] = x;
 	ctx->turtles[ctx->turtle_ix].manual_offset[1] = y;
-#if 0
-	gui_enlarge_bounding(ctx, x, y);
-#endif
 }
 
 GuiContext_Window *gui_window(GuiContext *ctx)
@@ -577,17 +574,6 @@ int gui_turtle_layer(GuiContext *ctx)
 
 void gui_turtle_add_layer(GuiContext *ctx, int delta)
 { gui_turtle(ctx)->layer += delta; }
-
-#if 0
-void gui_parent_turtle_start_pos(GuiContext *ctx, int pos[2])
-{
-	if (ctx->turtle_ix == 0) {
-		pos[0] = pos[1] = 0;
-	} else {
-		GUI_ASSIGN_V2(pos, ctx->turtles[ctx->turtle_ix - 1].start_pos);
-	}
-}
-#endif
 
 static void gui_combine_scissor(int dst[4], int src[4])
 {
@@ -641,10 +627,6 @@ void gui_start_dragging(GuiContext *ctx, float start_value[2])
 	ctx->dragging = GUI_TRUE;
 	GUI_ASSIGN_V2(ctx->drag_start_pos, ctx->cursor_pos);
 	GUI_ASSIGN_V2(ctx->drag_start_value, start_value);
-#if 0
-	// Store dragdropdata
-	ctx->dragdropdata = gui_turtle(ctx)->inactive_dragdropdata;
-#endif
 }
 
 static void *gui_frame_alloc(GuiContext *ctx, int size)
@@ -896,20 +878,6 @@ void gui_pre_frame(GuiContext *ctx)
 		gui_button_logic(ctx, "gui_bg_window", pos, ctx->host_win_size, NULL, NULL, NULL, NULL);
 	}
 
-#if 0
-	{ // Background
-		int pos[2] = {};
-		int size[2];
-		GUI_V2(size[c] = ctx->host_win_size[c]);
-
-		const char *label = "gui_bg_window";
-		gui_update_layout_property(ctx, label, "size_x", size[0]);	
-		gui_update_layout_property(ctx, label, "size_y", size[1]);	
-
-		gui_begin(ctx, label);
-		gui_button_logic(ctx, label, pos, size, NULL, NULL, NULL, NULL);
-	}
-#endif
 }
 
 static int gui_solve_element_tree_min_layout(GuiContext *ctx, int ix, const int *pos)
@@ -1031,13 +999,6 @@ static int gui_solve_element_tree_final_layout(GuiContext *ctx, int ix,
 	const char *scroll_str[2] = { "scroll_x", "scroll_y" };
 	int content_scroll[2] = {0};
 	GUI_V2(content_scroll[c] = layout_property(ctx, elem->label, scroll_str[c]));
-#if 0
-	if (!minimized) {
-		// Scroll client area
-		const char *offset_str[2] = { "offset_x", "offset_y" };
-		GUI_V2(gui_update_layout_property_ex(ctx, client_label, offset_str[c], -win->scroll[c], GUI_FALSE));
-	}
-#endif
 
 	// @todo Don't requery for every element
 	GUI_DECL_V2(int, slider_size,	layout_property(ctx, "gui_content_slider_y", "size_x"),
@@ -1084,10 +1045,6 @@ static int gui_solve_element_tree_final_layout(GuiContext *ctx, int ix,
 
 void gui_post_frame(GuiContext *ctx)
 {
-#if 0
-	gui_end(ctx);
-#endif
-
 	assert(ctx->turtle_ix == 0);
 
 	{ // Layout solver
@@ -1263,90 +1220,6 @@ static void gui_begin_ex(GuiContext *ctx, const char *label, GUI_BOOL detached)
 	new_turtle.size[0] = layout_property(ctx, label, "solved_size_x");
 	new_turtle.size[1] = layout_property(ctx, label, "solved_size_y");
 
-#if 0
-	{ // Init pos and size using layout
-		GUI_ASSIGN_V2(new_turtle.pos, prev->pos);
-		int prev_size[2];
-		GUI_ASSIGN_V2(prev_size, prev->size);
-		// @todo Make work
-		//if (win) {
-			// Make right-aligned go to right side of content, not right side of win
-		//	GUI_V2(prev_size[c] = GUI_MAX(prev_size[c], win->last_bounding_size[c]));
-		//}
-
-		if (prev->non_empty && !detached) {
-			if (layout_property(ctx, label, "on_same_row")) {
-				new_turtle.pos[0] = prev->last_bounding_max[0] + prev->gap[0];
-			} else {
-				new_turtle.pos[1] = prev->last_bounding_max[1] + prev->gap[1];
-			}
-		}
-		if (!detached)
-			prev->non_empty = GUI_TRUE;
-
-		if (has_layout_property(ctx, label, "offset_x"))
-			new_turtle.pos[0] += layout_property(ctx, label, "offset_x");
-		if (has_layout_property(ctx, label, "offset_y"))
-			new_turtle.pos[1] += layout_property(ctx, label, "offset_y");
-
-		if (	has_layout_property(ctx, label, "size_x") &&
-				!layout_property(ctx, label, "resize_to_min_x")) {
-			new_turtle.size[0] = layout_property(ctx, label, "size_x");
-		} else {
-			new_turtle.size[0] = layout_property(ctx, label, "min_size_x");
-		}
-		if (	has_layout_property(ctx, label, "size_y") &&
-				!layout_property(ctx, label, "resize_to_min_y")) {
-			new_turtle.size[1] = layout_property(ctx, label, "size_y");
-		} else {
-			new_turtle.size[1] = layout_property(ctx, label, "min_size_y");
-		}
-
-		// Alignment
-		// @todo Take previous elements in current turtle account, like two buttons in a row, latter stretched
-
-		if (layout_property(ctx, label, "align_left"))
-			new_turtle.pos[0] = prev->pos[0];
-		if (layout_property(ctx, label, "align_right")) {
-			if (layout_property(ctx, label, "align_left")) {
-				// Stretch
-				new_turtle.size[0] = prev_size[0] - (prev->padding[0] + prev->padding[2]);
-			} else {
-				// Move
-				// @todo Make work with elements which change their size after begin()
-				new_turtle.pos[0] = prev->pos[0] + prev_size[0] - new_turtle.size[0] - prev->padding[2];
-			}
-		}
-
-		if (layout_property(ctx, label, "align_top"))
-			new_turtle.pos[1] = prev->pos[1];
-		if (layout_property(ctx, label, "align_bottom")) {
-			if (layout_property(ctx, label, "align_top")) {
-				// Stretch
-				new_turtle.size[1] = prev_size[1];
-			} else {
-				// Move
-				new_turtle.pos[1] = prev->pos[1] + prev_size[1] - new_turtle.size[1] - prev->padding[3];
-			}
-		}
-
-		// Padding (= minimum distance from parent edges)
-		if (!detached) {
-			GUI_V2(new_turtle.pos[c] = GUI_MAX(new_turtle.pos[c], prev->pos[c] + prev->padding[c]));
-			// Padding shouldn't modify size... @todo Remove below
-			//GUI_V2(new_turtle.size[c] = GUI_MIN(new_turtle.size[c], prev->pos[c] + prev_size[c] - new_turtle.pos[c] - prev->padding[c + 2]));
-		}
-	}
-#endif
-
-#if 0
-	GUI_ASSIGN_V2(new_turtle.start_pos, new_turtle.pos);
-	// Element will report how much space it took, regardless of turtle.size
-	GUI_V2(new_turtle.bounding_max[c] = new_turtle.start_pos[c]);
-	GUI_ASSIGN_V2(new_turtle.last_bounding_max, new_turtle.bounding_max);
-	new_turtle.detached = detached;
-	new_turtle.inactive_dragdropdata = prev->inactive_dragdropdata;
-#endif
 	new_turtle.window_ix = prev->window_ix;
 	new_turtle.layer = prev->layer + 1;
 	memcpy(new_turtle.scissor, prev->scissor, sizeof(new_turtle.scissor));
@@ -1463,19 +1336,6 @@ void gui_end_ex(GuiContext *ctx, DragDropData *dropdata)
 	{ // Dragging stop logic
 		if (	!(ctx->key_state[GUI_KEY_LMB] & GUI_KEYSTATE_DOWN_BIT) || // Mouse released
 				(ctx->key_state[GUI_KEY_LCTRL] & GUI_KEYSTATE_DOWN_BIT && ctx->mouse_scroll)) { // Scrolling when xy dragging
-#if 0
-			if (ctx->dragdropdata.tag && dropdata) {
-				int pos[2], size[2], c_p[2];
-				GUI_ASSIGN_V2(pos, gui_turtle(ctx)->start_pos);
-				GUI_V2(size[c] = gui_turtle(ctx)->bounding_max[c] - pos[c]);
-				px_to_pt(c_p, ctx->cursor_pos, ctx->dpi_scale);
-				if (v2i_in_rect(c_p, pos, size)) {
-					// Release dragdropdata
-					*dropdata = ctx->dragdropdata;
-					GUI_ZERO(ctx->dragdropdata);
-				}
-			}
-#endif
 
 			// This doesn't need to be here. Once per frame would be enough.
 			ctx->dragging = GUI_FALSE;
@@ -1486,17 +1346,6 @@ void gui_end_ex(GuiContext *ctx, DragDropData *dropdata)
 	assert(ctx->turtle_ix > 0);
 	--ctx->turtle_ix;
 
-#if 0
-	if (!detached) {
-		// Merge bounding boxes
-		GuiContext_Turtle *parent = &ctx->turtles[ctx->turtle_ix];
-		GuiContext_Turtle *child = &ctx->turtles[ctx->turtle_ix + 1];
-
-		GUI_V2(parent->bounding_max[c] =
-			GUI_MAX(parent->bounding_max[c], child->bounding_max[c]));
-		GUI_ASSIGN_V2(parent->last_bounding_max, child->bounding_max);
-	}
-#endif
 }
 
 GUI_BOOL gui_slider_ex(GuiContext *ctx, const char *label, float *value, float min, float max, float handle_rel_size, GUI_BOOL v, int length, GUI_BOOL show_text)
@@ -1598,29 +1447,10 @@ GUI_BOOL gui_slider_ex(GuiContext *ctx, const char *label, float *value, float m
 		}
 	}
 
-#if 0
-	gui_enlarge_bounding(ctx, pos[0] + size[0], pos[1] + size[1]);
-#endif
-
 	gui_end(ctx);
 
 	return ret;
 }
-
-#if 0
-void gui_set_scroll(GuiContext *ctx, int scroll_x, int scroll_y)
-{
-	gui_window(ctx)->scroll[0] = scroll_x;
-	gui_window(ctx)->scroll[1] = scroll_y;
-}
-
-void gui_scroll(GuiContext *ctx, int *x, int *y)
-{
-	*x = gui_window(ctx)->scroll[0];
-	*y = gui_window(ctx)->scroll[1];
-}
-
-#endif
 
 static void gui_lift_window_to_top(GuiContext *ctx, int win_handle)
 {
@@ -1711,7 +1541,6 @@ void gui_begin_window_ex(GuiContext *ctx, const char *base_label, GUI_BOOL has_b
 	gui_modified_id_label(client_label, gui_prepend_layout(ctx, "gui_client", base_label), "_client");
 	const char *solved_pos_str[2] = { "solved_pos_x", "solved_pos_y" };
 	const char *solved_size_str[2] = { "solved_size_x", "solved_size_y" };
-	const char *solved_min_size_str[2] = { "solved_min_size_x", "solved_min_size_y" };
 	// Client are size on screen - not content size which can go outside window
 	int c_pos[2];
 	int c_size[2];
@@ -1726,7 +1555,6 @@ void gui_begin_window_ex(GuiContext *ctx, const char *base_label, GUI_BOOL has_b
 	GUI_V2(win->client_size[c] = c_size[c]);
 
 	GUI_V2(win->recorded_pos[c] = pos[c]);
-	GUI_V2(win->recorded_content_size[c] = layout_property(ctx, client_label, solved_min_size_str[c]));
 
 	{ // Bg panel
 		int px_pos[2], px_size[2];
@@ -1788,9 +1616,6 @@ void gui_begin_window_ex(GuiContext *ctx, const char *base_label, GUI_BOOL has_b
 						NULL, gui_layer(ctx) + 2, gui_scissor(ctx));
 		}
 
-#if 0
-		gui_enlarge_bounding(ctx, pos[0] + size[0], pos[1] + win->bar_height);
-#endif
 		gui_end(ctx);
 	}
 
@@ -1928,9 +1753,6 @@ static GUI_BOOL gui_button_ex(GuiContext *ctx, const char *label, GUI_BOOL force
 					gui_label_text(label), gui_layer(ctx) + 1, gui_scissor(ctx));
 	}
 
-#if 0
-	gui_enlarge_bounding(ctx, pos[0] + size[0], pos[1] + size[1]);
-#endif
 	gui_end(ctx);
 
 	return went_up && hover;
@@ -1969,20 +1791,6 @@ GUI_BOOL gui_contextmenu_item(GuiContext *ctx, const char *label)
 
 GUI_BOOL gui_interacted(GuiContext *ctx, GuiId element_id)
 { return ctx->interacted_id == element_id; }
-
-#if 0
-void gui_begin_dragdrop_src(GuiContext *ctx, DragDropData data)
-{
-	assert(gui_turtle(ctx)->inactive_dragdropdata.tag == NULL && "Nested dragdrop areas in single gui element not supported");
-	gui_turtle(ctx)->inactive_dragdropdata = data;
-}
-
-void gui_end_dragdrop_src(GuiContext *ctx)
-{
-	assert(gui_turtle(ctx)->inactive_dragdropdata.tag);
-	GUI_ZERO(gui_turtle(ctx)->inactive_dragdropdata);
-}
-#endif
 
 GUI_BOOL gui_button(GuiContext *ctx, const char *label)
 { return gui_button_ex(ctx, gui_prepend_layout(ctx, "gui_button", label), GUI_FALSE); }
@@ -2036,9 +1844,6 @@ GUI_BOOL gui_checkbox_ex(GuiContext *ctx, const char *label, GUI_BOOL *value, GU
 					gui_label_text(label), gui_layer(ctx) + 1, gui_scissor(ctx));
 	}
 
-#if 0
-	gui_enlarge_bounding(ctx, pos[0] + size[0], pos[1] + size[1]);
-#endif
 	gui_end(ctx);
 
 	if (value && went_up && hover)
@@ -2162,9 +1967,6 @@ static GUI_BOOL gui_textfield_ex(GuiContext *ctx, const char *label, char *buf, 
 
 	}
 
-#if 0
-	gui_enlarge_bounding(ctx, pos[0] + size[0], pos[1] + size[1]);
-#endif
 	gui_end(ctx);
 
 	return content_changed;
@@ -2258,9 +2060,6 @@ void gui_label(GuiContext *ctx, const char *label)
 					gui_label_text(label), gui_layer(ctx) + 1, gui_scissor(ctx));
 	}
 
-#if 0
-	gui_enlarge_bounding(ctx, pos[0] + size[0], pos[1] + size[1]);
-#endif
 	gui_end(ctx);
 }
 
@@ -2328,18 +2127,6 @@ void gui_end_tree(GuiContext *ctx)
 {
 	gui_end(ctx);
 }
-
-#if 0
-void gui_enlarge_bounding(GuiContext *ctx, int x, int y)
-{
-	GUI_DECL_V2(int, pos, x, y);
-
-	GuiContext_Turtle *turtle = &ctx->turtles[ctx->turtle_ix];
-
-	GUI_V2(turtle->bounding_max[c] = GUI_MAX(turtle->bounding_max[c], pos[c]));
-	GUI_ASSIGN_V2(turtle->last_bounding_max, pos);
-}
-#endif
 
 void gui_layout_editor(GuiContext *ctx, const char *save_path)
 {
