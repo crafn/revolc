@@ -5,9 +5,6 @@
 #include "core/hash.h"
 #include "core/memory.h"
 
-// @todo Change max_size to expected_item_count. This avoids problems with value 0, and allows load factor calculations
-//       inside hash table.
-
 // Key_Value
 #define KV(K, V) JOIN3(ORIG_TYPE(K), _, ORIG_TYPE(V))
 // key_value
@@ -39,7 +36,7 @@ typedef struct HashTbl_Entry(K, V) {\
 } HashTbl_Entry(K, V);\
 \
 REVOLC_API HashTbl(K, V) create_tbl(K, V)(	K null_key, V null_value,\
-											Ator *ator, U32 capacity);\
+											Ator *ator, U32 expected_item_count);\
 REVOLC_API void destroy_tbl(K, V)(HashTbl(K, V) *tbl);\
 \
 REVOLC_API V get_tbl(K, V)(HashTbl(K, V) *tbl, K key);\

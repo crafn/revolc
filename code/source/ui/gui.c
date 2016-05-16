@@ -6,6 +6,10 @@
 #include <assert.h>
 #include <math.h>
 
+//
+// Misc util
+//
+
 static void *gui_frame_alloc(GuiContext *ctx, int size);
 
 #if defined(_MSC_VER) && _MSC_VER <= 1800 // MSVC 2013
@@ -47,6 +51,10 @@ static void *gui_check_ptr(void *ptr)
 	return ptr;
 }
 
+//
+// Vector
+//
+
 #define GUI_DECL_V2(type, name, x, y) type name[2]; name[0] = x; name[1] = y;
 #define GUI_V2(stmt) do { int c = 0; { stmt; } c = 1; { stmt; } } while(0)
 #define GUI_ASSIGN_V2(a, b) GUI_V2((a)[c] = (b)[c])
@@ -55,6 +63,120 @@ static void *gui_check_ptr(void *ptr)
 
 static GUI_BOOL v2i_in_rect(int v[2], int pos[2], int size[2])
 { return v[0] >= pos[0] && v[1] >= pos[1] && v[0] < pos[0] + size[0] && v[1] < pos[1] + size[1]; }
+
+//
+// Gui_Tbl
+//
+
+#define GUI_TBL_LOAD_FACTOR 2
+
+static Gui_Tbl_Entry gui_null_tbl_entry(Gui_Tbl *tbl)
+{
+	Gui_Tbl_Entry e = {0};
+	e.key = tbl->null_key;
+	e.value = tbl->null_value;
+	return e;
+}
+
+Gui_Tbl gui_create_tbl(int null_value, int expected_item_count)
+{
+	Gui_Tbl tbl = {0};
+	tbl.null_key = NULL_GUI_ID;
+	tbl.null_value = null_value;
+	tbl.array_size = expected_item_count*GUI_TBL_LOAD_FACTOR;
+	tbl.array = GUI_MALLOC(sizeof(*tbl.array)*tbl.array_size);
+	for (int i = 0; i < tbl.array_size; ++i)
+		tbl.array[i] = gui_null_tbl_entry(&tbl);
+	return tbl;
+}
+
+void gui_destroy_tbl(Gui_Tbl *tbl)
+{
+	GUI_FREE(tbl->array);
+	tbl->array = NULL;
+}
+
+int gui_get_tbl(Gui_Tbl *tbl, GuiId key)
+{
+	int ix = key % tbl->array_size;
+	/* Linear probing */
+	/* Should not be infinite because set_id_handle_tbl asserts if table is full */
+	while (tbl->array[ix].key != key && tbl->array[ix].key != tbl->null_key)
+		ix = (ix + 1) % tbl->array_size;
+
+	if (tbl->array[ix].key == tbl->null_key)
+		GUI_ASSERT(tbl->array[ix].value == tbl->null_value);
+
+	return tbl->array[ix].value;
+}
+
+void gui_set_tbl(Gui_Tbl *tbl, GuiId key, int value)
+{
+	GUI_ASSERT(key != tbl->null_key);
+	if (tbl->count > tbl->array_size/HASHTABLE_LOAD_FACTOR) {
+		/* Resize container */
+		Gui_Tbl larger = gui_create_tbl(tbl->null_value, tbl->array_size);
+		for (int i = 0; i < tbl->array_size; ++i) {
+			if (tbl->array[i].key == tbl->null_key)
+				continue;
+			gui_set_tbl(&larger, tbl->array[i].key, tbl->array[i].value);
+		}
+
+		gui_destroy_tbl(tbl);
+		*tbl = larger;
+	}
+
+	int ix = key % tbl->array_size;
+
+	/* Linear probing */
+	while (tbl->array[ix].key != key && tbl->array[ix].key != tbl->null_key)
+		ix = (ix + 1) % tbl->array_size;
+
+	Gui_Tbl_Entry *entry = &tbl->array[ix];
+	bool modify_existing = 	value != tbl->null_value && entry->key != tbl->null_key;
+	bool insert_new =		value != tbl->null_value && entry->key == tbl->null_key;
+	bool remove_existing =	value == tbl->null_value && entry->key != tbl->null_key;
+	bool remove_new =		value == tbl->null_value && entry->key == tbl->null_key;
+
+	if (modify_existing) {
+		entry->value = value;
+	} else if (insert_new) {
+		entry->key = key;
+		entry->value = value;
+		++tbl->count;
+	} else if (remove_existing) {
+		entry->key = key;
+		entry->key = tbl->null_key;
+		entry->value = tbl->null_value;
+		GUI_ASSERT(tbl->count > 0);
+		--tbl->count;
+
+		/* Rehash */
+		ix = (ix + 1) % tbl->array_size;
+		while (tbl->array[ix].key != tbl->null_key) {
+			Gui_Tbl_Entry e = tbl->array[ix];
+			tbl->array[ix] = gui_null_tbl_entry(tbl);
+			--tbl->count;
+			gui_set_tbl(tbl, e.key, e.value);
+
+			ix = (ix + 1) % tbl->array_size;
+		}
+	} else if (remove_new) {
+		/* Nothing to be removed */
+	} else {
+		GUI_ASSERT(0 && "Hash table logic failed");
+	}
+
+	GUI_ASSERT(tbl->count < tbl->array_size);
+}
+
+void gui_clear_tbl(Gui_Tbl *tbl)
+{
+	tbl->count = 0;
+	for (int i = 0; i < tbl->array_size; ++i)
+		tbl->array[i] = gui_null_tbl_entry(tbl);
+}
+
 
 static GuiId gui_hash(const char *buf, int size)
 {
@@ -65,12 +187,12 @@ static GuiId gui_hash(const char *buf, int size)
 	return hash;
 }
 
+// gui_id("layout:foo_button+1|Press this") == gui_id("layout2:foo_button+1|Don't press this")
 GuiId gui_id(const char *label)
 {
 	int begin = 0;
 	int end = 0;
 	GUI_BOOL id_token_reached = GUI_FALSE;
-	// gui_id("layout:foo_button+1|Press this") == gui_id("layout2:foo_button+1|Don't press this")
 	while (label[end] && label[end] != '|') {
 		if (label[end] == ':' && !id_token_reached)
 			begin = end + 1;
@@ -100,6 +222,10 @@ static void gui_modified_id_label(char result[MAX_GUI_LABEL_SIZE], const char *l
 	result[MIN(i, MAX_GUI_LABEL_SIZE - 1)] = '\0';
 }
 
+static GuiId gui_prop_hash(GuiId layout_id, GuiId key_id)
+{ return layout_id ^ (key_id*2011); }
+
+#if 0
 static int layout_prop_cmp(const void *void_a, const void *void_b)
 {
 	const GuiContext_LayoutProperty *a = (const GuiContext_LayoutProperty*)void_a;
@@ -110,6 +236,7 @@ static int layout_prop_cmp(const void *void_a, const void *void_b)
 		return layout_dif;
 	return key_dif;
 }
+#endif
 
 // "foo:bar+123|Button" -> {"", "foo", "bar", "bar+123"}
 static void split_layout_str(	const char *strs[MAX_LAYOUTS_PER_ELEMENT],
@@ -128,7 +255,7 @@ static void split_layout_str(	const char *strs[MAX_LAYOUTS_PER_ELEMENT],
 	int end = 0;
 	while (label[end] && label[end] != '|') {
 		if (!plus_found && (label[end] == ':' || label[end] == '+')) {
-			assert(*count < MAX_LAYOUTS_PER_ELEMENT);
+			GUI_ASSERT(*count < MAX_LAYOUTS_PER_ELEMENT);
 			strs[*count] = label + begin;
 			sizes[*count] = end - begin;
 			++(*count);
@@ -142,35 +269,28 @@ static void split_layout_str(	const char *strs[MAX_LAYOUTS_PER_ELEMENT],
 	}
 
 	if (begin != end) {
-		assert(*count < MAX_LAYOUTS_PER_ELEMENT);
+		GUI_ASSERT(*count < MAX_LAYOUTS_PER_ELEMENT);
 		strs[*count] = label + begin;
 		sizes[*count] = end - begin;
 		++(*count);
 	}
 }
 
+#if 0
 static void try_sort_layout_properties(GuiContext *ctx)
 {
-	const char *strs[MAX_LAYOUTS_PER_ELEMENT];
-	int sizes[MAX_LAYOUTS_PER_ELEMENT];
-	int count;
-	split_layout_str(strs, sizes, &count, "foo:bar+123|Button");
-	assert(count == 4);
-	assert(strs[1][0] == 'f');
-	assert(strs[2][0] == 'b');
-	assert(strs[3][0] == 'b');
-	assert(sizes[3] == 7);
-	assert(strs[3][4] == '1');
-
 	if (ctx->layout_props_need_sorting) {
 		qsort(ctx->layout_props, ctx->layout_props_count, sizeof(*ctx->layout_props), layout_prop_cmp);
 		ctx->layout_props_need_sorting = GUI_FALSE;
 	}
 }
+#endif
 
 static GuiContext_LayoutProperty *find_layout_property(GuiContext *ctx, const char *label, const char *key, GUI_BOOL most_specific)
 {
+#if 0
 	try_sort_layout_properties(ctx);
+#endif
 
 	const char *layout_names[MAX_LAYOUTS_PER_ELEMENT];
 	int layout_name_sizes[MAX_LAYOUTS_PER_ELEMENT];
@@ -178,17 +298,19 @@ static GuiContext_LayoutProperty *find_layout_property(GuiContext *ctx, const ch
 	split_layout_str(layout_names, layout_name_sizes, &layout_count, label);
 
 	int i;
-	GuiContext_LayoutProperty prop = {0};
-	prop.key_id = gui_id(key);
+	GuiId key_id = gui_id(key);
 	for (i = layout_count - 1; i >= 0; --i) {
-		prop.layout_id = gui_hash(layout_names[i], layout_name_sizes[i]);
+		GuiId layout_id = gui_hash(layout_names[i], layout_name_sizes[i]);
 
+		int ix = gui_get_tbl(&ctx->prop_ix_tbl, gui_prop_hash(layout_id, key_id));
+#if 0
 		GuiContext_LayoutProperty *found =
 			(GuiContext_LayoutProperty*)bsearch(
 				&prop, ctx->layout_props, ctx->layout_props_count, sizeof(*ctx->layout_props), layout_prop_cmp);
+#endif
 
-		if (found)
-			return found;
+		if (ix >= 0)
+			return &ctx->layout_props[ix];
 
 		if (most_specific)
 			break;
@@ -235,10 +357,15 @@ static void remove_layout_property(GuiContext *ctx, const char *label, const cha
 	if (!found)
 		return;
 
-	*found = ctx->layout_props[ctx->layout_props_count - 1];
-	--ctx->layout_props_count;
+	gui_set_tbl(&ctx->prop_ix_tbl, gui_prop_hash(found->layout_id, found->key_id), -1);
 
-	ctx->layout_props_need_sorting = GUI_TRUE;
+	if (ctx->layout_props_count > 1) {
+		GuiContext_LayoutProperty *over = &ctx->layout_props[ctx->layout_props_count - 1];
+		gui_set_tbl(&ctx->prop_ix_tbl, gui_prop_hash(over->layout_id, over->key_id), found - ctx->layout_props);
+
+		*found = *over;
+		--ctx->layout_props_count;
+	}
 }
 
 static void set_layout_property_saved(GuiContext *ctx, const char *label, const char *key, GUI_BOOL saved)
@@ -254,7 +381,7 @@ static void most_specific_layout(const char **str, int *size, const char *label)
 	int layout_name_sizes[MAX_LAYOUTS_PER_ELEMENT];
 	int layout_count;
 	split_layout_str(layout_names, layout_name_sizes, &layout_count, label);
-	assert(layout_count > 0);
+	GUI_ASSERT(layout_count > 0);
 	const int most_specific = layout_count - 1;
 
 	*str = layout_names[most_specific];
@@ -281,8 +408,8 @@ void gui_append_layout_property(GuiContext *ctx, const char *label, const char *
 	prop.value = value;
 	prop.dont_save = !saved;
 
+	gui_set_tbl(&ctx->prop_ix_tbl, gui_prop_hash(prop.layout_id, prop.key_id), ctx->layout_props_count);
 	ctx->layout_props[ctx->layout_props_count++] = prop;
-	ctx->layout_props_need_sorting = GUI_TRUE;
 }
 
 void gui_append_element(GuiContext *ctx, GuiContext_Element elem)
@@ -535,7 +662,7 @@ GuiContext_Window *gui_window(GuiContext *ctx)
 	if (gui_turtle(ctx)->window_ix == GUI_NONE_WINDOW_IX ||
 		gui_turtle(ctx)->window_ix == GUI_BG_WINDOW_IX)
 		return NULL;
-	assert(gui_turtle(ctx)->window_ix < MAX_GUI_WINDOW_COUNT);
+	GUI_ASSERT(gui_turtle(ctx)->window_ix < MAX_GUI_WINDOW_COUNT);
 	return gui_turtle(ctx)->window_ix >= 0 ? &ctx->windows[gui_turtle(ctx)->window_ix] : NULL;
 }
 
@@ -623,7 +750,7 @@ GUI_BOOL gui_is_inside_window(GuiContext *ctx, int size[2])
 
 void gui_start_dragging(GuiContext *ctx, float start_value[2])
 {
-	assert(!ctx->dragging);
+	GUI_ASSERT(!ctx->dragging);
 	ctx->dragging = GUI_TRUE;
 	GUI_ASSIGN_V2(ctx->drag_start_pos, ctx->cursor_pos);
 	GUI_ASSIGN_V2(ctx->drag_start_value, start_value);
@@ -631,7 +758,7 @@ void gui_start_dragging(GuiContext *ctx, float start_value[2])
 
 static void *gui_frame_alloc(GuiContext *ctx, int size)
 {
-	assert(ctx->framemem_bucket_count >= 1);
+	GUI_ASSERT(ctx->framemem_bucket_count >= 1);
 	GuiContext_MemBucket *bucket = &ctx->framemem_buckets[ctx->framemem_bucket_count - 1];
 	if (bucket->used + size > bucket->size) {
 		// Need a new bucket :(
@@ -647,7 +774,7 @@ static void *gui_frame_alloc(GuiContext *ctx, int size)
 
 	char *mem = (char *)bucket->data + bucket->used; // @todo Alignment
 	bucket->used += size;
-	assert(bucket->used <= bucket->size);
+	GUI_ASSERT(bucket->used <= bucket->size);
 	return (void*)mem;
 }
 
@@ -726,6 +853,7 @@ GuiContext *create_gui(CalcTextSizeFunc calc_text, void *user_data_for_calc_text
 	ctx->draw_info_capacity = 64;
 
 	ctx->layout_props_capacity = 64;
+	ctx->prop_ix_tbl = gui_create_tbl(-1, ctx->layout_props_capacity);
 	ctx->layout_props = (GuiContext_LayoutProperty*)gui_check_ptr(
 		GUI_MALLOC(sizeof(*ctx->layout_props)*ctx->layout_props_capacity));
 
@@ -843,6 +971,7 @@ void destroy_gui(GuiContext *ctx)
 			GUI_FREE(ctx->framemem_buckets[i].data);
 		GUI_FREE(ctx->framemem_buckets);
 
+		gui_destroy_tbl(&ctx->prop_ix_tbl);
 		GUI_FREE(ctx->layout_props);
 		GUI_FREE(ctx->elements);
 		GUI_FREE(ctx->storage);
@@ -860,7 +989,7 @@ void gui_button_logic(GuiContext *ctx, const char *label, int pos[2], int size[2
 
 void gui_pre_frame(GuiContext *ctx)
 {
-	assert(ctx->turtle_ix == 0);
+	GUI_ASSERT(ctx->turtle_ix == 0);
 
 	refresh_framemem(ctx);
 
@@ -963,7 +1092,7 @@ static int gui_solve_element_tree_final_layout(GuiContext *ctx, int ix,
 	GuiContext_Element *elem = &ctx->elements[ix];
 	GUI_BOOL detached = elem->detached;
 	int offset[2] = {offset_[0], offset_[1]};
-	assert(elem->min_solved == GUI_TRUE);
+	GUI_ASSERT(elem->min_solved == GUI_TRUE);
 
 	GUI_V2(elem->solved_pos[c] = elem->solved_min_pos[c] + offset[c]);
 	GUI_V2(elem->solved_size[c] = elem->solved_min_size[c]);
@@ -1049,7 +1178,7 @@ static int gui_solve_element_tree_final_layout(GuiContext *ctx, int ix,
 
 void gui_post_frame(GuiContext *ctx)
 {
-	assert(ctx->turtle_ix == 0);
+	GUI_ASSERT(ctx->turtle_ix == 0);
 
 	{ // Layout solver
 		int i = 0;
@@ -1073,8 +1202,8 @@ void gui_post_frame(GuiContext *ctx)
 #endif
 		for (i = 0; i < ctx->element_count; ++i) {
 			GuiContext_Element *elem = &ctx->elements[i];
-			assert(elem->min_solved);
-			assert(elem->final_solved);
+			GUI_ASSERT(elem->min_solved);
+			GUI_ASSERT(elem->final_solved);
 
 #if PRINT_TREE
 			if (i < 100) {
@@ -1088,7 +1217,7 @@ void gui_post_frame(GuiContext *ctx)
 #endif
 			const char *solved_pos_str[2] = { "solved_pos_x", "solved_pos_y" };
 			const char *solved_size_str[2] = { "solved_size_x", "solved_size_y" };
-			const char *solved_min_size_str[2] = { "solved_min_size_x", "solved_min_size_y" };
+			//const char *solved_min_size_str[2] = { "solved_min_size_x", "solved_min_size_y" };
 			const char *solved_content_size_str[2] = { "solved_content_size_x", "solved_content_size_y" };
 			const char *needs_scroll_str[2] = { "needs_scroll_x", "needs_scroll_y" };
 
@@ -1096,8 +1225,8 @@ void gui_post_frame(GuiContext *ctx)
 													elem->solved_pos[c], GUI_FALSE));
 			GUI_V2(gui_update_layout_property_ex(	ctx, elem->label, solved_size_str[c],
 													elem->solved_size[c], GUI_FALSE));
-			GUI_V2(gui_update_layout_property_ex(	ctx, elem->label, solved_min_size_str[c],
-													elem->solved_min_size[c], GUI_FALSE));
+			//GUI_V2(gui_update_layout_property_ex(	ctx, elem->label, solved_min_size_str[c],
+			//										elem->solved_min_size[c], GUI_FALSE));
 			GUI_V2(gui_update_layout_property_ex(	ctx, elem->label, solved_content_size_str[c],
 													elem->solved_content_size[c], GUI_FALSE));
 			GUI_V2(gui_update_layout_property_ex(	ctx, elem->label, needs_scroll_str[c],
@@ -1212,7 +1341,7 @@ GUI_BOOL gui_slider_ex(GuiContext *ctx, const char *label, float *value, float m
 
 static void gui_begin_ex(GuiContext *ctx, const char *label, GUI_BOOL detached)
 {
-	assert(ctx->turtle_ix < MAX_GUI_STACK_SIZE);
+	GUI_ASSERT(ctx->turtle_ix < MAX_GUI_STACK_SIZE);
 	if (ctx->turtle_ix >= MAX_GUI_STACK_SIZE)
 		ctx->turtle_ix = 0; // Failsafe
 
@@ -1349,7 +1478,7 @@ void gui_end_ex(GuiContext *ctx, DragDropData *dropdata)
 	}
 
 	//GUI_BOOL detached = gui_turtle(ctx)->detached;
-	assert(ctx->turtle_ix > 0);
+	GUI_ASSERT(ctx->turtle_ix > 0);
 	--ctx->turtle_ix;
 
 }
@@ -1499,9 +1628,9 @@ void gui_begin_window_ex(GuiContext *ctx, const char *base_label, GUI_BOOL has_b
 			}
 		}
 		if (win_handle == -1) {
-			assert(free_handle >= 0);
+			GUI_ASSERT(free_handle >= 0);
 			// Create new window
-			assert(ctx->window_count < MAX_GUI_WINDOW_COUNT);
+			GUI_ASSERT(ctx->window_count < MAX_GUI_WINDOW_COUNT);
 
 			GuiContext_Window *win = &ctx->windows[free_handle];
 			win->id = gui_id(win_label);
@@ -1523,11 +1652,11 @@ void gui_begin_window_ex(GuiContext *ctx, const char *base_label, GUI_BOOL has_b
 				gui_lift_window_to_top(ctx, win_handle);
 		}
 	}
-	assert(win_handle >= 0);
+	GUI_ASSERT(win_handle >= 0);
 	GuiContext_Window *win = &ctx->windows[win_handle];
 	if (win->used) {
 		GUI_PRINTF("Same window used twice in a frame: %s\n", win_label);
-		assert(0 && "See printed error message");
+		GUI_ASSERT(0 && "See printed error message");
 	}
 	win->used = GUI_TRUE;
 	win->remove_when_not_used = ctx->dont_save_next_window_layout;
@@ -1915,7 +2044,7 @@ static GUI_BOOL gui_textfield_ex(GuiContext *ctx, const char *label, char *buf, 
 		GUI_BOOL active = (ctx->last_active_id == gui_id(label));
 
 		if (active) {
-			assert(buf && buf_size > 0);
+			GUI_ASSERT(buf && buf_size > 0);
 			int char_count = (int)strlen(buf);
 			for (int i = 0; i < ctx->written_char_count; ++i) {
 				if (char_count >= buf_size)
@@ -2180,7 +2309,7 @@ void gui_layout_editor(GuiContext *ctx, const char *save_path)
 		};
 
 		int prop_count = sizeof(props)/sizeof(*props);
-		assert(prop_count == sizeof(prop_is_bool)/sizeof(*prop_is_bool));
+		GUI_ASSERT(prop_count == sizeof(prop_is_bool)/sizeof(*prop_is_bool));
 
 		int i;
 		for (i = 0; i < prop_count; ++i) {

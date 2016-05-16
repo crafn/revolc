@@ -127,12 +127,12 @@ internal const char *gui_value_str(GuiContext *ctx, const char *type_name, void 
 		return gui_str(ctx, "%f", *(F64*)deref_ptr);
 	else if (!strcmp(type_name, "F32") && deref_ptr)
 		return gui_str(ctx, "%f", *(F32*)deref_ptr);
-	else if (!strcmp(type_name, "F32") && deref_ptr)
-		return gui_str(ctx, "%f", *(F32*)deref_ptr);
 	else if ((!strcmp(type_name, "U32") || !strcmp(type_name, "Handle")) && deref_ptr)
 		return gui_str(ctx, "%u", *(U32*)deref_ptr);
 	else if (!strcmp(type_name, "U16") && deref_ptr)
 		return gui_str(ctx, "%u", *(U16*)deref_ptr);
+	else if (!strcmp(type_name, "int") && deref_ptr)
+		return gui_str(ctx, "i", *(int*)deref_ptr);
 	else if (!strcmp(type_name, "bool") && deref_ptr)
 		return gui_str(ctx, "%s", *(bool*)deref_ptr ? "true" : "false");
 	else if (!strcmp(type_name, "V2i") && deref_ptr) {
@@ -234,6 +234,12 @@ internal void gui_datatree(GuiContext *ctx, Array(DataTreeInfo) *infos, const ch
 		} else if (!strcmp(m.base_type_name, "F32")) {
 			if (editable) {
 				gui_floatfield(ctx, label, deref_ptr);
+			} else {
+				gui_button(ctx, label);
+			}
+		} else if (!strcmp(m.base_type_name, "int")) {
+			if (editable) {
+				gui_intfield(ctx, label, deref_ptr);
 			} else {
 				gui_button(ctx, label);
 			}

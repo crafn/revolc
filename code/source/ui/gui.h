@@ -14,6 +14,7 @@ Common voluntary options to be defined before including this file, or in this fi
 #define GUI_REALLOC <func>
 #define GUI_FREE <func>
 #define GUI_PRINTF <func>
+#define GUI_ASSERT <func>
 
 The library is designed to make zero memory allocations during normal runtime. It will allocate more memory in the following cases:
  - The number of gui elements increase -- this can be prevented by increasing
@@ -24,6 +25,7 @@ The library is designed to make zero memory allocations during normal runtime. I
    because gui layout is meant to be adjusted & saved before shipping.
 
 Todo list
+ - GuiContext_* -> Gui_*
  - C99 -> C89 (while keeping C++ compat)
  - header-only
  - gui demo
@@ -72,6 +74,10 @@ Todo list
 #	define GUI_PRINTF printf
 #endif
 
+#ifndef GUI_ASSERT
+#	define GUI_ASSERT assert
+#endif
+
 #include <stdint.h>
 #include <stddef.h>
 #include <stdarg.h>
@@ -95,6 +101,7 @@ void gui_sprintf_impl(char *buf, size_t count, const char *fmt, ...);
 #endif
 
 typedef uint32_t GuiId;
+#define NULL_GUI_ID 0
 
 typedef struct DragDropData {
 	const char *tag; // Receiver checks this 
@@ -185,6 +192,7 @@ typedef struct GuiContext_MemBucket {
 	int used;
 } GuiContext_MemBucket;
 
+// @todo Rename LayoutProperty -> Prop
 typedef struct GuiContext_LayoutProperty {
 	GuiId layout_id;
 	GuiId key_id;
@@ -196,6 +204,7 @@ typedef struct GuiContext_LayoutProperty {
 	char key_name[MAX_GUI_LABEL_SIZE];
 } GuiContext_LayoutProperty;
 
+// @todo Replace with temp LayoutProperty
 typedef struct GuiContext_Storage {
 	GuiId id;
 	GUI_BOOL bool_value;
@@ -222,6 +231,25 @@ typedef struct GuiContext_Element {
 	int solved_content_size[2]; // Can be smaller or larger than solved_size
 	GUI_BOOL solved_needs_scroll[2];
 } GuiContext_Element;
+
+typedef struct Gui_Tbl_Entry {
+	GuiId key;
+	int value;
+} Gui_Tbl_Entry;
+
+typedef struct Gui_Tbl {
+	struct Gui_Tbl_Entry *array;
+	int array_size;
+	int count;
+	GuiId null_key;
+	int null_value;
+} Gui_Tbl;
+
+GUI_API Gui_Tbl gui_create_tbl(int null_value, int expected_item_count);
+GUI_API void gui_destroy_tbl(Gui_Tbl *tbl);
+GUI_API int gui_get_tbl(Gui_Tbl *tbl, GuiId key);
+GUI_API void gui_set_tbl(Gui_Tbl *tbl, GuiId key, int value);
+GUI_API void gui_clear_tbl(Gui_Tbl *tbl);
 
 // Handles the gui state
 typedef struct GuiContext {
@@ -274,11 +302,10 @@ typedef struct GuiContext {
 	int draw_info_capacity;
 	int draw_info_count;
 
-	// @todo Consider using hashmap
+	Gui_Tbl prop_ix_tbl;
 	GuiContext_LayoutProperty *layout_props;
 	int layout_props_capacity;
 	int layout_props_count;
-	GUI_BOOL layout_props_need_sorting;
 	char layout_element_label[MAX_GUI_LABEL_SIZE];
 
 	GuiContext_Element *elements;

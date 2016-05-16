@@ -1,5 +1,7 @@
 #include "hashtable.h"
 
+#define HASHTABLE_LOAD_FACTOR 2
+
 #define DEFINE_HASHTABLE(K, V)\
 internal HashTbl_Entry(K, V) null_tbl_entry(K, V)(HashTbl(K, V) *tbl)\
 { return (HashTbl_Entry(K, V)) {\
@@ -9,13 +11,13 @@ internal HashTbl_Entry(K, V) null_tbl_entry(K, V)(HashTbl(K, V) *tbl)\
 }\
 \
 HashTbl(K, V) create_tbl(K, V)(	K null_key, V null_value,\
-								Ator *ator, U32 capacity)\
+								Ator *ator, U32 expected_item_count)\
 {\
 	HashTbl(K, V) tbl = {};\
 	tbl.null_key = null_key;\
 	tbl.null_value = null_value;\
 	tbl.ator = ator;\
-	tbl.array_size = capacity*2;\
+	tbl.array_size = expected_item_count*HASHTABLE_LOAD_FACTOR;\
 	tbl.array = ALLOC(ator, sizeof(*tbl.array)*tbl.array_size, "tbl.array");\
 	for (U32 i = 0; i < tbl.array_size; ++i)\
 		tbl.array[i] = null_tbl_entry(K, V)(&tbl);\
@@ -45,7 +47,7 @@ V get_tbl(K, V)(HashTbl(K, V) *tbl, K key)\
 void set_tbl(K, V)(HashTbl(K, V) *tbl, K key, V value)\
 {\
 	ensure(key != tbl->null_key);\
-	if (tbl->count > tbl->array_size/2) {\
+	if (tbl->count > tbl->array_size/HASHTABLE_LOAD_FACTOR) {\
 		/* Resize container */\
 		HashTbl(K, V) larger =\
 			create_tbl(K, V)(	tbl->null_key,\
@@ -83,7 +85,7 @@ void set_tbl(K, V)(HashTbl(K, V) *tbl, K key, V value)\
 	} else if (remove_existing) {\
 		entry->key = key;\
 		entry->key = tbl->null_key;\
-		entry->value = NULL_HANDLE;\
+		entry->value = tbl->null_value;\
 		ensure(tbl->count > 0);\
 		--tbl->count;\
 \
