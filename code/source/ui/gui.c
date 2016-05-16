@@ -225,19 +225,6 @@ static void gui_modified_id_label(char result[MAX_GUI_LABEL_SIZE], const char *l
 static GuiId gui_prop_hash(GuiId layout_id, GuiId key_id)
 { return layout_id ^ (key_id*2011); }
 
-#if 0
-static int layout_prop_cmp(const void *void_a, const void *void_b)
-{
-	const GuiContext_LayoutProperty *a = (const GuiContext_LayoutProperty*)void_a;
-	const GuiContext_LayoutProperty *b = (const GuiContext_LayoutProperty*)void_b;
-	int layout_dif = (a->layout_id > b->layout_id) - (a->layout_id < b->layout_id);
-	int key_dif = (a->key_id > b->key_id) - (a->key_id < b->key_id);
-	if (layout_dif)
-		return layout_dif;
-	return key_dif;
-}
-#endif
-
 // "foo:bar+123|Button" -> {"", "foo", "bar", "bar+123"}
 static void split_layout_str(	const char *strs[MAX_LAYOUTS_PER_ELEMENT],
 								int sizes[MAX_LAYOUTS_PER_ELEMENT],
@@ -276,22 +263,8 @@ static void split_layout_str(	const char *strs[MAX_LAYOUTS_PER_ELEMENT],
 	}
 }
 
-#if 0
-static void try_sort_layout_properties(GuiContext *ctx)
-{
-	if (ctx->layout_props_need_sorting) {
-		qsort(ctx->layout_props, ctx->layout_props_count, sizeof(*ctx->layout_props), layout_prop_cmp);
-		ctx->layout_props_need_sorting = GUI_FALSE;
-	}
-}
-#endif
-
 static GuiContext_LayoutProperty *find_layout_property(GuiContext *ctx, const char *label, const char *key, GUI_BOOL most_specific)
 {
-#if 0
-	try_sort_layout_properties(ctx);
-#endif
-
 	const char *layout_names[MAX_LAYOUTS_PER_ELEMENT];
 	int layout_name_sizes[MAX_LAYOUTS_PER_ELEMENT];
 	int layout_count;
@@ -303,11 +276,6 @@ static GuiContext_LayoutProperty *find_layout_property(GuiContext *ctx, const ch
 		GuiId layout_id = gui_hash(layout_names[i], layout_name_sizes[i]);
 
 		int ix = gui_get_tbl(&ctx->prop_ix_tbl, gui_prop_hash(layout_id, key_id));
-#if 0
-		GuiContext_LayoutProperty *found =
-			(GuiContext_LayoutProperty*)bsearch(
-				&prop, ctx->layout_props, ctx->layout_props_count, sizeof(*ctx->layout_props), layout_prop_cmp);
-#endif
 
 		if (ix >= 0)
 			return &ctx->layout_props[ix];
@@ -827,6 +795,7 @@ static void gui_draw(	GuiContext *ctx, GuiDrawInfo_Type type, int pos[2], int si
 		info.scissor_size[0] = scissor[2];
 		info.scissor_size[1] = scissor[3];
 	}
+	info.element_ix = gui_turtle(ctx)->element_ix;
 
 	if (ctx->draw_info_count == ctx->draw_info_capacity) {
 		// Need more space
@@ -1195,11 +1164,19 @@ void gui_post_frame(GuiContext *ctx)
 			i += gui_solve_element_tree_final_layout(ctx, i, pos, ctx->host_win_size, padding, offset);
 		}
 
-#define PRINT_TREE 0
+		for (i = 0; i < ctx->element_count; ++i) {
+			GuiContext_Element *elem = &ctx->elements[i];
+			GUI_ASSERT(elem->final_solved);
 
+			const char *solved_pos_str[2] = { "solved_pos_x", "solved_pos_y" };
+			GUI_V2(elem->solved_pos_delta[c] = elem->solved_pos[c] - layout_property(ctx, elem->label, solved_pos_str[c]));
+		}
+
+#define PRINT_TREE 0
 #if PRINT_TREE
 		GUI_PRINTF("ELEMENTS\n");
 #endif
+
 		for (i = 0; i < ctx->element_count; ++i) {
 			GuiContext_Element *elem = &ctx->elements[i];
 			GUI_ASSERT(elem->min_solved);
@@ -1217,22 +1194,29 @@ void gui_post_frame(GuiContext *ctx)
 #endif
 			const char *solved_pos_str[2] = { "solved_pos_x", "solved_pos_y" };
 			const char *solved_size_str[2] = { "solved_size_x", "solved_size_y" };
-			//const char *solved_min_size_str[2] = { "solved_min_size_x", "solved_min_size_y" };
 			const char *solved_content_size_str[2] = { "solved_content_size_x", "solved_content_size_y" };
 			const char *needs_scroll_str[2] = { "needs_scroll_x", "needs_scroll_y" };
 
+			// Record new layout values for next frame
 			GUI_V2(gui_update_layout_property_ex(	ctx, elem->label, solved_pos_str[c],
 													elem->solved_pos[c], GUI_FALSE));
 			GUI_V2(gui_update_layout_property_ex(	ctx, elem->label, solved_size_str[c],
 													elem->solved_size[c], GUI_FALSE));
-			//GUI_V2(gui_update_layout_property_ex(	ctx, elem->label, solved_min_size_str[c],
-			//										elem->solved_min_size[c], GUI_FALSE));
 			GUI_V2(gui_update_layout_property_ex(	ctx, elem->label, solved_content_size_str[c],
 													elem->solved_content_size[c], GUI_FALSE));
 			GUI_V2(gui_update_layout_property_ex(	ctx, elem->label, needs_scroll_str[c],
 													elem->solved_needs_scroll[c], GUI_FALSE));
 		}
 	}
+
+#if 0
+	// Hack: offset draw commands according to changes made in layout of the current frame
+	for (int i = 0; i < ctx->draw_info_count; ++i) {
+		GuiDrawInfo *info = &ctx->draw_infos[i];
+		GuiContext_Element *elem = &ctx->elements[info->element_ix];
+		GUI_V2(info->pos[c] += elem->solved_pos_delta[c]);
+	}
+#endif
 
 	for (int i = 0; i < MAX_GUI_WINDOW_COUNT; ++i) {
 		if (!ctx->windows[i].id)
@@ -1374,6 +1358,7 @@ static void gui_begin_ex(GuiContext *ctx, const char *label, GUI_BOOL detached)
 		GUI_V2(elem.manual_offset[c] = prev->manual_offset[c]);
 		elem.depth = ctx->turtle_ix;
 		elem.detached = detached;
+		gui_turtle(ctx)->element_ix = ctx->element_count;
 		gui_append_element(ctx, elem);
 	}
 

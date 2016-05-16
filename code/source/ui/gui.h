@@ -118,6 +118,7 @@ typedef struct GuiContext_Turtle {
 	int size[2]; // Copied from layout
 	char label[MAX_GUI_LABEL_SIZE]; // Label of the gui_begin
 	int window_ix;
+	int element_ix;
 	int layer; // Graphical layer
 	int scissor[4]; // Depends on window/panel/whatever pos and sizes. Given to draw commands. Zero == unused.
 
@@ -184,6 +185,10 @@ typedef struct GuiDrawInfo {
 	GUI_BOOL has_scissor;
 	int scissor_pos[2];
 	int scissor_size[2];
+
+	// Internal
+
+	int element_ix; // For hacking draw commands after solving the layout
 } GuiDrawInfo;
 
 typedef struct GuiContext_MemBucket {
@@ -230,6 +235,7 @@ typedef struct GuiContext_Element {
 	int solved_size[2];
 	int solved_content_size[2]; // Can be smaller or larger than solved_size
 	GUI_BOOL solved_needs_scroll[2];
+	int solved_pos_delta[2]; // Compared to prev frame
 } GuiContext_Element;
 
 typedef struct Gui_Tbl_Entry {
