@@ -772,6 +772,9 @@ static void gui_draw(	GuiContext *ctx, GuiDrawInfo_Type type, int pos[2], int si
 						int layer,
 						int scissor[4])
 {
+	if (!gui_window(ctx)->used_in_last_frame)
+		return; // Don't show first frame of window because layout is calculated at the end of frame
+
 	GuiDrawInfo info;
 	GUI_ZERO(info);
 	info.type = type;
@@ -1595,6 +1598,8 @@ void gui_begin_window_ex(GuiContext *ctx, const char *base_label, GUI_BOOL has_b
 
 	gui_begin_detached(ctx, win_label);
 	int *pos = gui_turtle(ctx)->pos;
+	int orig_pos[2];
+	GUI_V2(orig_pos[c] = pos[c]);
 	int *size = gui_turtle(ctx)->size;
 
 	int min_size[2];
@@ -1714,14 +1719,14 @@ void gui_begin_window_ex(GuiContext *ctx, const char *base_label, GUI_BOOL has_b
 		}
 
 		int px_pos[2], px_size[2];
-		pt_to_px(px_pos, pos, ctx->dpi_scale);
+		pt_to_px(px_pos, orig_pos, ctx->dpi_scale);
 		pt_to_px(px_size, size, ctx->dpi_scale);
 		px_size[1] = win->bar_height;
 		gui_draw(	ctx, GuiDrawInfo_title_bar, px_pos, px_size, GUI_FALSE, GUI_FALSE, gui_focused(ctx),
 					gui_label_text(base_label), gui_layer(ctx) + 1, gui_scissor(ctx));
 
 		{ // Minimize button
-			GUI_DECL_V2(int, px_pos, pos[0] + size[0] - win->bar_height, pos[1]);
+			GUI_DECL_V2(int, px_pos, orig_pos[0] + size[0] - win->bar_height, orig_pos[1]);
 			GUI_DECL_V2(int, px_box_size, win->bar_height, win->bar_height);
 
 			char box_label[MAX_GUI_LABEL_SIZE];
@@ -1749,7 +1754,7 @@ void gui_begin_window_ex(GuiContext *ctx, const char *base_label, GUI_BOOL has_b
 
 		int handle_size[2] = {slider_size[0], slider_size[1]};
 		int handle_pos[2];
-		GUI_V2(handle_pos[c] = pos[c] + size[c] - handle_size[c]);
+		GUI_V2(handle_pos[c] = orig_pos[c] + size[c] - handle_size[c]);
 		GUI_BOOL went_down, down, hover;
 		gui_button_logic(ctx, resize_label, handle_pos, handle_size, NULL, &went_down, &down, &hover);
 
